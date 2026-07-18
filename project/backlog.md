@@ -54,6 +54,8 @@ In each section, items are listed approximately from newest to oldest.
 	- Builds and runs clean on stock Debian 13; done in a container since this dev box has newer mixed libs
 - ✅ Note the exact dependency set and versions that produce a working build
 	- Recorded in the build notes outside the repo
+- ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean
+	- Meson project moved under `source/` with its internal layout intact; builds and runs green
 
 ### Milestone 2 - Decouple from Cinnamon (benefits every target)
 
