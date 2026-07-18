@@ -112,7 +112,7 @@ The Linux reference build lives in a stock Debian 13 container rather than on th
 
 ### Building (Linux reference)
 
-The fork still builds exactly like upstream. Stock Debian 13 is the known-good baseline.
+Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable project lives under `source/` (the repo root is kept clean), so meson is pointed there.
 
 - Install the toolchain and dev libraries:
 	- `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`
@@ -121,7 +121,7 @@ The fork still builds exactly like upstream. Stock Debian 13 is the known-good b
 	- `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`
 	- `libx11-dev libxext-dev libxrender-dev`
 - Configure and build:
-	- `meson setup build`
+	- `meson setup build source`
 	- `ninja -C build`
 - The binary lands at `build/src/nemo`. Desktop drawing is the separate `nemo-desktop` binary - just don't run that one outside Cinnamon.
 
@@ -134,6 +134,17 @@ The fork still builds exactly like upstream. Stock Debian 13 is the known-good b
 ## Project structure
 
 ### Folder structure
+
+Repo root is kept deliberately clean: docs and license files, plus a handful of top-level dirs.
+
+- `source/` - the buildable project (meson entry point and all C sources; point meson here).
+- `project/` - design and backlog.
+- `assets/` - fork-authored assets.
+- `utility/` - standalone helper scripts and actions.
+- `cicd/` - build/release automation (planned).
+- `.github/` - repo metadata (ownership, funding).
+
+Upstream shipped everything at the root with decades of accumulated meta-files; the fork consolidated the build under `source/` and dropped the files that no longer serve a standalone, cross-platform project (old changelogs, distro packaging, upstream CI). Internal `source/` layout is the conventional GTK/meson structure, left intact.
 
 ### Logical code structure
 
