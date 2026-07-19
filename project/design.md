@@ -35,6 +35,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 	- [Saves and persistence](#saves-and-persistence)
 	- [UI](#ui)
 	- [Testing](#testing)
+- [Delivery (CI/CD, branches, releases)](#delivery-cicd-branches-releases)
 
 <!-- /TOC -->
 
@@ -141,7 +142,7 @@ Repo root is kept deliberately clean: docs and license files, plus a handful of 
 - `project/` - design and backlog.
 - `assets/` - fork-authored assets.
 - `utility/` - standalone helper scripts and actions.
-- `cicd/` - build/release automation (planned).
+- `cicd/` - local build/release automation (the pipeline engine, git backup+publish, release helper, git hooks). See "Delivery".
 - `.github/` - repo metadata (ownership, funding).
 
 Upstream shipped everything at the root with decades of accumulated meta-files; the fork consolidated the build under `source/` and dropped the files that no longer serve a standalone, cross-platform project (old changelogs, distro packaging, upstream CI). Internal `source/` layout is the conventional GTK/meson structure, left intact.
@@ -165,3 +166,15 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 ### UI
 
 ### Testing
+
+## Delivery (CI/CD, branches, releases)
+
+Guiding constraint: GitHub is dumb git hosting plus optional release storage, nothing more. No hosted CI, no Actions, as few third-party tools as possible; the whole pipeline runs locally (`cicd/cicd.bash`). This is the same delivery model proven on a sibling project, brought over as high-level concepts and actions - the branch flow, the merge gate, the release cut, the git backup+publish - not the language tooling. That sibling is a Rust/cargo project; nemo-anywhere is C/GTK built with meson/ninja in the `nemo-build` container, so each stage is wired to its meson/container equivalent (or left disabled until it exists).
+
+- Branch flow: feature branches merge `--no-ff` into `dev` (the integration target). `main` is release-only: merging dev into main cuts a release. Nothing is ever committed directly on main. Feature-branch pushes are not gated.
+- Merge gate: `cicd/cicd.bash --gate` runs as the `pre-push` hook for pushes to main or dev - the local stand-in for a hosted CI workflow. For nemo-anywhere today the gate is format-check (none yet) + lints (none yet) + tests, and "tests" is a container build followed by a headless `--version` smoke launch. Install the hook per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
+- Version-bump guard: the same pre-push hook blocks a push to main unless `source/meson.build` is a strict version increase over what's on main, and (once one exists) the README `Release-<ver>` badge matches. Skips the first main push and branch deletes.
+- Pipeline stages (the enduring shape; a stage self-skips when unconfigured): format -> debug build -> tests+lints -> profiler -> release build (native + cross) -> packages -> dogfood -> git backup+publish. Ready now: debug build, smoke test, backup+publish. The rest are present but disabled in `cicd/config.bash`, each carrying a `NEEDS:` note on what a meson/C equivalent would take (a C formatter/linter gate, a host-side release binary out of the container's `/build`, meson cross-compilation for Windows/ARM, Linux/Windows packaging). Nothing was speculatively ported.
+- Releases: `cicd/utility/release.bash` cuts from a clean main - tag `v<version>` (version read from `source/meson.build` alone) and optional push + GitHub Release upload. Tag+push work today; artifact attach is gated until the release-build stage produces host-side artifacts, and the first release needs a `Release-<ver>` README badge added on dev.
+- Backup+publish: `cicd/utility/n8git_backup-and-publish` rar-backs the project tree into `../versions/` (GFS-rotated) and then syncs/commits/pushes the current branch. It is the pipeline's last stage and can be run on its own.
+- Build matrix: Linux x86_64 today (container). Windows (MSYS2/MinGW-w64) is the first cross target and is Phase 2; ARM and others follow. macOS/BSD deferred.

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+##	- Purpose: Local merge gate. The stand-in for a hosted CI: nothing reaches an
+##	  integration branch (main/dev) unverified, even without a full cicd run.
+##	- Behavior (per push ref):
+##	   - push to main or dev  -> run `cicd/cicd.bash --gate` (format-check + lints +
+##	     tests, fail-fast, nothing mutated). A failure blocks the push.
+##	   - push to main         -> also a version-bump guard: source/meson.build must
+##	     be a strict version increase over what's already on main, and (once one
+##	     exists) the README "Release-<ver>" badge must match. So a release merge
+##	     can't ship the same-or-lower version.
+##	   - any other branch     -> not gated (feature branches push freely).
+##	- Skips: first push of a ref, branch deletes.
+##	- Override: `git push --no-verify`, or SKIP_GATE=1.
+##	- Install: cicd/hooks/install.bash (copies this to .git/hooks/pre-push).
+
+##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
+##	Licensed under The MIT License (MIT). Full text at:
+##		https://mit-license.org/
+##	SPDX-License-Identifier: MIT
+
+
+set -Eeuo pipefail
+
+[[ "${SKIP_GATE:-0}" == "1" ]] && exit 0
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+## From .git/hooks/ the repo root is two up; from cicd/hooks/ (running in-tree) also two up.
+root="$(git rev-parse --show-toplevel)"
+z="0000000000000000000000000000000000000000"
+
+## meson.build: first `version : '...'`.
+_ver_from(){ grep -oP "version\s*:\s*'\K[^']+" "$1" 2>/dev/null | head -1; }
+
+gate_ran=0
+run_gate(){ ((gate_ran)) && return 0; gate_ran=1
+	echo "[ pre-push gate: cicd.bash --gate ]"
+	"${root}/cicd/cicd.bash" --gate
+}
+
+## git feeds "<localref> <localsha> <remoteref> <remotesha>" lines on stdin.
+while read -r localref localsha remoteref remotesha; do
+	[[ "$localsha" == "$z" ]] && continue          # branch delete: skip
+	branch="${remoteref#refs/heads/}"
+	case "$branch" in
+		main|dev) run_gate ;;
+		*) continue ;;
+	esac
+
+	## Version-bump guard: main only, and only when main already has a version to
+	## compare against (skips the very first push to main).
+	if [[ "$branch" == "main" && "$remotesha" != "$z" ]]; then
+		newver="$(_ver_from "${root}/source/meson.build")"
+		oldver="$(git show "${remotesha}:source/meson.build" 2>/dev/null | grep -oP "version\s*:\s*'\K[^']+" | head -1 || true)"
+		if [[ -n "$oldver" && -n "$newver" ]]; then
+			if [[ "$newver" == "$oldver" ]]; then
+				echo "FAILED: push to main does not bump the version (still ${newver}); bump source/meson.build on dev first" >&2
+				exit 1
+			fi
+			## Strict increase via version sort (approximates semver precedence,
+			## incl. most prerelease ordering). Highest must be the new version.
+			top="$(printf '%s\n%s\n' "$oldver" "$newver" | sort -V | tail -1)"
+			[[ "$top" == "$newver" ]] || { echo "FAILED: main version ${newver} is not greater than ${oldver}" >&2; exit 1; }
+		fi
+		## README release badge must match (once such a badge exists). shields.io
+		## escapes '-' as '--'. No badge yet = nothing to enforce (first release adds it).
+		if grep -q "Release-[^ )]*-" "${root}/README.md" 2>/dev/null; then
+			badge_ver="${newver//-/--}"
+			grep -q "Release-${badge_ver}-" "${root}/README.md" || { echo "FAILED: README release badge != ${newver}; update it on dev before the release merge" >&2; exit 1; }
+		fi
+	fi
+done
+
+exit 0
