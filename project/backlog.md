@@ -51,16 +51,27 @@ In each section, items are listed approximately from newest to oldest.
 ### Milestone 1 - Linux baseline
 
 - ✅ Build upstream as-is on Linux (meson) to confirm a known-good reference
+
 	- Builds and runs clean on stock Debian 13; done in a container since this dev box has newer mixed libs
+
 - ✅ Note the exact dependency set and versions that produce a working build
+
 	- Recorded in the build notes outside the repo
+
 - ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean
+
 	- Meson project moved under `source/` with its internal layout intact; builds and runs green
+
 - ✅ Rebrand to "Nemo Anywhere" / `nemo-anywhere` so it co-installs and runs alongside upstream Nemo without conflict
+
 	- Renamed the installed identity only (binary, helpers, D-Bus names, GSettings schema `org.nemo-anywhere.*`, config/data dirs, `.desktop`/icon/mime/polkit/man/lang, extension SDK); internal C symbols and in-binary GResource paths left as-is (no clash)
+
 	- Settings fully isolated (fresh `org.nemo-anywhere.*` schema, `~/.config/nemo-anywhere`); does not claim `org.freedesktop.FileManager1` when upstream holds it
+
 	- Verified by staged install: no shared-dir filename collisions; window runs headless
+
 - 🔘 **NEXT** - Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof; so far only staged-install audit + headless launch)
+
 - 🔘 Isolate per-file view metadata keys (`metadata::nemo-*`) so the two builds don't share icon-view/layout state on the same files
 
 ### Milestone 2 - Decouple from Cinnamon (benefits every target)
@@ -92,6 +103,14 @@ In each section, items are listed approximately from newest to oldest.
 - 🔘 macOS
 
 ### Milestone 6 - CI/CD
+
+- ✅ Adopt the local-only delivery model: `dev` = integration target, `main` = release-only (dev->main = release cut); feature branches merge `--no-ff` into dev
+	- Copied as high-level concepts/actions (not language tooling) from the sibling project; identity-swapped to t00mietum
+- ✅ Stand up the local pipeline: `cicd/cicd.bash` engine + `config.bash`, git backup+publish, `release.bash`, and a pre-push merge gate (`--gate`, installed via `cicd/hooks/install.bash`)
+	- Ready + verified now: container meson build + `--version` smoke test, and backup+publish. Gate passes (prints `nemo-anywhere 6.6.4`)
+- 🛠️ Enable the disabled stages as the build matures (present but commented with `NEEDS:` notes; nothing was pre-ported)
+- 🔘 Add a C formatter/linter gate (clang-format/clang-tidy, or meson warnings-as-errors) and wire it into format/lint stages
+- 🔘 Get release binaries onto the host (mount a build dir or `docker cp` out of the container `/build`) + an optimized buildtype, then turn on artifact collection (`RELEASE_ENABLE`/`RELEASE_ARTIFACT_DIR`)
 
 ### Milestone 7 - Packaging
 

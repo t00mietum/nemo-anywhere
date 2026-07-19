@@ -17,3 +17,6 @@ build/
 # Compiled translations
 *.gmo
 *.mo
+
+# Local CI/CD transient artifacts (logs, profiling, release staging)
+/cicd/artifacts/
