@@ -50,22 +50,27 @@ Nemo, freed from its desktop. A great file manager should run anywhere. This one
 
 ## Why
 
-Nemo is one of the best file managers ever made. Fast, sane, powerful, and it respects how you actually work.
+Nemo is one of the best file managers made to date. Fast, sane, powerful, and it respects how you actually work.
 
 There is one catch. It belongs to the Cinnamon desktop. If you run anything else, you get it with strings attached - or not at all.
 
 This project cuts the strings:
 
 - Take Nemo as-is, from the source.
+
 - Remove every assumption that says "you are running Cinnamon" or even "you are running Linux".
+
 - Ship it everywhere.
 
 That means, in order:
 
 - **Linux**:
 	- Standalone on any desktop.
+
 	- No Cinnamon Desktop dependencies.
+
 	- No external dependencies whatsoever!
+
 	- Doesn't try to compete with existing desktop managers for control of desktop rendering. (A real pain point with OG Nemo.)
 
 - **Windows**: A real native build, not a compatibility shim.
