@@ -309,7 +309,7 @@ reload_actions_layout (NemoActionManager *action_manager)
     g_clear_object (&priv->json_parser);
 
     JsonParser *parser = json_parser_new ();
-    path = g_build_filename (g_get_user_config_dir (), "nemo", LAYOUT_FILENAME, NULL);
+    path = g_build_filename (g_get_user_config_dir (), NEMO_APP_SLUG, LAYOUT_FILENAME, NULL);
 
     if (!json_parser_load_from_file (parser, path, &error)) {
         if (error != NULL) {
@@ -369,7 +369,7 @@ monitor_nemo_config_dir (NemoActionManager *action_manager)
     GFile *file;
     GFileMonitor *monitor;
 
-    g_autofree gchar *path = g_build_filename (g_get_user_config_dir (), "nemo", NULL);
+    g_autofree gchar *path = g_build_filename (g_get_user_config_dir (), NEMO_APP_SLUG, NULL);
 
     file = g_file_new_for_path (path);
     monitor = g_file_monitor_directory (file, G_FILE_MONITOR_WATCH_MOVES | G_FILE_MONITOR_SEND_MOVED, NULL, NULL);
@@ -534,7 +534,7 @@ nemo_action_manager_get_system_directory_path (const gchar *data_dir)
     g_autofree gchar *nemo_path = NULL;
     g_autofree gchar *target = NULL;
 
-    nemo_path = g_build_filename (data_dir, "nemo", NULL);
+    nemo_path = g_build_filename (data_dir, NEMO_APP_SLUG, NULL);
 
     // For symbolic links, we try to figure out its actual path
     // to prevent possible duplicate right-click menu items.
@@ -550,7 +550,7 @@ nemo_action_manager_get_system_directory_path (const gchar *data_dir)
 gchar *
 nemo_action_manager_get_user_directory_path (void)
 {
-    return g_build_filename (g_get_user_data_dir (), "nemo", "actions", NULL);
+    return g_build_filename (g_get_user_data_dir (), NEMO_APP_SLUG, "actions", NULL);
 }
 
 typedef struct

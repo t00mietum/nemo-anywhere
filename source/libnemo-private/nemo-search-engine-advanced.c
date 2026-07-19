@@ -121,7 +121,7 @@ get_cat_helper_directories (void)
     data_dirs = (gchar **) g_get_system_data_dirs ();
 
     for (i = 0; i < g_strv_length (data_dirs); i++) {
-        path = g_build_filename (data_dirs[i], "nemo", "search-helpers", NULL);
+        path = g_build_filename (data_dirs[i], NEMO_APP_SLUG, "search-helpers", NULL);
 
         if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
             g_free (path);
@@ -131,7 +131,7 @@ get_cat_helper_directories (void)
         helper_dirs = g_list_prepend (helper_dirs, path);
     }
 
-    path = g_build_filename (g_get_user_data_dir (), "nemo", "search-helpers", NULL);
+    path = g_build_filename (g_get_user_data_dir (), NEMO_APP_SLUG, "search-helpers", NULL);
 
     if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
         g_mkdir_with_parents (path, DEFAULT_NEMO_DIRECTORY_MODE);

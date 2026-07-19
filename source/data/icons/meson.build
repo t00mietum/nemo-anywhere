@@ -1,9 +1,9 @@
 publicIcons = [
-  'hicolor/apps/16x16/nemo.png',
-  'hicolor/apps/22x22/nemo.png',
-  'hicolor/apps/24x24/nemo.png',
-  'hicolor/apps/32x32/nemo.png',
-  'hicolor/apps/scalable/nemo.svg',
+  'hicolor/apps/16x16/nemo-anywhere.png',
+  'hicolor/apps/22x22/nemo-anywhere.png',
+  'hicolor/apps/24x24/nemo-anywhere.png',
+  'hicolor/apps/32x32/nemo-anywhere.png',
+  'hicolor/apps/scalable/nemo-anywhere.svg',
   'hicolor/actions/16x16/nemo-eject.png',
   'hicolor/actions/16x16/menu-bullet.png',
   'hicolor/actions/16x16/menu-sort-up.png',
@@ -51,9 +51,9 @@ privateIcons = [
   'hicolor/emblems/48x48/emblem-note.png',
 ]
 noInstallIcons = [
-  'hicolor/apps/16x16/nemo.svg',
-  'hicolor/apps/22x22/nemo.svg',
-  'hicolor/apps/32x32/nemo.svg',
+  'hicolor/apps/16x16/nemo-anywhere.svg',
+  'hicolor/apps/22x22/nemo-anywhere.svg',
+  'hicolor/apps/32x32/nemo-anywhere.svg',
 ]
 
 foreach icon : publicIcons
@@ -75,7 +75,7 @@ foreach icon : privateIcons
   size    = nameParts[2]
   file    = nameParts[3]
   install_data(icon,
-    install_dir: join_paths(get_option('datadir'), 'nemo', 'icons', theme, size, context)
+    install_dir: join_paths(get_option('datadir'), appSlug, 'icons', theme, size, context)
   )
 endforeach
 

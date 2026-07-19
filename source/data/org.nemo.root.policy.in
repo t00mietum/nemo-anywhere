@@ -5,19 +5,19 @@
 
 <policyconfig>
 
- <vendor>Nemo Project</vendor>
- <vendor_url>https://github.com/linuxmint/nemo</vendor_url>
+ <vendor>Nemo Anywhere</vendor>
+ <vendor_url>https://github.com/t00mietum/nemo-anywhere</vendor_url>
 
- <action id="org.nemo.root">
-   <description>Run Nemo with elevated privileges</description>
-   <message gettext-domain="nemo">Files</message>
+ <action id="org.nemo-anywhere.root">
+   <description>Run Nemo Anywhere with elevated privileges</description>
+   <message gettext-domain="nemo-anywhere">Files</message>
    <icon_name>gksu-root-terminal</icon_name>
    <defaults>
      <allow_any>auth_admin_keep</allow_any>
      <allow_inactive>auth_admin_keep</allow_inactive>
      <allow_active>auth_admin_keep</allow_active>
    </defaults>
-   <annotate key="org.freedesktop.policykit.exec.path">@bindir@/nemo</annotate>
+   <annotate key="org.freedesktop.policykit.exec.path">@bindir@/nemo-anywhere</annotate>
    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
  </action>
 

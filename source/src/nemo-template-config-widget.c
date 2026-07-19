@@ -500,7 +500,7 @@ on_open_folder_clicked (GtkWidget *button, NemoTemplateConfigWidget *widget)
     nemo_application_open_location (nemo_application_get_singleton (),
                                     location,
                                     NULL,
-                                    "nemo",
+                                    NEMO_APP_SLUG,
                                     FALSE);
 
     g_free (path);

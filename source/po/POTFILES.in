@@ -46,7 +46,7 @@ libnemo-private/nemo-search-directory-file.c
 libnemo-private/nemo-tree-view-drag-dest.c
 libnemo-private/nemo-undo-signal-handlers.c
 libnemo-private/nemo-vfs-file.c
-libnemo-private/org.nemo.gschema.xml.in
+libnemo-private/org.nemo-anywhere.gschema.xml
 src/nemo-action-config-widget.c
 src/nemo-application.c
 src/nemo-autorun-software.c

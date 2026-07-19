@@ -716,7 +716,7 @@ nemo_main_application_local_command_line (GApplication *application,
 	}
 
 	if (version) {
-		g_print ("nemo " VERSION "\n");
+		g_print ("nemo-anywhere " VERSION "\n");
 		goto out;
 	}
 
@@ -979,7 +979,7 @@ NemoApplication *
 nemo_main_application_get_singleton (void)
 {
     return nemo_application_initialize_singleton (NEMO_TYPE_MAIN_APPLICATION,
-                                                  "application-id", "org.Nemo",
+                                                  "application-id", "org.NemoAnywhere",
                                                   "flags", G_APPLICATION_HANDLES_OPEN,
                                                   "register-session", TRUE,
                                                   NULL);

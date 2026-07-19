@@ -43,7 +43,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#define NEMO_USER_DIRECTORY_NAME "nemo"
+#define NEMO_USER_DIRECTORY_NAME NEMO_APP_SLUG
 
 #define DESKTOP_DIRECTORY_NAME "Desktop"
 #define LEGACY_DESKTOP_DIRECTORY_NAME ".gnome-desktop"
@@ -196,7 +196,7 @@ nemo_get_accel_map_file (void)
 char *
 nemo_get_scripts_directory_path (void)
 {
-	return g_build_filename (g_get_user_data_dir (), "nemo", "scripts", NULL);
+	return g_build_filename (g_get_user_data_dir (), NEMO_APP_SLUG, "scripts", NULL);
 }
 
 typedef struct {
@@ -1133,7 +1133,7 @@ nemo_inhibit_power_manager (const char *message)
 					      GSM_INTERFACE,
 					      "Inhibit",
 					      g_variant_new ("(susu)",
-							     "nemo",
+							     NEMO_APP_SLUG,
 							     (guint) 0,
 							     message,
 							     (guint) (INHIBIT_LOGOUT | INHIBIT_SUSPEND)),
@@ -1714,7 +1714,7 @@ nemo_treating_root_as_normal (void)
     // We only need to set this at startup then cache the result, as we check
     // quite a bit in various parts of the code.
     if (g_once_init_enter (&once_init)) {
-        GSettings *prefs = g_settings_new("org.nemo.preferences");
+        GSettings *prefs = g_settings_new("org.nemo-anywhere.preferences");
 
         root_is_normal = g_settings_get_boolean (prefs, "treat-root-as-normal");
         g_object_unref (prefs);

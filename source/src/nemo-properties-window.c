@@ -4889,7 +4889,7 @@ create_properties_window (StartupData *startup_data)
 
 	window->details->target_files = nemo_file_list_copy (startup_data->target_files);
 
-	gtk_window_set_wmclass (GTK_WINDOW (window), "file_properties", "Nemo");
+	gtk_window_set_wmclass (GTK_WINDOW (window), "file_properties", "nemo-anywhere");
 
 	gtk_window_set_default_size (GTK_WINDOW (window), 500, -1);
 

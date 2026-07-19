@@ -7117,7 +7117,7 @@ open_as_root (NemoView *view, const gchar *path)
 
     gchar *argv[4];
     argv[0] = (gchar *)"pkexec";
-    argv[1] = (gchar *)"nemo";
+    argv[1] = (gchar *)NEMO_APP_SLUG;
     argv[2] = g_strdup (path);
     argv[3] = NULL;
     GPid pid;
