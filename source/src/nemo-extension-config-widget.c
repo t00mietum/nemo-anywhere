@@ -147,7 +147,7 @@ detect_extensions (NemoExtensionConfigWidget *widget)
 {
     gchar *out = NULL;
 
-    if (g_spawn_command_line_sync (LIBEXECDIR "/nemo-extensions-list",
+    if (g_spawn_command_line_sync (LIBEXECDIR "/nemo-anywhere-extensions-list",
                                    &out,
                                    NULL,
                                    NULL,

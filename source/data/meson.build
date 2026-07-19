@@ -6,19 +6,19 @@ dataConf.set('VERSION', meson.project_version())
 desktopFiles = [
   configure_file(
     input : 'nemo-autorun-software.desktop.in',
-    output: 'nemo-autorun-software.desktop',
+    output: 'nemo-anywhere-autorun-software.desktop',
     configuration: dataConf,
   ),
 
   configure_file(
     input : 'nemo-autostart.desktop.in',
-    output: 'nemo-autostart.desktop',
+    output: 'nemo-anywhere-autostart.desktop',
     configuration: dataConf,
   ),
 
   configure_file(
     input : 'nemo.desktop.in',
-    output: 'nemo.desktop',
+    output: 'nemo-anywhere.desktop',
     configuration: dataConf,
   )
 ]
@@ -31,16 +31,12 @@ install_data(desktopFiles,
 dataConf = configuration_data()
 dataConf.set('bindir', join_paths(get_option('prefix'), get_option('bindir')))
 
+# No org.freedesktop.FileManager1 activation file: co-install leaves that name
+# to upstream Nemo. Nemo Anywhere still owns it opportunistically at runtime.
 dbusFiles = [
   configure_file(
     input : 'nemo.service.in',
-    output: 'nemo.service',
-    configuration: dataConf,
-  ),
-
-  configure_file(
-    input : 'nemo.FileManager1.service.in',
-    output: 'nemo.FileManager1.service',
+    output: 'org.NemoAnywhere.service',
     configuration: dataConf,
   ),
 ]
@@ -51,9 +47,9 @@ install_data(dbusFiles,
 
 ################################################################################
 
-mimeFile_translated = custom_target('nemo.xml',
+mimeFile_translated = custom_target('nemo-anywhere.xml',
   input : ['nemo.xml.in'],
-  output: 'nemo.xml',
+  output: 'nemo-anywhere.xml',
   command: ['intltool-merge',
     '--quiet',
     '--xml-style',
@@ -71,7 +67,7 @@ dataConf.set('bindir', join_paths(get_option('prefix'), get_option('bindir')))
 
 rootPolicyFile = configure_file(
   input : 'org.nemo.root.policy.in',
-  output: 'org.nemo.root.policy',
+  output: 'org.nemo-anywhere.root.policy',
   configuration: dataConf,
 )
 
@@ -79,7 +75,7 @@ install_data(rootPolicyFile,
   install_dir: join_paths(get_option('datadir'), 'polkit-1', 'actions')
 )
 
-foreach lang_file: ['nemo_action.lang', 'nemo_search_helper.lang']
+foreach lang_file: ['nemo-anywhere_action.lang', 'nemo-anywhere_search_helper.lang']
   foreach sv_dir: ['gtksourceview-2.0', 'gtksourceview-3.0', 'gtksourceview-4']
     install_data(lang_file,
       install_dir: join_paths(get_option('datadir'), sv_dir, 'language-specs')

@@ -192,7 +192,7 @@ class NemoActionsOrganizer(Gtk.Box):
         self.down_button = self.builder.get_object("down_button")
         self.down_button.connect("clicked", self.down_button_clicked)
 
-        self.nemo_plugin_settings = Gio.Settings(schema_id="org.nemo.plugins")
+        self.nemo_plugin_settings = Gio.Settings(schema_id="org.nemo-anywhere.plugins")
         # Disabled/Enabled may be toggled in nemo preferences directly, keep us in sync.
         self.nemo_plugin_settings.connect("changed", self.on_disabled_settings_list_changed)
 

@@ -359,13 +359,13 @@ static void
 on_open_folder_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
 {
     gchar *path = NULL;
-    path = g_build_filename (g_get_user_data_dir (), "nemo", "actions", NULL);
+    path = g_build_filename (g_get_user_data_dir (), NEMO_APP_SLUG, "actions", NULL);
     GFile *location = g_file_new_for_path (path);
 
     nemo_application_open_location (nemo_application_get_singleton (),
                                     location,
                                     NULL,
-                                    "nemo",
+                                    NEMO_APP_SLUG,
                                     FALSE);
 
     g_free (path);

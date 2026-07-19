@@ -56,6 +56,11 @@ In each section, items are listed approximately from newest to oldest.
 	- Recorded in the build notes outside the repo
 - ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean
 	- Meson project moved under `source/` with its internal layout intact; builds and runs green
+- ✅ Rebrand to "Nemo Anywhere" / `nemo-anywhere` so it co-installs and runs alongside upstream Nemo without conflict
+	- Renamed the installed identity only (binary, helpers, D-Bus names, GSettings schema `org.nemo-anywhere.*`, config/data dirs, `.desktop`/icon/mime/polkit/man/lang, extension SDK); internal C symbols and in-binary GResource paths left as-is (no clash)
+	- Settings fully isolated (fresh `org.nemo-anywhere.*` schema, `~/.config/nemo-anywhere`); does not claim `org.freedesktop.FileManager1` when upstream holds it
+	- Verified by staged install: no shared-dir filename collisions; window runs headless
+- 🔘 Isolate per-file view metadata keys (`metadata::nemo-*`) so the two builds don't share icon-view/layout state on the same files
 
 ### Milestone 2 - Decouple from Cinnamon (benefits every target)
 

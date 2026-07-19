@@ -665,7 +665,7 @@ load_bookmark_metadata_file (NemoBookmarkList *list)
     gchar *filename;
 
     filename = g_build_filename (g_get_user_config_dir (),
-                                 "nemo",
+                                 NEMO_APP_SLUG,
                                  "bookmark-metadata",
                                  NULL);
 
@@ -836,7 +836,7 @@ save_bookmark_metadata_file (NemoBookmarkList *list)
     gchar *filename;
 
     filename = g_build_filename (g_get_user_config_dir (),
-                                 "nemo",
+                                 NEMO_APP_SLUG,
                                  "bookmark-metadata",
                                  NULL);
 

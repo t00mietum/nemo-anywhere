@@ -330,14 +330,14 @@ action_about_nemo_callback (GtkAction *action,
 	date = g_date_time_new_now_local ();
 
 	gtk_show_about_dialog (GTK_WINDOW (user_data),
-			       "program-name", _("Nemo"),
+			       "program-name", _("Nemo Anywhere"),
 			       "version", VERSION,
-			       "comments", _("Nemo lets you organize "
+			       "comments", _("Nemo Anywhere lets you organize "
 					     "files and folders, both on "
 					     "your computer and online."),
 			       "license", license_trans,
 			       "wrap-license", TRUE,
-			      "logo-icon-name", "folder",
+			      "logo-icon-name", "nemo-anywhere",
 			      NULL);
 
 	g_free (license_trans);
@@ -1439,7 +1439,7 @@ static const GtkActionEntry main_entries[] = {
                                  G_CALLBACK (action_nemo_manual_callback) }, **/
   /* name, stock id */         { "About Nemo", "xsi-help-about-symbolic",
   /* label, accelerator */       N_("_About"), NULL,
-  /* tooltip */                  N_("Display credits for the creators of Nemo"),
+  /* tooltip */                  N_("Display credits for the creators of Nemo Anywhere"),
                                  G_CALLBACK (action_about_nemo_callback) },
   /* name, stock id */         { "Zoom In", "xsi-zoom-in-symbolic",
   /* label, accelerator */       N_("Zoom _In"), "<control>plus",
