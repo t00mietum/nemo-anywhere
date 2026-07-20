@@ -11,12 +11,6 @@ desktopFiles = [
   ),
 
   configure_file(
-    input : 'nemo-autostart.desktop.in',
-    output: 'nemo-anywhere-autostart.desktop',
-    configuration: dataConf,
-  ),
-
-  configure_file(
     input : 'nemo.desktop.in',
     output: 'nemo-anywhere.desktop',
     configuration: dataConf,

@@ -59,8 +59,6 @@
 
 #include "nemo-file-changes-queue.h"
 #include "nemo-file-private.h"
-#include "nemo-desktop-icon-file.h"
-#include "nemo-desktop-link-monitor.h"
 #include "nemo-global-preferences.h"
 #include "nemo-link.h"
 #include "nemo-desktop-utils.h"

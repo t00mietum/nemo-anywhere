@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Nemo Anywhere
-Comment=Start Nemo Anywhere desktop at log in
-Exec=nemo-anywhere-desktop
-OnlyShowIn=X-Cinnamon;
-AutostartCondition=GSettings org.nemo-anywhere.desktop show-desktop-icons
-X-GNOME-AutoRestart=true
-NoDisplay=true

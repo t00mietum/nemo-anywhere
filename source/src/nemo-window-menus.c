@@ -39,7 +39,6 @@
 #include "nemo-window-manage-views.h"
 #include "nemo-window-bookmarks.h"
 #include "nemo-window-private.h"
-#include "nemo-desktop-window.h"
 #include "nemo-location-bar.h"
 #include "nemo-icon-view.h"
 #include "nemo-list-view.h"
@@ -142,16 +141,14 @@ static void
 action_home_callback (GtkAction *action,
 		      gpointer user_data)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        NemoWindow *window;
-        NemoWindowSlot *slot;
+    NemoWindow *window;
+    NemoWindowSlot *slot;
 
-        window = NEMO_WINDOW (user_data);
+    window = NEMO_WINDOW (user_data);
 
-        slot = nemo_window_get_active_slot (window);
+    slot = nemo_window_get_active_slot (window);
 
-        nemo_window_slot_go_home (slot, nemo_event_get_window_open_flags ());
-    }
+    nemo_window_slot_go_home (slot, nemo_event_get_window_open_flags ());
 }
 
 static void
@@ -252,27 +249,21 @@ static void
 action_zoom_in_callback (GtkAction *action,
 			 gpointer user_data)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        nemo_view_bump_zoom_level (get_current_view (user_data), 1);
-    }
+    nemo_view_bump_zoom_level (get_current_view (user_data), 1);
 }
 
 static void
 action_zoom_out_callback (GtkAction *action,
 			  gpointer user_data)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        nemo_view_bump_zoom_level (get_current_view (user_data), -1);
-    }
+    nemo_view_bump_zoom_level (get_current_view (user_data), -1);
 }
 
 static void
 action_zoom_normal_callback (GtkAction *action,
 			     gpointer user_data)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        nemo_view_restore_default_zoom_level (get_current_view (user_data));
-    }
+    nemo_view_restore_default_zoom_level (get_current_view (user_data));
 }
 
 static void
@@ -380,13 +371,9 @@ action_nemo_manual_callback (GtkAction *action,
 		helpuri = "help:gnome-help/files";
 	}
 
-	if (NEMO_IS_DESKTOP_WINDOW (window)) {
-		nemo_launch_application_from_command (gtk_window_get_screen (GTK_WINDOW (window)), "gnome-help", FALSE, NULL);
-	} else {
-		gtk_show_uri (gtk_window_get_screen (GTK_WINDOW (window)),
-			      helpuri,
-			      gtk_get_current_event_time (), &error);
-	}
+	gtk_show_uri (gtk_window_get_screen (GTK_WINDOW (window)),
+		      helpuri,
+		      gtk_get_current_event_time (), &error);
 
 	if (error) {
 		dialog = gtk_message_dialog_new (GTK_WINDOW (window),
@@ -517,9 +504,7 @@ static void
 action_close_all_windows_callback (GtkAction *action,
 				   gpointer user_data)
 {
-	if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-		nemo_application_close_all_windows (nemo_application_get_singleton ());
-	}
+	nemo_application_close_all_windows (nemo_application_get_singleton ());
 }
 
 static void
@@ -573,14 +558,12 @@ action_show_hide_sidebar_callback (GtkAction *action,
 {
 	NemoWindow *window;
 
-	if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-		window = NEMO_WINDOW (user_data);
+	window = NEMO_WINDOW (user_data);
 
-		if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action))) {
-			nemo_window_show_sidebar (window);
-		} else {
-			nemo_window_hide_sidebar (window);
-		}
+	if (gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action))) {
+		nemo_window_show_sidebar (window);
+	} else {
+		nemo_window_hide_sidebar (window);
 	}
 }
 
@@ -637,10 +620,6 @@ action_split_view_callback (GtkAction *action,
 	NemoWindow *window;
 	gboolean is_active;
 
-    if (NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        return;
-    }
-
 	window = NEMO_WINDOW (user_data);
 
 	is_active = gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action));
@@ -693,10 +672,6 @@ view_radio_entry_changed_cb (GtkAction *action,
     gint current_value;
     NemoWindow *window = NEMO_WINDOW (user_data);
 
-    if (NEMO_IS_DESKTOP_WINDOW (window)) {
-        return;
-    }
-
     current_value = gtk_radio_action_get_current_value (current);
 
     switch (current_value) {
@@ -724,10 +699,6 @@ toolbar_radio_entry_changed_cb (GtkAction *action,
     NemoWindowPane *pane;
     GtkAction *toggle_action;
     gint current_value;
-
-    if (NEMO_IS_DESKTOP_WINDOW (window)) {
-        return;
-    }
 
     pane = nemo_window_get_active_pane (window);
     toggle_action = gtk_action_group_get_action (pane->action_group, NEMO_ACTION_TOGGLE_LOCATION);
@@ -815,18 +786,14 @@ static void
 action_add_bookmark_callback (GtkAction *action,
 			      gpointer user_data)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        nemo_window_add_bookmark_for_current_location (NEMO_WINDOW (user_data));
-    }
+    nemo_window_add_bookmark_for_current_location (NEMO_WINDOW (user_data));
 }
 
 static void
 action_edit_bookmarks_callback (GtkAction *action,
 				gpointer user_data)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        nemo_window_edit_bookmarks (NEMO_WINDOW (user_data));
-    }
+    nemo_window_edit_bookmarks (NEMO_WINDOW (user_data));
 }
 
 static void
@@ -861,21 +828,7 @@ action_new_window_callback (GtkAction *action,
 
     current_window = NEMO_WINDOW (user_data);
 
-    if (NEMO_IS_DESKTOP_WINDOW (current_window)) {
-        NemoFile *file;
-        NemoView *view;
-        gchar *desktop_uri;
-
-        desktop_uri = nemo_get_desktop_directory_uri ();
-
-        file = nemo_file_get_existing_by_uri (desktop_uri);
-
-        view = nemo_window_slot_get_current_view (nemo_window_get_active_slot (current_window));
-        nemo_view_activate_file (view, file, 0);
-
-        g_free (desktop_uri);
-        nemo_file_unref (file);
-    } else {
+    {
         NemoApplication *application;
         NemoWindow *new_window;
         gchar *uri;
@@ -982,10 +935,8 @@ action_menu_edit_location_callback (GtkAction *action,
 	NemoWindow *window = user_data;
 	NemoWindowPane *pane;
 
-    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
-        pane = nemo_window_get_active_pane (window);
-        toggle_location_entry (window, pane, TRUE);
-    }
+    pane = nemo_window_get_active_pane (window);
+    toggle_location_entry (window, pane, TRUE);
 }
 
 static void
@@ -1962,15 +1913,11 @@ nemo_window_initialize_menus (NemoWindow *window)
 
 	action = gtk_action_group_get_action (action_group, NEMO_ACTION_SHOW_HIDDEN_FILES);
 
-    if (NEMO_IS_DESKTOP_WINDOW (window)) {
-        gtk_action_set_visible (action, FALSE);
-    } else {
-        g_signal_handlers_block_by_func (action, action_show_hidden_files_callback, window);
-        gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
-                                      g_settings_get_boolean (nemo_preferences,
-                                      NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
-        g_signal_handlers_unblock_by_func (action, action_show_hidden_files_callback, window);
-    }
+    g_signal_handlers_block_by_func (action, action_show_hidden_files_callback, window);
+    gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
+                                  g_settings_get_boolean (nemo_preferences,
+                                  NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
+    g_signal_handlers_unblock_by_func (action, action_show_hidden_files_callback, window);
 
     g_signal_connect_object ( NEMO_WINDOW (window), "notify::sidebar-view-id",
                              G_CALLBACK (update_side_bar_radio_buttons), window, 0);

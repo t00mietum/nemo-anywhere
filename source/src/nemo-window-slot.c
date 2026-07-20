@@ -27,7 +27,6 @@
 #include "nemo-window-slot.h"
 
 #include "nemo-actions.h"
-#include "nemo-desktop-window.h"
 #include "nemo-floating-bar.h"
 #include "nemo-window-private.h"
 #include "nemo-window-manage-views.h"

@@ -40,7 +40,6 @@
 
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-clipboard-monitor.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-file-operations.h>
 #include <libnemo-private/nemo-file-utilities.h>
@@ -770,7 +769,7 @@ update_menu_states (FMTreeView *view,
     	parent_file_is_writable = is_parent_writable (file);
     	file_is_home_or_desktop = nemo_file_is_home (file)
     		|| nemo_file_is_desktop_directory (file);
-    	file_is_special_link = NEMO_IS_DESKTOP_ICON_FILE (file);
+    	file_is_special_link = FALSE;
     	
     	can_delete_file = parent_file_is_writable 
     		&& !file_is_home_or_desktop
