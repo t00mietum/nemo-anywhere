@@ -14,7 +14,7 @@
 #define NEMO_ICON_TRASH		"user-trash"
 #define NEMO_ICON_TRASH_FULL	"user-trash-full"
 #define NEMO_ICON_DELETE		"xsi-edit-delete-symbolic"
-#define NEMO_ICON_FAVORITES "xapp-user-favorites"
+#define NEMO_ICON_FAVORITES "user-bookmarks"
 
 #define NEMO_ICON_FOLDER_DESKTOP    "user-desktop"
 #define NEMO_ICON_FOLDER_DOCUMENTS  "folder-documents"
@@ -52,7 +52,7 @@
 #define NEMO_ICON_SYMBOLIC_FOLDER_VIDEOS     "xsi-folder-videos-symbolic"
 #define NEMO_ICON_SYMBOLIC_FOLDER_SAVED_SEARCH "xsi-folder-saved-search-symbolic"
 #define NEMO_ICON_SYMBOLIC_FOLDER_RECENT "xsi-folder-recent-symbolic"
-#define NEMO_ICON_SYMBOLIC_FOLDER_FAVORITES "xsi-user-favorites-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_FAVORITES "user-bookmarks-symbolic"
 
 #define NEMO_ICON_SYMBOLIC_MISSING_BOOKMARK "xsi-folder-warning-symbolic"
 

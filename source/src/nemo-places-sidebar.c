@@ -849,7 +849,7 @@ update_places (NemoPlacesSidebar *sidebar)
 
         if (n > 0) {
             mount_uri = (char *)"favorites:///"; /* No need to strdup */
-            icon = "xsi-user-favorites-symbolic";
+            icon = "user-bookmarks-symbolic";
             cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                                   SECTION_COMPUTER,
                                   _("Favorites"), icon, mount_uri,

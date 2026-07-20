@@ -39,8 +39,8 @@
 #include <libnemo-private/nemo-progress-info.h>
 #include <libnemo-private/nemo-progress-info-manager.h>
 
-#include <libxapp/xapp-gtk-window.h>
-#include <libxapp/xapp-status-icon.h>
+/* GtkStatusIcon is deprecated but still the only portable tray option */
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 
 struct _NemoProgressUIHandlerPriv {
 	NemoProgressInfoManager *manager;
@@ -54,39 +54,36 @@ struct _NemoProgressUIHandlerPriv {
     guint active_percent;
 	GList *infos;
 
-	XAppStatusIcon *status_icon;
+	GtkStatusIcon *status_icon;
     gboolean should_show_status_icon;
 };
 
 G_DEFINE_TYPE (NemoProgressUIHandler, nemo_progress_ui_handler, G_TYPE_OBJECT);
 
 static void
-status_icon_activate_cb (XAppStatusIcon        *icon,
-                         guint                  button,
-                         guint                  _time,
+status_icon_activate_cb (GtkStatusIcon         *icon,
                          NemoProgressUIHandler *self)
 {
     self->priv->should_show_status_icon = FALSE;
-    xapp_status_icon_set_visible (icon, FALSE);
+    gtk_status_icon_set_visible (icon, FALSE);
     gtk_window_present (GTK_WINDOW (self->priv->progress_window));
 }
 
 static void
 progress_ui_handler_ensure_status_icon (NemoProgressUIHandler *self)
 {
-	XAppStatusIcon *status_icon;
+	GtkStatusIcon *status_icon;
 
 	if (self->priv->status_icon != NULL) {
 		return;
 	}
 
-    status_icon = xapp_status_icon_new ();
-    xapp_status_icon_set_icon_name (status_icon, "nemo-progress-0-symbolic");
+    status_icon = gtk_status_icon_new_from_icon_name ("nemo-progress-0-symbolic");
     g_signal_connect (status_icon, "activate",
                       (GCallback) status_icon_activate_cb,
                       self);
 
-	xapp_status_icon_set_visible (status_icon, FALSE);
+	gtk_status_icon_set_visible (status_icon, FALSE);
 
 	self->priv->status_icon = status_icon;
 }
@@ -119,13 +116,13 @@ progress_ui_handler_update_status_icon (NemoProgressUIHandler *self)
                                "%1$s file operations active.  %2$d%% complete.",
                                self->priv->active_infos),
                                launchpad_sucks, self->priv->active_percent);
-	xapp_status_icon_set_tooltip_text (self->priv->status_icon, tooltip);
+	gtk_status_icon_set_tooltip_text (self->priv->status_icon, tooltip);
     gchar *name = get_icon_name_from_percent (self->priv->active_percent);
-    xapp_status_icon_set_icon_name (self->priv->status_icon, name);
+    gtk_status_icon_set_from_icon_name (self->priv->status_icon, name);
     g_free (name);
 	g_free (tooltip);
 
-	xapp_status_icon_set_visible (self->priv->status_icon, self->priv->should_show_status_icon);
+	gtk_status_icon_set_visible (self->priv->status_icon, self->priv->should_show_status_icon);
 }
 
 static gboolean
@@ -199,7 +196,7 @@ progress_ui_handler_ensure_window (NemoProgressUIHandler *self)
 		return;
 	}
 	
-	progress_window = xapp_gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	progress_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	self->priv->progress_window = progress_window;
 
     gtk_window_set_type_hint (GTK_WINDOW (progress_window), GDK_WINDOW_TYPE_HINT_DIALOG);
@@ -212,7 +209,7 @@ progress_ui_handler_ensure_window (NemoProgressUIHandler *self)
 				"file_progress", "nemo-anywhere");
 	gtk_window_set_position (GTK_WINDOW (progress_window),
 				 GTK_WIN_POS_CENTER);
-	xapp_gtk_window_set_icon_name (XAPP_GTK_WINDOW (progress_window),
+	gtk_window_set_icon_name (GTK_WINDOW (progress_window),
                                    "system-run");
 
 	main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
@@ -276,7 +273,7 @@ progress_ui_handler_hide_status (NemoProgressUIHandler *self)
 {
 	if (self->priv->status_icon != NULL) {
         self->priv->should_show_status_icon = FALSE;
-		xapp_status_icon_set_visible (self->priv->status_icon, FALSE);
+		gtk_status_icon_set_visible (self->priv->status_icon, FALSE);
 	}
 }
 
@@ -323,7 +320,6 @@ progress_info_changed_cb (NemoProgressInfo *info,
             int iprogress = progress * 100;
             gchar *str = g_strdup_printf (_("%d%% %s"), iprogress, status);
             gtk_window_set_title (GTK_WINDOW (self->priv->progress_window), str);
-            xapp_gtk_window_set_progress (XAPP_GTK_WINDOW (self->priv->progress_window), iprogress);
             g_free (str);
             self->priv->active_percent = iprogress;
             if (self->priv->should_show_status_icon) {
@@ -332,7 +328,6 @@ progress_info_changed_cb (NemoProgressInfo *info,
         }
         else {
             gtk_window_set_title (GTK_WINDOW (self->priv->progress_window), status);
-            xapp_gtk_window_set_progress (XAPP_GTK_WINDOW (self->priv->progress_window), 0);
         }
     } 
 }
@@ -368,7 +363,7 @@ handle_new_progress_info (NemoProgressUIHandler *self,
         gchar *details = nemo_progress_info_get_details (info);
 		gtk_window_set_title (GTK_WINDOW (self->priv->progress_window), details);
         g_free (details);
-        xapp_gtk_window_set_icon_name (XAPP_GTK_WINDOW (self->priv->progress_window), "system-run");
+        gtk_window_set_icon_name (GTK_WINDOW (self->priv->progress_window), "system-run");
 	} else {
 		progress_ui_handler_add_to_window (self, info);
         if (self->priv->should_show_status_icon) {
@@ -506,3 +501,5 @@ nemo_progress_ui_handler_new (void)
 {
 	return g_object_new (NEMO_TYPE_PROGRESS_UI_HANDLER, NULL);
 }
+
+G_GNUC_END_IGNORE_DEPRECATIONS
