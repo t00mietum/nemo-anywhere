@@ -55,7 +55,7 @@ fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "Backs up a github directory to a versioned archive, and publishes changes, ie:"
 	fEcho_Clean "  • rar {flags} ../versions/{version}.rar  ../*"
-	fEcho_Clean "  • git stash push --include-untracked &&  git pull --no-ff  &&  git stash pop"
+	fEcho_Clean "  • git stash push --include-untracked &&  git pull --ff-only  &&  git stash pop"
 	fEcho_Clean "  • git add --all  &&  git commit"
 	fEcho_Clean "  • git push origin"
 	#           X-------------------------------------------------------------------------------X
@@ -192,9 +192,11 @@ fMain(){
 
 	## Sync with this branch's upstream if it has one. A brand-new local branch
 	## has nothing to pull; the push below sets its upstream on first publish.
+	## --ff-only: never fabricate a merge here - if the branch diverged from its
+	## upstream, abort and let a human reconcile rather than auto-merging blind.
 	if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
-		fEcho; fEcho "git pull --no-ff ..."
-		git pull --no-ff
+		fEcho; fEcho "git pull --ff-only ..."
+		git pull --ff-only
 	fi
 
 	## Stash pop
