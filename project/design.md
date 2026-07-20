@@ -124,7 +124,7 @@ Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable 
 - Configure and build:
 	- `meson setup build source`
 	- `ninja -C build`
-- The binary lands at `build/src/nemo`. Desktop drawing is the separate `nemo-desktop` binary - just don't run that one outside Cinnamon.
+- The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
 
 ### Open questions
 
