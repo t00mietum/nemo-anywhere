@@ -25,7 +25,6 @@
 
 #include <config.h>
 #include "nemo-file-dnd.h"
-#include "nemo-desktop-icon-file.h"
 
 #include "nemo-dnd.h"
 #include "nemo-directory.h"
@@ -45,10 +44,6 @@ nemo_drag_can_accept_files (NemoFile *drop_target_item)
 		res = nemo_directory_is_editable (directory);
 		nemo_directory_unref (directory);
 		return res;
-	}
-	
-	if (NEMO_IS_DESKTOP_ICON_FILE (drop_target_item)) {
-		return TRUE;
 	}
 	
 	/* Launchers are an acceptable drop target */

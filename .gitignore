@@ -20,3 +20,6 @@ build/
 
 # Local CI/CD transient artifacts (logs, profiling, release staging)
 /cicd/artifacts/
+
+# core dumps from headless test runs
+core.*

@@ -6,31 +6,17 @@ dbusBuiltSources = gnome.gdbus_codegen(
   object_manager: true
 )
 
-nemoBuiltSources = gnome.gdbus_codegen(
-  'nemo-cinnamon-dbus',
-  join_paths(meson.project_source_root(), 'data', 'org.Cinnamon.xml'),
-  interface_prefix: 'org.',
-  namespace: 'Nemo',
-  object_manager: true
-)
-
 nemoCommon_sources = [
   dbusBuiltSources,
-  nemoBuiltSources,
   'nemo-action-config-widget.c',
   'nemo-application.c',
-  'nemo-blank-desktop-window.c',
   'nemo-bookmark-list.c',
   'nemo-bookmarks-window.c',
   'nemo-config-base-widget.c',
   'nemo-connect-server-dialog-nonmain.c',
   'nemo-connect-server-dialog.c',
   'nemo-connect-server-operation.c',
-  'nemo-desktop-icon-grid-view.c',
   'nemo-desktop-item-properties.c',
-  'nemo-desktop-manager.c',
-  'nemo-desktop-overlay.c',
-  'nemo-desktop-window.c',
   'nemo-error-reporting.c',
   'nemo-extension-config-widget.c',
   'nemo-file-management-properties.c',
@@ -86,18 +72,6 @@ nemoWindow_headers = [
   'nemo-main-application.h',
 ]
 
-nemoDesktop_sources = [
-  'nemo-desktop-application.c',
-  'nemo-desktop-icon-view.c',
-  'nemo-desktop-main.c',
-]
-nemoDesktop_headers = [
-  'nemo-desktop-application.h',
-  'nemo-desktop-overlay.h',
-  'nemo-desktop-icon-view.h',
-]
-
-
 if enableEmptyView
   nemoCommon_sources += 'nemo-empty-view.c'
 endif
@@ -116,14 +90,6 @@ endif
 nemo = executable('nemo-anywhere',
   nemoCommon_sources + nemoWindow_sources,
   include_directories: [ rootInclude ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  install: true
-)
-
-nemoDesktop = executable('nemo-anywhere-desktop',
-  nemoCommon_sources + nemoDesktop_sources,
-  include_directories: [ rootInclude],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
   install: true

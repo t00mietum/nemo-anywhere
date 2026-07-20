@@ -50,7 +50,6 @@
 #include <gdk/gdkx.h>
 #include <glib/gi18n.h>
 #include <libnemo-extension/nemo-location-widget-provider.h>
-#include <libnemo-private/nemo-desktop-directory.h>
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file.h>
@@ -67,7 +66,6 @@
  * We should use inheritance instead of these special cases
  * for the desktop window.
  */
-#include "nemo-desktop-window.h"
 
 /* This number controls a maximum character count for a URL that is
  * displayed as part of a dialog. It's fairly arbitrary -- big enough
@@ -440,7 +438,6 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 	int new_slot_position;
 	GList *l;
 	gboolean use_same;
-	gboolean is_desktop;
 	NemoApplication *app;
 
 	window = nemo_window_slot_get_window (slot);
@@ -462,21 +459,7 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 	g_free (old_uri);
 	g_free (new_uri);
 
-	is_desktop = NEMO_IS_DESKTOP_WINDOW (window);
-
-	if (is_desktop) {
-		use_same = !nemo_desktop_window_loaded (NEMO_DESKTOP_WINDOW (window));
-
-		/* if we're requested to open a new tab on the desktop, open a window
-		 * instead.
-		 */
-		if (flags & NEMO_WINDOW_OPEN_FLAG_NEW_TAB) {
-			flags ^= NEMO_WINDOW_OPEN_FLAG_NEW_TAB;
-			flags |= NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW;
-		}
-	} else {
-		use_same |= g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
-	}
+	use_same |= g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
 	g_assert (!((flags & NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW) != 0 &&
 		    (flags & NEMO_WINDOW_OPEN_FLAG_NEW_TAB) != 0));
@@ -518,7 +501,7 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 
 	/* close the current window if the flags say so */
 	if ((flags & NEMO_WINDOW_OPEN_FLAG_CLOSE_BEHIND) != 0) {
-		if (!is_desktop) {
+		{
 			if (gtk_widget_get_visible (GTK_WIDGET (target_window))) {
 				nemo_window_close (window);
 			} else {
@@ -540,8 +523,7 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 	}
 
     if (target_window == window && target_slot == slot &&
-        old_location && g_file_equal (old_location, location) &&
-        !is_desktop) {
+        old_location && g_file_equal (old_location, location)) {
 
         if (callback != NULL) {
         	callback (window, NULL, user_data);
@@ -928,8 +910,6 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 
             if (g_strcmp0 (name, "x-nemo-search") == 0) {
                 view_id = g_strdup (NEMO_LIST_VIEW_IID);
-            } else if (eel_uri_is_desktop (uri)) {
-                view_id = nemo_global_preferences_get_desktop_iid ();
             } else {
                 view_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
             }
@@ -1059,15 +1039,6 @@ create_content_view (NemoWindowSlot *slot,
         view = nemo_view_factory_create (view_id, slot);
         slot->new_content_view = view;
         nemo_window_connect_content_view (window, slot->new_content_view);
-    }
-
-    if (NEMO_IS_DESKTOP_WINDOW (window)) {
-        NemoDesktopDirectory *directory;
-
-        directory = NEMO_DESKTOP_DIRECTORY (nemo_directory_get (slot->pending_location));
-        directory->display_number = nemo_desktop_window_get_monitor (NEMO_DESKTOP_WINDOW (window));
-
-        nemo_directory_unref (NEMO_DIRECTORY (directory));
     }
 
     /* Actually load the pending location and selection: */
@@ -2010,9 +1981,6 @@ void
 nemo_window_slot_check_bad_cache_bar (NemoWindowSlot *slot)
 {
     int show_image_thumbs;
-    if (NEMO_IS_DESKTOP_WINDOW (nemo_window_slot_get_window (slot)))
-        return;
-
     show_image_thumbs = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS);
     if (show_image_thumbs != NEMO_SPEED_TRADEOFF_NEVER &&
         nemo_application_get_cache_bad (nemo_application_get_singleton ()) &&

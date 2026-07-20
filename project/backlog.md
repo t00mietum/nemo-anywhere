@@ -70,7 +70,7 @@ In each section, items are listed approximately from newest to oldest.
 
 	- Verified by staged install: no shared-dir filename collisions; window runs headless
 
-- 🔘 **NEXT** - Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof; so far only staged-install audit + headless launch)
+- ✅ Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof)
 
 - 🔘 Isolate per-file view metadata keys (`metadata::nemo-*`) so the two builds don't share icon-view/layout state on the same files
 

@@ -33,8 +33,6 @@
 #include "nemo-view-dnd.h"
 #include "nemo-view-factory.h"
 #include "nemo-window.h"
-#include "nemo-desktop-window.h"
-#include "nemo-desktop-manager.h"
 #include "nemo-application.h"
 
 #include <stdlib.h>
@@ -57,9 +55,7 @@
 #include <libnemo-private/nemo-link.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-clipboard.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
 #include <libnemo-private/nemo-desktop-utils.h>
-#include <libnemo-private/nemo-desktop-directory.h>
 
 #define DEBUG_FLAG NEMO_DEBUG_ICON_VIEW
 #include <libnemo-private/nemo-debug.h>
@@ -227,21 +223,7 @@ nemo_icon_view_destroy (GtkWidget *object)
 static void
 sync_directory_monitor_number (NemoIconView *view, NemoFile *file)
 {
-    NemoDirectory *directory;
-    NemoDesktopWindow *desktop_window;
-    gint monitor;
-
-    if (!view->details->is_desktop) {
-        return;
-    }
-
-    desktop_window = NEMO_DESKTOP_WINDOW (nemo_view_get_nemo_window (NEMO_VIEW (view)));
-
-    monitor = nemo_desktop_window_get_monitor (desktop_window);
-
-    directory = nemo_view_get_model (NEMO_VIEW (view));
-
-    NEMO_DESKTOP_DIRECTORY (directory)->display_number = monitor;
+    /* No-op without the desktop shell (per-monitor desktop directories are gone). */
 }
 
 

@@ -31,7 +31,6 @@
 
 #include "nemo-view-dnd.h"
 
-#include "nemo-desktop-icon-view.h"
 #include "nemo-view.h"
 #include "nemo-desktop-utils.h"
 

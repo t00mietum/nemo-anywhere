@@ -34,7 +34,6 @@
 #include "nemo-actions.h"
 #include "nemo-application.h"
 #include "nemo-bookmarks-window.h"
-#include "nemo-desktop-window.h"
 #include "nemo-location-bar.h"
 #include "nemo-mime-actions.h"
 #include "nemo-notebook.h"
@@ -309,15 +308,13 @@ nemo_window_prompt_for_location (NemoWindow *window,
 
     g_return_if_fail (NEMO_IS_WINDOW (window));
 
-    if (!NEMO_IS_DESKTOP_WINDOW (window)) {
-        if (initial) {
-            NemoEntry *entry;
-            nemo_window_show_location_entry(window);
-            pane = window->details->active_pane;
-            entry = nemo_location_bar_get_entry (NEMO_LOCATION_BAR (pane->location_bar));
-            nemo_entry_set_text (entry, initial);
-            gtk_editable_set_position (GTK_EDITABLE (entry), -1);
-        }
+    if (initial) {
+        NemoEntry *entry;
+        nemo_window_show_location_entry(window);
+        pane = window->details->active_pane;
+        entry = nemo_location_bar_get_entry (NEMO_LOCATION_BAR (pane->location_bar));
+        nemo_entry_set_text (entry, initial);
+        gtk_editable_set_position (GTK_EDITABLE (entry), -1);
     }
 }
 
@@ -2291,13 +2288,11 @@ void
 nemo_window_set_show_sidebar (NemoWindow *window,
                               gboolean show)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (window)) {
-        window->details->show_sidebar = show;
+    window->details->show_sidebar = show;
 
-        g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
+    g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
 
-        g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
-    }
+    g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
 }
 
 gboolean

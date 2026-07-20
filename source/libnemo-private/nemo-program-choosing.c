@@ -29,7 +29,6 @@
 #include "nemo-global-preferences.h"
 #include "nemo-icon-info.h"
 #include "nemo-recent.h"
-#include "nemo-desktop-icon-file.h"
 #include <eel/eel-gnome-extensions.h>
 #include <eel/eel-stock-dialogs.h>
 #include <gtk/gtk.h>

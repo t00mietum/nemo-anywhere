@@ -28,9 +28,6 @@
 #include "nemo-directory-notify.h"
 #include "nemo-directory-private.h"
 #include "nemo-signaller.h"
-#include "nemo-desktop-directory.h"
-#include "nemo-desktop-directory-file.h"
-#include "nemo-desktop-icon-file.h"
 #include "nemo-file-attributes.h"
 #include "nemo-file-private.h"
 #include "nemo-file-operations.h"
@@ -531,15 +528,7 @@ nemo_file_new_from_filename (NemoDirectory *directory,
 	g_assert (filename != NULL);
 	g_assert (filename[0] != '\0');
 
-	if (NEMO_IS_DESKTOP_DIRECTORY (directory)) {
-		if (self_owned) {
-			file = NEMO_FILE (g_object_new (NEMO_TYPE_DESKTOP_DIRECTORY_FILE, NULL));
-		} else {
-			/* This doesn't normally happen, unless the user somehow types in a uri
-			 * that references a file like this. (See #349840) */
-			file = NEMO_FILE (g_object_new (NEMO_TYPE_VFS_FILE, NULL));
-		}
-	} else if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
+	if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
 		if (self_owned) {
 			file = NEMO_FILE (g_object_new (NEMO_TYPE_SEARCH_DIRECTORY_FILE, NULL));
 		} else {
@@ -1541,18 +1530,6 @@ nemo_file_can_rename (NemoFile *file)
 
 	can_rename = TRUE;
 
-	/* Certain types of links can't be renamed */
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		NemoDesktopLink *link;
-
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-
-		if (link != NULL) {
-			can_rename = nemo_desktop_link_can_rename (link);
-			g_object_unref (link);
-		}
-	}
-
 	if (!can_rename) {
 		return FALSE;
 	}
@@ -1640,10 +1617,6 @@ nemo_file_get_local_uri (NemoFile *file)
 	GFile *loc;
 
 	g_return_val_if_fail (NEMO_IS_FILE (file), NULL);
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		return nemo_file_get_uri (file);
-	}
 
 	loc = nemo_file_get_location (file);
 	path = g_file_get_path (loc);
@@ -1941,8 +1914,7 @@ nemo_file_rename (NemoFile *file,
 	 * (1) rename returns an error if new & old are same.
 	 * (2) We don't want to send file-changed signal if nothing changed.
 	 */
-	if (!NEMO_IS_DESKTOP_ICON_FILE (file) &&
-	    !is_renameable_desktop_file &&
+	if (!is_renameable_desktop_file &&
 	    name_is (file, new_name)) {
 		(* callback) (file, NULL, NULL, callback_data);
 		return;
@@ -1963,32 +1935,6 @@ nemo_file_rename (NemoFile *file,
 
 		(* callback) (file, NULL, error, callback_data);
 		g_error_free (error);
-		return;
-	}
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		NemoDesktopLink *link;
-
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-		old_name = nemo_file_get_display_name (file);
-
-		if ((old_name != NULL && strcmp (new_name, old_name) == 0)) {
-			success = TRUE;
-		} else {
-			success = (link != NULL && nemo_desktop_link_rename (link, new_name));
-		}
-
-		if (success) {
-			(* callback) (file, NULL, NULL, callback_data);
-		} else {
-			error = g_error_new (G_IO_ERROR, G_IO_ERROR_FAILED,
-					     _("Unable to rename desktop icon"));
-			(* callback) (file, NULL, error, callback_data);
-			g_error_free (error);
-		}
-
-		g_free (old_name);
-		g_object_unref (link);
 		return;
 	}
 
@@ -4229,23 +4175,8 @@ nemo_file_get_drop_target_uri (NemoFile *file)
 {
 	char *uri, *target_uri;
 	GFile *location;
-	NemoDesktopLink *link;
 
 	g_return_val_if_fail (NEMO_IS_FILE (file), NULL);
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-
-		if (link != NULL) {
-			location = nemo_desktop_link_get_activation_location (link);
-			g_object_unref (link);
-			if (location != NULL) {
-				uri = g_file_get_uri (location);
-				g_object_unref (location);
-				return uri;
-			}
-		}
-	}
 
 	uri = nemo_file_get_uri (file);
 
@@ -8355,14 +8286,6 @@ nemo_file_invalidate_attributes_internal (NemoFile *file,
 	Request request;
 
 	if (file == NULL) {
-		return;
-	}
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		/* Desktop icon files are always up to date.
-		 * If we invalidate their attributes they
-		 * will lose data, so we just ignore them.
-		 */
 		return;
 	}
 

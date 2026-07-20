@@ -53,7 +53,6 @@
 #include <libnemo-private/nemo-entry.h>
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-file-operations.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-link.h>
 #include <libnemo-private/nemo-metadata.h>
@@ -293,30 +292,13 @@ static NemoFile *
 get_target_file_for_original_file (NemoFile *file)
 {
 	NemoFile *target_file;
-	GFile *location;
 	char *uri_to_display;
-	NemoDesktopLink *link;
 
 	target_file = NULL;
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-
-		if (link != NULL) {
-			/* map to linked URI for these types of links */
-			location = nemo_desktop_link_get_activation_location (link);
-			if (location) {
-				target_file = nemo_file_get (location);
-				g_object_unref (location);
-			}
-
-			g_object_unref (link);
-		}
-        } else {
-		uri_to_display = nemo_file_get_activation_uri (file);
-		if (uri_to_display != NULL) {
-			target_file = nemo_file_get_by_uri (uri_to_display);
-			g_free (uri_to_display);
-		}
+	uri_to_display = nemo_file_get_activation_uri (file);
+	if (uri_to_display != NULL) {
+		target_file = nemo_file_get_by_uri (uri_to_display);
+		g_free (uri_to_display);
 	}
 
 	if (target_file != NULL) {
@@ -4795,7 +4777,6 @@ static gboolean
 is_a_special_file (NemoFile *file)
 {
 	if (file == NULL ||
-	    NEMO_IS_DESKTOP_ICON_FILE (file) ||
 	    nemo_file_is_nemo_link (file) ||
 	    nemo_file_is_in_trash (file) ||
 	    is_computer_directory (file)) {

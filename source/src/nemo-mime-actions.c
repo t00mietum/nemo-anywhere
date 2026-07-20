@@ -28,7 +28,6 @@
 
 #include "nemo-window-slot.h"
 #include "nemo-error-reporting.h"
-#include "nemo-desktop-window.h"
 
 #include <eel/eel-glib-extensions.h>
 #include <eel/eel-stock-dialogs.h>
@@ -44,7 +43,6 @@
 #include <libnemo-private/nemo-file-operations.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-program-choosing.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-signaller.h>
 #include <libnemo-private/nemo-mime-application-chooser.h>
@@ -776,8 +774,7 @@ get_default_executable_text_file_action (void)
 gboolean
 nemo_mime_file_opens_in_view (NemoFile *file)
 {
-  return (nemo_file_is_directory (file) ||
-	  NEMO_IS_DESKTOP_ICON_FILE (file));
+  return nemo_file_is_directory (file);
 }
 
 static gboolean
@@ -1558,13 +1555,10 @@ activate_files (ActivateParameters *parameters)
 	open_in_app_uris = NULL;
 	open_in_view_files = NULL;
 
-    window = NULL;
-
-    if (parameters->slot != NULL) {
-        window = nemo_window_slot_get_window (parameters->slot);
-
-        launch_location_is_desktop = NEMO_IS_DESKTOP_WINDOW (window);
-    }
+	window = NULL;
+	if (parameters->slot != NULL) {
+		window = nemo_window_slot_get_window (parameters->slot);
+	}
 
 	for (l = parameters->locations; l != NULL; l = l->next) {
 		location = l->data;

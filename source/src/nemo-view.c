@@ -32,7 +32,6 @@
 #include "nemo-view.h"
 
 #include "nemo-actions.h"
-#include "nemo-desktop-icon-view.h"
 #include "nemo-error-reporting.h"
 #include "nemo-list-view.h"
 #include "nemo-mime-actions.h"
@@ -64,8 +63,6 @@
 #include <libnemo-private/nemo-bookmark.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-clipboard-monitor.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
-#include <libnemo-private/nemo-desktop-directory.h>
 #include <libnemo-private/nemo-search-directory.h>
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-dnd.h>
@@ -406,11 +403,7 @@ real_get_backing_uri (NemoView *view)
 
 	directory = view->details->model;
 
-	if (NEMO_IS_DESKTOP_DIRECTORY (directory)) {
-		directory = nemo_desktop_directory_get_real_directory (NEMO_DESKTOP_DIRECTORY (directory));
-	} else {
-		nemo_directory_ref (directory);
-	}
+	nemo_directory_ref (directory);
 
 	uri = nemo_directory_get_uri (directory);
 
@@ -4362,25 +4355,11 @@ nemo_view_duplicate_selection (NemoView *view, GList *files,
 static gboolean
 special_link_in_selection (NemoView *view, GList *selection)
 {
-	gboolean saw_link;
-	GList *node;
-	NemoFile *file;
-
 	g_return_val_if_fail (NEMO_IS_VIEW (view), FALSE);
 
-	saw_link = FALSE;
-
-	for (node = selection; node != NULL; node = node->next) {
-		file = NEMO_FILE (node->data);
-
-		saw_link = NEMO_IS_DESKTOP_ICON_FILE (file);
-
-		if (saw_link) {
-			break;
-		}
-	}
-
-	return saw_link;
+	/* Desktop special links (computer/home/trash/mount) only existed under the
+	 * desktop shell, which is gone. */
+	return FALSE;
 }
 
 /* desktop_or_home_dir_in_selection
@@ -5860,25 +5839,12 @@ get_file_paths_or_uris_as_newline_delimited_string (GList *selection, gboolean g
 {
 	char *path;
 	char *uri;
-	NemoDesktopLink *link;
 	GString *expanding_string;
 	GList *node;
-	GFile *location;
 
 	expanding_string = g_string_new ("");
 	for (node = selection; node != NULL; node = node->next) {
-		uri = NULL;
-		if (NEMO_IS_DESKTOP_ICON_FILE (node->data)) {
-			link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (node->data));
-			if (link != NULL) {
-				location = nemo_desktop_link_get_activation_location (link);
-				uri = g_file_get_uri (location);
-				g_object_unref (location);
-				g_object_unref (G_OBJECT (link));
-			}
-		} else {
-			uri = nemo_file_get_uri (NEMO_FILE (node->data));
-		}
+		uri = nemo_file_get_uri (NEMO_FILE (node->data));
 		if (uri == NULL) {
 			continue;
 		}
@@ -8729,8 +8695,7 @@ file_list_all_are_folders (GList *file_list)
 
 	for (l = file_list; l != NULL; l = l->next) {
 		file = NEMO_FILE (l->data);
-		if (nemo_file_is_nemo_link (file) &&
-		    !NEMO_IS_DESKTOP_ICON_FILE (file)) {
+		if (nemo_file_is_nemo_link (file)) {
 			if (nemo_file_is_launcher (file)) {
 				return FALSE;
 			}
@@ -8762,8 +8727,7 @@ file_list_all_are_folders (GList *file_list)
 			if (!is_dir) {
 				return FALSE;
 			}
-		} else if (!(nemo_file_is_directory (file) ||
-			     NEMO_IS_DESKTOP_ICON_FILE (file))) {
+		} else if (!nemo_file_is_directory (file)) {
 			return FALSE;
 		}
 	}
@@ -9447,7 +9411,7 @@ real_update_location_menu (NemoView *view)
 						NEMO_FILE_ATTRIBUTE_MOUNT |
 						NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO));
 
-	is_special_link = NEMO_IS_DESKTOP_ICON_FILE (file);
+	is_special_link = FALSE;
 	is_desktop_or_home_dir = nemo_file_is_home (file)
 		|| nemo_file_is_desktop_directory (file);
 
