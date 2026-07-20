@@ -22,9 +22,14 @@ nemo_private_sources = [
   'nemo-default-file-icon.c',
   'nemo-desktop-utils.c',
   'nemo-directory-async.c',
+  'nemo-desktop-thumbnail.c',
   'nemo-directory.c',
   'nemo-dnd.c',
   'nemo-entry.c',
+  'nemo-favorite-vfs-file.c',
+  'nemo-favorite-vfs-file-enumerator.c',
+  'nemo-favorite-vfs-file-monitor.c',
+  'nemo-favorites.c',
   'nemo-file-changes-queue.c',
   'nemo-file-conflict-dialog.c',
   'nemo-file-dnd.c',
@@ -44,6 +49,7 @@ nemo_private_sources = [
   'nemo-link.c',
   'nemo-merged-directory.c',
   'nemo-metadata.c',
+  'nemo-thumbnail-pixbuf-utils.c',
   'nemo-mime-application-chooser.c',
   'nemo-module.c',
   'nemo-monitor.c',
@@ -76,7 +82,7 @@ nemo_private_sources = [
 ]
 
 nemo_private_deps = [
-  cinnamon, eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, x11, xapp
+  eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, x11
 ]
 
 if libexif_enabled

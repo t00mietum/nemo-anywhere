@@ -59,7 +59,7 @@
 #include <glib.h>
 #include <libnemo-extension/nemo-file-info.h>
 #include <libnemo-extension/nemo-extension-private.h>
-#include <libxapp/xapp-favorites.h>
+#include <libnemo-private/nemo-favorites.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -1796,7 +1796,7 @@ rename_get_info_callback (GObject *source_object,
 		new_uri = nemo_file_get_uri (op->file);
 		nemo_directory_moved (old_uri, new_uri);
 
-        xapp_favorites_rename (xapp_favorites_get_default (),
+        nemo_favorites_rename (nemo_favorites_get_default (),
                                old_uri,
                                new_uri);
 
@@ -4778,11 +4778,11 @@ nemo_file_set_is_favorite (NemoFile *file,
 
     if (favorite)
     {
-        xapp_favorites_add (xapp_favorites_get_default (), uri);
+        nemo_favorites_add (nemo_favorites_get_default (), uri);
     }
     else
     {
-        xapp_favorites_remove (xapp_favorites_get_default (), uri);
+        nemo_favorites_remove (nemo_favorites_get_default (), uri);
     }
 
     nemo_file_unref (real_file);

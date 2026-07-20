@@ -75,10 +75,9 @@
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
-#include <libxapp/xapp-favorites.h>
+#include <libnemo-private/nemo-favorites.h>
 
-#define GNOME_DESKTOP_USE_UNSTABLE_API
-#include <libcinnamon-desktop/gnome-desktop-thumbnail.h>
+#include <libnemo-private/nemo-desktop-thumbnail.h>
 
 #define NEMO_ACCEL_MAP_SAVE_DELAY 30
 
@@ -555,6 +554,10 @@ nemo_application_startup (GApplication *app)
 	/* initialize preferences and create the global GSettings objects */
 	nemo_global_preferences_init ();
 
+	/* register the favorites:/// scheme before anything queries for it
+	 * (upstream relied on the xapp gtk module doing this at gtk init) */
+	nemo_favorites_get_default ();
+
     /* Run desktop- or main- specific things */
     NEMO_APPLICATION_CLASS (G_OBJECT_GET_CLASS (self))->continue_startup (self);
 
@@ -586,10 +589,10 @@ nemo_application_startup (GApplication *app)
      * If running as a normal user, do a quick check, and we'll notify the
      * user later if there's a problem via an infobar */
     if (nemo_user_is_root ()) {
-        if (!gnome_desktop_thumbnail_cache_check_permissions (NULL, FALSE))
-            gnome_desktop_thumbnail_cache_fix_permissions ();
+        if (!nemo_desktop_thumbnail_cache_check_permissions (NULL, FALSE))
+            nemo_desktop_thumbnail_cache_fix_permissions ();
     } else {
-        if (!gnome_desktop_thumbnail_cache_check_permissions (NULL, TRUE))
+        if (!nemo_desktop_thumbnail_cache_check_permissions (NULL, TRUE))
             self->priv->cache_problem = TRUE;
     }
 }

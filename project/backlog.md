@@ -80,12 +80,17 @@ In each section, items are listed approximately from newest to oldest.
 
 	- Deleted the `nemo-anywhere-desktop` binary, the desktop-application subclass, desktop windows/manager/overlay/icon-views, the `x-nemo-desktop://` directory model in libnemo-private, the `org.Cinnamon` D-Bus proxy, and the desktop autostart; stripped the "am I the desktop?" branches throughout the file manager. Builds and runs green; kept the `.desktop` launcher-file editor and the monitor-geometry util (both real file-manager features)
 
-- 🛠️ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable)
+- ✅ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable)
 
-	- xapp: favorites, status-icon/window-taskbar-progress, icon-chooser dialog
-	- cinnamon-desktop: gnome-desktop-thumbnail (thumbnailer), session-user pwent
+	- xapp favorites: own favorites store + `favorites:///` scheme in libnemo-private, settings under our own schema
+	- xapp status-icon/taskbar-progress: tray icon via GTK, taskbar progress dropped (Mint-only WM protocol); icon-chooser dialog now a file picker with preview
+	- cinnamon-desktop thumbnailer: own freedesktop-spec thumbnailer in libnemo-private (also fixed cache-dir creation on fresh homes); session-user pwent via POSIX
 
-- 🔘 Prove a de-Cinnamon Linux build that runs standalone (no xapp, no cinnamon-desktop) on any desktop or none
+- ✅ Prove a de-Cinnamon Linux build that runs standalone (no xapp, no cinnamon-desktop) on any desktop or none
+
+	- Builds and links with neither library; favorites and thumbnails verified working on the standalone build
+
+- 🔘 Portable fallbacks for the remaining Mint-flavored theme icon names (`xsi-*`) - menus/toolbars reference ~77 unique names that only Mint themes ship; map to standard freedesktop names or bundle icons. Pre-existing gap (icons already missing on non-Mint), cosmetic only
 
 ### Milestone 3 - First cross-platform target (Windows)
 

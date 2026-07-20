@@ -81,10 +81,8 @@ gobject = dependency('gobject-2.0',                 version: '>=2.0')
 go_intr = dependency('gobject-introspection-1.0',   version: '>=1.0')
 json    = dependency('json-glib-1.0',               version: '>=1.6')
 
-cinnamon= dependency('cinnamon-desktop',            version: '>=4.8.0')
 gail    = dependency('gail-3.0')
 x11     = dependency('x11')
-xapp    = dependency('xapp',                        version: '>=2.0.0')
 
 # Facultative dependencies
 

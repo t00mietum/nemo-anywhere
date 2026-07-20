@@ -31,11 +31,11 @@
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-icon-names.h>
-#define GNOME_DESKTOP_USE_UNSTABLE_API
-#include <libcinnamon-desktop/gnome-desktop-utils.h>
 
 #include <gio/gio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <pwd.h>
 
 #define MAX_BOOKMARK_LENGTH 80
 #define LOAD_JOB 1
@@ -61,14 +61,42 @@ static void        nemo_bookmark_list_save_file     (NemoBookmarkList *bookmarks
 
 G_DEFINE_TYPE(NemoBookmarkList, nemo_bookmark_list, G_TYPE_OBJECT);
 
+/* When running elevated (pkexec/sudo), find the pwent of the invoking user so
+ * files we touch stay owned by them rather than root. */
+static struct passwd *
+get_session_user_pwent (void)
+{
+    const char *uid_str;
+
+    uid_str = g_getenv ("PKEXEC_UID");
+    if (uid_str == NULL) {
+        uid_str = g_getenv ("SUDO_UID");
+    }
+
+    if (uid_str != NULL) {
+        uid_t uid = (uid_t) g_ascii_strtoll (uid_str, NULL, 10);
+        struct passwd *pwent = getpwuid (uid);
+        if (pwent != NULL) {
+            return pwent;
+        }
+    }
+
+    return getpwuid (getuid ());
+}
+
 static void
 ensure_proper_file_permissions (GFile *file)
 {
     if (nemo_user_is_root () && !nemo_treating_root_as_normal ()) {
         struct passwd *pwent;
-        pwent = gnome_desktop_get_session_user_pwent ();
+        pwent = get_session_user_pwent ();
 
         gchar *path = g_file_get_path (file);
+
+        if (pwent == NULL) {
+            g_free (path);
+            return;
+        }
 
         if (g_strcmp0 (pwent->pw_dir, g_get_home_dir ()) == 0) {
             G_GNUC_UNUSED int res;

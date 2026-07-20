@@ -120,7 +120,7 @@ typedef enum {
 #define NEMO_FILE_EMBLEM_NAME_CANT_WRITE "readonly"
 #define NEMO_FILE_EMBLEM_NAME_TRASH "trash"
 #define NEMO_FILE_EMBLEM_NAME_NOTE "note"
-#define NEMO_FILE_EMBLEM_NAME_FAVORITE "xapp-favorite"
+#define NEMO_FILE_EMBLEM_NAME_FAVORITE "favorite"
 
 typedef void (*NemoFileCallback)          (NemoFile  *file,
 				               gpointer       callback_data);

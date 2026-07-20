@@ -74,9 +74,8 @@
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-stock-dialogs.h>
 
-#define GNOME_DESKTOP_USE_UNSTABLE_API
 
-#include <libcinnamon-desktop/gnome-desktop-thumbnail.h>
+#include <libnemo-private/nemo-desktop-thumbnail.h>
 
 /* Keep window from shrinking down ridiculously small; numbers are somewhat arbitrary */
 #define APPLICATION_WINDOW_MIN_WIDTH	300
@@ -749,7 +748,7 @@ nemo_main_application_local_command_line (GApplication *application,
             g_printerr ("The --fix-cache option must be run with sudo or as the root user.\n");
         } else
         {
-            gnome_desktop_thumbnail_cache_fix_permissions ();
+            nemo_desktop_thumbnail_cache_fix_permissions ();
             g_print ("User thumbnail cache successfully repaired.\n");
         }
 

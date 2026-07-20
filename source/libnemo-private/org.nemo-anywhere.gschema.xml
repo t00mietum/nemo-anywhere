@@ -76,6 +76,29 @@
     <child name="desktop" schema="org.nemo-anywhere.desktop"/>
     <child name="window-state" schema="org.nemo-anywhere.window-state"/>
     <child name="search" schema="org.nemo-anywhere.search"/>
+    <key name="favorites" type="as">
+      <default>[]</default>
+      <summary>Favorite files and folders</summary>
+      <description>List of favorites, each entry "uri::mimetype".</description>
+    </key>
+    <key name="favorites-root-metadata" type="as">
+      <default>[]</default>
+      <summary>Metadata for the favorites root</summary>
+      <description>View metadata for favorites:///, each entry "name==value".</description>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.thumbnailers" path="/org/nemo-anywhere/thumbnailers/" gettext-domain="nemo-anywhere">
+    <key name="disable-all" type="b">
+      <default>false</default>
+      <summary>Disable all external thumbnailers</summary>
+      <description>Never spawn external thumbnailer programs; only built-in pixbuf loaders are used.</description>
+    </key>
+    <key name="disable" type="as">
+      <default>[]</default>
+      <summary>Disable external thumbnailers for these mime types</summary>
+      <description>List of mime types for which external thumbnailer programs will not be run.</description>
+    </key>
   </schema>
 
   <schema id="org.nemo-anywhere.preferences" path="/org/nemo-anywhere/preferences/" gettext-domain="nemo-anywhere">

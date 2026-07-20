@@ -26,7 +26,6 @@
 #include <config.h>
 #include "nemo-thumbnails.h"
 
-#define GNOME_DESKTOP_USE_UNSTABLE_API
 
 #include "nemo-directory-notify.h"
 #include "nemo-global-preferences.h"
@@ -43,7 +42,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
-#include <libcinnamon-desktop/gnome-desktop-thumbnail.h>
+#include <libnemo-private/nemo-desktop-thumbnail.h>
 
 #define DEBUG_FLAG NEMO_DEBUG_THUMBNAILS
 #include <libnemo-private/nemo-debug.h>
@@ -120,7 +119,7 @@ static GTask *feeder_task = NULL;
 /* Causes the feeder_task to end. Only called when Nemo is shutting down. */
 GCancellable *cancellable = NULL;
 
-static GnomeDesktopThumbnailFactory *thumbnail_factory = NULL;
+static NemoDesktopThumbnailFactory *thumbnail_factory = NULL;
 
 static gint
 get_max_threads (void) {
@@ -198,13 +197,13 @@ free_thumbnail_info (NemoThumbnailInfo *info)
     g_free (info);
 }
 
-static GnomeDesktopThumbnailFactory *
+static NemoDesktopThumbnailFactory *
 get_thumbnail_factory (void)
 {
     static gsize once_init = 0;
 
     if (g_once_init_enter (&once_init)) {
-        thumbnail_factory = gnome_desktop_thumbnail_factory_new (GNOME_DESKTOP_THUMBNAIL_SIZE_LARGE);
+        thumbnail_factory = nemo_desktop_thumbnail_factory_new (NEMO_DESKTOP_THUMBNAIL_SIZE_LARGE);
 
         g_once_init_leave (&once_init, 1);
     }
@@ -367,7 +366,7 @@ thumbnail_thread (gpointer data,
      * because of that we have to convert our path from the network URI to a local file:// URI or else any
      * thumbnailers that use %i wont generate thumbnails correctly
      */
-    pixbuf = gnome_desktop_thumbnail_factory_generate_thumbnail (thumbnail_factory,
+    pixbuf = nemo_desktop_thumbnail_factory_generate_thumbnail (thumbnail_factory,
                                                                  image_uri,
                                                                  info->mime_type);
     if (free_uri) {
@@ -375,13 +374,13 @@ thumbnail_thread (gpointer data,
     }
 
     if (pixbuf) {
-        gnome_desktop_thumbnail_factory_save_thumbnail (thumbnail_factory,
+        nemo_desktop_thumbnail_factory_save_thumbnail (thumbnail_factory,
                                                         pixbuf,
                                                         info->image_uri,
                                                         info->original_file_mtime);
         g_object_unref (pixbuf);
     } else {
-        gnome_desktop_thumbnail_factory_create_failed_thumbnail (thumbnail_factory, 
+        nemo_desktop_thumbnail_factory_create_failed_thumbnail (thumbnail_factory, 
                                                                  info->image_uri,
                                                                  info->original_file_mtime);
     }
@@ -659,7 +658,7 @@ nemo_can_thumbnail_internally (NemoFile *file)
 gboolean
 nemo_can_thumbnail (NemoFile *file)
 {
-    GnomeDesktopThumbnailFactory *factory;
+    NemoDesktopThumbnailFactory *factory;
     g_autofree gchar *mime_type = NULL;
     g_autofree gchar *uri = NULL;
     time_t mtime;
@@ -670,7 +669,7 @@ nemo_can_thumbnail (NemoFile *file)
     mtime = nemo_file_get_mtime (file);
     
     factory = get_thumbnail_factory ();
-    res = gnome_desktop_thumbnail_factory_can_thumbnail (factory,
+    res = nemo_desktop_thumbnail_factory_can_thumbnail (factory,
                                                          uri,
                                                          mime_type,
                                                          mtime);
@@ -754,5 +753,5 @@ nemo_thumbnail_pad_top_and_bottom (GdkPixbuf **pixbuf,
 gboolean
 nemo_thumbnail_factory_check_status (void)
 {
-    return gnome_desktop_thumbnail_cache_check_permissions (get_thumbnail_factory (), TRUE);
+    return nemo_desktop_thumbnail_cache_check_permissions (get_thumbnail_factory (), TRUE);
 }
