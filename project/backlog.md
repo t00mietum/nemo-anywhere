@@ -76,9 +76,16 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 2 - Decouple from Cinnamon (benefits every target)
 
-- 🔘 Isolate desktop management (Nemo drawing the Cinnamon desktop/icons) behind a boundary; make it optional/removable
-- 🔘 Isolate xapp / cinnamon-desktop coupling
-- 🔘 Prove a de-Cinnamon Linux build that runs standalone on any desktop or none
+- ✅ Remove desktop management entirely (Nemo Anywhere is a file manager, not a desktop shell)
+
+	- Deleted the `nemo-anywhere-desktop` binary, the desktop-application subclass, desktop windows/manager/overlay/icon-views, the `x-nemo-desktop://` directory model in libnemo-private, the `org.Cinnamon` D-Bus proxy, and the desktop autostart; stripped the "am I the desktop?" branches throughout the file manager. Builds and runs green; kept the `.desktop` launcher-file editor and the monitor-geometry util (both real file-manager features)
+
+- 🛠️ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable)
+
+	- xapp: favorites, status-icon/window-taskbar-progress, icon-chooser dialog
+	- cinnamon-desktop: gnome-desktop-thumbnail (thumbnailer), session-user pwent
+
+- 🔘 Prove a de-Cinnamon Linux build that runs standalone (no xapp, no cinnamon-desktop) on any desktop or none
 
 ### Milestone 3 - First cross-platform target (Windows)
 
