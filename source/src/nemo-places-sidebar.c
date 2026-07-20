@@ -30,7 +30,7 @@
 #include <gio/gio.h>
 #include <math.h>
 #include <cairo-gobject.h>
-#include <libxapp/xapp-favorites.h>
+#include <libnemo-private/nemo-favorites.h>
 
 #include <libnemo-private/nemo-dnd.h>
 #include <libnemo-private/nemo-bookmark.h>
@@ -845,7 +845,7 @@ update_places (NemoPlacesSidebar *sidebar)
     }
 
     if (eel_vfs_supports_uri_scheme ("favorites")) {
-        gint n = xapp_favorites_get_n_favorites (xapp_favorites_get_default ());
+        gint n = nemo_favorites_get_n_favorites (nemo_favorites_get_default ());
 
         if (n > 0) {
             mount_uri = (char *)"favorites:///"; /* No need to strdup */
@@ -4393,7 +4393,7 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 				 G_CALLBACK (trash_state_changed_cb),
 				 sidebar, 0);
 
-    g_signal_connect_swapped (xapp_favorites_get_default (),
+    g_signal_connect_swapped (nemo_favorites_get_default (),
                               "changed",
                               G_CALLBACK (favorites_changed_cb),
                               sidebar);
@@ -4462,7 +4462,7 @@ nemo_places_sidebar_dispose (GObject *object)
                           desktop_setting_changed_callback,
                           sidebar);
 
-    g_signal_handlers_disconnect_by_func (xapp_favorites_get_default (),
+    g_signal_handlers_disconnect_by_func (nemo_favorites_get_default (),
                                           favorites_changed_cb,
                                           sidebar);
 
