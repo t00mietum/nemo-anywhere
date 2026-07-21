@@ -57,9 +57,11 @@ There is one catch. It belongs to the Cinnamon desktop. If you run anything else
 
 This project cuts the strings:
 
-- Takes Nemo as-is, from the source.
+- It takes Nemo as-is, from the source.
 
 - Removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
+
+- Removes the heavy desktop integration. Your existing manager is untounched - which can even be original Nemo, they don't conflict. (This is also a big step towards OS portability.)
 
 - Shippable everywhere. (At least, desktop OSes.)
 
