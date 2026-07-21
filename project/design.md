@@ -107,7 +107,7 @@ Nemo is C with GTK3, built with meson. The stack splits into portable and platfo
 
 ### Toolchain
 
-First target is Windows, leaning toward MSYS2 / MinGW-w64: its GTK3 stack is well supported and stays closest to upstream's meson build. MSVC (via gvsbuild) and cross-compiling from Linux are alternatives. Final choice is confirmed when we reach that stage; the repo and a Linux baseline come first.
+First target is Windows. Among the options - native MSYS2/MinGW-w64 on Windows, MSVC via gvsbuild, and cross-compiling from Linux - we chose to **cross-compile from the Linux host with mingw-w64 and smoke-test under wine**. It reuses the toolchain already on the box, needs no Windows hardware, and fits the same "containerized reference build" model as Linux. The GTK3 Windows stack still comes from MSYS2, but as prebuilt packages extracted into a cross sysroot rather than a native MSYS2 environment. Native-Windows validation (running the .exe on real Windows) is deferred to when the cross build first links and runs under wine.
 
 The Linux reference build lives in a stock Debian 13 container rather than on the dev host directly - we decided that a pinned, clean distro image is the better known-good baseline, and it sidesteps host library drift. Upstream 6.6.4 builds and runs there unmodified with distro packages only.
 
@@ -125,6 +125,18 @@ Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable 
 	- `meson setup build source`
 	- `ninja -C build`
 - The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
+
+### Building (Windows cross)
+
+Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt MSYS2 packages unpacked into a sysroot. All of it lives in a dedicated `nemo-winbuild` container so neither the host nor the repo carries the Windows binaries.
+
+- `cicd/win/fetch-sysroot.bash` - resolves the transitive dependency closure of a few root packages (gtk3, json-glib, libexif, libgsf) from the MSYS2 pacman database and unpacks each `.pkg.tar.zst` into `/opt/win-sysroot`. No pacman needed; the `.db` is just a tarball of `desc` files we parse ourselves.
+- `cicd/win/win64.cross.txt` - meson cross file: mingw-w64 binaries, `wine` as the exe wrapper, `PKG_CONFIG_SYSROOT_DIR` pointed at the sysroot (the `.pc` files keep `prefix=/mingw64`).
+- `cicd/win/Dockerfile` - builds `nemo-winbuild`: mingw toolchain + native glib codegen tools (run on the build host) + wine + the baked sysroot.
+- Configure/build (source mounted at `/src`):
+	- `meson setup --cross-file /opt/win64.cross.txt -Dxmp=false /build-win /src/source`
+	- `ninja -C /build-win`
+- Deliberately off for Windows: XMP/exempi (not packaged for mingw - `-Dxmp=false`), and the Unix-only pieces (`gio-unix`, `x11`, SELinux, Tracker) which get `host_machine.system()` guards in meson plus `#ifdef` guards in the affected C files.
 
 ### Open questions
 

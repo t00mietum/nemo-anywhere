@@ -35,7 +35,9 @@
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 #include <string.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <libnemo-private/nemo-favorites.h>
 
 #include <libnemo-private/nemo-file-attributes.h>

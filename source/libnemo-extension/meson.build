@@ -61,22 +61,26 @@ nemo_extension = declare_dependency(
   dependencies: nemo_extension_deps,
 )
 
-typelibdir = go_intr.get_variable(pkgconfig: 'typelibdir',
-  pkgconfig_define: ['libdir', join_paths(get_option('prefix'), get_option('libdir'))]
-)
+# GObject-introspection is Linux-only here: the mingw sysroot ships no g-ir-scanner
+# and cross introspection isn't worth it. Skip GIR/typelib generation on Windows.
+if not is_windows
+  typelibdir = go_intr.get_variable(pkgconfig: 'typelibdir',
+    pkgconfig_define: ['libdir', join_paths(get_option('prefix'), get_option('libdir'))]
+  )
 
-# GIR/typelib deferred: a distinct GI namespace would rename the introspection
-# API. Build it but don't install, so nothing clashes with upstream Nemo-3.0.typelib.
-gnome.generate_gir(nemo_extension_lib,
-  sources: nemo_extension_sources + nemo_extension_headers,
-  nsversion: '3.0',
-  namespace: 'Nemo',
-  export_packages: 'libnemo-anywhere-extension',
-  includes: [ 'Gtk-3.0', 'Gio-2.0', 'GLib-2.0', ],
-  include_directories: [ rootInclude, ],
-  install_dir_typelib: typelibdir,
-  install: false,
-)
+  # GIR/typelib deferred: a distinct GI namespace would rename the introspection
+  # API. Build it but don't install, so nothing clashes with upstream Nemo-3.0.typelib.
+  gnome.generate_gir(nemo_extension_lib,
+    sources: nemo_extension_sources + nemo_extension_headers,
+    nsversion: '3.0',
+    namespace: 'Nemo',
+    export_packages: 'libnemo-anywhere-extension',
+    includes: [ 'Gtk-3.0', 'Gio-2.0', 'GLib-2.0', ],
+    include_directories: [ rootInclude, ],
+    install_dir_typelib: typelibdir,
+    install: false,
+  )
+endif
 
 pkgconfig.generate(filebase: 'libnemo-anywhere-extension',
   name: 'libnemo-anywhere-extension',

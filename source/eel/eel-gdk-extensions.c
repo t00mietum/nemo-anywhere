@@ -31,7 +31,9 @@
 #include "eel-string.h"
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gdk/gdk.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <stdlib.h>
 #include <pango/pango.h>
 
