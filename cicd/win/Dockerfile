@@ -2,6 +2,7 @@
 #   - mingw-w64 toolchain + meson/ninja
 #   - native glib codegen tools (run on the build host during the cross build)
 #   - wine (smoke-test the .exe as an exe_wrapper / by hand)
+#   - Xvfb + x11 utils to run the GUI headless under wine and grab a screenshot
 #   - a baked-in MSYS2 GTK3 sysroot at /opt/win-sysroot (see fetch-sysroot.bash)
 # Source tree is mounted at /src (like nemo-build); builds go to /build-win.
 
@@ -15,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		libglib2.0-dev-bin libglib2.0-bin gettext intltool desktop-file-utils python3 \
 		curl ca-certificates gawk tar zstd xz-utils \
 		wine wine64 \
+		xvfb x11-utils x11-apps imagemagick \
 	&& rm -rf /var/lib/apt/lists/*
 
 COPY fetch-sysroot.bash /opt/fetch-sysroot.bash
