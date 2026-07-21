@@ -44,6 +44,7 @@ Nemo, freed from its desktop. A great file manager should run anywhere. This one
 - [Status](#status)
 - [Installing](#installing)
 - [Building from source](#building-from-source)
+- [Longer-term roadmap](#longer-term-roadmap)
 - [Copyright and license](#copyright-and-license)
 
 <!-- /TOC -->
@@ -56,11 +57,11 @@ There is one catch. It belongs to the Cinnamon desktop. If you run anything else
 
 This project cuts the strings:
 
-- Take Nemo as-is, from the source.
+- Takes Nemo as-is, from the source.
 
-- Remove every assumption that says "you are running Cinnamon" or even "you are running Linux".
+- Removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
 
-- Ship it everywhere.
+- Shippable everywhere. (At least, desktop OSes.)
 
 That means, in order:
 
@@ -131,6 +132,18 @@ No releases yet. When per-platform installers exist, they will land on the relea
 ## Building from source
 
 Right now this builds like upstream Nemo: meson and ninja on a Linux box with the GTK3 development stack. Stock Debian 13 packages are a known-good baseline. See [project/design.md](project/design.md) for the package list and steps.
+
+## Longer-term roadmap
+
+For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 it works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt).
+
+Here are the two main options being considered (once Nemo Anywhere v1.0.0 stable release has been live for a while):
+
+- Rust and QML. This is the most viable option for moving away from C and for long-term maintenance. But the only viable QML bindings for Rust is `cxx-qt`. While is seems fine for now, it also carries a big vendor dependency and risk.
+
+	- Mitigation strategy: Use `cxx-qt`, but also maintain a hard-forked subset of only the parts needed, and keep it up-to-date as we go. If and when the time comes that `cxx-qt` is ever abandoned, falls behind QML, and/or pursues different goals: Our minimal hard fork is ready to go.
+
+- Idiomatic/RAII C++ v23, combined with native QML bindings. Harder to port the code (ironically in spite of both having the same ancestry), but less risk with QML.
 
 ## Copyright and license
 
