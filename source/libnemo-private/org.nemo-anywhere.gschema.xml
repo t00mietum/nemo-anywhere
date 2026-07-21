@@ -918,4 +918,60 @@
       <summary>List of search helper filenames to skip when using content search.</summary>
     </key>
   </schema>
+
+  <!-- Compat schemas: bundled fallbacks for the desktop-environment settings we
+       used to read from Cinnamon/GNOME. On a Cinnamon session the real schemas are
+       used (see settings_new_or_compat); off-Cinnamon (other Linux, Windows) these
+       supply the same keys with neutral defaults so we don't depend on the DE. -->
+
+  <schema id="org.nemo-anywhere.compat.lockdown" path="/org/nemo-anywhere/compat/lockdown/">
+    <key name="disable-command-line" type="b">
+      <default>false</default>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.compat.background" path="/org/nemo-anywhere/compat/background/">
+    <key name="show-desktop-icons" type="b">
+      <default>false</default>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.compat.media-handling" path="/org/nemo-anywhere/compat/media-handling/">
+    <key name="automount" type="b">
+      <default>true</default>
+    </key>
+    <key name="automount-open" type="b">
+      <default>true</default>
+    </key>
+    <key name="autorun-never" type="b">
+      <default>false</default>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.compat.terminal" path="/org/nemo-anywhere/compat/terminal/">
+    <key name="exec" type="s">
+      <default>''</default>
+    </key>
+    <key name="exec-arg" type="s">
+      <default>'-e'</default>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.compat.privacy" path="/org/nemo-anywhere/compat/privacy/">
+    <key name="remember-recent-files" type="b">
+      <default>true</default>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.compat.cinnamon-interface" path="/org/nemo-anywhere/compat/cinnamon-interface/">
+    <key name="clock-use-24h" type="b">
+      <default>true</default>
+    </key>
+  </schema>
+
+  <schema id="org.nemo-anywhere.compat.gnome-interface" path="/org/nemo-anywhere/compat/gnome-interface/">
+    <key name="monospace-font-name" type="s">
+      <default>'Monospace 10'</default>
+    </key>
+  </schema>
 </schemalist>

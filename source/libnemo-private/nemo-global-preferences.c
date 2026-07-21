@@ -453,6 +453,21 @@ setup_cached_time_data (void)
     on_time_data_changed (NULL);
 }
 
+/* Use the real desktop schema when the session provides it (Cinnamon), else our
+   bundled compat copy. Keeps DE integration where present without depending on it. */
+static GSettings *
+settings_new_or_compat (const char *schema_id, const char *compat_id)
+{
+	GSettingsSchemaSource *source = g_settings_schema_source_get_default ();
+	GSettingsSchema *schema = source ? g_settings_schema_source_lookup (source, schema_id, TRUE) : NULL;
+
+	if (schema != NULL) {
+		g_settings_schema_unref (schema);
+		return g_settings_new (schema_id);
+	}
+	return g_settings_new (compat_id);
+}
+
 void
 nemo_global_preferences_init (void)
 {
@@ -477,14 +492,14 @@ nemo_global_preferences_init (void)
     nemo_plugin_preferences = g_settings_new("org.nemo-anywhere.plugins");
     nemo_menu_config_preferences = g_settings_new("org.nemo-anywhere.preferences.menu-config");
     nemo_search_preferences = g_settings_new("org.nemo-anywhere.search");
-	gnome_lockdown_preferences = g_settings_new("org.cinnamon.desktop.lockdown");
-	gnome_background_preferences = g_settings_new("org.cinnamon.desktop.background");
-	gnome_media_handling_preferences = g_settings_new("org.cinnamon.desktop.media-handling");
-	gnome_terminal_preferences = g_settings_new("org.cinnamon.desktop.default-applications.terminal");
-    cinnamon_privacy_preferences = g_settings_new("org.cinnamon.desktop.privacy");
-	cinnamon_interface_preferences = g_settings_new ("org.cinnamon.desktop.interface");
+	gnome_lockdown_preferences = settings_new_or_compat("org.cinnamon.desktop.lockdown", "org.nemo-anywhere.compat.lockdown");
+	gnome_background_preferences = settings_new_or_compat("org.cinnamon.desktop.background", "org.nemo-anywhere.compat.background");
+	gnome_media_handling_preferences = settings_new_or_compat("org.cinnamon.desktop.media-handling", "org.nemo-anywhere.compat.media-handling");
+	gnome_terminal_preferences = settings_new_or_compat("org.cinnamon.desktop.default-applications.terminal", "org.nemo-anywhere.compat.terminal");
+    cinnamon_privacy_preferences = settings_new_or_compat("org.cinnamon.desktop.privacy", "org.nemo-anywhere.compat.privacy");
+	cinnamon_interface_preferences = settings_new_or_compat("org.cinnamon.desktop.interface", "org.nemo-anywhere.compat.cinnamon-interface");
     // System mono font
-    gnome_interface_preferences = g_settings_new ("org.gnome.desktop.interface");
+    gnome_interface_preferences = settings_new_or_compat("org.gnome.desktop.interface", "org.nemo-anywhere.compat.gnome-interface");
 
     setup_cached_pref_keys ();
     setup_cached_time_data ();
