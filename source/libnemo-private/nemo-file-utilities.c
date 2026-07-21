@@ -24,6 +24,7 @@
 
 #include <config.h>
 #include "nemo-file-utilities.h"
+#include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-global-preferences.h"
 #include "nemo-lib-self-check-functions.h"

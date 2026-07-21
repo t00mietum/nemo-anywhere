@@ -1,0 +1,24 @@
+# meson cross file: x86_64 Windows via mingw-w64, deps from the MSYS2 sysroot.
+# Build tools (glib-compile-resources, msgfmt, ...) run natively on the Linux build host;
+# only the compiler/linker and the dependency sysroot are Windows.
+
+[binaries]
+c          = 'x86_64-w64-mingw32-gcc'
+cpp        = 'x86_64-w64-mingw32-g++'
+ar         = 'x86_64-w64-mingw32-ar'
+strip      = 'x86_64-w64-mingw32-strip'
+windres    = 'x86_64-w64-mingw32-windres'
+pkg-config = 'pkg-config'
+exe_wrapper = 'wine'
+
+[properties]
+# Sysroot dir that contains mingw64/ - .pc files keep prefix=/mingw64, so pkg-config
+# prepends this. pkg_config_libdir points at the sysroot's own .pc files only.
+sys_root          = '/opt/win-sysroot'
+pkg_config_libdir = '/opt/win-sysroot/mingw64/lib/pkgconfig'
+
+[host_machine]
+system     = 'windows'
+cpu_family = 'x86_64'
+cpu        = 'x86_64'
+endian     = 'little'

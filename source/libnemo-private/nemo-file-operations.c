@@ -38,6 +38,7 @@
 #include <errno.h>
 
 #include "nemo-file-operations.h"
+#include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-file-changes-queue.h"
 #include "nemo-lib-self-check-functions.h"
@@ -3396,8 +3397,14 @@ get_max_name_length (GFile *file_dir)
 	if (!dir)
 		return max_length;
 
+#ifdef G_OS_UNIX
 	max_path = pathconf (dir, _PC_PATH_MAX);
 	max_name = pathconf (dir, _PC_NAME_MAX);
+#else
+	/* No pathconf on Windows; use conservative NTFS component limits. */
+	max_path = 260;
+	max_name = 255;
+#endif
 
 	if (max_name == -1 && max_path == -1) {
 		max_length = -1;

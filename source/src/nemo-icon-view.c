@@ -64,7 +64,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include <sys/types.h>
+#ifdef G_OS_UNIX
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 
 #define POPUP_PATH_ICON_APPEARANCE		"/selection/Icon Appearance Items"

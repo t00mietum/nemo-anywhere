@@ -3652,6 +3652,14 @@ add_permissions_checkbox (NemoPropertiesWindow *window,
 						    is_folder);
 }
 
+/* setuid/setgid bits are absent from some libc headers (e.g. mingw). */
+#ifndef S_ISUID
+#define S_ISUID 04000
+#endif
+#ifndef S_ISGID
+#define S_ISGID 02000
+#endif
+
 enum {
 	UNIX_PERM_SUID = S_ISUID,
 	UNIX_PERM_SGID = S_ISGID,

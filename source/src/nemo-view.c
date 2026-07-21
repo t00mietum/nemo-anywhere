@@ -43,7 +43,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <glib.h>

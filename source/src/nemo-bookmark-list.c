@@ -35,7 +35,9 @@
 #include <gio/gio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef G_OS_UNIX
 #include <pwd.h>
+#endif
 
 #define MAX_BOOKMARK_LENGTH 80
 #define LOAD_JOB 1
@@ -61,6 +63,7 @@ static void        nemo_bookmark_list_save_file     (NemoBookmarkList *bookmarks
 
 G_DEFINE_TYPE(NemoBookmarkList, nemo_bookmark_list, G_TYPE_OBJECT);
 
+#ifdef G_OS_UNIX
 /* When running elevated (pkexec/sudo), find the pwent of the invoking user so
  * files we touch stay owned by them rather than root. */
 static struct passwd *
@@ -83,10 +86,12 @@ get_session_user_pwent (void)
 
     return getpwuid (getuid ());
 }
+#endif /* G_OS_UNIX */
 
 static void
 ensure_proper_file_permissions (GFile *file)
 {
+#ifdef G_OS_UNIX
     if (nemo_user_is_root () && !nemo_treating_root_as_normal ()) {
         struct passwd *pwent;
         pwent = get_session_user_pwent ();
@@ -106,6 +111,9 @@ ensure_proper_file_permissions (GFile *file)
 
         g_free (path);
     }
+#else
+    (void) file;
+#endif /* G_OS_UNIX */
 }
 
 static NemoBookmark *

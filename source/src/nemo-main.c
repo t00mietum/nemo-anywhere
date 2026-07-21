@@ -37,7 +37,9 @@
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#ifdef G_OS_UNIX
 #include <gio/gdesktopappinfo.h>
+#endif
 
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
@@ -74,7 +76,9 @@ main (int argc, char *argv[])
 #endif
 
 	/* This will be done by gtk+ later, but for now, force it to GNOME */
+#ifdef G_OS_UNIX
 	g_desktop_app_info_set_desktop_env ("GNOME");
+#endif
 
 	if (g_getenv ("NEMO_DEBUG") != NULL) {
 		eel_make_warnings_and_criticals_stop_in_debugger ();

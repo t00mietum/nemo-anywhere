@@ -54,7 +54,9 @@
 #include <eel/eel-vfs-extensions.h>
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>

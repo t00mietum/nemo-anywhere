@@ -94,9 +94,9 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 3 - First cross-platform target (Windows)
 
-- 🔘 Choose and stand up the Windows toolchain (leaning MSYS2/MinGW-w64)
-- 🔘 Get GTK3 + GLib/GIO building/available on the chosen toolchain
-- 🔘 Compile on Windows, stubbing/excluding hard platform deps
+- ✅ Choose and stand up the Windows toolchain - cross-compile from Linux with mingw-w64, smoke-test under wine. Dedicated `nemo-winbuild` container; GTK3 deps are prebuilt MSYS2 packages unpacked into a sysroot (`cicd/win/`)
+- ✅ Get GTK3 + GLib/GIO building/available on the chosen toolchain - `meson setup --cross-file` configures clean (all deps resolve from the sysroot); Unix-only deps (gio-unix, x11, gobject-introspection) guarded behind `host_machine.system()`
+- ✅ Compile on Windows, stubbing/excluding hard platform deps - `nemo-anywhere.exe` (plus all helpers + the extension DLL) builds and links clean, and prints `nemo-anywhere 6.6.4` under wine. Linux stays green. POSIX gaps closed via a shared `nemo-posix-compat.h` (uid/gid, passwd/group, chown, getuid/geteuid all degrade to non-root no-ops on non-Unix) plus per-site guards: portable geometry parser replacing X11's `XParseGeometry`, `realpath`->`g_canonicalize_filename`, `GDesktopAppInfo` launch paths falling back to generic `g_app_info_launch_uris`, and pathconf/S_ISUID-GID-VTX/pwent-deref/vestigial-gdkx guards
 - 🔘 Launch on Windows and browse the local filesystem
 - 🔘 Map drive letters / roots into the location model
 - 🔘 Make the CICD test gate resilient to a down/absent docker daemon - detect and auto-start (or skip-with-warning) instead of a raw socket error aborting every dev/main push; revisit whether one container-Linux smoke test is still a meaningful gate once Windows/cross lanes exist

@@ -34,11 +34,15 @@
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#ifdef G_OS_UNIX
 #include <gio/gdesktopappinfo.h>
+#endif
 #include <stdlib.h>
 
 #include <gdk/gdk.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 
 void
 nemo_launch_application_for_mount (GAppInfo *app_info,
@@ -99,6 +103,7 @@ dummy_child_watch (GPid     pid,
    */
 }
 
+#ifdef G_OS_UNIX
 static void
 gather_pid_callback (GDesktopAppInfo *appinfo,
                      GPid            pid,
@@ -106,6 +111,7 @@ gather_pid_callback (GDesktopAppInfo *appinfo,
 {
     g_child_watch_add(pid, dummy_child_watch, NULL);
 }
+#endif /* G_OS_UNIX */
 
 void
 nemo_launch_application_by_uri (GAppInfo *application, 
@@ -166,6 +172,7 @@ nemo_launch_application_by_uri (GAppInfo *application,
 	
 	error = NULL;
 
+#ifdef G_OS_UNIX
     result = g_desktop_app_info_launch_uris_as_manager (G_DESKTOP_APP_INFO (application),
                                                         uris,
                                                         G_APP_LAUNCH_CONTEXT (launch_context),
@@ -173,6 +180,17 @@ nemo_launch_application_by_uri (GAppInfo *application,
                                                         NULL, NULL,
                                                         gather_pid_callback, application,
                                                         &error);
+#else
+    result = g_app_info_launch_uris (application,
+                                     uris,
+                                     G_APP_LAUNCH_CONTEXT (launch_context),
+                                     &error);
+#endif
+
+    if (!result && error != NULL) {
+        g_warning ("Failed to launch application: %s", error->message);
+        g_clear_error (&error);
+    }
 
     g_object_unref (launch_context);
 
@@ -300,6 +318,7 @@ nemo_launch_desktop_file (GdkScreen   *screen,
 			      const GList *parameter_uris,
 			      GtkWindow   *parent_window)
 {
+#ifdef G_OS_UNIX
 	GError *error;
 	char *message, *desktop_file_path;
 	const GList *p;
@@ -404,4 +423,12 @@ nemo_launch_desktop_file (GdkScreen   *screen,
 	g_list_free_full (files, g_object_unref);
 	g_object_unref (context);
 	g_object_unref (app_info);
+#else /* !G_OS_UNIX */
+	/* .desktop launchers are a freedesktop concept; unsupported here. */
+	(void) screen;
+	(void) desktop_file_uri;
+	(void) parameter_uris;
+	eel_show_error_dialog (_("There was an error launching the application."),
+			       NULL, parent_window);
+#endif /* G_OS_UNIX */
 }
