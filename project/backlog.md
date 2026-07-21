@@ -94,9 +94,9 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 3 - First cross-platform target (Windows)
 
-- 🔘 Choose and stand up the Windows toolchain (leaning MSYS2/MinGW-w64)
-- 🔘 Get GTK3 + GLib/GIO building/available on the chosen toolchain
-- 🔘 Compile on Windows, stubbing/excluding hard platform deps
+- ✅ Choose and stand up the Windows toolchain - cross-compile from Linux with mingw-w64, smoke-test under wine. Dedicated `nemo-winbuild` container; GTK3 deps are prebuilt MSYS2 packages unpacked into a sysroot (`cicd/win/`)
+- ✅ Get GTK3 + GLib/GIO building/available on the chosen toolchain - `meson setup --cross-file` configures clean (all deps resolve from the sysroot); Unix-only deps (gio-unix, x11, gobject-introspection) guarded behind `host_machine.system()`
+- 🛠️ Compile on Windows, stubbing/excluding hard platform deps - first cut done; X11/gdkx cascade eliminated (dropped X11 type leak from `eel-gtk-extensions.h`). ~19 objects still failing on POSIX gaps: pwd/grp/getpwuid/getuid/geteuid, sys/wait, pathconf, S_ISUID/GID, realpath, gio-desktopappinfo, 3 direct gdkx includes + the X11 geometry parser
 - 🔘 Launch on Windows and browse the local filesystem
 - 🔘 Map drive letters / roots into the location model
 - 🔘 Make the CICD test gate resilient to a down/absent docker daemon - detect and auto-start (or skip-with-warning) instead of a raw socket error aborting every dev/main push; revisit whether one container-Linux smoke test is still a meaningful gate once Windows/cross lanes exist
