@@ -99,6 +99,7 @@ In each section, items are listed approximately from newest to oldest.
 - 🔘 Compile on Windows, stubbing/excluding hard platform deps
 - 🔘 Launch on Windows and browse the local filesystem
 - 🔘 Map drive letters / roots into the location model
+- 🔘 Make the CICD test gate resilient to a down/absent docker daemon - detect and auto-start (or skip-with-warning) instead of a raw socket error aborting every dev/main push; revisit whether one container-Linux smoke test is still a meaningful gate once Windows/cross lanes exist
 
 ### Milestone 4 - Feature port (iterative, per target)
 
