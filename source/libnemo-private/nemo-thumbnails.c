@@ -39,7 +39,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef G_OS_UNIX
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 #include <signal.h>
 #include <libnemo-private/nemo-desktop-thumbnail.h>

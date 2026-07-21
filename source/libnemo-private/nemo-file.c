@@ -51,7 +51,7 @@
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-vfs-extensions.h>
 #include <eel/eel-string.h>
-#include <grp.h>
+#include <libnemo-private/nemo-posix-compat.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
@@ -60,7 +60,6 @@
 #include <libnemo-extension/nemo-file-info.h>
 #include <libnemo-extension/nemo-extension-private.h>
 #include <libnemo-private/nemo-favorites.h>
-#include <pwd.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>

@@ -44,7 +44,7 @@
 
 #include "nemo-desktop-thumbnail.h"
 #include <glib/gstdio.h>
-#include <pwd.h>
+#include <libnemo-private/nemo-posix-compat.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -819,6 +819,14 @@ get_user_info (NemoDesktopThumbnailFactory *factory,
     struct passwd *pwent;
 
     pwent = get_session_user_pwent ();
+
+    /* No passwd database (e.g. Windows) - nothing to adjust. */
+    if (pwent == NULL) {
+        *uid = getuid ();
+        *gid = 0;
+        *adjust = FALSE;
+        return;
+    }
 
     *uid = pwent->pw_uid;
     *gid = pwent->pw_gid;
@@ -1892,6 +1900,10 @@ nemo_desktop_thumbnail_cache_fix_permissions (void)
 
     pwent = get_session_user_pwent ();
 
+    if (pwent == NULL) {
+        return;
+    }
+
     gchar *cache_dir = g_build_filename (g_get_user_cache_dir (), "thumbnails", NULL);
 
     if (!access_ok (cache_dir, pwent->pw_uid, pwent->pw_gid))
@@ -1928,6 +1940,13 @@ nemo_desktop_thumbnail_cache_check_permissions (NemoDesktopThumbnailFactory *fac
 
     struct passwd *pwent;
     pwent = get_session_user_pwent ();
+
+    if (pwent == NULL) {
+        if (factory)
+            factory->priv->permissions_problem = FALSE;
+        return TRUE;
+    }
+
     gchar *cache_dir = g_build_filename (g_get_user_cache_dir(), "thumbnails", NULL);
 
     if (!access_ok (cache_dir, pwent->pw_uid, pwent->pw_gid)) {

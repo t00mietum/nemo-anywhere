@@ -66,7 +66,9 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef G_OS_UNIX
 #include <pwd.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
 #include <glib/gstdio.h>

@@ -938,7 +938,7 @@ static gboolean
 should_skip_child (SearchThreadData *data, GFileInfo *info, GFile *file, gboolean is_dir)
 {
     const gchar *path = g_file_peek_path (file);
-    g_autofree gchar *resolved_path = realpath (path, NULL);
+    g_autofree gchar *resolved_path = g_canonicalize_filename (path, NULL);
 
     DEBUG ("Skip check: '%s' realpath is '%s'", path, resolved_path);
 

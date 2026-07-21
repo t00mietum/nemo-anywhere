@@ -137,7 +137,7 @@ Right now this builds like upstream Nemo: meson and ninja on a Linux box with th
 
 ## Longer-term roadmap
 
-For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 it works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt).
+For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt).
 
 Here are the two main options being considered (once Nemo Anywhere v1.0.0 stable release has been live for a while):
 

@@ -51,7 +51,9 @@
 #include <eel/eel-string.h>
 #include <eel/eel-vfs-extensions.h>
 #include <gdk/gdkkeysyms.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 

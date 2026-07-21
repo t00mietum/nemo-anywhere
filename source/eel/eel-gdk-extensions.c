@@ -31,18 +31,39 @@
 #include "eel-string.h"
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gdk/gdk.h>
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#endif
 #include <stdlib.h>
 #include <pango/pango.h>
+
+/* Portable geometry-string parser (was X11's XParseGeometry). Same
+ * "=WxH{+-}X{+-}Y" grammar; EelGdkGeometryFlags bits already match the
+ * classic X11 mask so we set them directly and stay off libX11. */
+static int
+read_geometry_int (const char *s, const char **next)
+{
+	int result = 0;
+	int sign = 1;
+
+	if (*s == '+') {
+		s++;
+	} else if (*s == '-') {
+		s++;
+		sign = -1;
+	}
+	for (; *s >= '0' && *s <= '9'; s++) {
+		result = (result * 10) + (*s - '0');
+	}
+	*next = s;
+	return sign * result;
+}
 
 EelGdkGeometryFlags
 eel_gdk_parse_geometry (const char *string, int *x_return, int *y_return,
 			     guint *width_return, guint *height_return)
 {
-	int x11_flags;
-	EelGdkGeometryFlags gdk_flags;
+	EelGdkGeometryFlags flags = EEL_GDK_NO_VALUE;
+	const char *pos, *next;
+	int x = 0, y = 0;
+	guint width = 0, height = 0;
 
 	g_return_val_if_fail (string != NULL, EEL_GDK_NO_VALUE);
 	g_return_val_if_fail (x_return != NULL, EEL_GDK_NO_VALUE);
@@ -50,30 +71,71 @@ eel_gdk_parse_geometry (const char *string, int *x_return, int *y_return,
 	g_return_val_if_fail (width_return != NULL, EEL_GDK_NO_VALUE);
 	g_return_val_if_fail (height_return != NULL, EEL_GDK_NO_VALUE);
 
-	x11_flags = XParseGeometry (string, x_return, y_return,
-				    width_return, height_return);
-
-	gdk_flags = EEL_GDK_NO_VALUE;
-	if (x11_flags & XValue) {
-		gdk_flags |= EEL_GDK_X_VALUE;
+	if (*string == '\0') {
+		return EEL_GDK_NO_VALUE;
 	}
-	if (x11_flags & YValue) {
-		gdk_flags |= EEL_GDK_Y_VALUE;
-	}
-	if (x11_flags & WidthValue) {
-		gdk_flags |= EEL_GDK_WIDTH_VALUE;
-	}
-	if (x11_flags & HeightValue) {
-		gdk_flags |= EEL_GDK_HEIGHT_VALUE;
-	}
-	if (x11_flags & XNegative) {
-		gdk_flags |= EEL_GDK_X_NEGATIVE;
-	}
-	if (x11_flags & YNegative) {
-		gdk_flags |= EEL_GDK_Y_NEGATIVE;
+	pos = string;
+	if (*pos == '=') {
+		pos++;
 	}
 
-	return gdk_flags;
+	if (*pos != '+' && *pos != '-' && *pos != 'x' && *pos != 'X') {
+		width = read_geometry_int (pos, &next);
+		if (pos == next) {
+			return EEL_GDK_NO_VALUE;
+		}
+		pos = next;
+		flags |= EEL_GDK_WIDTH_VALUE;
+	}
+	if (*pos == 'x' || *pos == 'X') {
+		pos++;
+		height = read_geometry_int (pos, &next);
+		if (pos == next) {
+			return EEL_GDK_NO_VALUE;
+		}
+		pos = next;
+		flags |= EEL_GDK_HEIGHT_VALUE;
+	}
+	if (*pos == '+' || *pos == '-') {
+		if (*pos == '-') {
+			pos++;
+			x = -read_geometry_int (pos, &next);
+			flags |= EEL_GDK_X_NEGATIVE;
+		} else {
+			pos++;
+			x = read_geometry_int (pos, &next);
+		}
+		if (pos == next) {
+			return EEL_GDK_NO_VALUE;
+		}
+		pos = next;
+		flags |= EEL_GDK_X_VALUE;
+
+		if (*pos == '+' || *pos == '-') {
+			if (*pos == '-') {
+				pos++;
+				y = -read_geometry_int (pos, &next);
+				flags |= EEL_GDK_Y_NEGATIVE;
+			} else {
+				pos++;
+				y = read_geometry_int (pos, &next);
+			}
+			if (pos == next) {
+				return EEL_GDK_NO_VALUE;
+			}
+			pos = next;
+			flags |= EEL_GDK_Y_VALUE;
+		}
+	}
+	if (*pos != '\0') {
+		return EEL_GDK_NO_VALUE;
+	}
+
+	*x_return = x;
+	*y_return = y;
+	*width_return = width;
+	*height_return = height;
+	return flags;
 }
 
 GdkDevice *

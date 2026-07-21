@@ -64,10 +64,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef G_OS_UNIX
 #include <pwd.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <glib/gstdio.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
@@ -447,8 +451,12 @@ open_tabs_in_existing_window (NemoMainApplication *application,
             if (eel_check_is_wayland ()) {
                 gtk_window_present (GTK_WINDOW (window));
             } else {
+#ifdef GDK_WINDOWING_X11
                 gtk_window_present_with_time (GTK_WINDOW (window),
                                               gdk_x11_get_server_time (gtk_widget_get_window (GTK_WIDGET (window))));
+#else
+                gtk_window_present (GTK_WINDOW (window));
+#endif
             }
 
           break;
