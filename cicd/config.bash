@@ -43,6 +43,16 @@ EXE_NAME="nemo-anywhere"
 ## into /build. See design.md "Building". The build/test commands below auto-start it.
 NEMO_CONTAINER="nemo-build"
 
+## Directory of this config, for locating sibling helper scripts (self-contained,
+## no reliance on cicd.bash internals).
+_cfgdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+## Wrapper that runs a shell command in NEMO_CONTAINER but stays resilient to a
+## down/absent docker daemon: it skips-with-warning (exit 0) on an environmental
+## miss instead of aborting the push with a raw socket error, and propagates a
+## genuine build/smoke failure. See utility/docker-run.bash.
+DOCKER_RUN="${_cfgdir}/utility/docker-run.bash"
+
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Stage 1: format the source in place before anything is compiled or tested.
@@ -71,24 +81,21 @@ FMT_CHECK_CMD=()
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Stage 2: debug build - READY. Configure (or reconfigure) and build in-container.
-## Auto-starts the container so a stopped box doesn't fail the stage. This is what
-## the smoke test runs against.
-DEBUG_BUILD_CMD=(bash -c '
-	docker start "${NEMO_CONTAINER:-nemo-build}" >/dev/null 2>&1 || true
-	docker exec "${NEMO_CONTAINER:-nemo-build}" sh -c '\''
-		if [ -f /build/build.ninja ]; then meson setup --reconfigure /build /src/source
-		else meson setup /build /src/source; fi && ninja -C /build
-	'\''
+## The wrapper starts the container (and skips gracefully if docker is down) so a
+## stopped box or dead daemon doesn't fail the stage. This is what the smoke runs
+## against.
+DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" '
+	if [ -f /build/build.ninja ]; then meson setup --reconfigure /build /src/source
+	else meson setup /build /src/source; fi && ninja -C /build
 ')
 
 ## Stage 3: regression tests - PARTIAL. There is no real test suite yet, so "tests"
 ## is a headless launch + --version smoke check inside the container (proves the
-## build links and starts). Runs on the container's Xvfb via xvfb-run.
+## build links and starts). Runs on the container's Xvfb via xvfb-run. Same wrapper,
+## so a down/absent daemon skips-with-warning instead of aborting the gate.
 ## NEEDS: an actual regression suite (behavioral/unit) once there's portable code to
 ## assert on; swap this smoke check for it, or run both.
-TEST_CMD=(bash -c '
-	docker exec "${NEMO_CONTAINER:-nemo-build}" sh -c "xvfb-run -a /build/src/nemo-anywhere --version"
-')
+TEST_CMD=(bash "${DOCKER_RUN}" "smoke test" 'xvfb-run -a /build/src/nemo-anywhere --version')
 
 ## Stage 3 (after tests): lints. NOT READY - unset (stage self-skips).
 ## NEEDS: a C linter/static-analysis gate (clang-tidy, cppcheck, or meson's own
