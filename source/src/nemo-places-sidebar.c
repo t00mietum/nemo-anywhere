@@ -29,6 +29,10 @@
 #include <glib/gi18n.h>
 #include <gio/gio.h>
 #include <math.h>
+
+#ifdef G_OS_WIN32
+#include <windows.h>
+#endif
 #include <cairo-gobject.h>
 #include <libnemo-private/nemo-favorites.h>
 
@@ -664,6 +668,30 @@ get_disk_full (GFile *file, gchar **tooltip_info)
     return df_percent;
 }
 
+#ifdef G_OS_WIN32
+/* A bare fixed-disk root like "C:\" - shown as a first-class Computer root, so
+   the Devices section skips it to avoid a duplicate. Removable/optical/network
+   drives are not fixed, so they still flow through the normal Devices path. */
+static gboolean
+file_is_win_fixed_drive_root (GFile *file)
+{
+    gchar *path = g_file_get_path (file);
+    gboolean is_root = path != NULL
+                       && g_ascii_isalpha (path[0])
+                       && path[1] == ':'
+                       && (path[2] == '\\' || path[2] == '/')
+                       && path[3] == '\0';
+
+    if (is_root) {
+        gchar drive_path[4] = { path[0], ':', '\\', '\0' };
+        is_root = (GetDriveTypeA (drive_path) == DRIVE_FIXED);
+    }
+
+    g_free (path);
+    return is_root;
+}
+#endif
+
 static gboolean
 home_on_different_fs (const gchar *home_uri)
 {
@@ -878,6 +906,54 @@ update_places (NemoPlacesSidebar *sidebar)
         }
     }
 
+#ifdef G_OS_WIN32
+    /* Windows has no single "/" root - each drive letter is its own root. */
+    {
+        DWORD drive_mask = GetLogicalDrives ();
+        gint bit;
+
+        for (bit = 0; bit < 26; bit++) {
+            if (!(drive_mask & (1u << bit))) {
+                continue;
+            }
+
+            gchar letter = (gchar) ('A' + bit);
+            gchar drive_path[4] = { letter, ':', '\\', '\0' };
+
+            /* Fixed disks are the "roots" here; removable/optical/network keep
+               their normal Devices/Network entry (which carries eject/unmount). */
+            if (GetDriveTypeA (drive_path) != DRIVE_FIXED) {
+                continue;
+            }
+
+            gchar *drive_uri = g_strdup_printf ("file:///%c:/", letter);
+            gchar *drive_name = g_strdup_printf ("(%c:)", letter);
+
+            df_file = g_file_new_for_uri (drive_uri);
+            full = get_disk_full (df_file, &tooltip_info);
+            g_clear_object (&df_file);
+
+            tooltip = g_strdup_printf (_("Open drive %c:\n%s"), letter, tooltip_info);
+            g_free (tooltip_info);
+
+            cat_iter = add_place (sidebar, PLACES_BUILT_IN,
+                                  SECTION_COMPUTER,
+                                  drive_name, NEMO_ICON_SYMBOLIC_FILESYSTEM,
+                                  drive_uri, NULL, NULL, NULL, 0,
+                                  tooltip,
+                                  full, full > -1,
+                                  cat_iter);
+
+            if (sidebar->bottom_bookend_uri == NULL) {
+                sidebar->bottom_bookend_uri = g_strdup (drive_uri);
+            }
+
+            g_free (tooltip);
+            g_free (drive_name);
+            g_free (drive_uri);
+        }
+    }
+#else
     /* file system root */
     mount_uri = (char *)"file:///"; /* No need to strdup */
     icon = NEMO_ICON_SYMBOLIC_FILESYSTEM;
@@ -900,6 +976,7 @@ update_places (NemoPlacesSidebar *sidebar)
     if (sidebar->bottom_bookend_uri == NULL) {
         sidebar->bottom_bookend_uri = g_strdup (mount_uri);
     }
+#endif
 
     if (eel_vfs_supports_uri_scheme("trash")) {
         mount_uri = (char *)"trash:///"; /* No need to strdup */
@@ -958,6 +1035,15 @@ update_places (NemoPlacesSidebar *sidebar)
             continue;
         }
         root = g_mount_get_default_location (mount);
+
+#ifdef G_OS_WIN32
+        /* Fixed drives are already first-class Computer roots; don't repeat them here. */
+        if (file_is_win_fixed_drive_root (root)) {
+            g_object_unref (root);
+            g_object_unref (mount);
+            continue;
+        }
+#endif
 
         if (!g_file_is_native (root)) {
             gboolean really_network = TRUE;
@@ -1038,6 +1124,18 @@ update_places (NemoPlacesSidebar *sidebar)
                     /* Show mounted volume in the sidebar */
                     icon = nemo_get_mount_icon_name (mount);
                     root = g_mount_get_default_location (mount);
+
+#ifdef G_OS_WIN32
+                    /* Fixed drives are first-class Computer roots already. */
+                    if (file_is_win_fixed_drive_root (root)) {
+                        g_object_unref (root);
+                        g_object_unref (mount);
+                        g_free (icon);
+                        g_object_unref (volume);
+                        continue;
+                    }
+#endif
+
                     mount_uri = g_file_get_uri (root);
                     name = g_mount_get_name (mount);
 
@@ -1157,6 +1255,18 @@ update_places (NemoPlacesSidebar *sidebar)
             g_autofree gchar *parse_name = NULL;
             icon = nemo_get_mount_icon_name (mount);
             root = g_mount_get_default_location (mount);
+
+#ifdef G_OS_WIN32
+            /* Fixed drives are first-class Computer roots already. */
+            if (file_is_win_fixed_drive_root (root)) {
+                g_object_unref (root);
+                g_object_unref (mount);
+                g_free (icon);
+                g_object_unref (volume);
+                continue;
+            }
+#endif
+
             mount_uri = g_file_get_uri (root);
 
             df_file = g_file_new_for_uri (mount_uri);
