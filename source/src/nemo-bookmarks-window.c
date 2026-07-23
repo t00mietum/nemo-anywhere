@@ -35,6 +35,7 @@
 
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-gnome-extensions.h>
+#include <eel/eel-vfs-extensions.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -784,7 +785,7 @@ update_bookmark_from_text (void)
 			return;
 		}
 
-		location = g_file_parse_name 
+		location = eel_g_file_new_for_user_input
 			(gtk_entry_get_text (GTK_ENTRY (uri_field)));
 		
 		bookmark = nemo_bookmark_new (location,
