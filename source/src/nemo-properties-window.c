@@ -4686,6 +4686,11 @@ should_show_permissions (NemoPropertiesWindow *window)
 {
 	NemoFile *file;
 
+#ifdef G_OS_WIN32
+	/* the POSIX bits GLib reports on win32 are fabricated */
+	return FALSE;
+#endif
+
 	file = get_target_file (window);
 
 	/* Don't show permissions for Trash and Computer since they're not
