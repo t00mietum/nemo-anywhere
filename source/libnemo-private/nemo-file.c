@@ -4704,7 +4704,7 @@ nemo_file_get_control_icon_name (NemoFile *file)
 
                 if (g_strcmp0 (icon_name, "inode-directory-symbolic") == 0) {
                     g_free (icon_name);
-                    icon_name = g_strdup ("xsi-folder-symbolic");
+                    icon_name = g_strdup ("folder-symbolic");
                 }
             }
 
