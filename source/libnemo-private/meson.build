@@ -50,6 +50,7 @@ nemo_private_sources = [
   'nemo-merged-directory.c',
   'nemo-metadata.c',
   'nemo-metadata-store.c',
+  'nemo-trash-win32.c',
   'nemo-thumbnail-pixbuf-utils.c',
   'nemo-mime-application-chooser.c',
   'nemo-module.c',
@@ -83,7 +84,7 @@ nemo_private_sources = [
 ]
 
 nemo_private_deps = [
-  eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, x11
+  eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, win_shell, x11
 ]
 
 if libexif_enabled

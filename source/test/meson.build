@@ -26,6 +26,15 @@ test('Metadata store test',
   args: []
 )
 
+test('Trash win32 test',
+  executable('test-nemo-trash-win32',
+    [ 'test-nemo-trash-win32.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Copy test',
   executable('test-nemo-copy',
     [ 'test-copy.c', 'test.c' ],

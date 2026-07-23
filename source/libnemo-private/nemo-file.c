@@ -429,6 +429,41 @@ nemo_file_get_metadata_store_uri (NemoFile *file)
 	return uri;
 }
 
+/* Like nemo_file_get_metadata_store_uri, but safe on a file that has no
+ * name yet (a fresh nemo_file_new_from_info mid-first-update) - identity
+ * comes from the enumerated info instead. */
+static char *
+metadata_store_uri_from_info (NemoFile *file, GFileInfo *info)
+{
+	const char *info_name, *target;
+	GFile *location;
+	char *uri;
+
+	if (file->details->name != NULL || nemo_file_is_self_owned (file)) {
+		return nemo_file_get_metadata_store_uri (file);
+	}
+
+	info_name = g_file_info_get_name (info);
+	if (info_name == NULL) {
+		return NULL;
+	}
+
+	location = g_file_get_child (file->details->directory->details->location,
+				     info_name);
+	uri = g_file_get_uri (location);
+	g_object_unref (location);
+
+	if (uri != NULL && eel_uri_is_favorite (uri)) {
+		target = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
+		if (target != NULL && !eel_uri_is_favorite (target)) {
+			g_free (uri);
+			uri = g_strdup (target);
+		}
+	}
+
+	return uri;
+}
+
 gboolean
 nemo_file_update_metadata_from_info (NemoFile *file,
 					 GFileInfo *info)
@@ -437,9 +472,11 @@ nemo_file_update_metadata_from_info (NemoFile *file,
 	char *store_uri;
 
 	/* our store shadows whatever a gvfs metadata daemon may have supplied */
-	store_uri = nemo_file_get_metadata_store_uri (file);
-	nemo_metadata_store_apply_to_info (store_uri, info);
-	g_free (store_uri);
+	store_uri = metadata_store_uri_from_info (file, info);
+	if (store_uri != NULL) {
+		nemo_metadata_store_apply_to_info (store_uri, info);
+		g_free (store_uri);
+	}
 
 	if (g_file_info_has_namespace (info, "metadata")) {
 		GHashTable *metadata;
