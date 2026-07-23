@@ -59,7 +59,8 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 2 - Decouple from Cinnamon (benefits every target)
 
-- 🔘 Portable fallbacks for the remaining Mint-flavored theme icon names (`xsi-*`) - menus/toolbars reference ~77 unique names that only Mint themes ship; map to standard freedesktop names or bundle icons. Pre-existing gap (icons already missing on non-Mint), cosmetic only
+- ✅ Portable fallbacks for the remaining Mint-flavored theme icon names (`xsi-*`) - menus/toolbars reference ~77 unique names that only Mint themes ship; map to standard freedesktop names or bundle icons. Pre-existing gap (icons already missing on non-Mint), cosmetic only
+	- Mapped all 85 names to standard freedesktop/Adwaita names (mostly a straight prefix strip; the non-standard dozen got closest equivalents, e.g. favorite->starred, preview->image-x-generic, pin/unpin->view-pin); every resulting name verified present in both the Linux and Windows-sysroot Adwaita themes
 
 ### Milestone 3 - First cross-platform target (Windows)
 
