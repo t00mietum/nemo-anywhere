@@ -3,8 +3,10 @@
 ##	- Purpose: One-liner installer for Nemo Anywhere. Fetches a release build,
 ##	  verifies its checksum, and installs it as a self-contained prefix plus a
 ##	  desktop launcher and a command-line symlink.
-##	- Covers Linux, BSD and WSL. Windows uses install.ps1 instead; macOS lands
-##	  here too once there is a build for it.
+##	- Covers Linux, BSD and WSL, and macOS once there is a build for it.
+##	- install.ps1 is the same installer in PowerShell, and covers every platform
+##	  this one does plus Windows. Either script alone does the whole job; this
+##	  one is the no-dependencies option, since it needs nothing but a shell.
 ##	- Idempotent: reinstalling replaces the prefix in place, and --uninstall
 ##	  removes exactly what was installed. Nothing is touched before the plan is
 ##	  printed and confirmed.
