@@ -8,6 +8,7 @@
 #define NEMO_FAVORITE_VFS_FILE_H
 
 #include "nemo-favorites.h"
+#include "nemo-metadata.h"
 #include <glib-object.h>
 #include <gio/gio.h>
 
@@ -27,8 +28,8 @@ gchar *nemo_favorite_vfs_file_get_real_uri (GFile *file);
 #define URI_SCHEME "favorites"
 #define ROOT_URI ("favorites:///")
 
-#define FAVORITE_METADATA_KEY "metadata::xapp-favorite"
-#define FAVORITE_AVAILABLE_METADATA_KEY "metadata::xapp-favorite-available"
+#define FAVORITE_METADATA_KEY "metadata::" NEMO_METADATA_KEY_FAVORITE
+#define FAVORITE_AVAILABLE_METADATA_KEY "metadata::" NEMO_METADATA_KEY_FAVORITE_AVAILABLE
 
 #define META_TRUE "true"
 #define META_FALSE "false"

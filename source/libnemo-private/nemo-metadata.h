@@ -34,41 +34,46 @@
 
 /* Per-file */
 
-#define NEMO_METADATA_KEY_DEFAULT_VIEW		 	"nemo-default-view"
+/* App-private view/layout state is prefixed with NEMO_APP_SLUG so it never
+ * collides with upstream Nemo's metadata::nemo-* keys on the same files.
+ * Keys shared with other file managers (custom-icon, emblems, annotation,
+ * backgrounds, icon-scale) intentionally keep their common names. */
+
+#define NEMO_METADATA_KEY_DEFAULT_VIEW		 	NEMO_APP_SLUG "-default-view"
 
 #define NEMO_METADATA_KEY_LOCATION_BACKGROUND_COLOR 	"folder-background-color"
 #define NEMO_METADATA_KEY_LOCATION_BACKGROUND_IMAGE 	"folder-background-image"
 
-#define NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL       	"nemo-icon-view-zoom-level"
-#define NEMO_METADATA_KEY_ICON_VIEW_AUTO_LAYOUT      	"nemo-icon-view-auto-layout"
-#define NEMO_METADATA_KEY_ICON_VIEW_SORT_BY          	"nemo-icon-view-sort-by"
-#define NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED    	"nemo-icon-view-sort-reversed"
-#define NEMO_METADATA_KEY_ICON_VIEW_KEEP_ALIGNED            "nemo-icon-view-keep-aligned"
-#define NEMO_METADATA_KEY_ICON_VIEW_LAYOUT_TIMESTAMP	"nemo-icon-view-layout-timestamp"
+#define NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL       	NEMO_APP_SLUG "-icon-view-zoom-level"
+#define NEMO_METADATA_KEY_ICON_VIEW_AUTO_LAYOUT      	NEMO_APP_SLUG "-icon-view-auto-layout"
+#define NEMO_METADATA_KEY_ICON_VIEW_SORT_BY          	NEMO_APP_SLUG "-icon-view-sort-by"
+#define NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED    	NEMO_APP_SLUG "-icon-view-sort-reversed"
+#define NEMO_METADATA_KEY_ICON_VIEW_KEEP_ALIGNED            NEMO_APP_SLUG "-icon-view-keep-aligned"
+#define NEMO_METADATA_KEY_ICON_VIEW_LAYOUT_TIMESTAMP	NEMO_APP_SLUG "-icon-view-layout-timestamp"
 
-#define NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL       	"nemo-list-view-zoom-level"
-#define NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN      	"nemo-list-view-sort-column"
-#define NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED    	"nemo-list-view-sort-reversed"
-#define NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS    	"nemo-list-view-visible-columns"
-#define NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER    	"nemo-list-view-column-order"
+#define NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL       	NEMO_APP_SLUG "-list-view-zoom-level"
+#define NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN      	NEMO_APP_SLUG "-list-view-sort-column"
+#define NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED    	NEMO_APP_SLUG "-list-view-sort-reversed"
+#define NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS    	NEMO_APP_SLUG "-list-view-visible-columns"
+#define NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER    	NEMO_APP_SLUG "-list-view-column-order"
 
-#define NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL		"nemo-compact-view-zoom-level"
+#define NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL		NEMO_APP_SLUG "-compact-view-zoom-level"
 
-#define NEMO_METADATA_KEY_WINDOW_GEOMETRY			"nemo-window-geometry"
-#define NEMO_METADATA_KEY_WINDOW_SCROLL_POSITION		"nemo-window-scroll-position"
-#define NEMO_METADATA_KEY_WINDOW_SHOW_HIDDEN_FILES		"nemo-window-show-hidden-files"
-#define NEMO_METADATA_KEY_WINDOW_MAXIMIZED			"nemo-window-maximized"
-#define NEMO_METADATA_KEY_WINDOW_STICKY			"nemo-window-sticky"
-#define NEMO_METADATA_KEY_WINDOW_KEEP_ABOVE			"nemo-window-keep-above"
+#define NEMO_METADATA_KEY_WINDOW_GEOMETRY			NEMO_APP_SLUG "-window-geometry"
+#define NEMO_METADATA_KEY_WINDOW_SCROLL_POSITION		NEMO_APP_SLUG "-window-scroll-position"
+#define NEMO_METADATA_KEY_WINDOW_SHOW_HIDDEN_FILES		NEMO_APP_SLUG "-window-show-hidden-files"
+#define NEMO_METADATA_KEY_WINDOW_MAXIMIZED			NEMO_APP_SLUG "-window-maximized"
+#define NEMO_METADATA_KEY_WINDOW_STICKY			NEMO_APP_SLUG "-window-sticky"
+#define NEMO_METADATA_KEY_WINDOW_KEEP_ABOVE			NEMO_APP_SLUG "-window-keep-above"
 
-#define NEMO_METADATA_KEY_SIDEBAR_BACKGROUND_COLOR   	"nemo-sidebar-background-color"
-#define NEMO_METADATA_KEY_SIDEBAR_BACKGROUND_IMAGE   	"nemo-sidebar-background-image"
-#define NEMO_METADATA_KEY_SIDEBAR_BUTTONS			"nemo-sidebar-buttons"
+#define NEMO_METADATA_KEY_SIDEBAR_BACKGROUND_COLOR   	NEMO_APP_SLUG "-sidebar-background-color"
+#define NEMO_METADATA_KEY_SIDEBAR_BACKGROUND_IMAGE   	NEMO_APP_SLUG "-sidebar-background-image"
+#define NEMO_METADATA_KEY_SIDEBAR_BUTTONS			NEMO_APP_SLUG "-sidebar-buttons"
 
 #define NEMO_METADATA_KEY_ANNOTATION                    "annotation"
 
-#define NEMO_METADATA_KEY_ICON_POSITION              	"nemo-icon-position"
-#define NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP		"nemo-icon-position-timestamp"
+#define NEMO_METADATA_KEY_ICON_POSITION              	NEMO_APP_SLUG "-icon-position"
+#define NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP		NEMO_APP_SLUG "-icon-position-timestamp"
 #define NEMO_METADATA_KEY_ICON_SCALE                 	"icon-scale"
 #define NEMO_METADATA_KEY_CUSTOM_ICON                	"custom-icon"
 #define NEMO_METADATA_KEY_CUSTOM_ICON_NAME                	"custom-icon-name"
@@ -76,12 +81,12 @@
 
 #define NEMO_METADATA_KEY_MONITOR               "monitor"
 #define NEMO_METADATA_KEY_DESKTOP_GRID_HORIZONTAL  "desktop-horizontal"
-#define NEMO_METADATA_KEY_SHOW_THUMBNAILS "show-thumbnails"
+#define NEMO_METADATA_KEY_SHOW_THUMBNAILS NEMO_APP_SLUG "-show-thumbnails"
 #define NEMO_METADATA_KEY_DESKTOP_GRID_ADJUST      "desktop-grid-adjust"
 
-#define NEMO_METADATA_KEY_PINNED                   "pinned-to-top"
-#define NEMO_METADATA_KEY_FAVORITE                 "xapp-favorite"
-#define NEMO_METADATA_KEY_FAVORITE_AVAILABLE     "xapp-favorite-available"
+#define NEMO_METADATA_KEY_PINNED                   NEMO_APP_SLUG "-pinned-to-top"
+#define NEMO_METADATA_KEY_FAVORITE                 NEMO_APP_SLUG "-favorite"
+#define NEMO_METADATA_KEY_FAVORITE_AVAILABLE     NEMO_APP_SLUG "-favorite-available"
 
 guint nemo_metadata_get_id (const char *metadata);
 
