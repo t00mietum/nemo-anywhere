@@ -89,8 +89,8 @@ if is_windows
   gio_unix = declare_dependency()
   x11      = declare_dependency()
   go_intr  = declare_dependency()
-  # shell/COM libs for the Recycle Bin trash backend
-  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid'])
+  # shell/COM libs for the Recycle Bin trash backend, mpr for network enumeration
+  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lmpr'])
 else
   gio_unix = dependency('gio-unix-2.0',              version: glib_version)
   x11      = dependency('x11')

@@ -78,6 +78,7 @@
 #include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
 #include <libnemo-private/nemo-favorites.h>
+#include <libnemo-private/nemo-network-win32.h>
 #include <libnemo-private/nemo-trash-win32.h>
 
 #include <libnemo-private/nemo-desktop-thumbnail.h>
@@ -562,8 +563,10 @@ nemo_application_startup (GApplication *app)
 	nemo_favorites_get_default ();
 
 #ifdef G_OS_WIN32
-	/* trash:/// over the Recycle Bin, same before-anything-queries rule */
+	/* trash:/// over the Recycle Bin and network:/// over WNet,
+	 * same before-anything-queries rule */
 	nemo_trash_win32_register ();
+	nemo_network_win32_register ();
 #endif
 
     /* Run desktop- or main- specific things */
