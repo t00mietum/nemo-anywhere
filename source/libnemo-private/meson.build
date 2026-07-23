@@ -49,6 +49,7 @@ nemo_private_sources = [
   'nemo-link.c',
   'nemo-merged-directory.c',
   'nemo-metadata.c',
+  'nemo-metadata-store.c',
   'nemo-thumbnail-pixbuf-utils.c',
   'nemo-mime-application-chooser.c',
   'nemo-module.c',

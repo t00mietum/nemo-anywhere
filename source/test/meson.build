@@ -17,6 +17,15 @@ test('Directory Async test',
   args: []
 )
 
+test('Metadata store test',
+  executable('test-nemo-metadata-store',
+    [ 'test-nemo-metadata-store.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Copy test',
   executable('test-nemo-copy',
     [ 'test-copy.c', 'test.c' ],
