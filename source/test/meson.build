@@ -26,6 +26,15 @@ test('Metadata store test',
   args: []
 )
 
+test('User input parse test',
+  executable('test-eel-user-input',
+    [ 'test-eel-user-input.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Trash win32 test',
   executable('test-nemo-trash-win32',
     [ 'test-nemo-trash-win32.c' ],

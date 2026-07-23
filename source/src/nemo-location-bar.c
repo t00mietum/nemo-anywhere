@@ -104,7 +104,7 @@ nemo_location_bar_get_location (NemoLocationBar *bar)
 	GFile *location;
 
 	user_location = gtk_editable_get_chars (GTK_EDITABLE (bar->details->entry), 0, -1);
-	location = g_file_parse_name (user_location);
+	location = eel_g_file_new_for_user_input (user_location);
 	g_free (user_location);
 
 	return location;

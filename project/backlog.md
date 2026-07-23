@@ -69,7 +69,7 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 4 - Feature port (iterative, per target)
 
-- 🛠️ gvfs replacement or scope-out (mounts, network, trash)
+- ✅ gvfs replacement or scope-out (mounts, network, trash)
 	- Scope decided: gvfs stays an optional runtime dep on Linux (it's desktop-agnostic, not Cinnamon); gaps are filled natively per platform. Details in design.md "Decisions along the way".
 	- ✅ Portable per-file metadata store (all platforms) - replaces the gvfs metadata daemon for view/sort state, custom icons, emblems, and favorite markers
 		- One JSON file under the app config dir; entries re-key on move/rename (including folder contents); favorites entries resolve to their target file. Verified on Linux and Windows - per-folder view state now persists on Windows where before it errored every write
@@ -80,7 +80,8 @@ In each section, items are listed approximately from newest to oldest.
 		- Browsing into a trashed folder's contents shows an error page for now (flat item list only) - minor, revisit if it ever matters
 	- ✅ Windows network: native network-neighborhood browsing + UNC paths in the location bar
 		- network:/// served in-process from native enumeration (providers/domains walked down to servers; a server lists its shares, each a shortcut to its UNC path, which the win32 file layer treats as an ordinary folder). The gated sidebar Network section lights back up on Windows. Enumeration verified graceful-empty in the dev rig (no real network there); populated-neighborhood behavior needs real-Windows validation like the rest
-	- 🔘 Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
+	- ✅ Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
+		- Wired into the location bar and the bookmark editor; the retry only fires for local paths that contain `\` and don't resolve literally, so real backslash-named files and remote URIs are never touched
 
 - 🔘 File operations (copy/move/delete/rename) on native APIs
 
