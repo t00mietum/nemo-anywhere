@@ -9626,7 +9626,12 @@ real_update_menus (NemoView *view)
                      && !selection_contains_special_link;
 
 	can_duplicate_files = can_create_files && can_copy_files;
+#ifdef G_OS_WIN32
+	/* no symlink support in the win32 file layer */
+	can_link_files = FALSE;
+#else
 	can_link_files = can_create_files && can_copy_files;
+#endif
 
     is_desktop_view = get_is_desktop_view (view);
     trash_supported = eel_vfs_supports_uri_scheme ("trash");

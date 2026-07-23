@@ -889,10 +889,13 @@ nemo_drag_drop_action_ask (GtkWidget *widget,
 				      (actions & GDK_ACTION_COPY) != 0,
 				      &damd);
 	
+#ifndef G_OS_WIN32
+	/* no symlink support in the win32 file layer */
 	append_drop_action_menu_item (menu, _("_Link Here"),
 				      GDK_ACTION_LINK,
 				      (actions & GDK_ACTION_LINK) != 0,
 				      &damd);
+#endif
 
 	eel_gtk_menu_append_separator (GTK_MENU (menu));
 	

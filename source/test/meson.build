@@ -44,6 +44,15 @@ test('Trash win32 test',
   args: []
 )
 
+test('GIO fileops probe',
+  executable('test-gio-fileops',
+    [ 'test-gio-fileops.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Copy test',
   executable('test-nemo-copy',
     [ 'test-copy.c', 'test.c' ],

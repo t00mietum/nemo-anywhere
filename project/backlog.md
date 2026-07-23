@@ -83,9 +83,13 @@ In each section, items are listed approximately from newest to oldest.
 	- ✅ Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
 		- Wired into the location bar and the bookmark editor; the retry only fires for local paths that contain `\` and don't resolve literally, so real backslash-named files and remote URIs are never touched
 
-- 🔘 File operations (copy/move/delete/rename) on native APIs
+- ✅ File operations (copy/move/delete/rename) on native APIs
+	- Gap analysis (new probe test, run on both platforms): the GIO layer already drives all core operations correctly on Windows - copy, overwrite/conflict, recursive folder copy, move, rename, delete, non-empty-folder handling all behave identically to Linux, so the existing operations engine needed no porting
+	- Real gaps fixed: symlinks aren't supported by the Windows file layer, so "Make Link" and the drag "Link Here" option are no longer offered there; the POSIX permissions tab, columns (owner/group/permissions/octal), and chmod paths are hidden on Windows since the reported mode bits are fabricated
+	- Trash-put failed only in the dev rig (its file layer reports trash unsupported; the existing "delete instead?" prompt covers that case) - needs the usual real-Windows validation pass
 
-- 🔘 File monitoring via GIO backends (Win32 / kqueue) or native calls
+- ✅ File monitoring via GIO backends (Win32 / kqueue) or native calls
+	- Verified working as-is on both platforms via the same probe: change events deliver through the native GIO monitor backends (inotify on Linux, ReadDirectoryChanges on Windows); nothing to port
 
 - 🔘 dbus / single-instance handling
 
@@ -121,11 +125,17 @@ In each section, items are listed approximately from newest to oldest.
 
 - 🔘 If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
 
+- 🔘 Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
+	- 🔘 '~' should work on Windows too.
+	- 🔘 Allow environment variables in bookmarks, pathnames, etc.
+		- E.g. $HOME on Linux, %USERPROFILE% on Windows.
+
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 
 - 🔘 Allow moving tabs to other windows.
 
 - 🔘 Option to always show a tab.
+
 
 ### Done
 

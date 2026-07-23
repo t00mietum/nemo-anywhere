@@ -5732,6 +5732,11 @@ nemo_file_can_set_permissions (NemoFile *file)
         return FALSE;
     }
 
+#ifdef G_OS_WIN32
+	/* GLib's win32 unix::mode is fabricated; chmod only toggles read-only */
+	return FALSE;
+#endif
+
 	if (file->details->uid != -1 &&
 	    nemo_file_is_local (file)) {
 		/* Check the user. */
