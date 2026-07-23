@@ -78,7 +78,8 @@ In each section, items are listed approximately from newest to oldest.
 	- ✅ Windows trash: native Recycle Bin backend for in-app browse/restore/empty (deleting to the bin already works)
 		- trash:/// is served in-process from the shell Recycle Bin folder (same approach as favorites://), so the existing trash sidebar row, restore/empty bar, monitor and delete paths all work unchanged; items proxy their backing file for icons/streams/moves and clean up their metadata sibling on delete/restore. Browse + restore + delete verified; also fixed a latent bug where freshly-listed files ran their metadata overlay before having a name
 		- Browsing into a trashed folder's contents shows an error page for now (flat item list only) - minor, revisit if it ever matters
-	- 🔘 Windows network: native network-neighborhood browsing + UNC paths in the location bar
+	- ✅ Windows network: native network-neighborhood browsing + UNC paths in the location bar
+		- network:/// served in-process from native enumeration (providers/domains walked down to servers; a server lists its shares, each a shortcut to its UNC path, which the win32 file layer treats as an ordinary folder). The gated sidebar Network section lights back up on Windows. Enumeration verified graceful-empty in the dev rig (no real network there); populated-neighborhood behavior needs real-Windows validation like the rest
 	- 🔘 Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
 
 - 🔘 File operations (copy/move/delete/rename) on native APIs
