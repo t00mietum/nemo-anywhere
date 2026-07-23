@@ -29,6 +29,7 @@
 #include "nemo-directory-notify.h"
 #include "nemo-directory-private.h"
 #include "nemo-file-private.h"
+#include "nemo-metadata-store.h"
 #include <glib/gi18n.h>
 
 G_DEFINE_TYPE (NemoVFSFile, nemo_vfs_file, NEMO_TYPE_FILE);
@@ -82,94 +83,20 @@ vfs_file_check_if_ready (NemoFile *file,
 		 file_attributes);
 }
 
-static void
-set_metadata_get_info_callback (GObject *source_object,
-				GAsyncResult *res,
-				gpointer callback_data)
-{
-	NemoFile *file;
-	GFileInfo *new_info;
-	GError *error;
-
-	file = callback_data;
-
-	error = NULL;
-	new_info = g_file_query_info_finish (G_FILE (source_object), res, &error);
-	if (new_info != NULL) {
-		if (nemo_file_update_info (file, new_info)) {
-			nemo_file_changed (file);
-		}
-		g_object_unref (new_info);
-	}
-	nemo_file_unref (file);
-	if (error) {
-		g_error_free (error);
-	}
-}
-
-static void
-set_metadata_callback (GObject *source_object,
-		       GAsyncResult *result,
-		       gpointer callback_data)
-{
-	NemoFile *file;
-	GError *error;
-	gboolean res;
-
-	file = callback_data;
-
-	error = NULL;
-	res = g_file_set_attributes_finish (G_FILE (source_object),
-					    result,
-					    NULL,
-					    &error);
-
-	if (res) {
-		g_file_query_info_async (G_FILE (source_object),
-					 NEMO_FILE_DEFAULT_ATTRIBUTES,
-					 0,
-					 G_PRIORITY_DEFAULT,
-					 NULL,
-					 set_metadata_get_info_callback, file);
-	} else {
-        g_printerr ("ERROR SET META:%d %s\n", error->code, error->message);
-		nemo_file_unref (file);
-		g_error_free (error);
-	}
-}
-
+/* Metadata persists in our own store, not the gvfs metadata daemon;
+ * the in-memory hash is updated directly, no GIO round trip. */
 static void
 vfs_file_set_metadata (NemoFile           *file,
 		       const char             *key,
 		       const char             *value)
 {
-	GFileInfo *info;
-	GFile *location;
-	char *gio_key;
+	char *store_uri;
 
-	info = g_file_info_new ();
+	store_uri = nemo_file_get_metadata_store_uri (file);
+	nemo_metadata_store_set_string (store_uri, key, value);
+	g_free (store_uri);
 
-	gio_key = g_strconcat ("metadata::", key, NULL);
-	if (value != NULL) {
-		g_file_info_set_attribute_string (info, gio_key, value);
-	} else {
-		/* Unset the key */
-		g_file_info_set_attribute (info, gio_key,
-					   G_FILE_ATTRIBUTE_TYPE_INVALID,
-					   NULL);
-	}
-	g_free (gio_key);
-
-	location = nemo_file_get_location (file);
-	g_file_set_attributes_async (location,
-				     info,
-				     0,
-				     G_PRIORITY_DEFAULT,
-				     NULL,
-				     set_metadata_callback,
-				     nemo_file_ref (file));
-	g_object_unref (location);
-	g_object_unref (info);
+	nemo_file_set_metadata_internal (file, key, value, NULL);
 }
 
 static void
@@ -177,26 +104,13 @@ vfs_file_set_metadata_as_list (NemoFile           *file,
 			       const char             *key,
 			       char                  **value)
 {
-	GFile *location;
-	GFileInfo *info;
-	char *gio_key;
+	char *store_uri;
 
-	info = g_file_info_new ();
+	store_uri = nemo_file_get_metadata_store_uri (file);
+	nemo_metadata_store_set_stringv (store_uri, key, value);
+	g_free (store_uri);
 
-	gio_key = g_strconcat ("metadata::", key, NULL);
-	g_file_info_set_attribute_stringv (info, gio_key, value);
-	g_free (gio_key);
-
-	location = nemo_file_get_location (file);
-	g_file_set_attributes_async (location,
-				     info,
-				     0,
-				     G_PRIORITY_DEFAULT,
-				     NULL,
-				     set_metadata_callback,
-				     nemo_file_ref (file));
-	g_object_unref (info);
-	g_object_unref (location);
+	nemo_file_set_metadata_internal (file, key, NULL, value);
 }
 
 static gboolean

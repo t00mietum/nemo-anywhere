@@ -69,7 +69,14 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 4 - Feature port (iterative, per target)
 
-- 🔘 gvfs replacement or scope-out (mounts, network, trash)
+- 🛠️ gvfs replacement or scope-out (mounts, network, trash)
+	- Scope decided: gvfs stays an optional runtime dep on Linux (it's desktop-agnostic, not Cinnamon); gaps are filled natively per platform. Details in design.md "Decisions along the way".
+	- ✅ Portable per-file metadata store (all platforms) - replaces the gvfs metadata daemon for view/sort state, custom icons, emblems, and favorite markers
+		- One JSON file under the app config dir; entries re-key on move/rename (including folder contents); favorites entries resolve to their target file. Verified on Linux and Windows - per-folder view state now persists on Windows where before it errored every write
+	- 🔘 Show virtual locations (network, computer) only when the platform supports them - a couple of sidebar/tree entries currently bypass the existing runtime check
+	- 🔘 Windows trash: native Recycle Bin backend for in-app browse/restore/empty (deleting to the bin already works)
+	- 🔘 Windows network: native network-neighborhood browsing + UNC paths in the location bar
+	- 🔘 Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
 
 - 🔘 File operations (copy/move/delete/rename) on native APIs
 

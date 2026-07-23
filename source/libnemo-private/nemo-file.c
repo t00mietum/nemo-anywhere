@@ -37,6 +37,7 @@
 #include "nemo-lib-self-check-functions.h"
 #include "nemo-link.h"
 #include "nemo-metadata.h"
+#include "nemo-metadata-store.h"
 #include "nemo-module.h"
 #include "nemo-search-directory.h"
 #include "nemo-search-engine.h"
@@ -406,11 +407,39 @@ get_metadata_from_info (GFileInfo *info)
 	return metadata;
 }
 
+/* The store key for a file: its uri, except favorites entries resolve to
+ * the real file they point at, so markers land on the target. */
+char *
+nemo_file_get_metadata_store_uri (NemoFile *file)
+{
+	char *uri;
+
+	uri = nemo_file_get_uri (file);
+	if (eel_uri_is_favorite (uri)) {
+		char *target;
+
+		target = nemo_file_get_activation_uri (file);
+		if (target != NULL && !eel_uri_is_favorite (target)) {
+			g_free (uri);
+			return target;
+		}
+		g_free (target);
+	}
+
+	return uri;
+}
+
 gboolean
 nemo_file_update_metadata_from_info (NemoFile *file,
 					 GFileInfo *info)
 {
 	gboolean changed = FALSE;
+	char *store_uri;
+
+	/* our store shadows whatever a gvfs metadata daemon may have supplied */
+	store_uri = nemo_file_get_metadata_store_uri (file);
+	nemo_metadata_store_apply_to_info (store_uri, info);
+	g_free (store_uri);
 
 	if (g_file_info_has_namespace (info, "metadata")) {
 		GHashTable *metadata;
@@ -430,6 +459,80 @@ nemo_file_update_metadata_from_info (NemoFile *file,
 	}
 
 	return changed;
+}
+
+/* Update the in-memory metadata hash directly - store-backed writes don't
+ * round-trip through a GIO query anymore. values non-NULL means a list
+ * entry; value NULL with values NULL unsets the key. Fires changed. */
+void
+nemo_file_set_metadata_internal (NemoFile *file,
+				     const char *key,
+				     const char *value,
+				     char **values)
+{
+	guint id, list_id;
+	gpointer old;
+	gboolean changed = FALSE;
+
+	id = nemo_metadata_get_id (key);
+	if (id == 0) {
+		return;
+	}
+	list_id = id | METADATA_ID_IS_LIST_MASK;
+
+	if (file->details->metadata == NULL) {
+		file->details->metadata = g_hash_table_new (NULL, NULL);
+	}
+
+	/* an entry is either a string or a list; drop the other variant */
+	if (values != NULL) {
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (id));
+			g_free (old);
+			changed = TRUE;
+		}
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (list_id));
+		if (old == NULL || !eel_g_strv_equal ((char **) old, values)) {
+			g_strfreev ((char **) old);
+			g_hash_table_insert (file->details->metadata,
+					     GUINT_TO_POINTER (list_id),
+					     g_strdupv (values));
+			changed = TRUE;
+		}
+	} else if (value != NULL) {
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (list_id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (list_id));
+			g_strfreev ((char **) old);
+			changed = TRUE;
+		}
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (id));
+		if (old == NULL || strcmp ((char *) old, value) != 0) {
+			g_free (old);
+			g_hash_table_insert (file->details->metadata,
+					     GUINT_TO_POINTER (id),
+					     g_strdup (value));
+			changed = TRUE;
+		}
+	} else {
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (id));
+			g_free (old);
+			changed = TRUE;
+		}
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (list_id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (list_id));
+			g_strfreev ((char **) old);
+			changed = TRUE;
+		}
+	}
+
+	if (changed) {
+		nemo_file_changed (file);
+	}
 }
 
 void
@@ -1794,6 +1897,8 @@ rename_get_info_callback (GObject *source_object,
 
 		new_uri = nemo_file_get_uri (op->file);
 		nemo_directory_moved (old_uri, new_uri);
+
+		nemo_metadata_store_rename (old_uri, new_uri);
 
         nemo_favorites_rename (nemo_favorites_get_default (),
                                old_uri,

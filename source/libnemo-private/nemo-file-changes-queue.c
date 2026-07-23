@@ -24,6 +24,7 @@
 #include "nemo-file-changes-queue.h"
 
 #include "nemo-directory-notify.h"
+#include "nemo-metadata-store.h"
 
 typedef enum {
 	CHANGE_FILE_INITIAL,
@@ -142,6 +143,18 @@ nemo_file_changes_queue_file_moved (GFile *from,
 	new_item->from = g_object_ref (from);
 	new_item->to = g_object_ref (to);
 	nemo_file_changes_queue_add_common (queue, new_item);
+
+	/* keep our metadata store keyed to the new location; this runs on
+	 * whatever thread the file operation runs on, the store handles that */
+	{
+		gchar *from_uri = g_file_get_uri (from);
+		gchar *to_uri = g_file_get_uri (to);
+
+		nemo_metadata_store_rename (from_uri, to_uri);
+
+		g_free (from_uri);
+		g_free (to_uri);
+	}
 }
 
 void

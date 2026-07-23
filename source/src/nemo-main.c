@@ -33,6 +33,7 @@
 #include "nemo-main-application.h"
 
 #include <libnemo-private/nemo-debug.h>
+#include <libnemo-private/nemo-metadata-store.h>
 #include <eel/eel-debug.h>
 
 #include <glib/gi18n.h>
@@ -105,6 +106,9 @@ main (int argc, char *argv[])
 
 	retval = g_application_run (G_APPLICATION (application),
 				    argc, argv);
+
+	/* don't lose a metadata save still sitting in its debounce window */
+	nemo_metadata_store_flush ();
 
 	g_object_unref (application);
 

@@ -273,6 +273,11 @@ gboolean      nemo_file_update_name                    (NemoFile           *file
 							    const char             *name);
 gboolean      nemo_file_update_metadata_from_info      (NemoFile           *file,
 							    GFileInfo              *info);
+char *        nemo_file_get_metadata_store_uri         (NemoFile           *file);
+void          nemo_file_set_metadata_internal          (NemoFile           *file,
+							    const char             *key,
+							    const char             *value,
+							    char                  **values);
 
 gboolean      nemo_file_update_name_and_directory      (NemoFile           *file,
 							    const char             *name,
