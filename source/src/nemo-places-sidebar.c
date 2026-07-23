@@ -1334,9 +1334,12 @@ update_places (NemoPlacesSidebar *sidebar)
 
     g_list_free (place_infos);
 
-	/* network */
-	cat_iter = add_heading (sidebar, SECTION_NETWORK,
-		     _("Network"));
+	/* network - skip the whole section when there's nothing to put in it */
+	if (network_volumes != NULL || network_mounts != NULL ||
+	    eel_vfs_supports_uri_scheme ("network")) {
+		cat_iter = add_heading (sidebar, SECTION_NETWORK,
+			     _("Network"));
+	}
 
 	network_volumes = g_list_reverse (network_volumes);
 	for (l = network_volumes; l != NULL; l = l->next) {
@@ -1386,15 +1389,17 @@ update_places (NemoPlacesSidebar *sidebar)
 
 	g_list_free_full (network_mounts, g_object_unref);
 
-	/* network:// */
- 	mount_uri = (char *)"network:///"; /* No need to strdup */
-	icon = NEMO_ICON_SYMBOLIC_NETWORK;
-	cat_iter = add_place (sidebar, PLACES_BUILT_IN,
-                		   SECTION_NETWORK,
-                		   _("Network"), icon,
-                		   mount_uri, NULL, NULL, NULL, 0,
-                		   _("Browse the contents of the network"), 0, FALSE,
-                           cat_iter);
+	/* network:// - only when a backend actually provides it */
+	if (eel_vfs_supports_uri_scheme ("network")) {
+		mount_uri = (char *)"network:///"; /* No need to strdup */
+		icon = NEMO_ICON_SYMBOLIC_NETWORK;
+		cat_iter = add_place (sidebar, PLACES_BUILT_IN,
+				      SECTION_NETWORK,
+				      _("Network"), icon,
+				      mount_uri, NULL, NULL, NULL, 0,
+				      _("Browse the contents of the network"), 0, FALSE,
+				      cat_iter);
+	}
 
 	/* restore selection */
     restore_expand_state (sidebar);
