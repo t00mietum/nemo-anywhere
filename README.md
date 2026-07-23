@@ -43,6 +43,7 @@ Nemo, freed from its desktop. A great file manager should run anywhere. This one
 - [What this fork adds or enhances](#what-this-fork-adds-or-enhances)
 - [Status](#status)
 - [Installing](#installing)
+	- [Direct](#direct)
 - [Building from source](#building-from-source)
 - [Longer-term roadmap](#longer-term-roadmap)
 - [Copyright and license](#copyright-and-license)
@@ -129,7 +130,36 @@ Early bring-up. The fork is established and the Linux baseline builds and runs. 
 
 ## Installing
 
-No releases yet. When per-platform installers exist, they will land on the releases page with the GTK runtime bundled - no hunting for dependencies.
+No releases yet, so nothing to install today. The installers below are ready and waiting for the first release, which ships with the GTK runtime bundled - no hunting for dependencies.
+
+### Direct
+
+One command. It downloads the latest release, verifies its checksum, tells you exactly what it is about to do, and waits for a yes.
+
+Linux, BSD, macOS, WSL:
+
+~~~bash
+bash <(curl -fsSL https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.bash)  [--release dev|stable]  [--target user|system]  [--arch x64|amd64|arm64]
+~~~
+
+Windows (and it works on Linux and macOS too, where it hands off to the script above):
+
+~~~powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))  [-Release dev|stable]  [-Target user|system]  [-Arch x64|amd64|arm64]
+~~~
+
+Add `--uninstall` (or `-Uninstall`) to reverse it. Reinstalling over an existing copy is fine - it replaces it.
+
+Where it lands:
+
+| OS      | User install (default)              | ￩ Launcher                                                | (or) System install     | ￩ Launcher
+| :---    | :---                                | :---                                                      | :---                    | :---
+| Linux   | ~/.local/share/nemo-anywhere/       | ~/.local/share/applications/ + ~/.local/bin/nemo-anywhere | /opt/nemo-anywhere/     | /usr/local/share/applications/ + /usr/local/bin/nemo-anywhere
+| BSD     | ~/.local/share/nemo-anywhere/       | ~/.local/share/applications/ + ~/.local/bin/nemo-anywhere | /usr/local/nemo-anywhere/ | /usr/local/share/applications/ + /usr/local/bin/nemo-anywhere
+| Windows | %LOCALAPPDATA%\Programs\Nemo Anywhere\ | Start Menu shortcut + a PATH entry                     | C:\Program Files\Nemo Anywhere\ | Start Menu shortcut + a PATH entry
+| macOS   | *pending a macOS build*             |                                                           |                         |
+
+Settings live in `~/.config/nemo-anywhere` (`%APPDATA%\nemo-anywhere` on Windows) and are left alone by an uninstall.
 
 ## Building from source
 
