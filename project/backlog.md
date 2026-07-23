@@ -75,7 +75,9 @@ In each section, items are listed approximately from newest to oldest.
 		- One JSON file under the app config dir; entries re-key on move/rename (including folder contents); favorites entries resolve to their target file. Verified on Linux and Windows - per-folder view state now persists on Windows where before it errored every write
 	- ✅ Show virtual locations (network, computer) only when the platform supports them - a couple of sidebar/tree entries currently bypass the existing runtime check
 		- Only one live offender: the sidebar's built-in Network row + its section heading (the tree-sidebar computer/network roots were already compiled out). Both now gated on runtime scheme support; on Windows the empty Network section disappears until the native backend lands
-	- 🔘 Windows trash: native Recycle Bin backend for in-app browse/restore/empty (deleting to the bin already works)
+	- ✅ Windows trash: native Recycle Bin backend for in-app browse/restore/empty (deleting to the bin already works)
+		- trash:/// is served in-process from the shell Recycle Bin folder (same approach as favorites://), so the existing trash sidebar row, restore/empty bar, monitor and delete paths all work unchanged; items proxy their backing file for icons/streams/moves and clean up their metadata sibling on delete/restore. Browse + restore + delete verified; also fixed a latent bug where freshly-listed files ran their metadata overlay before having a name
+		- Browsing into a trashed folder's contents shows an error page for now (flat item list only) - minor, revisit if it ever matters
 	- 🔘 Windows network: native network-neighborhood browsing + UNC paths in the location bar
 	- 🔘 Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
 

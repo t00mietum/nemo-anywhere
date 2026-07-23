@@ -17,6 +17,7 @@ SYSROOT="/opt/win-sysroot"
 BUILD="/build-win"
 SHOT="${1:-/tmp/shot.png}"
 DWELL="${2:-16}"
+URI="${3:-}"
 SCHEMAS="/tmp/nemo-schemas"
 DISP=":99"
 
@@ -41,12 +42,16 @@ trap 'kill $xpid 2>/dev/null || true' EXIT
 sleep 2
 
 fEcho "Launching nemo-anywhere.exe under wine"
-wine "$BUILD/src/nemo-anywhere.exe" >/tmp/nemo-gui.out 2>&1 &
+if [[ -n $URI ]]; then
+	wine "$BUILD/src/nemo-anywhere.exe" "$URI" >/tmp/nemo-gui.out 2>&1 &
+else
+	wine "$BUILD/src/nemo-anywhere.exe" >/tmp/nemo-gui.out 2>&1 &
+fi
 wpid=$!
 sleep "$DWELL"
 
 rc=0
-if xwininfo -root -tree 2>/dev/null | grep -qiE '0x[0-9a-f]+ "(Home|File System|nemo)'; then
+if xwininfo -root -tree 2>/dev/null | grep -qiE '0x[0-9a-f]+ "(Home|File System|Trash|Network|nemo)'; then
 	fEcho "Main window present"
 	import -window root "$SHOT" 2>/dev/null && fEcho "Screenshot -> $SHOT"
 else
