@@ -109,6 +109,8 @@ In each section, items are listed approximately from newest to oldest.
 
 - 🔘 Add a C formatter/linter gate (clang-format/clang-tidy, or meson warnings-as-errors) and wire it into format/lint stages
 
+- ✅ `utility/n8runfm.ps1` - standalone dogfood launcher (silkterm's n8runterm concept): keeps date-stamped copies of the latest release build in a local pool, deletes aged-out copies not in use, launches the newest with args passed through. One cross-platform PowerShell 7 script for Linux + Windows; working copy deployed to the common `0_crossplatform` util dir.
+
 - 🛠️ Get release binaries onto the host (mount a build dir or `docker cp` out of the container `/build`) + an optimized buildtype, then turn on artifact collection (`RELEASE_ENABLE`/`RELEASE_ARTIFACT_DIR`)
 	- ✅ Host dogfood path proven: `--buildtype=release` install staged in-container, `docker cp`'d out to a self-contained prefix beside the dogfood bin, launched via a small env-wiring wrapper - runs on the host (schema/extension lib/data all resolve). Refresh recipe in memory.
 	- 🔘 Still to wire into the pipeline itself: an optimized-size buildtype choice, and automatic artifact collection into `RELEASE_ARTIFACT_DIR` (stage still `RELEASE_ENABLE=0`)
