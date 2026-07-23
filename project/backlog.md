@@ -113,11 +113,11 @@ In each section, items are listed approximately from newest to oldest.
 #### Done - Features and enhancements
 
 - ✅ Installer script(s) - one-liner install from a shell, for every target
-	- `install.bash` covers Linux, BSD, WSL and macOS (bash 3.2, so stock macOS runs it); `install.ps1` covers Windows and hands off to the bash script when run on Linux or macOS, so the unix logic exists once
+	- Two standalone installers, each doing the whole job by itself: `install.bash` covers Linux, BSD, WSL and macOS (bash 3.2, so stock macOS runs it); `install.ps1` covers all of those plus Windows, needing PowerShell 7
 	- Both take the release channel, install target and architecture as options, print the full plan and wait for a yes, verify the download's sha256 before unpacking, replace an existing install in place, and reverse themselves with `--uninstall`
 	- Installs as a folder plus a menu entry and a name on PATH (symlink on unix, PATH entry on Windows). User install is the default; the system-wide install is the only path that escalates, and says so in the plan
-	- README gained an Installing/Direct section with both one-liners and a table of where things land; the release-asset naming the installers depend on is written down in design.md under Delivery
-	- Verified end to end on the unix side against a stand-in releases API: channel and asset resolution, checksum pass and tamper-fail, install, reinstall, uninstall, prompt accept/decline, and the PowerShell handoff. The Windows half needs the same real-Windows validation pass as the trash and network backends
+	- README gained an Installation/Direct section with both one-liners and a table of where things land; the release-asset naming the installers depend on is written down in design.md under Delivery
+	- Verified end to end on the unix side against a stand-in releases API, both installers: channel and asset resolution, checksum pass and tamper-fail, install, reinstall, uninstall, prompt accept/decline, damaged package, and a byte-for-byte comparison of what the two of them leave behind. The Windows half needs the same real-Windows validation pass as the trash and network backends
 
 #### Done - Milestones
 

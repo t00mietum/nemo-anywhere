@@ -42,7 +42,7 @@ Nemo, freed from its desktop. A great file manager should run anywhere. This one
 - [Existing features](#existing-features)
 - [What this fork adds or enhances](#what-this-fork-adds-or-enhances)
 - [Status](#status)
-- [Installing](#installing)
+- [Installation](#installation)
 	- [Direct](#direct)
 - [Building from source](#building-from-source)
 - [Longer-term roadmap](#longer-term-roadmap)
@@ -128,9 +128,11 @@ Early bring-up. The fork is established and the Linux baseline builds and runs. 
 
 - Design and reasoning: [project/design.md](project/design.md)
 
-## Installing
+## Installation
 
-No releases yet, so nothing to install today. The installers below are ready and waiting for the first release, which ships with the GTK runtime bundled - no hunting for dependencies.
+The installer is the primary way to get Nemo Anywhere, on every platform. One command, and the release it fetches ships with the GTK runtime bundled - no hunting for dependencies. Building from source is for working on it, not for using it.
+
+No releases yet, so nothing to install today. The installers below are ready and waiting for the first one.
 
 ### Direct
 
@@ -142,7 +144,7 @@ Linux, BSD, macOS, WSL:
 bash <(curl -fsSL https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.bash)  [--release dev|stable]  [--target user|system]  [--arch x64|amd64|arm64]
 ~~~
 
-Windows (and it works on Linux and macOS too, where it hands off to the script above):
+Windows - or anywhere else with PowerShell 7, since it is a standalone installer in its own right and not a wrapper around the one above:
 
 ~~~powershell
 & ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))  [-Release dev|stable]  [-Target user|system]  [-Arch x64|amd64|arm64]
