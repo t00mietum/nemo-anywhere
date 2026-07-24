@@ -124,6 +124,7 @@ In each section, items are listed approximately from newest to oldest.
 ##### Done; Milestone 6 - CI/CD
 
 - ✅ `utility/n8runfm.ps1` - standalone dogfood launcher (silkterm's n8runterm concept): keeps date-stamped copies of the latest release build in a local pool, deletes aged-out copies not in use, launches the newest with args passed through. One cross-platform PowerShell 7 script for Linux + Windows; working copy deployed to the common `0_crossplatform` util dir.
+	- Launches detached and returns immediately: on unix the app gets its own session and its output goes to a log in the target dir, so it never holds the calling console (or a pipe) open.
 
 - ✅ Adopt the local-only delivery model: `dev` = integration target, `main` = release-only (dev->main = release cut); feature branches merge `--no-ff` into dev
 	- Copied as high-level concepts/actions (not language tooling) from the sibling project; identity-swapped to t00mietum
