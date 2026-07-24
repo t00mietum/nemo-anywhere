@@ -61,10 +61,10 @@ In each section, items are listed approximately from newest to oldest.
 - ✅ dbus / single-instance handling - probed the actual behavior under wine: GLib autolaunches a per-session D-Bus bus on Windows too, and it is shared across processes, so GApplication single-instance works unchanged (a second launch becomes remote and forwards its URIs via `g_application_open`), and both D-Bus services (FileManager1, the `/org/Nemo` file-operations interface) get a real connection. No win32 gating needed. The one real gap - a bus-less environment (headless/minimal Linux, or a locked-down Windows where autolaunch fails) - made `nemo-dbus-manager` assert on a NULL connection; now guarded to skip export cleanly. Regression test added (`test-nemo-dbus-manager`, forces a disabled bus, fatal-on-warning), passes native + wine
 	- 🔘 Real-Windows validation of the shared-bus assumption deferred with the rest of the win backends (wine confirms the mechanism)
 
-- 🛠️ Context-menu actions: open in terminal, open elevated, launchers
-	- 🔘 Open in terminal - on Windows, open the native console at the folder (prefer Windows Terminal, then PowerShell, then cmd); Linux path unchanged
-	- 🔘 Open elevated - on Windows, relaunch the app elevated at the folder via the shell `runas` verb (UAC), the analog of the Linux `pkexec` relaunch
-	- 🔘 Launchers - `.desktop` launcher files are foreign on Windows and already degrade cleanly (launch errors cleanly, editor is Linux-only); native `.lnk` shortcut *creation* is a separate future feature, tracked below, not part of this item
+- ✅ Context-menu actions: open in terminal, open elevated, launchers
+	- ✅ Open in terminal - on Windows, opens the native console at the folder via ShellExecute (prefer Windows Terminal, then PowerShell, then cmd); Linux path unchanged. Win32 bits isolated in `nemo-view-win32.c` so `<windows.h>` macro pollution stays out of nemo-view.c
+	- ✅ Open elevated - on Windows, relaunches the app elevated at the folder via the shell `runas` verb (UAC), the analog of the Linux `pkexec` relaunch; menu label reads "Open as Administrator" on Windows, "Open as Root" on Linux. Real UAC prompt is deferred to real-Windows validation (wine has no UAC)
+	- ✅ Launchers - `.desktop` launcher files are foreign on Windows and already degrade cleanly (launch errors cleanly, editor is Linux-only, no dedicated launcher menu action to break); native `.lnk` shortcut *creation* is a separate future feature, tracked below
 - 🔘 Native Windows `.lnk` shortcuts (create/edit "Create Shortcut"), the native analog of `.desktop` launchers - new feature, deferred
 
 - 🔘 Thumbnails, icon theme, and default-app association per platform
