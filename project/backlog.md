@@ -89,14 +89,19 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
+- 🔘 Windows: dot-name folders don't say "Folder". Regular folders say "Program", not "Folder".
+
+- 🔘 Settings don't seem to be persisting.
+
+- 🔘 Setting list view to 66% doesn't affect current list view. It should.
+	- Also, setting default view to List mode, should affect current view immediately as well.
+
+- 🔘 Icons don't match OG nemo.
+
 - ✅ Windows version via Wine: Still getting an error message as startup.
 	- 'The folder contents could not be displayed.', 'Sorry, couldn not display all the contents of "<username>". Error when getting information for file "Z:\home\<username>\.snapshots_bfs": Input/output error.
 	- And mouste cursor still stuck at "busy spinner"
 	- Under wine, a child GLib can't stat (a unix symlink like `.snapshots_bfs`) failed the whole enumeration batch, so the load aborted with a dialog and never finished -> cursor stuck. Now such a child is skipped and the rest of the folder lists. Same root cause as the earlier "busy cursor" item below.
-
-- 🔘 Settings don't seem to be persisting.
-
-- 🔘 Icons don't match OG nemo.
 
 ### Features and enhancements
 
