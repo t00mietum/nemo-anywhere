@@ -21,6 +21,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 	- [Dependency landscape](#dependency-landscape)
 	- [Toolchain](#toolchain)
 	- [Building Linux reference](#building-linux-reference)
+	- [Building Windows cross](#building-windows-cross)
 	- [Open questions](#open-questions)
 - [New project](#new-project)
 - [Project structure](#project-structure)
@@ -35,7 +36,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 	- [Saves and persistence](#saves-and-persistence)
 	- [UI](#ui)
 	- [Testing](#testing)
-- [Delivery (CI/CD, branches, releases)](#delivery-cicd-branches-releases)
+- [Delivery CI/CD, branches, releases](#delivery-cicd-branches-releases)
 
 <!-- /TOC -->
 

@@ -89,7 +89,37 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
+- 🔘 Settings don't seem to be persisting.
+
+- 🔘 Icons don't match OG nemo.
+
 ### Features and enhancements
+
+- 🔘 Wine launcher:
+	- Should launch wine nemo-anywhere detached, so the script can exit and return.
+	- Should change Z:\home\%USERNAME%" if it exists, fallback to Z:\, fallback to C:\, so the initial directory isn't invalid.
+
+- 🔘 Windows version via Wine:
+	- The cursor seems stuck on "busy" mouse icon.
+
+- 🔘 Ship with "Copy path(s)" script from current nemo install.
+	- Rewrite to be cross-platform friendly.
+		- Either a .bash script for Linux/BSD/macOS and .ps1 script for Windows, or build into the program code.
+
+- 🔘 "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
+
+- 🔘 Change default settings:
+	- 🔘 List view, 66% size.
+	- 🔘 Ask before moving items to trash.
+	- 🔘 Date display in ISO format.
+	- 🔘 Showing owner, group, and perms.
+
+- 🔘 Remove features:
+	- Option to display date in monospace font.
+
+- 🔘 New feature:
+	- Confirm mouse-based actions.
+		- Flyover text "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 
 - 🔘 If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
 
