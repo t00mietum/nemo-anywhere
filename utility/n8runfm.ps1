@@ -16,7 +16,9 @@
 ##			lin  the synced dogfood prefix nemo-anywhere.app (Linux)
 ##			win  the staged win-run snapshot from the cross build (Windows)
 ##		- The launcher wires the runtime env itself (loader path, schemas, data
-##		  dirs), pointing everything at the stamped copy, then starts it detached.
+##		  dirs), pointing everything at the stamped copy, then starts it detached
+##		  and exits - on unix the app's own output goes to a log in the target
+##		  dir, since it no longer has the caller's console.
 ##		- If no copy is held and the source is unreachable, falls back to the
 ##		  first installed known file manager.
 ##	History: At bottom of script.
@@ -68,6 +70,11 @@ $FallbackManagers = if ($IsWindows) {
 ## the copy/skip reasons behind a launch.
 $RunLog = Join-Path $TargetDir "n8runfm.log"
 
+## Unix only: where the detached app's own output goes (GTK/GLib gripes and any
+## crash message), since it no longer has the caller's console. Appended to and
+## trimmed like the run log.
+$AppLog = Join-Path $TargetDir "n8runfm-app.log"
+
 ## Stamp format shared by the copy name and every date comparison below.
 $StampFormat = "yyyyMMdd-HHmmss"
 
@@ -83,7 +90,8 @@ function fMain {
 		New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
 	}
 
-	fTrimLog
+	fTrimLog $RunLog
+	if (-not $IsWindows) { fTrimLog $AppLog }
 	fLog ("=== run: PS {0}, script {1} ===" -f $PSVersionTable.PSVersion, $PSCommandPath)
 
 	## 0. Windows only: strip a synced-on mark-of-the-web so a later click can't
@@ -97,17 +105,19 @@ function fMain {
 	## 2. Refresh from the source if it has a newer build than we hold.
 	fCopyIfNewer
 
-	## 3. Launch the newest copy.
+	## 3. Launch the newest copy. The Process goes nowhere - it's there for a
+	##    test harness, and letting it reach the output stream would dump a
+	##    process table on the way out.
 	$copy = fNewestCopy
 	if ($copy) {
 		fNote "running: $($copy.File.Name)"
-		fLaunchNemo -CopyDir $copy.File.FullName -PassArgs $PassArgs
+		$null = fLaunchNemo -CopyDir $copy.File.FullName -PassArgs $PassArgs
 		return
 	}
 
 	## 4. Nothing held and no source reachable - fall back to any file manager.
 	fWarn "no dogfood copy held and source not reachable; trying fallbacks"
-	fLaunchFallback -PassArgs $PassArgs
+	$null = fLaunchFallback -PassArgs $PassArgs
 }
 
 
@@ -320,9 +330,24 @@ function fFindOnPath {
 }
 
 
-## Launch the app in its own process. Returns the Process so a caller (e.g. a
-## test harness) can stop this exact instance by PID - matching on name risks
-## hitting another copy launched elsewhere.
+## Launch the app detached and return the Process, so the launcher can exit
+## immediately while the app keeps running. Returning the Process lets a caller
+## (e.g. a test harness) stop this exact instance by PID - matching on name
+## risks hitting another copy launched elsewhere.
+##
+## Windows needs nothing extra: with no redirections Start-Process goes through
+## ShellExecute, which already gives the app its own process and console.
+##
+## Unix hands the app our own stdout/stderr, so it holds the caller's pipe open
+## for its whole life - `n8runfm | cat` blocks until the app quits, and its
+## warnings land in a console that has long moved on. Fix it in the shell rather
+## than with Start-Process -RedirectStandard*: those pump through a pipe owned by
+## THIS process, so once we exit the app's output is dropped and it eventually
+## blocks on the full pipe. 'sh -c exec' re-points all three streams at real fds
+## and then execs in place, so the app itself owns them; setsid in front (also
+## exec-in-place) gives it a fresh session, out of reach of a terminal hangup.
+## Both execs keep the PID, so the one reported is the app's own. The log path
+## rides an env var to keep quotes out of the command line.
 function fStartApp {
 	param(
 		[Parameter(Mandatory)][string]$Exe,
@@ -331,6 +356,23 @@ function fStartApp {
 
 	$sp = @{ FilePath = $Exe; PassThru = $true }
 	if ($ArgList -and $ArgList.Count) { $sp.ArgumentList = $ArgList }
+
+	if (-not $IsWindows) {
+		$env:N8RUNFM_APPLOG = $AppLog
+		$shArgs = @("-c", '"exec \"$0\" \"$@\" </dev/null >>\"$N8RUNFM_APPLOG\" 2>&1"', (fQuoteArg $Exe))
+		if ($ArgList -and $ArgList.Count) { $shArgs += $ArgList }
+
+		$setsid = fFindOnPath "setsid"
+		if ($setsid) {
+			$sp.FilePath     = $setsid
+			$sp.ArgumentList = @("/bin/sh") + $shArgs
+		} else {
+			## No setsid (macOS, some BSDs): streams still detached, session not.
+			fWarn "setsid not found; launching without a new session"
+			$sp.FilePath     = "/bin/sh"
+			$sp.ArgumentList = $shArgs
+		}
+	}
 
 	try {
 		$proc = Start-Process @sp
@@ -382,12 +424,13 @@ function fLog {
 }
 
 
-## Keep the run log from growing without bound.
+## Keep a log from growing without bound.
 function fTrimLog {
+	param([Parameter(Mandatory)][string]$Path)
 	try {
-		if ((Test-Path -LiteralPath $RunLog) -and (Get-Item -LiteralPath $RunLog).Length -gt 256KB) {
-			$tail = Get-Content -LiteralPath $RunLog -Tail 500
-			Set-Content -LiteralPath $RunLog -Value $tail -Encoding utf8
+		if ((Test-Path -LiteralPath $Path) -and (Get-Item -LiteralPath $Path).Length -gt 256KB) {
+			$tail = Get-Content -LiteralPath $Path -Tail 500
+			Set-Content -LiteralPath $Path -Value $tail -Encoding utf8
 		}
 	} catch { }
 }
@@ -416,8 +459,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 fMain -PassArgs $args
+exit 0
 
 
 ##	History:
+##		- 2026-07-23 JC: Launch detached - own session, stdio off the caller - so
+##		  the launcher returns at once and the app outlives it.
 ##		- 2026-07-23 JC: Created (nemo-anywhere analog of silkterm's n8runterm.ps1;
 ##		  prefix-dir copies instead of a single exe).
