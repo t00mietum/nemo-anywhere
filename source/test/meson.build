@@ -53,6 +53,15 @@ test('GIO fileops probe',
   args: []
 )
 
+test('DBus manager no-bus test',
+  executable('test-nemo-dbus-manager',
+    [ 'test-nemo-dbus-manager.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Copy test',
   executable('test-nemo-copy',
     [ 'test-copy.c', 'test.c' ],

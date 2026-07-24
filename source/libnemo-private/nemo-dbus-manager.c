@@ -166,6 +166,13 @@ nemo_dbus_manager_init (NemoDBusManager *self)
 
   connection = g_application_get_dbus_connection (g_application_get_default ());
 
+  /* No session bus (headless/minimal system, or Windows where D-Bus autolaunch
+     is unavailable) means nothing to export onto, and this interface only
+     serves out-of-process callers - skip setup entirely rather than trip GLib
+     assertions on a NULL connection (both here and in dispose's unexport). */
+  if (connection == NULL)
+    return;
+
   self->object_manager = g_dbus_object_manager_server_new ("/org/Nemo");
   self->file_operations = nemo_dbus_file_operations_skeleton_new ();
 

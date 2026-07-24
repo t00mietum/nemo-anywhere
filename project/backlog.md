@@ -58,7 +58,8 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 4 - Feature port (iterative, per target)
 
-- 🔘 dbus / single-instance handling
+- ✅ dbus / single-instance handling - probed the actual behavior under wine: GLib autolaunches a per-session D-Bus bus on Windows too, and it is shared across processes, so GApplication single-instance works unchanged (a second launch becomes remote and forwards its URIs via `g_application_open`), and both D-Bus services (FileManager1, the `/org/Nemo` file-operations interface) get a real connection. No win32 gating needed. The one real gap - a bus-less environment (headless/minimal Linux, or a locked-down Windows where autolaunch fails) - made `nemo-dbus-manager` assert on a NULL connection; now guarded to skip export cleanly. Regression test added (`test-nemo-dbus-manager`, forces a disabled bus, fatal-on-warning), passes native + wine
+	- 🔘 Real-Windows validation of the shared-bus assumption deferred with the rest of the win backends (wine confirms the mechanism)
 
 - 🔘 Context-menu actions: open in terminal, open elevated, launchers
 
