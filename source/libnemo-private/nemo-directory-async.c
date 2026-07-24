@@ -3190,7 +3190,39 @@ query_info_callback (GObject *source_object,
 
 	error = NULL;
 	info = g_file_query_info_finish (G_FILE (source_object), res, &error);
-	
+
+#ifdef G_OS_WIN32
+	/* Under wine, GLib's win32 stat fails with G_IO_ERROR_FAILED on paths
+	 * that are really unix symlinks - the drives mapped to unix (Z: -> /,
+	 * mounts) and the profile's XDG folders (Desktop, Documents, ...) - even
+	 * though the folder enumerates fine. Left alone this reports a perfectly
+	 * browsable location as broken (error dialog, load never completes, busy
+	 * cursor stuck on). If we can open it, synthesize directory info so the
+	 * load proceeds; the children come from enumeration, which works. */
+	if (info == NULL && error != NULL &&
+	    error->domain == G_IO_ERROR && error->code == G_IO_ERROR_FAILED) {
+		GFile *loc = G_FILE (source_object);
+		GFileEnumerator *en = g_file_enumerate_children (loc, G_FILE_ATTRIBUTE_STANDARD_NAME,
+								 G_FILE_QUERY_INFO_NONE, NULL, NULL);
+		if (en != NULL) {
+			char *bname = g_file_get_basename (loc);
+
+			g_file_enumerator_close (en, NULL, NULL);
+			g_object_unref (en);
+
+			info = g_file_info_new ();
+			g_file_info_set_file_type (info, G_FILE_TYPE_DIRECTORY);
+			g_file_info_set_content_type (info, "inode/directory");
+			if (bname != NULL) {
+				g_file_info_set_name (info, bname);
+				g_file_info_set_display_name (info, bname);
+			}
+			g_free (bname);
+			g_clear_error (&error);
+		}
+	}
+#endif
+
 	if (info == NULL) {
 		if (error->domain == G_IO_ERROR && error->code == G_IO_ERROR_NOT_FOUND) {
 			/* mark file as gone */
