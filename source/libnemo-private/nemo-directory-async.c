@@ -55,6 +55,13 @@
 
 #define DIRECTORY_LOAD_ITEMS_PER_CALLBACK 100
 
+#ifdef G_OS_WIN32
+/* Bound on how many unstattable children we'll skip past before giving up on a
+ * folder load (see more_files_callback). Just a paranoia cap - the enumerator
+ * advances past each bad entry, so it terminates at end-of-dir on its own. */
+#define DIRECTORY_LOAD_MAX_SKIP 256
+#endif
+
 /* Keep async. jobs down to this number for all directories. */
 #define MAX_ASYNC_JOBS 10
 
@@ -91,6 +98,9 @@ struct DirectoryLoadState {
 	GHashTable *load_mime_list_hash;
 	NemoFile *load_directory_file;
 	int load_file_count;
+#ifdef G_OS_WIN32
+	int win_skip_count;
+#endif
 };
 
 struct MimeListState {
@@ -2016,6 +2026,28 @@ more_files_callback (GObject *source_object,
 	}
 
 	if (files == NULL) {
+#ifdef G_OS_WIN32
+		/* Under wine a child we can't stat (a unix symlink, a special dir
+		 * like a btrfs snapshot mount) fails the whole next_files batch with
+		 * G_IO_ERROR_FAILED, even though the enumerator has already advanced
+		 * past it and the rest of the folder lists fine. Skip it and keep
+		 * going instead of aborting the load with an error dialog (which also
+		 * left the busy cursor stuck, since the load never completed). */
+		if (error != NULL && error->domain == G_IO_ERROR &&
+		    error->code == G_IO_ERROR_FAILED &&
+		    state->win_skip_count < DIRECTORY_LOAD_MAX_SKIP) {
+			state->win_skip_count++;
+			g_clear_error (&error);
+			g_file_enumerator_next_files_async (state->enumerator,
+							    DIRECTORY_LOAD_ITEMS_PER_CALLBACK,
+							    G_PRIORITY_DEFAULT,
+							    state->cancellable,
+							    more_files_callback,
+							    state);
+			nemo_directory_unref (directory);
+			return;
+		}
+#endif
 		directory_load_done (directory, error);
 		directory_load_state_free (state);
 	} else {
