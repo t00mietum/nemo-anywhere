@@ -169,15 +169,7 @@ Right now this builds like upstream Nemo: meson and ninja on a Linux box with th
 
 ## Longer-term roadmap
 
-For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt).
-
-Here are the two main options being considered (once Nemo Anywhere v1.0.0 stable release has been live for a while):
-
-- Rust and QML. This is the most viable option for moving away from C and for long-term maintenance. But the only viable QML bindings for Rust is `cxx-qt`. While is seems fine for now, it also carries a big vendor dependency and risk.
-
-	- Mitigation strategy: Use `cxx-qt`, but also maintain a hard-forked subset of only the parts needed, and keep it up-to-date as we go. If and when the time comes that `cxx-qt` is ever abandoned, falls behind QML, and/or pursues different goals: Our minimal hard fork is ready to go.
-
-- Idiomatic/RAII C++ v23, combined with native QML bindings. Harder to port the code (ironically in spite of both having the same ancestry), but less risk with QML.
+For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt). That's what the sister project [Captain Nemo](https://github.com/t00mietum/captain-nemo) is for, once this project reaches v1.0.0 stable.
 
 ## Copyright and license
 

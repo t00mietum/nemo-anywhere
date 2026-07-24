@@ -89,6 +89,11 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
+- ✅ Windows version via Wine: Still getting an error message as startup.
+	- 'The folder contents could not be displayed.', 'Sorry, couldn not display all the contents of "<username>". Error when getting information for file "Z:\home\<username>\.snapshots_bfs": Input/output error.
+	- And mouste cursor still stuck at "busy spinner"
+	- Under wine, a child GLib can't stat (a unix symlink like `.snapshots_bfs`) failed the whole enumeration batch, so the load aborted with a dialog and never finished -> cursor stuck. Now such a child is skipped and the rest of the folder lists. Same root cause as the earlier "busy cursor" item below.
+
 - 🔘 Settings don't seem to be persisting.
 
 - 🔘 Icons don't match OG nemo.
@@ -99,8 +104,11 @@ In each section, items are listed approximately from newest to oldest.
 	- Should launch wine nemo-anywhere detached, so the script can exit and return.
 	- Should change Z:\home\%USERNAME%" if it exists, fallback to Z:\, fallback to C:\, so the initial directory isn't invalid.
 
-- 🔘 Windows version via Wine:
+- ✅ Windows version via Wine:
 	- The cursor seems stuck on "busy" mouse icon.
+	- Root cause was the folder load never completing (see the .snapshots_bfs bug above): a stat failure aborted the load, so allow_stop stayed on and the busy cursor never cleared. Fixed by not aborting on unstattable children.
+
+- 🔘 Allow select and copy of error message dialogs.
 
 - 🔘 Ship with "Copy path(s)" script from current nemo install.
 	- Rewrite to be cross-platform friendly.
