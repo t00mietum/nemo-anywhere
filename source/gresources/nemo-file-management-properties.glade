@@ -393,7 +393,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <child>
-              <object class="XAppStackSidebar">
+              <object class="GtkStackSidebar">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="stack">page_stack</property>
