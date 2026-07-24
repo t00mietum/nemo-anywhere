@@ -1676,6 +1676,13 @@ nemo_get_best_guess_file_mimetype (const gchar *filename,
 
     gchar *mime_type = NULL;
 
+    /* A directory's type is always inode/directory - never guess it from the
+     * name. On Windows dirs can report size 0, which otherwise dropped them into
+     * the zero-length name-guess path below and mislabelled folders. */
+    if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
+        return g_strdup ("inode/directory");
+    }
+
     if (size > 0) {
         /* Default behavior */
         mime_type = g_strdup (g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE));

@@ -67,7 +67,12 @@ In each section, items are listed approximately from newest to oldest.
 	- ✅ Launchers - `.desktop` launcher files are foreign on Windows and already degrade cleanly (launch errors cleanly, editor is Linux-only, no dedicated launcher menu action to break); native `.lnk` shortcut *creation* is a separate future feature, tracked below
 - 🔘 Native Windows `.lnk` shortcuts (create/edit "Create Shortcut"), the native analog of `.desktop` launchers - new feature, deferred
 
-- 🔘 Thumbnails, icon theme, and default-app association per platform
+- 🛠️ Thumbnails, icon theme, and default-app association per platform
+	- Probed the real per-platform behavior under wine. GIO already carries most of this cross-platform; the actual gaps are narrow.
+	- 🛠️ Icon theme - GTK already defaults to Adwaita on Windows, and Adwaita has the freedesktop names nemo uses. The real gap: on win32 `g_content_type_get_icon` returns a flat `text-x-generic` for *every* file (only directories get `folder`), so all files look identical (this is bug "icons don't match OG nemo"). Fix = on Windows re-derive a per-type themed icon from the mime type (which win32 GIO *does* report correctly). Plus ship nemo's own icons in the runtime.
+	- 🛠️ Thumbnails - the freedesktop `.thumbnailer` mechanism works unchanged under wine (exe found via `g_find_program_in_path`, discovery dir found, spawn works); it only failed in the smoke because the thumbnailer exes weren't on PATH. Fix = ship `gdk-pixbuf-thumbnailer.exe` (+ gsf-office, librsvg) and their `.thumbnailer` files in the Windows runtime. Image thumbnails via gdk-pixbuf; video/PDF absent on Windows (no thumbnailer for them in the sysroot), acceptable.
+	- 🛠️ Default-app association - get-default / launch / set-default all go through portable GIO and work under wine (registry-backed `GWin32AppInfo`); the launch layer is already `G_OS_UNIX`/`#else`-guarded. `set-as-default` uses the portable call; on Windows 10/11 the per-user UserChoice hash may make it not stick (real-Windows caveat, not worked around).
+	- Folds in two related bugs in the same subsystem: folders showing "Program"/wrong type (directory mime-type must be `inode/directory`, never name-guessed - a directory reporting size 0 on Windows was hitting the zero-length name-guess path) and the flat-icon bug above.
 
 ### Milestone 5 - More targets
 

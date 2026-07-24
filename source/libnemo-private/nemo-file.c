@@ -2348,6 +2348,55 @@ access_ok (const gchar *path)
     return TRUE;
 }
 
+#ifdef G_OS_WIN32
+/* win32 GIO returns a flat "text-x-generic" icon for every file (only dirs get
+ * "folder"), so on Windows every file would look identical. It does report the
+ * right mime type though, so derive a proper freedesktop themed icon from it -
+ * e.g. image/png -> {image-png, image-x-generic, text-x-generic}. Returns NULL
+ * (keep GIO's icon) for directories/symlinks/mounts and unknown types. */
+static GIcon *
+win32_themed_icon_for_mime_type (const char *mime_type)
+{
+	const char *slash;
+	char *media, *specific, *media_generic;
+	char *names[3];
+	GIcon *icon;
+
+	if (mime_type == NULL || g_content_type_is_unknown (mime_type)) {
+		return NULL;
+	}
+
+	slash = strchr (mime_type, '/');
+	if (slash == NULL || slash == mime_type) {
+		return NULL;
+	}
+
+	media = g_strndup (mime_type, slash - mime_type);
+	if (strcmp (media, "inode") == 0) {           /* directory, symlink, mount */
+		g_free (media);
+		return NULL;
+	}
+
+	specific = g_strdup (mime_type);
+	for (char *p = specific; *p != '\0'; p++) {
+		if (*p == '/') {
+			*p = '-';
+		}
+	}
+	media_generic = g_strconcat (media, "-x-generic", NULL);
+
+	names[0] = specific;                          /* image-png            */
+	names[1] = media_generic;                     /* image-x-generic      */
+	names[2] = (char *) "text-x-generic";         /* last-resort fallback */
+	icon = g_themed_icon_new_from_names (names, 3);
+
+	g_free (media);
+	g_free (specific);
+	g_free (media_generic);
+	return icon;
+}
+#endif
+
 static gboolean
 update_info_internal (NemoFile *file,
 		      GFileInfo *info,
@@ -2809,6 +2858,25 @@ update_info_internal (NemoFile *file,
     }
 
     g_free (mime_type);
+
+#ifdef G_OS_WIN32
+    /* GIO on win32 hands every file a flat "text-x-generic" icon; swap in a
+     * per-type themed icon. On win32 the "content type" is the extension (".mp3"),
+     * so convert it to a real mime ("audio/mpeg") first. Directories/unknown
+     * types keep GIO's icon. */
+    {
+        char *real_mime = file->details->mime_type != NULL
+            ? g_content_type_get_mime_type (file->details->mime_type) : NULL;
+        GIcon *win_icon = win32_themed_icon_for_mime_type (real_mime);
+        if (win_icon != NULL) {
+            if (file->details->icon != NULL) {
+                g_object_unref (file->details->icon);
+            }
+            file->details->icon = win_icon;
+        }
+        g_free (real_mime);
+    }
+#endif
 
 	if (changed) {
 		add_to_link_hash_table (file);
