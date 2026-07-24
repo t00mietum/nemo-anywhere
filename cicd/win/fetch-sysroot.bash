@@ -111,4 +111,37 @@ for pkg in "${resolved[@]}"; do
 	rm -f "$work/$file"
 done
 
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+#	Normalize thumbnailer descriptors. Some bake an absolute /mingw64/bin/ exec
+#	path (dead in every real Windows layout); others already use a bare name. Strip
+#	the prefix so the exec resolves off PATH, where the thumbnailer exes always sit.
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+
+thumbDir="$SYSROOT/mingw64/share/thumbnailers"
+if [[ -d "$thumbDir" ]]; then
+	fEcho "Normalizing thumbnailer exec paths"
+	sed -i 's#/mingw64/bin/##g' "$thumbDir"/*.thumbnailer
+fi
+
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+#	gdk-pixbuf loaders.cache. Pacman's post-install normally builds this; we skip
+#	pacman, so without it only the built-in PNG/JPEG loaders work and every SVG -
+#	i.e. all the symbolic toolbar/sidebar icons - fails to load. Generate it with
+#	the mingw query-loaders tool under wine. The tool anchors the loader paths at
+#	the mingw64 prefix (relative), so the cache resolves wherever the tree lands.
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+
+pixLoaders="$SYSROOT/mingw64/lib/gdk-pixbuf-2.0/2.10.0"
+queryLoaders="$SYSROOT/mingw64/bin/gdk-pixbuf-query-loaders.exe"
+if [[ -f "$queryLoaders" ]]; then
+	fEcho "Building gdk-pixbuf loaders.cache"
+	binWin="Z:${SYSROOT//\//\\}\\mingw64\\bin"
+	if WINEDEBUG=-all WINEPATH="$binWin" wine "$queryLoaders" > "$pixLoaders/loaders.cache" 2>/dev/null \
+	   && grep -q pixbufloader_svg "$pixLoaders/loaders.cache"; then
+		:
+	else
+		fEcho "warn: loaders.cache generation failed - SVG/symbolic icons may not render"
+	fi
+fi
+
 fEcho "Sysroot ready: $SYSROOT ($(du -sh "$SYSROOT" | cut -f1))"
