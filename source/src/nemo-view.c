@@ -46,6 +46,10 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+
+#ifdef G_OS_WIN32
+#include "nemo-view-win32.h"
+#endif
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <glib.h>
@@ -7060,6 +7064,7 @@ paste_into (NemoView *view,
 					data);
 }
 
+#ifndef G_OS_WIN32
 static void
 cb_open_as_root_watch (GPid pid, gint status, gpointer user_data)
 {
@@ -7074,10 +7079,19 @@ open_as_admin (NemoView *view, const gchar *path) {
 
     nemo_window_slot_open_location (view->details->slot, location, 0);
 }
+#endif
 
 static void
 open_as_root (NemoView *view, const gchar *path)
 {
+#ifdef G_OS_WIN32
+    /* Windows has no pkexec/admin:// - relaunch ourselves elevated at this path
+       via the shell "runas" verb, which raises the UAC prompt. The elevated
+       copy runs at a higher integrity level, so it becomes its own instance
+       rather than forwarding to the unelevated one. */
+    nemo_view_win32_open_elevated (path);
+    return;
+#else
     if (eel_check_is_wayland ()) {
         open_as_admin (view, path);
         return;
@@ -7093,8 +7107,16 @@ open_as_root (NemoView *view, const gchar *path)
                   NULL, NULL, &pid, NULL);
     g_child_watch_add(pid, (GChildWatchFunc)cb_open_as_root_watch, NULL);
     g_free (argv[2]);
+#endif
 }
 
+#ifdef G_OS_WIN32
+static void
+open_in_terminal (const gchar *path)
+{
+    nemo_view_win32_open_terminal (path);
+}
+#else
 static void
 open_in_terminal (const gchar *path)
 {
@@ -7119,6 +7141,7 @@ open_in_terminal (const gchar *path)
     g_strfreev (token);
     g_free (argv);
 }
+#endif
 
 static void
 action_paste_files_into_callback (GtkAction *action,
@@ -8218,8 +8241,13 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Open terminal in the selected folder"),
 				 G_CALLBACK (action_open_in_terminal_callback) },
   /* name, stock id */         { NEMO_ACTION_OPEN_AS_ROOT, "dialog-password-symbolic",
+#ifdef G_OS_WIN32
+  /* label, accelerator */       N_("Open as Administrator"), "",
+  /* tooltip */                  N_("Open the folder with administrator privileges"),
+#else
   /* label, accelerator */       N_("Open as Root"), "",
   /* tooltip */                  N_("Open the folder with administration privileges"),
+#endif
 				 G_CALLBACK (action_open_as_root_callback) },
 
   /* name, stock id */         { NEMO_ACTION_FOLLOW_SYMLINK, "go-jump-symbolic",

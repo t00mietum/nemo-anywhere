@@ -53,6 +53,7 @@ nemoCommon_sources = [
   'nemo-tree-sidebar.c',
   'nemo-view-dnd.c',
   'nemo-view-factory.c',
+  'nemo-view-win32.c',
   'nemo-view.c',
   'nemo-window-bookmarks.c',
   'nemo-window-manage-views.c',
@@ -77,7 +78,7 @@ if enableEmptyView
 endif
 
 nemo_deps = [ gail, glib, gtk, math,
-  egg, nemo_extension, nemo_private ]
+  egg, nemo_extension, nemo_private, win_shell ]
 
 if exempi_enabled
   nemo_deps += exempi
