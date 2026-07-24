@@ -67,7 +67,13 @@ In each section, items are listed approximately from newest to oldest.
 	- ✅ Launchers - `.desktop` launcher files are foreign on Windows and already degrade cleanly (launch errors cleanly, editor is Linux-only, no dedicated launcher menu action to break); native `.lnk` shortcut *creation* is a separate future feature, tracked below
 - 🔘 Native Windows `.lnk` shortcuts (create/edit "Create Shortcut"), the native analog of `.desktop` launchers - new feature, deferred
 
-- 🔘 Thumbnails, icon theme, and default-app association per platform
+- ✅ Thumbnails, icon theme, and default-app association per platform
+	- Probed the real per-platform behavior under wine. GIO already carries most of this cross-platform; the actual gaps were narrow. All verified under wine.
+	- ✅ Icon theme - GTK already defaults to Adwaita on Windows, and Adwaita has the freedesktop names nemo uses. Two real gaps, both fixed: (1) on win32 `g_content_type_get_icon` returns a flat `text-x-generic` for *every* file (only directories get `folder`), so on Windows we now re-derive a per-type themed icon from the mime type (win32 GIO reports the mime correctly even though its icon is flat); (2) the mingw sysroot shipped NO gdk-pixbuf `loaders.cache` (pacman's post-install builds it; we skip pacman), so only the built-in PNG/JPEG loaders worked and every SVG - i.e. all the symbolic toolbar/sidebar/statusbar icons - failed. `fetch-sysroot.bash` now generates the cache under wine. Together these fix "icons don't match OG nemo": file icons are per-type and the whole symbolic UI renders.
+	- ✅ Thumbnails - the freedesktop `.thumbnailer` mechanism works unchanged under wine (exe found via `g_find_program_in_path`, discovery dir found, spawn works). Ship `gdk-pixbuf-thumbnailer.exe` + `gsf-office-thumbnailer.exe` and `share/thumbnailers` in the Windows runtime snapshot, and normalize the descriptors' absolute `/mingw64/bin/` exec path to a bare name (PATH-resolvable) in `fetch-sysroot.bash`. Image thumbnails render (also covered by gdk-pixbuf's internal fallback); video/PDF have no thumbnailer in the sysroot, acceptable.
+	- ✅ Default-app association - get-default / launch / set-default all go through portable GIO and work under wine (registry-backed `GWin32AppInfo` returns real apps - notepad for .txt etc.; `g_app_info_launch` succeeds); the launch layer is already `G_OS_UNIX`/`#else`-guarded. `set-as-default` uses the portable call; on Windows 10/11 the per-user UserChoice hash may make it not stick (real-Windows caveat, not worked around).
+	- Folded in and fixed two related bugs in the same subsystem: folders showing "Program"/wrong type (directory mime-type must be `inode/directory`, never name-guessed - a directory reporting size 0 on Windows hit the zero-length name-guess path) and the flat-icon bug above.
+	- 🔘 Follow-up (deferred, low-visibility): nemo's OWN bundled icons (menu-sort PNGs in the sort dropdown, drive eject, annotation emblems) don't resolve on Windows because `NEMO_DATADIR` is a compile-time absolute Unix path. Needs an exe-relative data-dir path on Windows (also fixes action-info.md/script-info.md and other `NEMO_DATADIR` data lookups) plus shipping those icons in the release layout. Its own item once the release layout is settled.
 
 ### Milestone 5 - More targets
 
@@ -94,14 +100,14 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
-- 🔘 Windows: dot-name folders don't say "Folder". Regular folders say "Program", not "Folder".
+- ✅ Windows: dot-name folders don't say "Folder". Regular folders say "Program", not "Folder". (Fixed with the icon/association item: `nemo_get_best_guess_file_mimetype` now short-circuits directories to `inode/directory` instead of name-guessing them - a Windows dir reporting size 0 was falling into the zero-length name-guess path and coming out unknown -> "Program"/"Binary".)
 
 - 🔘 Settings don't seem to be persisting.
 
 - 🔘 Setting list view to 66% doesn't affect current list view. It should.
 	- Also, setting default view to List mode, should affect current view immediately as well.
 
-- 🔘 Icons don't match OG nemo.
+- ✅ Icons don't match OG nemo. (Fixed with the icon/association item: per-type file icons re-derived from the mime on Windows, and the missing gdk-pixbuf `loaders.cache` regenerated so all SVG/symbolic toolbar/sidebar/statusbar icons render. Remaining: nemo's own bundled PNG icons via `NEMO_DATADIR` - deferred follow-up, see Milestone 4 item.)
 
 - ✅ Windows version via Wine: Still getting an error message as startup.
 	- 'The folder contents could not be displayed.', 'Sorry, couldn not display all the contents of "<username>". Error when getting information for file "Z:\home\<username>\.snapshots_bfs": Input/output error.
