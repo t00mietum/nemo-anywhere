@@ -66,11 +66,31 @@ export WINEDEBUG="${WINEDEBUG:--all}"
 WINEPATH="$(to_win "${DEST}/mingw64/bin");$(to_win "${DEST}/app")"
 GSETTINGS_SCHEMA_DIR="$(to_win "${DEST}/mingw64/share/glib-2.0/schemas")"
 export WINEPATH GSETTINGS_SCHEMA_DIR
-
-fEcho "Launching nemo-anywhere.exe under wine (DISPLAY=${DISPLAY:-:0.0})"
 export DISPLAY="${DISPLAY:-:0.0}"
-if [[ -n "$uri" ]]; then
-	exec wine "${DEST}/app/nemo-anywhere.exe" "$uri"
-else
-	exec wine "${DEST}/app/nemo-anywhere.exe"
+
+# No explicit target -> open a location that actually exists under wine, so
+# nemo doesn't start in an invalid dir. Z: maps to the unix root, so probe the
+# host path behind each candidate. %USERNAME% under wine defaults to the unix
+# login name, so Z:\home\<user> == /home/<user>.
+if [[ -z "$uri" ]]; then
+	winuser="${USER:-$(id -un)}"
+	wineprefix="${WINEPREFIX:-${HOME}/.wine}"
+	if [[ -d "/home/${winuser}" ]]; then
+		uri="file:///Z:/home/${winuser}"
+	elif [[ -d "/" ]]; then
+		uri="file:///Z:/"
+	elif [[ -d "${wineprefix}/drive_c" ]]; then
+		uri="file:///C:/"
+	fi
 fi
+
+logfile="${DEST}/wine-run.log"
+fEcho "Launching nemo-anywhere.exe under wine (DISPLAY=$DISPLAY, start=$uri)"
+
+# Detach: new session, no controlling tty, own fds -> the script returns at once
+# and the app outlives it. Log path rides an env var to keep quotes off argv.
+# shellcheck disable=SC2016  # $@/$WINE_LOG must expand in the inner sh, not here
+WINE_LOG="$logfile" setsid /bin/sh -c \
+	'exec "$@" </dev/null >>"$WINE_LOG" 2>&1' \
+	sh wine "${DEST}/app/nemo-anywhere.exe" "$uri" &
+disown 2>/dev/null || true

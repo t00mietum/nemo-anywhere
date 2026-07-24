@@ -264,7 +264,16 @@ update_cursor (NemoWindow *window)
                 gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), cursor);
 		g_object_unref (cursor);
 	} else {
+#ifdef G_OS_WIN32
+		/* The win32 GDK backend (wine) doesn't fall back to the default
+		 * arrow when the cursor is cleared to NULL - it leaves the last
+		 * one, the watch, in place - so reset to the arrow explicitly. */
+		cursor = gdk_cursor_new (GDK_LEFT_PTR);
+		gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), cursor);
+		g_object_unref (cursor);
+#else
                 gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), NULL);
+#endif
         }
 }
 
