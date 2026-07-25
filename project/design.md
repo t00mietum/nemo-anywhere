@@ -194,6 +194,14 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 - Path separators: `/` and `\` both work in typed locations on every platform, without reserving `\`. On Windows both are already native separators. On POSIX, `\` is a legal filename character (files created over SMB shares really do contain it), so it is not reserved and no escape syntax is introduced; instead, typed input is normalized by fallback - the literal path is tried first, and only if it does not resolve is a `\`->`/` retry attempted. Pasted Windows-style paths work, real backslash-filenames keep working, and copy-paste interop with the rest of the platform is preserved.
 
+- Desktop-environment settings schemas are optional at runtime. Upstream read several Cinnamon/GNOME settings schemas that only exist on those desktops, and a missing schema is a hard abort in GLib. The app bundles fallback copies with the same keys and neutral defaults, and prefers the real desktop schema whenever the session provides it - Cinnamon integration is preserved, and every other environment (including Windows) starts clean.
+
+- Windows drive letters are first-class roots: the sidebar lists each fixed drive with a disk-usage bar, replacing the single Unix filesystem root, which has no meaning on Windows. Removable, optical, and network drives stay on the normal devices path, since that path carries eject and unmount.
+
+- Per-type file icons on Windows are derived from the file's content type, because the platform's file layer reports one generic icon for nearly every file. Thumbnails keep the freedesktop thumbnailer mechanism on every platform; the Windows runtime ships the thumbnailer tools and image-loader cache it needs.
+
+- "Open in terminal" and "open elevated" map to native equivalents per platform. On Windows: the native console (Windows Terminal, then PowerShell, then cmd) opened at the folder, and an elevated relaunch through the normal UAC prompt, labeled "Open as Administrator". On Linux: the configured terminal and a pkexec relaunch, labeled "Open as Root".
+
 ## Architecture
 
 ### Software stack

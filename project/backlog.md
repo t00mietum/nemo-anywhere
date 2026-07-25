@@ -53,27 +53,23 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 3 - First cross-platform target (Windows)
 
-- 🛠️ Make the CICD test gate resilient to a down/absent docker daemon - the build + smoke now route through `cicd/utility/docker-run.bash`, which probes the daemon, best-effort nudges only a rootless (non-sudo) service, and on an environmental miss (docker absent, daemon down, container gone) skips-with-warning (exit 0) so a push is never blocked by a raw socket error; a genuine build/smoke failure still propagates and gates. The daemon here is rootful, so auto-start would need `sudo` - which an unattended hook must not run, so the skip message hints the manual command instead. `DOCKER_GATE_STRICT=1` flips a miss back to a hard failure. Verified: gate PASSES normally, and skips (rc=0) with a bogus `DOCKER_HOST`
-	- 🔘 Still open (deferred): revisit whether one container-Linux smoke test is a meaningful gate once Windows/cross lanes exist
+- 🛠️ Make the CICD test gate resilient to a down or absent docker daemon.
+	- Done: build and smoke steps go through a wrapper that probes the daemon first.
+	- Done: an environmental miss (docker absent, daemon down, container gone) skips with a warning instead of blocking the push. A real build or test failure still gates. A strict mode turns a miss back into a hard failure.
+	- Note: the daemon needs root to start, so the unattended hook never auto-starts it. The skip message shows the manual command.
+	- Verified: gate passes normally, and skips cleanly when docker is unreachable.
+	- 🔘 Revisit whether one container-Linux smoke test is a meaningful gate once Windows/cross lanes exist.
 
 ### Milestone 4 - Feature port (iterative, per target)
 
-- ✅ dbus / single-instance handling - probed the actual behavior under wine: GLib autolaunches a per-session D-Bus bus on Windows too, and it is shared across processes, so GApplication single-instance works unchanged (a second launch becomes remote and forwards its URIs via `g_application_open`), and both D-Bus services (FileManager1, the `/org/Nemo` file-operations interface) get a real connection. No win32 gating needed. The one real gap - a bus-less environment (headless/minimal Linux, or a locked-down Windows where autolaunch fails) - made `nemo-dbus-manager` assert on a NULL connection; now guarded to skip export cleanly. Regression test added (`test-nemo-dbus-manager`, forces a disabled bus, fatal-on-warning), passes native + wine
-	- 🔘 Real-Windows validation of the shared-bus assumption deferred with the rest of the win backends (wine confirms the mechanism)
+- 🔘 Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
 
-- ✅ Context-menu actions: open in terminal, open elevated, launchers
-	- ✅ Open in terminal - on Windows, opens the native console at the folder via ShellExecute (prefer Windows Terminal, then PowerShell, then cmd); Linux path unchanged. Win32 bits isolated in `nemo-view-win32.c` so `<windows.h>` macro pollution stays out of nemo-view.c
-	- ✅ Open elevated - on Windows, relaunches the app elevated at the folder via the shell `runas` verb (UAC), the analog of the Linux `pkexec` relaunch; menu label reads "Open as Administrator" on Windows, "Open as Root" on Linux. Real UAC prompt is deferred to real-Windows validation (wine has no UAC)
-	- ✅ Launchers - `.desktop` launcher files are foreign on Windows and already degrade cleanly (launch errors cleanly, editor is Linux-only, no dedicated launcher menu action to break); native `.lnk` shortcut *creation* is a separate future feature, tracked below
-- 🔘 Native Windows `.lnk` shortcuts (create/edit "Create Shortcut"), the native analog of `.desktop` launchers - new feature, deferred
+- 🔘 Ship nemo's own bundled icons and data files on Windows.
+	- Cause: the data dir is a compile-time absolute Unix path, so the sort-menu icons, eject icon, and emblem art don't resolve on Windows.
+	- Probable fix: derive the data dir from the exe location on Windows. Waits on the final release folder layout.
 
-- ✅ Thumbnails, icon theme, and default-app association per platform
-	- Probed the real per-platform behavior under wine. GIO already carries most of this cross-platform; the actual gaps were narrow. All verified under wine.
-	- ✅ Icon theme - GTK already defaults to Adwaita on Windows, and Adwaita has the freedesktop names nemo uses. Two real gaps, both fixed: (1) on win32 `g_content_type_get_icon` returns a flat `text-x-generic` for *every* file (only directories get `folder`), so on Windows we now re-derive a per-type themed icon from the mime type (win32 GIO reports the mime correctly even though its icon is flat); (2) the mingw sysroot shipped NO gdk-pixbuf `loaders.cache` (pacman's post-install builds it; we skip pacman), so only the built-in PNG/JPEG loaders worked and every SVG - i.e. all the symbolic toolbar/sidebar/statusbar icons - failed. `fetch-sysroot.bash` now generates the cache under wine. Together these fix "icons don't match OG nemo": file icons are per-type and the whole symbolic UI renders.
-	- ✅ Thumbnails - the freedesktop `.thumbnailer` mechanism works unchanged under wine (exe found via `g_find_program_in_path`, discovery dir found, spawn works). Ship `gdk-pixbuf-thumbnailer.exe` + `gsf-office-thumbnailer.exe` and `share/thumbnailers` in the Windows runtime snapshot, and normalize the descriptors' absolute `/mingw64/bin/` exec path to a bare name (PATH-resolvable) in `fetch-sysroot.bash`. Image thumbnails render (also covered by gdk-pixbuf's internal fallback); video/PDF have no thumbnailer in the sysroot, acceptable.
-	- ✅ Default-app association - get-default / launch / set-default all go through portable GIO and work under wine (registry-backed `GWin32AppInfo` returns real apps - notepad for .txt etc.; `g_app_info_launch` succeeds); the launch layer is already `G_OS_UNIX`/`#else`-guarded. `set-as-default` uses the portable call; on Windows 10/11 the per-user UserChoice hash may make it not stick (real-Windows caveat, not worked around).
-	- Folded in and fixed two related bugs in the same subsystem: folders showing "Program"/wrong type (directory mime-type must be `inode/directory`, never name-guessed - a directory reporting size 0 on Windows hit the zero-length name-guess path) and the flat-icon bug above.
-	- 🔘 Follow-up (deferred, low-visibility): nemo's OWN bundled icons (menu-sort PNGs in the sort dropdown, drive eject, annotation emblems) don't resolve on Windows because `NEMO_DATADIR` is a compile-time absolute Unix path. Needs an exe-relative data-dir path on Windows (also fixes action-info.md/script-info.md and other `NEMO_DATADIR` data lookups) plus shipping those icons in the release layout. Its own item once the release layout is settled.
+- 🔘 Real-Windows validation pass. Everything so far is verified under wine only.
+	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt).
 
 ### Milestone 5 - More targets
 
@@ -83,14 +79,14 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 6 - CI/CD
 
-- 🛠️ Enable the disabled stages as the build matures (present but commented with `NEEDS:` notes; nothing was pre-ported)
+- 🛠️ Enable the disabled pipeline stages as the build matures.
 
-- 🔘 Add a C formatter/linter gate (clang-format/clang-tidy, or meson warnings-as-errors) and wire it into format/lint stages
+- 🔘 Add a C formatter/linter gate and wire it into the format/lint stages.
 
-- 🛠️ Get release binaries onto the host (mount a build dir or `docker cp` out of the container `/build`) + an optimized buildtype, then turn on artifact collection (`RELEASE_ENABLE`/`RELEASE_ARTIFACT_DIR`)
-	- ✅ Host dogfood path proven: `--buildtype=release` install staged in-container, `docker cp`'d out to a self-contained prefix beside the dogfood bin, launched via a small env-wiring wrapper - runs on the host (schema/extension lib/data all resolve). Refresh recipe in memory.
-	- 🔘 Still to wire into the pipeline itself: an optimized-size buildtype choice, and automatic artifact collection into `RELEASE_ARTIFACT_DIR` (stage still `RELEASE_ENABLE=0`)
-	- 🔘 Artifacts have to come out under the names the installers look for (see design.md, Delivery) - archive per OS/arch plus one checksums file, one top-level folder inside each
+- 🛠️ Get release binaries onto the host, plus an optimized buildtype, then turn on artifact collection.
+	- Done: host dogfood path proven. Release build staged in the container, copied out to a self-contained folder, launched via a small wrapper.
+	- 🔘 Wire into the pipeline: optimized-size buildtype, automatic artifact collection.
+	- 🔘 Artifacts must come out under the names the installers look for (see design.md, Delivery).
 
 ### Milestone 7 - Packaging
 
@@ -100,29 +96,12 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
-- ✅ Windows: dot-name folders don't say "Folder". Regular folders say "Program", not "Folder". (Fixed with the icon/association item: `nemo_get_best_guess_file_mimetype` now short-circuits directories to `inode/directory` instead of name-guessing them - a Windows dir reporting size 0 was falling into the zero-length name-guess path and coming out unknown -> "Program"/"Binary".)
-
 - 🔘 Settings don't seem to be persisting.
 
 - 🔘 Setting list view to 66% doesn't affect current list view. It should.
 	- Also, setting default view to List mode, should affect current view immediately as well.
 
-- ✅ Icons don't match OG nemo. (Fixed with the icon/association item: per-type file icons re-derived from the mime on Windows, and the missing gdk-pixbuf `loaders.cache` regenerated so all SVG/symbolic toolbar/sidebar/statusbar icons render. Remaining: nemo's own bundled PNG icons via `NEMO_DATADIR` - deferred follow-up, see Milestone 4 item.)
-
-- ✅ Windows version via Wine: Still getting an error message as startup.
-	- 'The folder contents could not be displayed.', 'Sorry, couldn not display all the contents of "<username>". Error when getting information for file "Z:\home\<username>\.snapshots_bfs": Input/output error.
-	- And mouste cursor still stuck at "busy spinner"
-	- Under wine, a child GLib can't stat (a unix symlink like `.snapshots_bfs`) failed the whole enumeration batch, so the load aborted with a dialog and never finished -> cursor stuck. Now such a child is skipped and the rest of the folder lists. Same root cause as the earlier "busy cursor" item below.
-
 ### Features and enhancements
-
-- 🔘 Wine launcher:
-	- Should launch wine nemo-anywhere detached, so the script can exit and return.
-	- Should change Z:\home\%USERNAME%" if it exists, fallback to Z:\, fallback to C:\, so the initial directory isn't invalid.
-
-- ✅ Windows version via Wine:
-	- The cursor seems stuck on "busy" mouse icon.
-	- Root cause was the folder load never completing (see the .snapshots_bfs bug above): a stat failure aborted the load, so allow_stop stayed on and the busy cursor never cleared. Fixed by not aborting on unstattable children.
 
 - 🔘 Allow select and copy of error message dialogs.
 
@@ -164,113 +143,161 @@ In each section, items are listed approximately from newest to oldest.
 
 #### Done - Bugs
 
+- ✅ Windows via Wine: error message at startup. 'The folder contents could not be displayed.', 'Sorry, could not display all the contents of "<username>": Input/output error.' Mouse cursor also stuck at "busy spinner".
+	- Reproduced: opening a home folder containing a unix symlink.
+	- Cause: one unreadable child failed the whole folder listing. The aborted load also left the busy cursor on.
+	- Fixed: the unreadable child is skipped and the rest of the folder lists. The load completes and the cursor clears.
+
+- ✅ Windows via Wine: cursor seems stuck on the "busy" mouse icon.
+	- Cause: same as the startup error above. The folder load never finished, so the busy cursor never cleared.
+
+- ✅ Icons don't match OG nemo.
+	- Cause: two gaps. Windows reports one generic icon for every file type, and the Windows dependency snapshot was missing its image-loader cache, so no symbolic (SVG) icons rendered.
+	- Fixed: per-type icons now derived from the file type on Windows. The loader cache is generated when the snapshot is built.
+	- Note: nemo's own bundled PNG icons still don't resolve on Windows. Now its own Milestone 4 item.
+
+- ✅ Windows: dot-name folders don't say "Folder". Regular folders say "Program", not "Folder".
+	- Cause: folder type was guessed from the name whenever size read as zero, which every Windows folder does.
+	- Fixed: folders always report the folder type, never guessed.
+
 #### Done - Features and enhancements
 
-- ✅ Installer script(s) - one-liner install from a shell, for every target
-	- Two standalone installers, each doing the whole job by itself: `install.bash` covers Linux, BSD, WSL and macOS (bash 3.2, so stock macOS runs it); `install.ps1` covers all of those plus Windows, needing PowerShell 7
-	- Both take the release channel, install target and architecture as options, print the full plan and wait for a yes, verify the download's sha256 before unpacking, replace an existing install in place, and reverse themselves with `--uninstall`
-	- Installs as a folder plus a menu entry and a name on PATH (symlink on unix, PATH entry on Windows). User install is the default; the system-wide install is the only path that escalates, and says so in the plan
-	- README gained an Installation/Direct section with both one-liners and a table of where things land; the release-asset naming the installers depend on is written down in design.md under Delivery
-	- Verified end to end on the unix side against a stand-in releases API, both installers: channel and asset resolution, checksum pass and tamper-fail, install, reinstall, uninstall, prompt accept/decline, damaged package, and a byte-for-byte comparison of what the two of them leave behind. The Windows half needs the same real-Windows validation pass as the trash and network backends
+- ✅ Wine launcher.
+	- Fixed: launches detached, so the script exits and returns immediately.
+	- Fixed: initial directory is the user's home if it exists, falling back to the drive root, then C:\.
+
+- ✅ Installer script(s) - one-liner install from a shell, for every target.
+	- Done: two standalone installers. The bash one covers Linux, BSD, WSL, and macOS; the PowerShell one covers all of those plus Windows.
+	- Done: both take channel, target, and architecture options; print the plan and wait for a yes; verify the download checksum before unpacking; replace an existing install in place; and reverse themselves with an uninstall option.
+	- Done: installs as a folder plus a menu entry and a name on PATH. User install is the default; only the system-wide install escalates, and says so in the plan.
+	- Done: README gained an Installation section. The release-asset naming the installers depend on is in design.md under Delivery.
+	- Verified: end to end on the unix side against a stand-in releases service - channel and asset resolution, checksum pass and tamper-fail, install, reinstall, uninstall, prompt accept and decline, and both installers leaving identical results.
+	- Note: the Windows half still needs the real-Windows validation pass.
 
 #### Done - Milestones
 
 ##### Done; Milestone 6 - CI/CD
 
-- ✅ `utility/n8runfm.ps1` - standalone dogfood launcher (silkterm's n8runterm concept): keeps date-stamped copies of the latest release build in a local pool, deletes aged-out copies not in use, launches the newest with args passed through. One cross-platform PowerShell 7 script for Linux + Windows; working copy deployed to the common `0_crossplatform` util dir.
-	- Launches detached and returns immediately: on unix the app gets its own session and its output goes to a log in the target dir, so it never holds the calling console (or a pipe) open.
+- ✅ Dogfood launcher script.
+	- Done: keeps date-stamped copies of the latest build in a local pool, prunes aged-out copies not in use, launches the newest with args passed through.
+	- Done: one cross-platform PowerShell script for Linux and Windows. Working copy deployed to the common util dir.
+	- Done: launches detached and returns immediately. App output goes to a log in the target dir, so it never holds the calling console open.
 
-- ✅ Adopt the local-only delivery model: `dev` = integration target, `main` = release-only (dev->main = release cut); feature branches merge `--no-ff` into dev
-	- Copied as high-level concepts/actions (not language tooling) from the sibling project; identity-swapped to t00mietum
+- ✅ Adopt the local-only delivery model: dev = integration target, main = release-only (dev to main = release cut). Feature branches merge --no-ff into dev.
+	- Note: copied as high-level concepts (not language tooling) from the sibling project.
 
-- ✅ Stand up the local pipeline: `cicd/cicd.bash` engine + `config.bash`, git backup+publish, `release.bash`, and a pre-push merge gate (`--gate`, installed via `cicd/hooks/install.bash`)
-	- Ready + verified now: container meson build + `--version` smoke test, and backup+publish. Gate passes (prints `nemo-anywhere 6.6.4`)
+- ✅ Stand up the local pipeline: engine, config, git backup+publish, release helper, and a pre-push merge gate.
+	- Verified: container build + smoke test, and backup+publish, all pass.
 
 #### Done; Milestone 4 - Feature port (iterative, per target)
 
-- ✅ gvfs replacement or scope-out (mounts, network, trash)
-	- Scope decided: gvfs stays an optional runtime dep on Linux (it's desktop-agnostic, not Cinnamon); gaps are filled natively per platform. Details in design.md "Decisions along the way".
-	- ✅ Portable per-file metadata store (all platforms) - replaces the gvfs metadata daemon for view/sort state, custom icons, emblems, and favorite markers
-		- One JSON file under the app config dir; entries re-key on move/rename (including folder contents); favorites entries resolve to their target file. Verified on Linux and Windows - per-folder view state now persists on Windows where before it errored every write
-	- ✅ Show virtual locations (network, computer) only when the platform supports them - a couple of sidebar/tree entries currently bypass the existing runtime check
-		- Only one live offender: the sidebar's built-in Network row + its section heading (the tree-sidebar computer/network roots were already compiled out). Both now gated on runtime scheme support; on Windows the empty Network section disappears until the native backend lands
-	- ✅ Windows trash: native Recycle Bin backend for in-app browse/restore/empty (deleting to the bin already works)
-		- trash:/// is served in-process from the shell Recycle Bin folder (same approach as favorites://), so the existing trash sidebar row, restore/empty bar, monitor and delete paths all work unchanged; items proxy their backing file for icons/streams/moves and clean up their metadata sibling on delete/restore. Browse + restore + delete verified; also fixed a latent bug where freshly-listed files ran their metadata overlay before having a name
-		- Browsing into a trashed folder's contents shows an error page for now (flat item list only) - minor, revisit if it ever matters
-	- ✅ Windows network: native network-neighborhood browsing + UNC paths in the location bar
-		- network:/// served in-process from native enumeration (providers/domains walked down to servers; a server lists its shares, each a shortcut to its UNC path, which the win32 file layer treats as an ordinary folder). The gated sidebar Network section lights back up on Windows. Enumeration verified graceful-empty in the dev rig (no real network there); populated-neighborhood behavior needs real-Windows validation like the rest
-	- ✅ Accept `\` as a separator in typed locations on all platforms via fallback normalization (literal path first, then `\`->`/` retry; nothing reserved, no escaping)
-		- Wired into the location bar and the bookmark editor; the retry only fires for local paths that contain `\` and don't resolve literally, so real backslash-named files and remote URIs are never touched
+- ✅ dbus / single-instance handling.
+	- Verified: single-instance works unchanged on Windows. A second launch hands its arguments to the first. No per-platform gating needed. Details in design.md, "Decisions along the way".
+	- Fixed: a bus-less environment (headless or minimal system) crashed the internal file-operations service. It now skips setup cleanly. Regression test added, passes on both platforms.
 
-- ✅ File operations (copy/move/delete/rename) on native APIs
-	- Gap analysis (new probe test, run on both platforms): the GIO layer already drives all core operations correctly on Windows - copy, overwrite/conflict, recursive folder copy, move, rename, delete, non-empty-folder handling all behave identically to Linux, so the existing operations engine needed no porting
-	- Real gaps fixed: symlinks aren't supported by the Windows file layer, so "Make Link" and the drag "Link Here" option are no longer offered there; the POSIX permissions tab, columns (owner/group/permissions/octal), and chmod paths are hidden on Windows since the reported mode bits are fabricated
-	- Trash-put failed only in the dev rig (its file layer reports trash unsupported; the existing "delete instead?" prompt covers that case) - needs the usual real-Windows validation pass
+- ✅ Context-menu actions: open in terminal, open elevated, launchers.
+	- Done: on Windows, "open in terminal" opens the native console at the folder, and "open elevated" relaunches the app through the normal elevation prompt. Linux paths unchanged. Menu labels are per-platform.
+	- Note: `.desktop` launcher files already degrade cleanly on Windows. Native `.lnk` creation is its own Milestone 4 item.
 
-- ✅ File monitoring via GIO backends (Win32 / kqueue) or native calls
-	- Verified working as-is on both platforms via the same probe: change events deliver through the native GIO monitor backends (inotify on Linux, ReadDirectoryChanges on Windows); nothing to port
+- ✅ Thumbnails, icon theme, and default-app association per platform.
+	- Done: the portable file-and-app layer already carries most of this. The real gaps were the two icon bugs (see Done - Bugs) and packaging the thumbnailer tools with the Windows runtime.
+	- Verified: default-app lookup, launch, and set-default work on Windows through the portable layer. Image thumbnails render.
+	- Note: on Windows 10/11 the per-user default-app choice may not stick. Not worked around.
+
+- ✅ gvfs replacement or scope-out (mounts, network, trash).
+	- Done: gvfs stays an optional runtime dep on Linux; gaps filled natively per platform. Details in design.md, "Decisions along the way".
+	- ✅ Portable per-file metadata store on all platforms - view/sort state, custom icons, emblems, favorite markers.
+		- Done: one file under the app config dir. Entries follow moves and renames, including folder contents.
+		- Verified: per-folder view state now persists on Windows, where before it errored on every write.
+	- ✅ Show virtual locations (network, computer) only when the platform supports them.
+		- Fixed: the sidebar Network entries are now gated on runtime support. The empty section disappears on Windows until the native backend is present.
+	- ✅ Windows trash: native Recycle Bin backend for in-app browse, restore, and empty (deleting to the bin already worked).
+		- Done: trash is served in-process from the Recycle Bin, so the existing sidebar row, restore/empty bar, monitor, and delete paths all work unchanged.
+		- Note: browsing into a trashed folder's contents shows an error page for now (flat item list only). Minor, revisit if it ever matters.
+	- ✅ Windows network: native network-neighborhood browsing + UNC paths in the location bar.
+		- Done: the network location is served in-process from native enumeration. Servers list their shares, and a share opens as an ordinary folder.
+		- Verified: graceful-empty in the dev rig (no real network there). Populated browsing is part of the real-Windows validation pass.
+	- ✅ Accept `\` as a separator in typed locations on all platforms.
+		- Done: the literal path is tried first, then a `\`-to-`/` retry only if it doesn't resolve. Real backslash-named files and remote URIs are never touched.
+
+- ✅ File operations (copy/move/delete/rename) on native APIs.
+	- Verified: the existing operations engine drives all core operations correctly on Windows - copy, conflict, overwrite, recursive folder copy, move, rename, delete. No porting needed. Probe test added, runs on both platforms.
+	- Fixed: link-creation options are hidden on Windows (no symlink support there). The permissions tab, columns, and change-permissions paths are hidden too, since Windows fabricates the mode bits.
+
+- ✅ File monitoring via portable backends.
+	- Verified: change events deliver through the native monitor backends on both platforms. Nothing to port.
 
 ##### Done; Milestone 3 - First cross-platform target (Windows)
 
-- ✅ Choose and stand up the Windows toolchain - cross-compile from Linux with mingw-w64, smoke-test under wine. Dedicated `nemo-winbuild` container; GTK3 deps are prebuilt MSYS2 packages unpacked into a sysroot (`cicd/win/`)
+- ✅ Choose and stand up the Windows toolchain.
+	- Done: cross-compile from Linux with mingw-w64, smoke-test under wine, in a dedicated container. Details in design.md, "Building (Windows cross)".
 
-- ✅ Get GTK3 + GLib/GIO building/available on the chosen toolchain - `meson setup --cross-file` configures clean (all deps resolve from the sysroot); Unix-only deps (gio-unix, x11, gobject-introspection) guarded behind `host_machine.system()`
+- ✅ Get GTK3 + GLib/GIO building on the chosen toolchain.
+	- Done: cross configure comes up clean with all deps resolved. Unix-only deps guarded out per platform.
 
-- ✅ Compile on Windows, stubbing/excluding hard platform deps - `nemo-anywhere.exe` (plus all helpers + the extension DLL) builds and links clean, and prints `nemo-anywhere 6.6.4` under wine. Linux stays green. POSIX gaps closed via a shared `nemo-posix-compat.h` (uid/gid, passwd/group, chown, getuid/geteuid all degrade to non-root no-ops on non-Unix) plus per-site guards: portable geometry parser replacing X11's `XParseGeometry`, `realpath`->`g_canonicalize_filename`, `GDesktopAppInfo` launch paths falling back to generic `g_app_info_launch_uris`, and pathconf/S_ISUID-GID-VTX/pwent-deref/vestigial-gdkx guards
+- ✅ Compile on Windows, stubbing/excluding hard platform deps.
+	- Done: the app, its helpers, and the extension library all build and link clean, and run under wine. Linux stays green.
+	- Done: POSIX gaps closed via a shared compatibility header plus per-site guards.
 
-- ✅ Launch on Windows and browse the local filesystem - the GTK GUI comes up under wine and browses the `C:` drive: sidebar tree (My Computer / Devices / Network), icon view of the home folder with per-type icons, item count + free space. Closed the last startup abort: nemo read a handful of Cinnamon/GNOME desktop schemas (lockdown, media-handling, terminal, privacy, interface, background) that don't exist off-Cinnamon, so `g_settings_new` aborted; added bundled `org.nemo-anywhere.compat.*` fallbacks (identical keys, neutral defaults) via a `settings_new_or_compat` helper that still prefers the real DE schema when the session has one. Headless GUI smoke scripted at `cicd/win/gui-smoke.bash` (Xvfb + wine + screenshot); Xvfb/x11 tooling added to the winbuild Dockerfile. Remaining non-fatal gaps noted for later: no gvfs metadata backend (per-file view-state not persisted), no thumbnailer binary in the sysroot, wine font fallback is cosmetic
+- ✅ Launch on Windows and browse the local filesystem.
+	- Done: the GUI comes up under wine and browses the local drive - sidebar, icon view, per-type icons, item count, free space.
+	- Fixed: startup abort caused by desktop settings schemas that only exist on Cinnamon/GNOME. Bundled neutral fallbacks now cover them (see design.md, "Decisions along the way").
+	- Done: headless GUI smoke test scripted.
 
-- ✅ Map drive letters / roots into the location model - on Windows the sidebar's "My Computer" now lists each fixed drive (`(C:)`, `(D:)`, ...) as a first-class root with a disk-usage bar, replacing the meaningless Unix `file:///` "File System" root (guarded `#ifdef G_OS_WIN32`; Linux keeps the single File System root unchanged). Drives enumerated via `GetLogicalDrives` + `GetDriveTypeA==DRIVE_FIXED`; each is navigable (`file:///C:/`). Removable/optical/network drives are left to flow through the normal Devices/Network path (they carry a GMount for eject), and fixed-drive roots are de-duplicated out of all three Devices loops so they don't appear twice. Verified under wine: `(C:)`/`(Z:)` show as roots and open to their contents
-
-- ✅ Make the CICD test gate resilient to a down/absent docker daemon - the build + smoke now route through `cicd/utility/docker-run.bash`, which probes the daemon, best-effort nudges only a rootless (non-sudo) service, and on an environmental miss (docker absent, daemon down, container gone) skips-with-warning (exit 0) so a push is never blocked by a raw socket error; a genuine build/smoke failure still propagates and gates. The daemon here is rootful, so auto-start would need `sudo` - which an unattended hook must not run, so the skip message hints the manual command instead. `DOCKER_GATE_STRICT=1` flips a miss back to a hard failure. Verified: gate PASSES normally, and skips (rc=0) with a bogus `DOCKER_HOST`
-	- 🔘 Still open (deferred): revisit whether one container-Linux smoke test is a meaningful gate once Windows/cross lanes exist
+- ✅ Map drive letters / roots into the location model.
+	- Done: on Windows, each fixed drive is a first-class sidebar root with a disk-usage bar, replacing the single Unix filesystem root (meaningless on Windows). Removable and network drives keep the normal devices path, which carries eject.
+	- Verified: drives show as roots and open to their contents.
 
 ##### Done; Milestone 2 - Decouple from Cinnamon (benefits every target)
 
-- ✅ Portable fallbacks for the remaining Mint-flavored theme icon names (`xsi-*`) - menus/toolbars reference ~77 unique names that only Mint themes ship; map to standard freedesktop names or bundle icons. Pre-existing gap (icons already missing on non-Mint), cosmetic only
-	- Mapped all 85 names to standard freedesktop/Adwaita names (mostly a straight prefix strip; the non-standard dozen got closest equivalents, e.g. favorite->starred, preview->image-x-generic, pin/unpin->view-pin); every resulting name verified present in both the Linux and Windows-sysroot Adwaita themes
+- ✅ Portable fallbacks for the remaining Mint-flavored theme icon names.
+	- Cause: menus and toolbars referenced icon names only Mint themes ship. Pre-existing gap on non-Mint, cosmetic only.
+	- Fixed: all names mapped to standard freedesktop names (mostly a straight prefix strip; the non-standard ones got closest equivalents).
+	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
-- ✅ Remove desktop management entirely (Nemo Anywhere is a file manager, not a desktop shell)
-	- Deleted the `nemo-anywhere-desktop` binary, the desktop-application subclass, desktop windows/manager/overlay/icon-views, the `x-nemo-desktop://` directory model in libnemo-private, the `org.Cinnamon` D-Bus proxy, and the desktop autostart; stripped the "am I the desktop?" branches throughout the file manager. Builds and runs green; kept the `.desktop` launcher-file editor and the monitor-geometry util (both real file-manager features)
+- ✅ Remove desktop management entirely (Nemo Anywhere is a file manager, not a desktop shell).
+	- Done: the desktop binary, desktop windows, and the Cinnamon session coupling all deleted. Kept the launcher-file editor and the monitor-geometry helper, both real file-manager features.
 
-- ✅ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable)
-	- xapp favorites: own favorites store + `favorites:///` scheme in libnemo-private, settings under our own schema
-	- xapp status-icon/taskbar-progress: tray icon via GTK, taskbar progress dropped (Mint-only WM protocol); icon-chooser dialog now a file picker with preview
-	- cinnamon-desktop thumbnailer: own freedesktop-spec thumbnailer in libnemo-private (also fixed cache-dir creation on fresh homes); session-user pwent via POSIX
+- ✅ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable).
+	- Done: favorites, thumbnails, tray icon, and the icon chooser all reimplemented portably. Details in design.md, "Decisions along the way".
 
-- ✅ Prove a de-Cinnamon Linux build that runs standalone (no xapp, no cinnamon-desktop) on any desktop or none
-	- Builds and links with neither library; favorites and thumbnails verified working on the standalone build
+- ✅ Prove a de-Cinnamon Linux build that runs standalone (no xapp, no cinnamon-desktop) on any desktop or none.
+	- Verified: builds and links with neither library. Favorites and thumbnails work on the standalone build.
 
 ##### Done; Milestone 1 - Linux baseline
 
-- ✅ Isolate per-file view metadata keys (`metadata::nemo-*`) so the two builds don't share icon-view/layout state on the same files
-	- View/layout keys (and the favorite markers) now carry the app slug (`metadata::nemo-anywhere-*`); keys other file managers also read (custom icon, emblems, annotation, backgrounds) stay shared on purpose
+- ✅ Isolate per-file view metadata keys so the two builds don't share view state on the same files.
+	- Done: view/layout keys and the favorite markers carry the app name. Keys other file managers also read (custom icon, emblems, annotation, backgrounds) stay shared on purpose.
 
-- ✅ Build upstream as-is on Linux (meson) to confirm a known-good reference
-	- Builds and runs clean on stock Debian 13; done in a container since this dev box has newer mixed libs
+- ✅ Build upstream as-is on Linux (meson) to confirm a known-good reference.
+	- Done: builds and runs clean on stock Debian 13, in a container (this dev box has newer mixed libs).
 
-- ✅ Note the exact dependency set and versions that produce a working build
-	- Recorded in the build notes outside the repo
+- ✅ Note the exact dependency set and versions that produce a working build.
+	- Done: recorded in the build notes outside the repo.
 
-- ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean
-	- Meson project moved under `source/` with its internal layout intact; builds and runs green
+- ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean.
+	- Done: meson project moved under `source/` with its internal layout intact. Builds and runs green.
 
-- ✅ Rebrand to "Nemo Anywhere" / `nemo-anywhere` so it co-installs and runs alongside upstream Nemo without conflict
-	- Renamed the installed identity only (binary, helpers, D-Bus names, GSettings schema `org.nemo-anywhere.*`, config/data dirs, `.desktop`/icon/mime/polkit/man/lang, extension SDK); internal C symbols and in-binary GResource paths left as-is (no clash)
-	- Settings fully isolated (fresh `org.nemo-anywhere.*` schema, `~/.config/nemo-anywhere`); does not claim `org.freedesktop.FileManager1` when upstream holds it
-	- Verified by staged install: no shared-dir filename collisions; window runs headless
+- ✅ Rebrand to "Nemo Anywhere" / `nemo-anywhere` so it co-installs and runs alongside upstream Nemo without conflict.
+	- Done: renamed the installed identity only (binaries, service names, settings schema, config/data dirs, menu entries, icons). Internal code identifiers left as-is; no clash.
+	- Done: settings fully isolated from upstream Nemo. Doesn't claim the freedesktop file-manager service when upstream holds it.
+	- Verified: staged install has no filename collisions with upstream. Window runs headless.
 
-- ✅ Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof)
+- ✅ Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof).
 
 ##### Done; Milestone 0 - Initial
 
-- ✅ Clean detached baseline from linuxmint/nemo 6.6.4 (no upstream commit history)
-- ✅ Fork branding + provenance (README, FORK.md), GPL-2.0-only
-- ✅ Name chosen: nemo-anywhere
-- ✅ Create `t00mietum/nemo-anywhere` GitHub repo and push (visibility TBD)
-	- Created public
-- ✅ Strip upstream CI (`.github` Linux workflows) - keep `./github` clear of unrelated automation
-	- Done in the fork-setup commit: workflows and issue templates removed
+- ✅ Clean detached baseline from linuxmint/nemo 6.6.4 (no upstream commit history).
+
+- ✅ Fork branding + provenance (README, fork.md), GPL-2.0-only.
+
+- ✅ Name chosen: nemo-anywhere.
+
+- ✅ Create the GitHub repo and push.
+	- Done: created public.
+
+- ✅ Strip upstream CI - keep the repo clear of unrelated automation.
+	- Done: workflows and issue templates removed in the fork-setup commit.
 
 ## Future and/or deferred
 
