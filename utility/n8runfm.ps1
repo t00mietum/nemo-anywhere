@@ -31,6 +31,11 @@
 ## probe and the build-stamp source (its mtime). Candidates are tried in order;
 ## if none exist the first is kept so the copy step warn-skips it like any
 ## other unreachable source (held copies still run).
+
+##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
+##	Licensed under The MIT License (MIT). Full text at:
+##		https://mit-license.org/
+##	SPDX-License-Identifier: MIT
 if ($IsWindows) {
 	$SourceCandidates = @(
 		"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
@@ -463,7 +468,7 @@ exit 0
 
 
 ##	History:
-##		- 2026-07-23 JC: Launch detached - own session, stdio off the caller - so
+##		- 2026-07-23: Launch detached - own session, stdio off the caller - so
 ##		  the launcher returns at once and the app outlives it.
-##		- 2026-07-23 JC: Created (nemo-anywhere analog of silkterm's n8runterm.ps1;
+##		- 2026-07-23: Created (nemo-anywhere analog of silkterm's n8runterm.ps1;
 ##		  prefix-dir copies instead of a single exe).

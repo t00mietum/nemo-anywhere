@@ -17,7 +17,7 @@
 ## it needs `sudo systemctl start docker` - which an unattended hook must not run.
 ## We nudge only the rootless (per-user) service, then skip with that hint.
 
-##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
+##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
 ##	Licensed under The MIT License (MIT). Full text at:
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
