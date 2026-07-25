@@ -9,6 +9,10 @@
 ##	- The staged copy is a snapshot: the exe + extension dll are re-copied on every
 ##	  run when the container is up, so a fresh ninja build is picked up automatically.
 ##	  Pass --restage to rebuild the whole snapshot (after a sysroot change).
+##	- Each run replaces the last: a previous instance of this staged build is killed
+##	  first (matched by path, so a nemo launched elsewhere and wineserver are safe).
+##	- Zombie note: the build containers now run with --init (a reaping PID 1), so wine
+##	  service processes no longer pile up as zombies - no docker restart needed here.
 ##	- Syntax: run-windows-build-via-wine.bash [--restage] [URI]
 
 set -euo pipefail
@@ -27,6 +31,12 @@ for arg in "$@"; do
 		*) uri="$arg" ;;
 	esac
 done
+
+# Each run replaces the last: kill a previous instance of THIS staged build before
+# restaging/launching. Matched by our exact path so a nemo the user launched from
+# elsewhere is left alone; wineserver is shared with any other wine app, so it is
+# never touched. (pkill returns 1 when nothing matched - fine under set -e.)
+pkill -f "${DEST}/app/nemo-anywhere.exe" 2>/dev/null || true
 
 container_up(){ docker exec "$CONTAINER" true 2>/dev/null; }
 
