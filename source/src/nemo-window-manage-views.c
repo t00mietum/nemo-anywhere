@@ -1818,7 +1818,14 @@ nemo_window_slot_set_content_view (NemoWindowSlot *slot,
     if (nemo_global_preferences_get_ignore_view_metadata ()) {
         nemo_window_set_ignore_meta_view_id (nemo_window_slot_get_window (slot), id);
     } else {
-        nemo_file_set_metadata (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL, id);
+        gchar *default_id;
+
+        /* Picking the view that is already the default is not a per-folder choice,
+         * so pass it as the default and let it go unstored.
+         */
+        default_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
+        nemo_file_set_metadata (file, NEMO_METADATA_KEY_DEFAULT_VIEW, default_id, id);
+        g_free (default_id);
     }
 
     nemo_file_unref (file);

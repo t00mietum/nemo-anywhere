@@ -93,6 +93,7 @@ static void toggle_menubar                          (NemoWindow            *wind
                                                      gint                   action);
 static void nemo_window_reload                      (NemoWindow            *window);
 static void cancel_pending_geometry_save            (NemoWindow            *window);
+static void default_folder_viewer_changed           (NemoWindow            *window);
 
 /* Sanity check: highest mouse button value I could find was 14. 5 is our
  * lower threshold (well-documented to be the one of the button events for the
@@ -877,6 +878,9 @@ nemo_window_finalize (GObject *object)
 
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                                           nemo_window_sync_thumbnail_action,
+                                          window);
+    g_signal_handlers_disconnect_by_func (nemo_preferences,
+                                          default_folder_viewer_changed,
                                           window);
 
     clear_menu_hide_delay (window);
@@ -2016,6 +2020,38 @@ use_extra_mouse_buttons_changed (gpointer callback_data)
 	mouse_extra_buttons = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS);
 }
 
+/* Open folders used to keep the view they were built with, so a new default only
+ * showed up somewhere else. Switch what is already on screen instead.
+ */
+static void
+default_folder_viewer_changed (NemoWindow *window)
+{
+	GList *l, *walk;
+	gchar *view_id;
+
+	view_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
+
+	if (view_id == NULL) {
+		return;
+	}
+
+	for (walk = window->details->panes; walk; walk = walk->next) {
+		NemoWindowPane *pane = walk->data;
+
+		for (l = pane->slots; l != NULL; l = l->next) {
+			NemoWindowSlot *slot = l->data;
+
+			if (slot->location == NULL) {
+				continue;
+			}
+
+			nemo_window_slot_set_content_view (slot, view_id);
+		}
+	}
+
+	g_free (view_id);
+}
+
 
 /*
  * Main API
@@ -2068,6 +2104,10 @@ nemo_window_init (NemoWindow *window)
     g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_INHERIT_SHOW_THUMBNAILS,
 				  G_CALLBACK(nemo_window_sync_thumbnail_action),
+				  window);
+    g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER,
+				  G_CALLBACK(default_folder_viewer_changed),
 				  window);
 }
 

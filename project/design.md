@@ -215,6 +215,8 @@ Three separate stores, each with its own lifetime.
 - Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) go to the platform's settings store. On Linux that is the desktop's usual settings database; on Windows it is the registry. Nothing extra had to be written for Windows - the underlying library already picks the right one, and the schema is the same on both.
 
 - Per-folder view state - view mode, zoom, sort column, column layout - is app-owned and portable, in a single file under the user's config directory. This replaced the Linux-only metadata service so the behaviour is identical everywhere.
+	- Only a real per-folder choice is stored. A value that merely matches the current default is left out, so the folder keeps following the default if it later changes. Upstream stored it either way, which quietly pinned every folder you had ever opened.
+	- Changing a default in Settings also applies to the folders already on screen. Folders you are not looking at keep their own view and zoom until you visit them.
 
 - Window size, position, and maximized state are shared by all windows and live with the application settings. They are written shortly after a move or resize settles, rather than only when a window closes, so an abnormal exit doesn't discard them.
 
