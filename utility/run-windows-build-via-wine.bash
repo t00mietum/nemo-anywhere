@@ -22,6 +22,10 @@
 
 set -euo pipefail
 
+## No crash dumps: wine runs with its cwd inside the repo and core_pattern is a bare
+## relative name, so a crash would litter the tree (and abort the next rar backup).
+ulimit -c 0
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="${ROOT}/cicd/artifacts/win-run"
 CONTAINER="${NEMO_WIN_CONTAINER:-nemo-winbuild}"

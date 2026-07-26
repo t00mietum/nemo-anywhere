@@ -63,4 +63,7 @@ docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$container" \
 docker start "$container" >/dev/null 2>&1 || true
 
 ## Real work: its exit code is the genuine result and still gates the push.
-exec docker exec "$container" sh -c "$cmd"
+## 'ulimit -c 0' first: the container's workdir IS the mounted repo, and the kernel's
+## core_pattern is a bare relative name, so a crash here drops a root-owned core.<pid>
+## into the tree - unreadable to the host user, and enough to abort the next backup.
+exec docker exec "$container" sh -c "ulimit -c 0; $cmd"

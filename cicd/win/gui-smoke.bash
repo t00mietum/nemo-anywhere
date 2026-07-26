@@ -13,6 +13,10 @@
 
 set -euo pipefail
 
+## No crash dumps: the workdir is the mounted repo and core_pattern is relative, so a
+## wine/GTK crash would leave a root-owned core.<pid> the host user can't even delete.
+ulimit -c 0
+
 SYSROOT="/opt/win-sysroot"
 BUILD="/build-win"
 SHOT="${1:-/tmp/shot.png}"
