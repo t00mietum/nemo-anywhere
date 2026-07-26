@@ -210,6 +210,16 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 ### Saves and persistence
 
+Three separate stores, each with its own lifetime.
+
+- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) go to the platform's settings store. On Linux that is the desktop's usual settings database; on Windows it is the registry. Nothing extra had to be written for Windows - the underlying library already picks the right one, and the schema is the same on both.
+
+- Per-folder view state - view mode, zoom, sort column, column layout - is app-owned and portable, in a single file under the user's config directory. This replaced the Linux-only metadata service so the behaviour is identical everywhere.
+
+- Window size, position, and maximized state are shared by all windows and live with the application settings. They are written shortly after a move or resize settles, rather than only when a window closes, so an abnormal exit doesn't discard them.
+
+Settings are deliberately isolated from an upstream Nemo installed alongside: separate schema, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
+
 ### UI
 
 ### Testing

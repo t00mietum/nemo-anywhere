@@ -69,7 +69,7 @@ In each section, items are listed approximately from newest to oldest.
 	- Probable fix: derive the data dir from the exe location on Windows. Waits on the final release folder layout.
 
 - 🔘 Real-Windows validation pass. Everything so far is verified under wine only.
-	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt).
+	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
 
 ### Milestone 5 - More targets
 
@@ -96,18 +96,14 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
-- 🔘 Settings don't seem to be persisting.
+- 🔘 Keyboard shortcuts do nothing in the Windows build when run under wine.
+	- Cause: wine has no keyboard layout DLL, so GTK can't turn a keypress into a key value and no shortcut ever matches. Plain keys (arrows, typing) still work, and so do the menus and mouse.
+	- Note: a wine limitation, not our code. Expected to work on real Windows - added to the real-Windows validation pass.
 
 - 🔘 Setting list view to 66% doesn't affect current list view. It should.
 	- Also, setting default view to List mode, should affect current view immediately as well.
 
 ### Features and enhancements
-
-- 🔘 Allow select and copy of error message dialogs.
-
-- 🔘 Ship with "Copy path(s)" script from current nemo install.
-	- Rewrite to be cross-platform friendly.
-		- Either a .bash script for Linux/BSD/macOS and .ps1 script for Windows, or build into the program code.
 
 - 🔘 "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
 
@@ -119,6 +115,12 @@ In each section, items are listed approximately from newest to oldest.
 
 - 🔘 Remove features:
 	- Option to display date in monospace font.
+
+- 🔘 Allow select and copy of error message dialogs.
+
+- 🔘 Ship with "Copy path(s)" script from current nemo install.
+	- Rewrite to be cross-platform friendly.
+		- Either a .bash script for Linux/BSD/macOS and .ps1 script for Windows, or build into the program code.
 
 - 🔘 New feature:
 	- Confirm mouse-based actions.
@@ -142,6 +144,11 @@ In each section, items are listed approximately from newest to oldest.
 ### Done
 
 #### Done - Bugs
+
+- ✅ Settings don't seem to be persisting.
+	- Verified: settings do persist, on both Linux and Windows. Checked the menus, the Settings dialog, per-folder view state, and window size, each set in one run and read back in the next.
+	- Cause: the Settings dialog was crashing the whole app at the time this was filed, so nothing set in that session was kept. That crash is fixed.
+	- Fixed as well: window size and position were only written when a window was closed cleanly, so a crash - or the wine launcher replacing the running copy - threw them away. They are now saved shortly after a move or resize settles.
 
 - ✅ Windows via Wine: error message at startup. 'The folder contents could not be displayed.', 'Sorry, could not display all the contents of "<username>": Input/output error.' Mouse cursor also stuck at "busy spinner".
 	- Reproduced: opening a home folder containing a unix symlink.
