@@ -103,6 +103,8 @@ struct NemoWindowDetails
 
         guint sidebar_width_handler_id;
 
+        guint geometry_handler_id;
+
         guint menu_state_changed_id;
 
         gboolean menu_skip_release;

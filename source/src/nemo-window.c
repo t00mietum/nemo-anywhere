@@ -92,6 +92,7 @@ static void side_pane_id_changed                    (NemoWindow            *wind
 static void toggle_menubar                          (NemoWindow            *window,
                                                      gint                   action);
 static void nemo_window_reload                      (NemoWindow            *window);
+static void cancel_pending_geometry_save            (NemoWindow            *window);
 
 /* Sanity check: highest mouse button value I could find was 14. 5 is our
  * lower threshold (well-documented to be the one of the button events for the
@@ -872,6 +873,8 @@ nemo_window_finalize (GObject *object)
 		window->details->sidebar_width_handler_id = 0;
 	}
 
+	cancel_pending_geometry_save (window);
+
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                                           nemo_window_sync_thumbnail_action,
                                           window);
@@ -986,6 +989,51 @@ nemo_window_save_geometry (NemoWindow *window)
 			(nemo_window_state, NEMO_WINDOW_STATE_MAXIMIZED,
 			 is_maximized);
 	}
+}
+
+static gboolean
+save_geometry_cb (gpointer user_data)
+{
+	NemoWindow *window = user_data;
+
+	window->details->geometry_handler_id = 0;
+
+	nemo_window_save_geometry (window);
+
+	return FALSE;
+}
+
+static void
+cancel_pending_geometry_save (NemoWindow *window)
+{
+	if (window->details->geometry_handler_id != 0) {
+		g_source_remove (window->details->geometry_handler_id);
+		window->details->geometry_handler_id = 0;
+	}
+}
+
+/* Geometry used to be written only on a clean close, so anything that killed the
+ * process - a crash, or a launcher replacing the running copy - lost it. Save on
+ * a settled move/resize instead, debounced so a drag writes once at the end.
+ */
+static gboolean
+nemo_window_configure_event (GtkWidget         *widget,
+			     GdkEventConfigure *event)
+{
+	NemoWindow *window = NEMO_WINDOW (widget);
+
+	if (gtk_widget_get_mapped (widget)) {
+		cancel_pending_geometry_save (window);
+
+		window->details->geometry_handler_id =
+			g_timeout_add (500, save_geometry_cb, window);
+	}
+
+	if (GTK_WIDGET_CLASS (nemo_window_parent_class)->configure_event != NULL) {
+		return GTK_WIDGET_CLASS (nemo_window_parent_class)->configure_event (widget, event);
+	}
+
+	return FALSE;
 }
 
 void
@@ -2038,6 +2086,7 @@ real_window_close (NemoWindow *window)
 {
 	g_return_if_fail (NEMO_IS_WINDOW (window));
 
+	cancel_pending_geometry_save (window);
 	nemo_window_save_geometry (window);
 
 	gtk_widget_destroy (GTK_WIDGET (window));
@@ -2061,6 +2110,7 @@ nemo_window_class_init (NemoWindowClass *class)
 	wclass->key_press_event = nemo_window_key_press_event;
     wclass->key_release_event = nemo_window_key_release_event;
 	wclass->window_state_event = nemo_window_state_event;
+	wclass->configure_event = nemo_window_configure_event;
 	wclass->button_press_event = nemo_window_button_press_event;
 	wclass->delete_event = nemo_window_delete_event;
 
