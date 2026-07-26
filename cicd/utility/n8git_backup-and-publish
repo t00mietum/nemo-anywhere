@@ -154,8 +154,23 @@ fMain(){
 	## newest of each set is named '_latest', which is deliberately not listed.
 	local gfsRole=""
 	for gfsRole in first frequent hour day week month year; do baseCmdArgs+=("-x*_????????-??????_${gfsRole}.*"); done
-	## Project-specific excludes from the caller (space-joined -x'...' patterns), for
-	## big regenerable trees only this project knows about. Set by its cicd config.
+	## Project-specific excludes, for big regenerable trees only this project knows
+	## about. Two sources, both optional and additive:
+	##   - cicd/rar-excludes.conf: one pattern per line, '#' comments and blanks
+	##     skipped. Read from disk so it applies however this script is entered -
+	##     via the pipeline, or run standalone as its own last stage. An env var set
+	##     by the config would only reach the first of those.
+	##   - GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES: space-joined patterns, for one-offs.
+	local -r filePath_Excludes="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/rar-excludes.conf"
+	if [[ -r "${filePath_Excludes}" ]]; then
+		local excludeLine=""
+		while IFS= read -r excludeLine || [[ -n "${excludeLine}" ]]; do
+			excludeLine="${excludeLine%%#*}"                 ## strip comment
+			excludeLine="${excludeLine#"${excludeLine%%[![:space:]]*}"}"  ## trim both ends
+			excludeLine="${excludeLine%"${excludeLine##*[![:space:]]}"}"
+			[[ -n "${excludeLine}" ]] && baseCmdArgs+=("-x${excludeLine}")
+		done < "${filePath_Excludes}"
+	fi
 	if [[ -n "${GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES:-}" ]]; then
 		local -a extraExcludes=()
 		eval "extraExcludes=( ${GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES} )"
