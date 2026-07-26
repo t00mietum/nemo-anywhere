@@ -226,6 +226,19 @@ GIT_PUBLISH=(cicd/utility/n8git_backup-and-publish)
 ## message so `git commit` won't open an editor). Empty = interactive unless -m/-y.
 PUBLISH_AUTO_MESSAGE=""
 
+## Extra rar excludes for the version backup: the regenerable parts of cicd/artifacts/.
+## win-run is the staged wine runtime (~67MB of sysroot DLLs copied out of the build
+## container) - `run-windows-build-via-wine.bash --restage` rebuilds it from scratch,
+## and staging it is what took the backup from ~1.6MB to ~36MB. lint/ and profiling/
+## are tool logs. cicd/artifacts/release is deliberately NOT excluded: release builds
+## and the packages cut from them are the one thing under artifacts/ worth keeping.
+## Excluding each dir as well as its contents stops rar walking in at all.
+export GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES="
+	-x*/cicd/artifacts/win-run   -x*/cicd/artifacts/win-run/*
+	-x*/cicd/artifacts/lint      -x*/cicd/artifacts/lint/*
+	-x*/cicd/artifacts/profiling -x*/cicd/artifacts/profiling/*
+"
+
 
 ##	History:
 ##		- 2026-07-18: Adapted from the source pipeline's config.bash for nemo-anywhere

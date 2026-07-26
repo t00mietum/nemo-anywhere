@@ -138,6 +138,12 @@ fMain(){
 	## Python and Node: fetched or regenerated wholesale. 'dist' is deliberately
 	## absent - that's where the release packages land.
 	baseCmdArgs+=("-x*/__pycache__/*" "-x*/.venv/*" "-x*/.mypy_cache/*" "-x*/.pytest_cache/*" "-x*/.ruff_cache/*" "-x*/node_modules/*")
+	## Crash dumps. Worth excluding for their own sake (big, useless once read), but
+	## the real reason is that a dump from a container or a root process is mode 0600
+	## and root-owned, so rar can't read it and exits nonzero - which aborts the whole
+	## publish. Same shape .gitignore uses; 'core' relative + core_uses_pid gives
+	## 'core.<pid>'. Note this would also catch a source file literally named 'core.*'.
+	baseCmdArgs+=("-xcore" "-xcore.*")
 	## Wallpaper-sized source stills that never ship.
 	baseCmdArgs+=("-x*/private/backgrounds/*")
 	## The linked-in vault of external resources (GBs of game assets and the like).
