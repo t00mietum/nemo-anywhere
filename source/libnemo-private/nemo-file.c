@@ -3945,9 +3945,13 @@ nemo_file_set_metadata (NemoFile *file,
 	g_return_if_fail (key != NULL);
 	g_return_if_fail (key[0] != '\0');
 
+	/* Storing a value that already matches the default pins the file to today's
+	 * default forever - drop it instead, so reads keep falling back to whatever
+	 * the preference currently says.
+	 */
 	val = metadata;
-	if (val == NULL) {
-		val = default_metadata;
+	if (g_strcmp0 (val, default_metadata) == 0) {
+		val = NULL;
 	}
 
 	NEMO_FILE_CLASS (G_OBJECT_GET_CLASS (file))->set_metadata (file, key, val);

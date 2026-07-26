@@ -100,9 +100,6 @@ In each section, items are listed approximately from newest to oldest.
 	- Cause: wine has no keyboard layout DLL, so GTK can't turn a keypress into a key value and no shortcut ever matches. Plain keys (arrows, typing) still work, and so do the menus and mouse.
 	- Note: a wine limitation, not our code. Expected to work on real Windows - added to the real-Windows validation pass.
 
-- 🔘 Setting list view to 66% doesn't affect current list view. It should.
-	- Also, setting default view to List mode, should affect current view immediately as well.
-
 ### Features and enhancements
 
 - 🔘 "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
@@ -144,6 +141,11 @@ In each section, items are listed approximately from newest to oldest.
 ### Done
 
 #### Done - Bugs
+
+- ✅ Setting list view to 66% doesn't affect current list view. It should.
+	- Also, setting default view to List mode, should affect current view immediately as well.
+	- Cause: a folder stored its own view and zoom the first time it was opened, even when that just matched the default, so it was pinned to whatever the default was that day and later changes to the default never reached it. Nothing was watching the default view setting at all.
+	- Fixed: a setting that only matches the default is no longer stored, so folders keep following it. Changing a default now also applies to the folders already on screen, and folders you deliberately set to their own view or zoom keep it.
 
 - ✅ Settings don't seem to be persisting.
 	- Verified: settings do persist, on both Linux and Windows. Checked the menus, the Settings dialog, per-folder view state, and window size, each set in one run and read back in the next.
