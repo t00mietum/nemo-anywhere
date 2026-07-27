@@ -102,7 +102,10 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Features and enhancements
 
-- 🔘 "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
+- ✅ "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
+	- Cause: the Name cell asked for a 40-character width, which acted as a floor the column could never shrink past, so a narrowing window pushed the trailing columns off instead.
+	- Fixed: dropped that request, so Name now gives space back down to its existing minimum. Long names ellipsize as before.
+	- Verified: at 600px wide all four columns fit where Date Modified used to be cut off; at 1500px Name still takes all the slack; shrinking back from wide re-fits correctly.
 
 - 🔘 Change default settings:
 	- 🔘 List view, 66% size.
