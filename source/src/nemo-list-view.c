@@ -2699,10 +2699,14 @@ create_and_set_up_tree_view (NemoListView *view)
 
 			cell = gtk_cell_renderer_text_new ();
 			view->details->file_name_cell = (GtkCellRendererText *)cell;
+            /* No width-chars here on purpose: it would set a ~40-char minimum on the
+             * cell, which the column can never shrink below. Name is the expanding
+             * column, so it has to be able to give space back when the window narrows -
+             * otherwise the trailing columns get pushed off instead. The floor is the
+             * column's own min-width above; ellipsizing takes care of long names. */
             g_object_set (cell,
                           "xpad", 5,
                           "ellipsize", PANGO_ELLIPSIZE_END,
-                          "width-chars", 40,
                           NULL);
 
             g_object_set_data_full (G_OBJECT (cell),
