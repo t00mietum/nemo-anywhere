@@ -107,6 +107,13 @@ In each section, items are listed approximately from newest to oldest.
 	- Fixed: dropped that request, so Name now gives space back down to its existing minimum. Long names ellipsize as before.
 	- Verified: at 600px wide all four columns fit where Date Modified used to be cut off; at 1500px Name still takes all the slack; shrinking back from wide re-fits correctly.
 
+- In "find" mode:
+	- 🔘 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
+	- 🔘 Instead of showing a filename selected in the status bar, show the entire path.
+
+- 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.
+	- Using a reusable tooltip mechanism
+
 - 🔘 Change default settings:
 	- 🔘 List view, 66% size.
 	- 🔘 Ask before moving items to trash.
@@ -122,9 +129,14 @@ In each section, items are listed approximately from newest to oldest.
 	- Rewrite to be cross-platform friendly.
 		- Either a .bash script for Linux/BSD/macOS and .ps1 script for Windows, or build into the program code.
 
-- 🔘 New feature:
-	- Confirm mouse-based actions.
-		- Flyover text "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
+- 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
+	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
+
+- 🔘 Always operate on whole rows. E.g. if when right-clicking in between columns and not on part of an existing selection, select the entire row before opening right-click menu.
+
+- 🔘 Never show ghost row selection(s). Under some circumstances, there can appear to be two sets of files "selected", but only one set actually is. This is confusing. (Figure out reproducibility steps.)
+
+- 🔘 New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 
 - 🔘 If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
 
