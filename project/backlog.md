@@ -15,7 +15,6 @@ This is a product backlog just for pre-v1.0.0 release. After that, bugs, feature
 - [Milestones](#milestones)
 	- [Milestone 3 - First cross-platform target Windows](#milestone-3---first-cross-platform-target-windows)
 	- [Milestone 4 - Feature port iterative, per target](#milestone-4---feature-port-iterative-per-target)
-	- [Milestone 5 - More targets](#milestone-5---more-targets)
 	- [Milestone 6 - CI/CD](#milestone-6---cicd)
 	- [Milestone 7 - Packaging](#milestone-7---packaging)
 - [Backlog](#backlog)
@@ -39,7 +38,7 @@ This is a product backlog just for pre-v1.0.0 release. After that, bugs, feature
 
 ## Conventions
 
-In each section, items are listed approximately from newest to oldest.
+In each section, items are listed approximately from newest to oldest. (Note: if adding/editing frequently, map clipboard or keyboard macro shortcuts to these icons, to go faster.)
 
 | Icon | Status
 | :--: | :--
@@ -53,13 +52,6 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 3 - First cross-platform target (Windows)
 
-- 🛠️ Make the CICD test gate resilient to a down or absent docker daemon.
-	- Done: build and smoke steps go through a wrapper that probes the daemon first.
-	- Done: an environmental miss (docker absent, daemon down, container gone) skips with a warning instead of blocking the push. A real build or test failure still gates. A strict mode turns a miss back into a hard failure.
-	- Note: the daemon needs root to start, so the unattended hook never auto-starts it. The skip message shows the manual command.
-	- Verified: gate passes normally, and skips cleanly when docker is unreachable.
-	- 🔘 Revisit whether one container-Linux smoke test is a meaningful gate once Windows/cross lanes exist.
-
 ### Milestone 4 - Feature port (iterative, per target)
 
 - 🔘 Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
@@ -71,21 +63,13 @@ In each section, items are listed approximately from newest to oldest.
 - 🔘 Real-Windows validation pass. Everything so far is verified under wine only.
 	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
 
-### Milestone 5 - More targets
-
-- 🔘 BSD
-
-- 🔘 macOS
-
 ### Milestone 6 - CI/CD
 
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 
-- 🔘 Add a C formatter/linter gate and wire it into the format/lint stages.
-
 - 🛠️ Get release binaries onto the host, plus an optimized buildtype, then turn on artifact collection.
-	- Done: host dogfood path proven. Release build staged in the container, copied out to a self-contained folder, launched via a small wrapper.
-	- 🔘 Wire into the pipeline: optimized-size buildtype, automatic artifact collection.
+	- ✅ Done: host dogfood path proven. Release build staged in the container, copied out to a self-contained folder, launched via a small wrapper.
+	- 🔘 Wire into the pipeline: optimized-size-and-speed buildtype, automatic artifact collection.
 	- 🔘 Artifacts must come out under the names the installers look for (see design.md, Delivery).
 
 ### Milestone 7 - Packaging
@@ -96,16 +80,9 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Bugs
 
-- 🔘 Keyboard shortcuts do nothing in the Windows build when run under wine.
-	- Cause: wine has no keyboard layout DLL, so GTK can't turn a keypress into a key value and no shortcut ever matches. Plain keys (arrows, typing) still work, and so do the menus and mouse.
-	- Note: a wine limitation, not our code. Expected to work on real Windows - added to the real-Windows validation pass.
-
 ### Features and enhancements
 
-- ✅ "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
-	- Cause: the Name cell asked for a 40-character width, which acted as a floor the column could never shrink past, so a narrowing window pushed the trailing columns off instead.
-	- Fixed: dropped that request, so Name now gives space back down to its existing minimum. Long names ellipsize as before.
-	- Verified: at 600px wide all four columns fit where Date Modified used to be cut off; at 1500px Name still takes all the slack; shrinking back from wide re-fits correctly.
+- 🔘 Add a C formatter/linter gate and wire it into the format/lint stages.
 
 - In "find" mode:
 	- 🔘 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
@@ -151,7 +128,11 @@ In each section, items are listed approximately from newest to oldest.
 
 - 🔘 Option to always show a tab.
 
-- 🔘 Tabs don't take up the whole space, only what's needed for title (and a reasonable minimum width).
+- 🔘 Tabs shouldn't take up the whole space, only what's needed for title (and a reasonable minimum width).
+
+- 🔘 Target: BSD
+
+- 🔘 Target: macOS
 
 ### Done
 
@@ -185,6 +166,11 @@ In each section, items are listed approximately from newest to oldest.
 	- Fixed: folders always report the folder type, never guessed.
 
 #### Done - Features and enhancements
+
+- ✅ "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
+	- Cause: the Name cell asked for a 40-character width, which acted as a floor the column could never shrink past, so a narrowing window pushed the trailing columns off instead.
+	- Fixed: dropped that request, so Name now gives space back down to its existing minimum. Long names ellipsize as before.
+	- Verified: at 600px wide all four columns fit where Date Modified used to be cut off; at 1500px Name still takes all the slack; shrinking back from wide re-fits correctly.
 
 - ✅ Wine launcher.
 	- Fixed: launches detached, so the script exits and returns immediately.
@@ -325,4 +311,15 @@ In each section, items are listed approximately from newest to oldest.
 
 ## Future and/or deferred
 
+- ✋ Make the CICD test gate resilient to a down or absent docker daemon.
+	- Done: build and smoke steps go through a wrapper that probes the daemon first.
+	- Done: an environmental miss (docker absent, daemon down, container gone) skips with a warning instead of blocking the push. A real build or test failure still gates. A strict mode turns a miss back into a hard failure.
+	- Note: the daemon needs root to start, so the unattended hook never auto-starts it. The skip message shows the manual command.
+	- Verified: gate passes normally, and skips cleanly when docker is unreachable.
+	- ✋ Revisit whether one container-Linux smoke test is a meaningful gate once Windows/cross lanes exist.
+
 ## Canceled
+
+- 🚫 Keyboard shortcuts do nothing in the Windows build when run under wine.
+	- Cause: wine has no keyboard layout DLL, so GTK can't turn a keypress into a key value and no shortcut ever matches. Plain keys (arrows, typing) still work, and so do the menus and mouse.
+	- Note: a wine limitation, not our code. Expected to work on real Windows - added to the real-Windows validation pass.
