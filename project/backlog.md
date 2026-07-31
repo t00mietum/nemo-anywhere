@@ -62,6 +62,18 @@ In each section, items are listed approximately from newest to oldest.
 
 ### Milestone 4 - Feature port (iterative, per target)
 
+- 🛠️ Windows look: make it feel native even though it isn't Explorer.
+	- 🛠️ Fix the thin, poorly anti-aliased text - use the Windows UI font (Segoe UI) with fuller hinting and subpixel.
+	- 🔘 Bundle a Windows-style icon theme and widget theme (permissively licensed only - not Microsoft's own art).
+
+- 🔘 Ultra-portable Windows: a single self-contained executable.
+	- 🔘 No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
+	- 🔘 One binary only - fold connect-server, open-with, and extensions-list into the main exe on Windows. Linux keeps its separate helpers.
+	- 🔘 No shell/Explorer coupling - resolve file associations from the registry directly, layered under a nemo-anywhere override map. Overrides launch directly.
+	- 🔘 No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
+
+- 🔘 No autorun, ever, on any platform - not even an option. Notice a new drive; never run anything off it. Remove the autorun-software helper and its media-autorun path.
+
 - 🔘 Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
 
 - 🔘 Ship nemo's own bundled icons and data files on Windows.
@@ -89,6 +101,8 @@ In each section, items are listed approximately from newest to oldest.
 	- 🔘 Artifacts must come out under the names the installers look for (see design.md, Delivery).
 
 ### Milestone 7 - Packaging
+
+- 🔘 Single-exe packaging stage in `cicd-win.ps1` - pack the staged DLL closure into one portable `.exe`.
 
 ## Backlog
 

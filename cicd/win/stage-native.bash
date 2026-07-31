@@ -97,6 +97,46 @@ for d in fonts gtk-3.0; do
 	[[ -d "${MINGW}/etc/${d}" ]] && cp -r "${MINGW}/etc/${d}" "${DEST}/mingw64/etc/"
 done
 
+## GTK settings. The stock mingw64 etc/gtk-3.0 ships no settings.ini, so GTK falls
+## back to defaults: the Adwaita-Sans alias (not bundled -> a thin host substitute)
+## rendered with slight hinting and grayscale AA. That reads thin and mushy on
+## Windows. Pin the actual Windows UI font and turn on full hinting + subpixel so
+## text looks like the rest of the desktop. (Runtime query of the user's *chosen*
+## UI font could refine this later; Segoe UI 9 is the Windows default.)
+mkdir -p "${DEST}/mingw64/etc/gtk-3.0"
+cat > "${DEST}/mingw64/etc/gtk-3.0/settings.ini" <<-'INI'
+	[Settings]
+	gtk-font-name = Segoe UI 9
+	gtk-xft-antialias = 1
+	gtk-xft-hinting = 1
+	gtk-xft-hintstyle = hintfull
+	gtk-xft-rgba = rgb
+	gtk-icon-theme-name = Adwaita
+	gtk-theme-name = Adwaita
+INI
+
+## Fontconfig belt-and-suspenders: map the generic sans-serif to Segoe UI and force
+## the same full-hint + subpixel rendering at the fc layer, overriding the stock
+## conf.d (10-hinting-slight, 10-sub-pixel-none) that ships thin/grayscale.
+mkdir -p "${DEST}/mingw64/etc/fonts/conf.d"
+cat > "${DEST}/mingw64/etc/fonts/conf.d/99-nemo-anywhere.conf" <<-'FC'
+	<?xml version="1.0"?>
+	<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+	<fontconfig>
+		<match target="pattern">
+			<test name="family"><string>sans-serif</string></test>
+			<edit name="family" mode="prepend" binding="strong"><string>Segoe UI</string></edit>
+		</match>
+		<match target="font">
+			<edit name="antialias" mode="assign"><bool>true</bool></edit>
+			<edit name="hinting" mode="assign"><bool>true</bool></edit>
+			<edit name="hintstyle" mode="assign"><const>hintfull</const></edit>
+			<edit name="rgba" mode="assign"><const>rgb</const></edit>
+			<edit name="lcdfilter" mode="assign"><const>lcddefault</const></edit>
+		</match>
+	</fontconfig>
+FC
+
 ## Launcher at the bundle root. app/nemo-anywhere.exe can't be double-clicked
 ## directly: Windows only searches the exe's own dir + System32 + PATH for the 50+
 ## runtime dlls, never mingw64\bin, so a bare launch throws a wall of missing-dll
