@@ -26,6 +26,7 @@ set -Eeuo pipefail
 BUILD="${1:?usage: stage-native.bash <build-dir> <dest-dir>}"
 DEST="${2:?usage: stage-native.bash <build-dir> <dest-dir>}"
 MINGW="${MINGW_PREFIX:-/mingw64}"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"	# .../github, for vendor/
 
 fEcho(){ echo "[ $* ]"; }
 
@@ -92,6 +93,14 @@ for d in icons themes thumbnailers; do
 	[[ -d "${MINGW}/share/${d}" ]] && cp -r "${MINGW}/share/${d}" "${DEST}/mingw64/share/"
 done
 
+## Vendored Windows-11 (Fluent) theme + icons - the native look. Adwaita/hicolor
+## above stay as the fallback the Fluent icon theme Inherits from.
+[[ -d "${REPO}/vendor/themes/Fluent" ]] && cp -r "${REPO}/vendor/themes/Fluent" "${DEST}/mingw64/share/themes/"
+[[ -d "${REPO}/vendor/icons/Fluent" ]]  && cp -r "${REPO}/vendor/icons/Fluent"  "${DEST}/mingw64/share/icons/"
+if [[ -x "${MINGW}/bin/gtk-update-icon-cache.exe" && -d "${DEST}/mingw64/share/icons/Fluent" ]]; then
+	"${MINGW}/bin/gtk-update-icon-cache.exe" -q -t -f "${DEST}/mingw64/share/icons/Fluent" 2>/dev/null || true
+fi
+
 ## etc: fontconfig + gtk settings the runtime reads relative to the prefix.
 for d in fonts gtk-3.0; do
 	[[ -d "${MINGW}/etc/${d}" ]] && cp -r "${MINGW}/etc/${d}" "${DEST}/mingw64/etc/"
@@ -111,8 +120,9 @@ cat > "${DEST}/mingw64/etc/gtk-3.0/settings.ini" <<-'INI'
 	gtk-xft-hinting = 1
 	gtk-xft-hintstyle = hintfull
 	gtk-xft-rgba = rgb
-	gtk-icon-theme-name = Adwaita
-	gtk-theme-name = Adwaita
+	gtk-theme-name = Fluent
+	gtk-icon-theme-name = Fluent
+	gtk-application-prefer-dark-theme = true
 INI
 
 ## Fontconfig belt-and-suspenders: map the generic sans-serif to Segoe UI and force
