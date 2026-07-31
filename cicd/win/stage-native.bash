@@ -97,5 +97,23 @@ for d in fonts gtk-3.0; do
 	[[ -d "${MINGW}/etc/${d}" ]] && cp -r "${MINGW}/etc/${d}" "${DEST}/mingw64/etc/"
 done
 
+## Launcher at the bundle root. app/nemo-anywhere.exe can't be double-clicked
+## directly: Windows only searches the exe's own dir + System32 + PATH for the 50+
+## runtime dlls, never mingw64\bin, so a bare launch throws a wall of missing-dll
+## dialogs. This wires PATH/schemas/data at the prefix and starts the real exe with
+## no console window (wscript). CRLF so Windows Script Host is happy.
+launcher="${DEST}/nemo-anywhere.vbs"
+{
+	printf '%s\r\n' "' Portable launcher - sets the GTK runtime env, then starts nemo-anywhere."
+	printf '%s\r\n' "Set sh = CreateObject(\"WScript.Shell\")"
+	printf '%s\r\n' "base = Left(WScript.ScriptFullName, InStrRev(WScript.ScriptFullName, \"\\\"))"
+	printf '%s\r\n' "Set env = sh.Environment(\"PROCESS\")"
+	printf '%s\r\n' "env(\"PATH\") = base & \"mingw64\\bin;\" & env(\"PATH\")"
+	printf '%s\r\n' "env(\"GSETTINGS_SCHEMA_DIR\") = base & \"mingw64\\share\\glib-2.0\\schemas\""
+	printf '%s\r\n' "env(\"XDG_DATA_DIRS\") = base & \"mingw64\\share\""
+	printf '%s\r\n' "sh.CurrentDirectory = base & \"app\""
+	printf '%s\r\n' "sh.Run \"\"\"\" & base & \"app\\nemo-anywhere.exe\"\"\", 1, False"
+} > "$launcher"
+
 bundle_mb="$(du -sm "${DEST}" 2>/dev/null | cut -f1)"
 fEcho "OK: staged ${ndll} runtime dll(s); bundle ~${bundle_mb} MB -> ${DEST}"
