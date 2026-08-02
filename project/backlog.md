@@ -54,6 +54,12 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Milestone 4 - Feature port (iterative, per target)
 
+- 🔘 Ultra-portable Windows: a single self-contained executable.
+	- 🔘 No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
+	- 🔘 One binary only - fold connect-server, open-with, and extensions-list into the main exe on Windows. Linux keeps its separate helpers.
+	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
+	- 🔘 No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
+
 - 🛠️ Windows look: make it feel native even though it isn't Explorer.
 	- ✅ Fix the thin, poorly anti-aliased text - Segoe UI 9 with full hinting and subpixel (generated settings.ini + fontconfig).
 	- 🛠️ Themes: bundle a Windows 11 (Fluent) icon + widget theme, light and dark. Keep a lightweight Linux light/dark pair compiled in (Adwaita / Adwaita-dark). Permissive licenses only - not Microsoft's own art.
@@ -67,11 +73,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🔘 Config engine: move settings + persistence to SHCL (jim-collier/shcl) in a user-level `.shcl` file; decouple from gconf/dconf and the Windows registry. File-assoc overrides and theme/mode selection live here. (Already the intended engine in design.md.)
 
-- 🔘 Ultra-portable Windows: a single self-contained executable.
-	- 🔘 No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
-	- 🔘 One binary only - fold connect-server, open-with, and extensions-list into the main exe on Windows. Linux keeps its separate helpers.
-	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
-	- 🔘 No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
+- 🔘 Windows: "Open in terminal" should refer to an ordered list of shells and terminals in settings (if there's not a standard Windows way). At install time - and at launch in a background thread once the UI renders and settles:
+	- Check for a hardcoded list of terminals. For each that exist, add them to config. (Add nonexistent ones too, commented out.) For each, prefer to launch in what's installed, in this order of preference: SilkTerm, Windows Terminal, conhost. User can override which terminal is opened, for each shell.
+		- Powershell 7
+		- WSL2 distros
+		- WSL1 distros
+		- NuShell
+		- PyCmd
+		- CMD.exe
+		- Powershell 5
 
 - ✅ No autorun, ever, on any platform - not even an option. Notice a new drive; never run anything off it. Remove the autorun-software helper and its media-autorun path.
 	- Done: the autorun-software helper, its menu entry, and the "prompt or autorun programs" preference are gone.
@@ -105,12 +115,18 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Bugs
 
+- 🔘 Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
+
 ### Features and enhancements
 
 - ✅ Dimmer highlight of mouseover line. It can easily get confused with line selection.
 	- App CSS dims file-pane/tree row :hover to 0.035 alpha (theme was 0.08), scoped `:not(:selected)`; confirmed by eyeball.
 
-- 🔘 Right-click from - and drag-n-drop to - a path button, should behave as if it were acting on a folder.
+- 🛠️ Right-click from - and drag-n-drop to - a path button, should behave as if it were acting on a folder.
+	- DnD-to already worked (drop-target proxy on each button's folder); confirmed fine.
+	- Right-click menu was the trimmed `location` menu. Added Open, Open in Terminal, Open as Admin, and New Folder (create inside) as `Location*` variants so a segment acts like a folder. Deferred the heavy selection/extension submenus (Open With, Copy/Move To, Rename, Duplicate, Create Link, Scripts, Actions) - tightly coupled to the live selection and odd on an ancestor dir.
+	- New Folder only enabled when the segment is the currently displayed folder (else grayed) - it lands inside that folder.
+	- Fixed adjacent bug: right-click often flashed the menu shut (had to click twice). The location menu popped up async after a file-attribute load, firing post-release with a stale event; now it pops synchronously inside the press and just warm-loads mount/fs info for the volume items.
 
 - 🔘 Path button bar should immediately return to buttons, any time the path defocuses, not just 'esc' hit.
 
