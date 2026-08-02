@@ -28,12 +28,6 @@
     <value nick="informal" value="2"/>
   </enum>
 
-  <enum id="org.nemo-anywhere.DateFontChoice">
-    <value nick="auto-mono" value="0"/>
-    <value nick="system-mono" value="1"/>
-    <value nick="no-mono" value="2"/>
-  </enum>
-
   <enum id="org.nemo-anywhere.SortOrder">
     <value nick="manually" value="0"/>
     <value nick="name" value="1"/>
@@ -210,7 +204,7 @@
       <description>If set to true, then Nemo show warning message when run Nemo as root user.</description>
     </key>
     <key name="confirm-move-to-trash" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Whether to ask for confirmation when moving files to Trash</summary>
       <description>If set to true, then Nemo will ask for confirmation when  you attempt to move files to the Trash.</description>
     </key>
@@ -320,7 +314,7 @@
         <alias value='compact_view' target='compact-view'/>
         <alias value='list_view' target='list-view'/>
       </aliases>
-      <default>'icon-view'</default>
+      <default>'list-view'</default>
       <summary>Default folder viewer</summary>
       <description>When a folder is visited this viewer is used unless you have selected another view for that particular folder. Possible values are "list-view", "icon-view" and "compact-view".</description>
     </key>
@@ -330,14 +324,9 @@
       <description>When a folder is visited the viewer is inherited from that folder's parent unless you have selected another view for that particular folder.</description>
     </key>
     <key name="date-format" enum="org.nemo-anywhere.DateFormat">
-      <default>'locale'</default>
+      <default>'iso'</default>
       <summary>Date Format</summary>
       <description>The format of file dates. Possible values are "locale", "iso", and "informal".</description>
-    </key>
-    <key name="date-font-choice" enum="org.nemo-anywhere.DateFontChoice">
-      <default>'auto-mono'</default>
-      <summary>The font to use for the date/time columns.</summary>
-      <description>The format of file dates. Possible values are "auto-mono" (best effort to match the application font), "system-mono" (use the current system mono font), and "no-mono" (use a normal font).</description>
     </key>
     <key name="show-hidden-files" type="b">
       <default>false</default>
@@ -537,17 +526,17 @@
 
   <schema id="org.nemo-anywhere.list-view" path="/org/nemo-anywhere/list-view/" gettext-domain="nemo-anywhere">
     <key name="default-zoom-level" enum="org.nemo-anywhere.ZoomLevel">
-      <default>'smaller'</default>
+      <default>'small'</default>
       <summary>Default list zoom level</summary>
       <description>Default zoom level used by the list view.</description>
     </key>
     <key name="default-visible-columns" type="as">
-      <default>[ 'name', 'size', 'type', 'date_modified' ]</default>
+      <default>[ 'name', 'size', 'type', 'date_modified', 'owner', 'group', 'permissions' ]</default>
       <summary>Default list of columns visible in the list view</summary>
       <description>Default list of columns visible in the list view.</description>
     </key>
     <key name="default-column-order" type="as">
-      <default>[ 'name', 'size', 'type', 'date_modified' ]</default>
+      <default>[ 'name', 'size', 'type', 'date_modified', 'owner', 'group', 'permissions' ]</default>
       <summary>Default column order in the list view</summary>
       <description>Default column order in the list view.</description>
     </key>
@@ -966,9 +955,4 @@
     </key>
   </schema>
 
-  <schema id="org.nemo-anywhere.compat.gnome-interface" path="/org/nemo-anywhere/compat/gnome-interface/">
-    <key name="monospace-font-name" type="s">
-      <default>'Monospace 10'</default>
-    </key>
-  </schema>
 </schemalist>

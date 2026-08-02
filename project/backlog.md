@@ -116,17 +116,6 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 - 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.
 	- Using a reusable tooltip mechanism
 
-- 🔘 Change default settings:
-	- 🔘 List view, 66% size.
-	- 🔘 Ask before moving items to trash.
-	- 🔘 Date display in ISO format.
-	- 🔘 Showing owner, group, and perms.
-
-- 🔘 Remove features:
-	- Option to display date in monospace font.
-
-- 🔘 Allow select and copy of error message dialogs.
-
 - 🔘 Ship with "Copy path(s)" script from current nemo install.
 	- Rewrite to be cross-platform friendly.
 		- Either a .bash script for Linux/BSD/macOS and .ps1 script for Windows, or build into the program code.
@@ -191,6 +180,20 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Fixed: folders always report the folder type, never guessed.
 
 #### Done - Features and enhancements
+
+- ✅ Change default settings:
+	- ✅ List view, 66% size.
+	- ✅ Ask before moving items to trash.
+	- ✅ Date display in ISO format.
+	- ✅ Showing owner, group, and perms.
+	- Done: new out-of-the-box defaults - list view at 66%, trash moves ask first, ISO dates, owner/group/permissions columns visible. Existing installs that changed a setting keep their value.
+
+- ✅ Remove features:
+	- Option to display date in monospace font.
+	- Done: the date font style option, its setting, and the mono-font matching are gone. Dates use the regular font.
+
+- ✅ Allow select and copy of error message dialogs.
+	- Done: the message text in the stock error/question dialogs is selectable, so it can be copied. The expandable details text already was.
 
 - ✅ "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
 	- Cause: the Name cell asked for a 40-character width, which acted as a floor the column could never shrink past, so a narrowing window pushed the trailing columns off instead.
