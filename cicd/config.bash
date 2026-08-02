@@ -56,15 +56,10 @@ DOCKER_RUN="${_cfgdir}/utility/docker-run.bash"
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Stage 1: format the source in place before anything is compiled or tested.
-## NOT READY - disabled (empty arrays -> stage self-skips).
-## NEEDS: a C formatter gate (e.g. clang-format with a repo .clang-format), decided
-## and wired for the source/ tree. Upstream Nemo ships no format gate, so this is a
-## deliberate future choice, not a port.
+## Decided: NO in-place formatter for the inherited tree (a full reformat would
+## bury real history in churn). The gate is the check-only lint below instead.
 FMT_CMD=()
 FMT_CHECK_CMD=()
-#	Rust-era original (reference only):
-#	FMT_CMD=(cargo fmt)
-#	FMT_CHECK_CMD=(cargo fmt --check)
 
 ## Pinned helper-tool versions the engine warns on when drifted. NOT READY - unset.
 ## NEEDS: pins for whatever C-side tools the pipeline ends up depending on (meson,
@@ -97,12 +92,11 @@ DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" '
 ## assert on; swap this smoke check for it, or run both.
 TEST_CMD=(bash "${DOCKER_RUN}" "smoke test" 'xvfb-run -a /build/src/nemo-anywhere --version')
 
-## Stage 3 (after tests): lints. NOT READY - unset (stage self-skips).
-## NEEDS: a C linter/static-analysis gate (clang-tidy, cppcheck, or meson's own
-## warnings-as-errors), decided and wired.
-#	Rust-era original (reference only):
-#	LINT_PROBE=(env "PATH=${HOME}/.cargo/bin:${PATH}" cargo clippy --version)
-#	LINT_CMD=(env "PATH=${HOME}/.cargo/bin:${PATH}" CARGO_TARGET_DIR=target/lint cargo clippy --workspace --all-targets -- -D warnings)
+## Stage 3 (after tests): lints - READY. Check-only cppcheck over the CHANGED C
+## files only (cicd/utility/lint-c.bash); never reformats, never lints the whole
+## inherited tree. A box without cppcheck skips with a warning (probe below).
+LINT_PROBE=(cppcheck --version)
+LINT_CMD=(bash cicd/utility/lint-c.bash)
 
 ## Stage 3 (after lints): dependency policy (licenses/advisories). NOT READY - unset.
 ## NEEDS: a C-world equivalent if wanted (there is no Cargo.lock to police); likely

@@ -7,7 +7,7 @@
 ##		  Docker or wine is involved here. Does NOT touch cicd.bash or config.bash.
 ##		- Stages (fail-fast; any error aborts before the next stage):
 ##		   0. remote sync   (fetch; fast-forward if safely behind; abort if diverged)
-##		   1. format        (disabled - no C formatter gate yet; see config.bash)
+##		   1. lint          (check-only cppcheck over the changed C files)
 ##		   2. debug build   (meson setup -Dxmp=false + ninja, MSYS2 mingw64)
 ##		   3. tests         (native --version smoke of the built exe)
 ##		   4. stage+dogfood (self-contained runtime bundle -> synced dogfood folder)
@@ -30,9 +30,9 @@
 ##		   -Yes            run unattended (no confirm / message prompt)
 ##		   -Quiet          quiet + unattended (implies -Yes); publish runs quiet too
 ##		   -Quick          skip the slow stages (reserved; none enabled yet)
-##		   -Gate           merge gate only: build + smoke, then exit (no stage/publish)
+##		   -Gate           merge gate only: lint + build + smoke, then exit (no stage/publish)
 ##		   -NoSync         skip the remote sync check (stage 0)
-##		   -NoFmt          skip the formatter stage (a no-op today; format is disabled)
+##		   -NoFmt          skip the lint stage
 ##		   -NoBuild        skip the build + smoke + stage stages
 ##		   -NoDogfood      skip installing the staged bundle into the dogfood folder
 ##		   -NoPublish      skip the git publish stage
@@ -212,6 +212,14 @@ ninja -C $BuildRel
 	fEcho "OK: native build: $exe ($size)"
 }
 
+## Check-only C lint (cppcheck) over the changed files, via the shared bash
+## helper. The script itself warn-skips when cppcheck isn't installed; findings
+## abort. Runs in the mingw64 shell where cppcheck lives.
+function fLint {
+	fMingw "bash cicd/utility/lint-c.bash"
+	if ($script:MingwRc -ne 0) { fDie "C lint failed (exit $($script:MingwRc))" }
+}
+
 ## Native smoke: run the built exe's --version on real Windows. The exe statically
 ## imports the extension dll, so that must sit beside it; the GTK DLLs come from the
 ## host mingw64\bin on PATH. Proves the build links and loads.
@@ -383,9 +391,8 @@ function fMain {
 	Set-Location -LiteralPath $Root
 	$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 
-	## Gate mode: build + smoke, then exit. The fast local verification for a push
-	## (nemo has no C formatter/linter gate yet - see config.bash - so the build and
-	## its --version smoke ARE the gate). Nothing is staged or published.
+	## Gate mode: lint + build + smoke, then exit. The fast local verification for
+	## a push. Nothing is staged or published.
 	if ($Gate) {
 		$miss = fToolchainMissing
 		if ($miss) {
@@ -395,9 +402,12 @@ function fMain {
 			fEcho_Clean
 			return
 		}
-		fSection "Gate 1/2  Build"
+		fSection "Gate 1/3  Lint"
+		if ($NoFmt) { fNote "lint skipped (-NoFmt)" }
+		else { fLint }
+		fSection "Gate 2/3  Build"
 		fBuild
-		fSection "Gate 2/2  Smoke"
+		fSection "Gate 3/3  Smoke"
 		fSmoke -Exe (fPrepInPlaceSmoke) -RuntimeBin $MingwBin
 		fSection "$AppName gate: PASSED."
 		fEcho_Clean
@@ -419,7 +429,7 @@ function fMain {
 	fEcho_Clean "Version .....: $(fVersion)  (source/meson.build)"
 	fEcho_Clean "Toolchain ...: $(if ($toolMiss) { "MISSING - $toolMiss" } else { "mingw64 GTK toolchain OK" })"
 	fEcho_Clean "Remote sync .: $(if ($NoSync) { '(skipped)' } else { 'fetch + fast-forward check' })"
-	fEcho_Clean "Format ......: (disabled - no C formatter gate yet)"
+	fEcho_Clean "Lint ........: $(if ($NoFmt) { '(skipped)' } else { 'cppcheck, check-only, changed C files' })"
 	fEcho_Clean "Build .......: $(if ($NoBuild) { '(skipped)' } else { 'meson + ninja, native mingw64' })"
 	fEcho_Clean "Tests .......: $(if ($NoBuild) { '(skipped)' } else { 'native --version smoke' })"
 	fEcho_Clean "Dogfood .....: $(if ($NoDogfood -or $NoBuild) { '(skipped)' } else { $DogfoodDir })"
@@ -448,9 +458,11 @@ function fMain {
 	if ($NoSync) { fNote "remote sync skipped" }
 	else { fRemoteSync }
 
-	## Stage 1: format (disabled - no C formatter gate yet; see config.bash).
-	fSection "1  Format"
-	fNote "format disabled (no C formatter gate yet)"
+	## Stage 1: lint (check-only; the shared helper warn-skips without cppcheck).
+	fSection "1  Lint"
+	if ($NoFmt) { fNote "lint skipped (-NoFmt)" }
+	elseif ($toolMiss) { fWarn "lint SKIPPED: $toolMiss" }
+	else { fLint }
 
 	## Stages 2-4: build, smoke, stage+dogfood. Guarded as one block: a missing
 	## toolchain warn-skips them all (so sync + publish still run) unless -BuildStrict.
@@ -492,6 +504,8 @@ try {
 
 
 ##	History:
+##		- 2026-08-02: Stage 1 wired: check-only cppcheck lint over the changed C
+##		  files (cicd/utility/lint-c.bash); the gate runs it too (now 3 steps).
 ##		- 2026-07-30: Created. Windows-NATIVE companion to cicd.bash: MSYS2/mingw64
 ##		  meson+ninja build, native --version smoke, self-contained runtime bundle
 ##		  staged (cicd/win/stage-native.bash) and dogfooded to the synced folder,
