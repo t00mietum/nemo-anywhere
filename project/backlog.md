@@ -54,8 +54,11 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Milestone 4 - Feature port (iterative, per target)
 
-- 🔘 Ultra-portable Windows: a single self-contained executable.
-	- 🔘 No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
+- 🛠️ Ultra-portable Windows: a single self-contained executable.
+	- ✅ No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
+		- Pack lane added: `cicd/win/pack-portable.ps1` flattens the staged bundle into a prefix layout (exe + dlls at the root, lib/share/etc beside - the same layout the release zip contract expects, and it double-click-runs with no launcher) then packs it with the EVB console into `cicd/artifacts/win-portable/nemo-anywhere.exe`. Wired as cicd-win stage 5.
+		- Font-rendering env (freetype v35 interpreter) now set inside the exe on Windows, so no launcher is needed for the native text look.
+		- Verified: 167 MB bundle packs to one 38.7 MB exe; version check passes on a bare System32-only PATH and the GUI launches and stays responsive. Hands-on pass still pending.
 	- 🔘 One binary only - fold connect-server, open-with, and extensions-list into the main exe on Windows. Linux keeps its separate helpers.
 	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
 	- 🔘 No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
@@ -115,7 +118,10 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Bugs
 
-- 🔘 Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
+- 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
+
+- 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
+	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
 
 ### Features and enhancements
 

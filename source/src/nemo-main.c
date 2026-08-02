@@ -84,6 +84,13 @@ main (int argc, char *argv[])
 	if (g_getenv ("NEMO_DEBUG") != NULL) {
 		eel_make_warnings_and_criticals_stop_in_debugger ();
 	}
+
+#ifdef G_OS_WIN32
+	/* Freetype's default v40 interpreter hints lighter/thinner than native
+	 * Windows text; v35 is the classic grid-fitted GDI/ClearType look.
+	 * Must land before pango/freetype spin up; a user-set env still wins. */
+	g_setenv ("FREETYPE_PROPERTIES", "truetype:interpreter-version=35", FALSE);
+#endif
 	
 	/* Initialize gettext support */
 	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
