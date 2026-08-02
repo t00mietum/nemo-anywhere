@@ -56,7 +56,10 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🛠️ Windows look: make it feel native even though it isn't Explorer.
 	- ✅ Fix the thin, poorly anti-aliased text - Segoe UI 9 with full hinting and subpixel (generated settings.ini + fontconfig).
-	- 🔘 Themes: bundle a Windows 11 (Fluent) icon + widget theme, light and dark. Keep a lightweight Linux light/dark pair compiled in (Adwaita / Adwaita-dark). Permissive licenses only - not Microsoft's own art.
+	- 🛠️ Themes: bundle a Windows 11 (Fluent) icon + widget theme, light and dark. Keep a lightweight Linux light/dark pair compiled in (Adwaita / Adwaita-dark). Permissive licenses only - not Microsoft's own art.
+		- Done: Fluent widget theme (light + dark) and icon theme bundled, vendored at a pinned commit with licenses kept. Icon set trimmed to file-manager contexts, falls back to Adwaita for the rest.
+		- Done: standard icon names materialized as real files (the theme ships them as symlink aliases, which a Windows checkout breaks).
+		- 🔘 Linux side: Adwaita / Adwaita-dark pair.
 	- 🔘 Custom theming: nemo-anywhere theme search folders at system (prefix) and user level, so themes can be dropped in.
 	- 🛠️ Theme + light/dark selection stored in config; auto-follow the Windows light/dark setting with a manual override.
 		- ✅ Auto-follow: reads Windows AppsUseLightTheme at startup and live (registry watch), toggles GTK prefer-dark. One icon theme serves both modes.
