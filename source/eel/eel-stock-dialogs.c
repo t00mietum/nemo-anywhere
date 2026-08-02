@@ -308,6 +308,23 @@ eel_timed_wait_stop (EelCancelCallback cancel_callback,
 	timed_wait_free (wait);
 }
 
+/* Let the user copy the message text out of the dialog. */
+static void
+make_message_labels_selectable (GtkMessageDialog *dialog)
+{
+	GtkWidget *message_area;
+	GList *children, *l;
+
+	message_area = gtk_message_dialog_get_message_area (dialog);
+	children = gtk_container_get_children (GTK_CONTAINER (message_area));
+	for (l = children; l != NULL; l = l->next) {
+		if (GTK_IS_LABEL (l->data)) {
+			gtk_label_set_selectable (GTK_LABEL (l->data), TRUE);
+		}
+	}
+	g_list_free (children);
+}
+
 int
 eel_run_simple_dialog (GtkWidget *parent, gboolean ignore_close_box,
 		       GtkMessageType message_type, const char *primary_text,
@@ -340,6 +357,8 @@ eel_run_simple_dialog (GtkWidget *parent, gboolean ignore_close_box,
 		      "text", primary_text,
 		      "secondary-text", secondary_text,
 		      NULL);
+
+	make_message_labels_selectable (GTK_MESSAGE_DIALOG (dialog));
 
 	va_start (button_title_args, secondary_text);
 	response_id = 0;
@@ -385,6 +404,8 @@ create_message_dialog (const char *primary_text,
 		      "text", primary_text,
 		      "secondary-text", secondary_text,
 		      NULL);
+
+	make_message_labels_selectable (GTK_MESSAGE_DIALOG (dialog));
 
 	return GTK_DIALOG (dialog);
 }

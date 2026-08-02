@@ -2441,80 +2441,6 @@ on_size_allocation_changed (GtkWidget    *widget,
 }
 
 static void
-update_date_fonts (NemoListView *view)
-{
-    g_return_if_fail (NEMO_IS_LIST_VIEW (view));
-    NemoDateFontChoice mono_pref;
-    gchar *font_name;
-    PangoStyle date_style;
-    gchar *date_name = NULL;
-    gchar *date_family = NULL;
-
-    GtkSettings *settings = gtk_settings_get_default ();
-    g_object_get (settings, "gtk-font-name", &font_name, NULL);
-
-    mono_pref = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FONT_CHOICE);
-
-    if (g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FORMAT) == NEMO_DATE_FORMAT_INFORMAL ||
-        mono_pref == NEMO_DATE_FONT_CHOICE_NONE ||
-        g_strstr_len (font_name, -1, "Mono")) {
-        date_name = g_strdup (font_name);
-    } else {
-        if (mono_pref == NEMO_DATE_FONT_CHOICE_AUTO) {
-            PangoFontDescription *font_desc = pango_font_description_from_string (font_name);
-            const gchar *current_font_family = pango_font_description_get_family (font_desc);
-
-            if (current_font_family != NULL) {
-                date_family = nemo_global_preferences_get_mono_font_family_match (current_font_family);
-            } else {
-                g_warning ("No font family name set, not using monospace for date columns");
-                date_family = NULL;
-            }
-
-            date_style = pango_font_description_get_style (font_desc);
-
-            pango_font_description_free (font_desc);
-        } else {
-            date_name = nemo_global_preferences_get_mono_system_font ();
-        }
-    }
-
-    GList *combined = g_list_copy (view->details->cells);
-    combined = g_list_prepend (combined, view->details->file_name_cell);
-    GList *l;
-
-    for (l = combined; l != NULL; l = l->next) {
-        GtkCellRenderer *cell = GTK_CELL_RENDERER (l->data);
-        const gchar *column_id = g_object_get_data (G_OBJECT (cell), "column-id");
-
-        if (g_str_has_prefix (column_id, "date_")) {
-            if (date_family) {
-                g_object_set (GTK_CELL_RENDERER_TEXT (cell),
-                              "family", date_family,
-                              "style", date_style,
-                              NULL);
-            } else {
-                g_object_set (GTK_CELL_RENDERER_TEXT (cell),
-                              "font", date_name,
-                              NULL);
-            }
-        }
-        else {
-            g_object_set (GTK_CELL_RENDERER_TEXT (cell),
-                          "font", font_name,
-                          NULL);
-        }
-    }
-
-    gtk_widget_queue_draw (GTK_WIDGET (view->details->tree_view));
-
-    g_list_free (combined);
-    g_free (font_name);
-    g_free (date_family);
-    g_free (date_name);
-}
-
-static void
 create_and_set_up_tree_view (NemoListView *view)
 {
 	GtkCellRenderer *cell;
@@ -2768,11 +2694,6 @@ create_and_set_up_tree_view (NemoListView *view)
 		g_free (label);
 	}
 
-    update_date_fonts (view);
-    GtkSettings *gtk_settings = gtk_settings_get_default ();
-    g_signal_connect_swapped (gtk_settings, "notify::gtk-font-name", G_CALLBACK (update_date_fonts), view);
-    g_signal_connect_swapped (nemo_preferences, "changed::" NEMO_PREFERENCES_DATE_FONT_CHOICE, G_CALLBACK (update_date_fonts), view);
-    g_signal_connect_swapped (gnome_interface_preferences, "changed::" NEMO_PREFERENCES_MONO_FONT_NAME, G_CALLBACK (update_date_fonts), view);
 	nemo_column_list_free (nemo_columns);
 
 	default_visible_columns = g_settings_get_strv (nemo_list_view_preferences,
@@ -4131,9 +4052,6 @@ nemo_list_view_dispose (GObject *object)
 	NemoListView *list_view;
 
 	list_view = NEMO_LIST_VIEW (object);
-
-    g_signal_handlers_disconnect_by_func (gtk_settings_get_default (), update_date_fonts, list_view);
-    g_signal_handlers_disconnect_by_func (nemo_preferences, update_date_fonts, list_view);
 
 	if (list_view->details->model) {
 		stop_cell_editing (list_view);
