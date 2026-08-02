@@ -147,6 +147,12 @@ detect_extensions (NemoExtensionConfigWidget *widget)
 {
     gchar *out = NULL;
 
+#ifdef G_OS_WIN32
+    /* No external plugin loading on Windows, and no separate lister exe to
+     * spawn - leave the list empty so the widget shows "No extensions found". */
+    (void) out;
+    return;
+#else
     if (g_spawn_command_line_sync (LIBEXECDIR "/nemo-anywhere-extensions-list",
                                    &out,
                                    NULL,
@@ -192,6 +198,7 @@ detect_extensions (NemoExtensionConfigWidget *widget)
     } else {
         g_printerr ("oops could not run nemo-extensions-list\n");
     }
+#endif
 }
 
 static void

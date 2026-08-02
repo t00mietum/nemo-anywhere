@@ -99,35 +99,39 @@ nemo = executable('nemo-anywhere',
   install: true
 )
 
-nemo_connect_server = executable('nemo-anywhere-connect-server',
-  [
-    'nemo-bookmark-list.c',
-    'nemo-connect-server-dialog.c',
-    'nemo-connect-server-dialog-main.c',
-    'nemo-connect-server-operation.c'
-  ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  win_subsystem: 'windows',
-  install: true
-)
+# Helper exes are Unix-only. On Windows the connect + open-with dialogs run
+# in-process and nothing spawns the standalone launchers; the extensions lister
+# has nothing to enumerate with no external plugin loading. Keeps Windows to a
+# single exe (the ultra-portable goal).
+if not is_windows
+  nemo_connect_server = executable('nemo-anywhere-connect-server',
+    [
+      'nemo-bookmark-list.c',
+      'nemo-connect-server-dialog.c',
+      'nemo-connect-server-dialog-main.c',
+      'nemo-connect-server-operation.c'
+    ],
+    include_directories: [ rootInclude, ],
+    c_args: nemo_definitions,
+    dependencies: nemo_deps,
+    install: true
+  )
 
-nemo_open_with = executable('nemo-anywhere-open-with',
-  [ 'nemo-open-with-main.c' ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  win_subsystem: 'windows',
-  install: true
-)
+  nemo_open_with = executable('nemo-anywhere-open-with',
+    [ 'nemo-open-with-main.c' ],
+    include_directories: [ rootInclude, ],
+    c_args: nemo_definitions,
+    dependencies: nemo_deps,
+    install: true
+  )
 
-# LibExecs
-nemo_extensions_list = executable('nemo-anywhere-extensions-list',
-  [ 'nemo-extensions-list.c' ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: [ nemo_deps ],
-  install: true,
-  install_dir: libExecPath,
-)
+  # LibExecs
+  nemo_extensions_list = executable('nemo-anywhere-extensions-list',
+    [ 'nemo-extensions-list.c' ],
+    include_directories: [ rootInclude, ],
+    c_args: nemo_definitions,
+    dependencies: [ nemo_deps ],
+    install: true,
+    install_dir: libExecPath,
+  )
+endif

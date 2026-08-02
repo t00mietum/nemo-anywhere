@@ -114,6 +114,9 @@ module_object_weak_notify (gpointer user_data, GObject *object)
 	module_objects = g_list_remove (module_objects, object);
 }
 
+/* External-plugin loading path: unused on Windows, where nemo loads no plugins
+ * (a bad plugin must never hang the app). nemo_module_add_type stays available. */
+#ifndef G_OS_WIN32
 static gboolean
 module_is_selected (GType type)
 {
@@ -191,6 +194,7 @@ load_module_dir (const char *dirname)
 		g_dir_close (dir);
 	}
 }
+#endif
 
 static void
 free_module_objects (void)
@@ -212,8 +216,12 @@ nemo_module_setup (void)
 
 	if (!initialized) {
 		initialized = TRUE;
-		
+
+#ifndef G_OS_WIN32
+		/* No external plugin loading on Windows - a bad plugin must never be
+		 * able to hang the app. Extension management stays in-exe (empty). */
 		load_module_dir (NEMO_EXTENSIONDIR);
+#endif
 
 		eel_debug_call_at_shutdown (free_module_objects);
 	}
