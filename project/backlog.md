@@ -107,8 +107,6 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Features and enhancements
 
-- 🔘 Don't continuously spam stdout/stderr with meaningless debug messages.
-
 - 🔘 Dimmer highlight of mouseover line. It can easily get confused with line selection.
 
 - 🔘 Right-click from - and drag-n-drop to - a path button, should behave as if it were acting on a folder.
@@ -192,6 +190,11 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Fixed: folders always report the folder type, never guessed.
 
 #### Done - Features and enhancements
+
+- ✅ Don't continuously spam stdout/stderr with meaningless debug messages.
+	- Cause: on Windows, any file type without a registry MIME mapping fell through a wildcard and got a doomed image-thumbnail attempt - two warnings per file, every folder browsed. A few one-shot startup notices added to the noise.
+	- Fixed: unknown types are no longer treated as thumbnailable, the image loader gets a real MIME type, and the per-file / startup notices are debug-level now (visible with G_MESSAGES_DEBUG when wanted).
+	- Verified: browsing a mixed folder of images and non-images runs silent; image thumbnails unaffected.
 
 - ✅ Add a C formatter/linter gate and wire it into the format/lint stages.
 	- Done: check-only cppcheck over the changed C files only, wired into both pipelines (Windows stage 1 + gate, Linux lint stage). No in-place formatter - a full-tree reformat of the inherited code would bury history in churn.

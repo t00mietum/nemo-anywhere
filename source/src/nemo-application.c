@@ -297,7 +297,7 @@ process_system_theme (GtkSettings *gtk_settings)
                   NULL);
 
     if (!is_known_supported_theme (theme_name)) {
-        g_warning ("Current gtk theme is not known to have nemo support (%s) - checking...", theme_name);
+        g_debug ("Current gtk theme is not known to have nemo support (%s) - checking...", theme_name);
         add_fallback_mandatory_css_provider (theme_name);
     }
 
