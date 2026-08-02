@@ -11,7 +11,7 @@
 ##		   2. debug build   (meson setup -Dxmp=false + ninja, MSYS2 mingw64)
 ##		   3. tests         (native --version smoke of the built exe)
 ##		   4. stage+dogfood (self-contained runtime bundle -> synced dogfood folder)
-##		   5. packages      (disabled - NSIS installer, a later stage)
+##		   5. packages      (portable single-exe via Enigma Virtual Box; NSIS later)
 ##		   6. publish       (stash -> pull -> add -> commit -> push, current branch)
 ##		- The build needs MSYS2 with the mingw64 GTK toolchain (gtk3, meson, ninja,
 ##		  json-glib, libexif, libgsf). A missing toolchain warn-skips the build/stage
@@ -35,6 +35,7 @@
 ##		   -NoFmt          skip the lint stage
 ##		   -NoBuild        skip the build + smoke + stage stages
 ##		   -NoDogfood      skip installing the staged bundle into the dogfood folder
+##		   -NoPack         skip the portable single-exe pack stage
 ##		   -NoPublish      skip the git publish stage
 ##		   -BuildStrict    a missing MSYS2 toolchain aborts instead of warn-skip
 ##		   -Message MSG    publish hands-off with this commit message (no editor)
@@ -56,6 +57,7 @@ param(
 	[switch]$NoFmt,
 	[switch]$NoBuild,
 	[switch]$NoDogfood,
+	[switch]$NoPack,
 	[switch]$NoPublish,
 	[switch]$BuildStrict,
 	[string]$Message = "",
@@ -270,6 +272,18 @@ function fDogfood {
 	fEcho "OK: dogfood -> $DogfoodDir"
 }
 
+## Pack: the staged bundle -> one self-contained exe (cicd/win/pack-portable.ps1,
+## Enigma Virtual Box). The script warn-skips here when EVB isn't installed - the
+## dogfood bundle is still the daily driver; the single exe is the release artifact.
+function fPack {
+	$evbFound = (Test-Path -LiteralPath "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe") -or
+		(Test-Path -LiteralPath "C:\Program Files\Enigma Virtual Box\enigmavbconsole.exe") -or
+		[bool](Get-Command enigmavbconsole -ErrorAction SilentlyContinue)
+	if (-not $evbFound) { fWarn "Enigma Virtual Box not installed; pack skipped"; return }
+	& pwsh -File (Join-Path $Root "cicd\win\pack-portable.ps1")
+	if ($LASTEXITCODE -ne 0) { fDie "portable pack failed (exit $LASTEXITCODE)" }
+}
+
 ## Stage 0: remote sync (see cicd-win history / fRemoteSync in the Linux gate). Make
 ## sure the local branch can be safely refreshed BEFORE spending the build - what
 ## publish pushes should be what got built and tested. Behind-only fast-forwards
@@ -433,7 +447,7 @@ function fMain {
 	fEcho_Clean "Build .......: $(if ($NoBuild) { '(skipped)' } else { 'meson + ninja, native mingw64' })"
 	fEcho_Clean "Tests .......: $(if ($NoBuild) { '(skipped)' } else { 'native --version smoke' })"
 	fEcho_Clean "Dogfood .....: $(if ($NoDogfood -or $NoBuild) { '(skipped)' } else { $DogfoodDir })"
-	fEcho_Clean "Packages ....: (disabled - NSIS installer is a later stage)"
+	fEcho_Clean "Packages ....: $(if ($NoPack -or $NoBuild) { '(skipped)' } else { 'portable single-exe (Enigma Virtual Box)' })"
 	if ($NoPublish)          { fEcho_Clean "Publish .....: (skipped)" }
 	elseif ($publishMsg)     { fEcho_Clean "Publish .....: commit + push current branch (hands-off: `"$publishMsg`")" }
 	else                     { fEcho_Clean "Publish .....: commit + push current branch (will prompt; blank = editor)" }
@@ -483,9 +497,12 @@ function fMain {
 		else { fDogfood }
 	}
 
-	## Stage 5: packages (disabled - NSIS installer is a later stage).
+	## Stage 5: packages - the portable single-exe (Enigma Virtual Box). A missing
+	## packer or bundle warn-skips (NSIS installer is still a later stage).
 	fSection "5  Packages"
-	fNote "packages disabled (NSIS installer is a later stage)"
+	if ($NoPack -or $NoBuild) { fNote "pack skipped" }
+	elseif (-not (Test-Path -LiteralPath (Join-Path $StageDir "app\$ExeName.exe"))) { fWarn "no staged bundle; pack skipped" }
+	else { fPack }
 
 	## Stage 6: publish.
 	fSection "6  Publish"
