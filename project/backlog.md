@@ -54,6 +54,27 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Milestone 4 - Feature port (iterative, per target)
 
+- 🛠️ Windows look: make it feel native even though it isn't Explorer.
+	- ✅ Fix the thin, poorly anti-aliased text - Segoe UI 9 with full hinting and subpixel (generated settings.ini + fontconfig).
+	- 🛠️ Themes: bundle a Windows 11 (Fluent) icon + widget theme, light and dark. Keep a lightweight Linux light/dark pair compiled in (Adwaita / Adwaita-dark). Permissive licenses only - not Microsoft's own art.
+		- Done: Fluent widget theme (light + dark) and icon theme bundled, vendored at a pinned commit with licenses kept. Icon set trimmed to file-manager contexts, falls back to Adwaita for the rest.
+		- Done: standard icon names materialized as real files (the theme ships them as symlink aliases, which a Windows checkout breaks).
+		- 🔘 Linux side: Adwaita / Adwaita-dark pair.
+	- 🔘 Custom theming: nemo-anywhere theme search folders at system (prefix) and user level, so themes can be dropped in.
+	- 🛠️ Theme + light/dark selection stored in config; auto-follow the Windows light/dark setting with a manual override.
+		- ✅ Auto-follow: reads Windows AppsUseLightTheme at startup and live (registry watch), toggles GTK prefer-dark. One icon theme serves both modes.
+		- 🔘 Manual override + theme choice persisted in the `.shcl` config (waits on the SHCL config item).
+
+- 🔘 Config engine: move settings + persistence to SHCL (jim-collier/shcl) in a user-level `.shcl` file; decouple from gconf/dconf and the Windows registry. File-assoc overrides and theme/mode selection live here. (Already the intended engine in design.md.)
+
+- 🔘 Ultra-portable Windows: a single self-contained executable.
+	- 🔘 No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
+	- 🔘 One binary only - fold connect-server, open-with, and extensions-list into the main exe on Windows. Linux keeps its separate helpers.
+	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
+	- 🔘 No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
+
+- 🔘 No autorun, ever, on any platform - not even an option. Notice a new drive; never run anything off it. Remove the autorun-software helper and its media-autorun path.
+
 - 🔘 Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
 
 - 🔘 Ship nemo's own bundled icons and data files on Windows.
@@ -73,6 +94,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- 🔘 Artifacts must come out under the names the installers look for (see design.md, Delivery).
 
 ### Milestone 7 - Packaging
+
+- 🔘 Single-exe packaging stage in `cicd-win.ps1` - pack the staged DLL closure into one portable `.exe`.
 
 ## Backlog
 

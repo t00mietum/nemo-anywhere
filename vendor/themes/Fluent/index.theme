@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Fluent
+Comment=Windows 11 style
+
+[X-GNOME-Metatheme]
+GtkTheme=Fluent
+IconTheme=Fluent

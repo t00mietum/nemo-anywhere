@@ -54,6 +54,7 @@ nemoCommon_sources = [
   'nemo-view-dnd.c',
   'nemo-view-factory.c',
   'nemo-view-win32.c',
+  'nemo-win32-appearance.c',
   'nemo-view.c',
   'nemo-window-bookmarks.c',
   'nemo-window-manage-views.c',

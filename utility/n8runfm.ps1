@@ -37,10 +37,17 @@
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
 if ($IsWindows) {
+	## The freshest source is the local native build's staged bundle
+	## (cicd-win.ps1 stages it there); the synced dogfood folder is the fallback for
+	## a box without the repo. Clone root differs per host, so try known candidates
+	## and take the first whose main binary exists (first is kept if none do, so the
+	## copy step warn-skips like any unreachable source).
 	$SourceCandidates = @(
+		"C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
 		"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
-		## Add the SMB path to the build host's snapshot here when it's shared, e.g.:
-		## "\\b23\home-collierjr\...\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
+		"C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere"
+		## Add the SMB path to a build host's snapshot here when it's shared, e.g.:
+		## "\\b23\...\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
 	)
 	$SourceMainBin = "app\nemo-anywhere.exe"
 	$SourceTag     = "win"

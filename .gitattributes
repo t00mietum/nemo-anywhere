@@ -1,0 +1,8 @@
+# Shell scripts must stay LF so they run under MSYS2 bash on Windows too
+# (autocrlf would otherwise hand them CRLF on a Windows checkout and break them).
+*.bash text eol=lf
+*.sh   text eol=lf
+
+# Vendored theme art - keep bytes stable, no EOL conversion.
+*.svg -text
+*.png -text
