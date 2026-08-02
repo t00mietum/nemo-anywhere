@@ -122,7 +122,6 @@ cat > "${DEST}/mingw64/etc/gtk-3.0/settings.ini" <<-'INI'
 	gtk-xft-rgba = rgb
 	gtk-theme-name = Fluent
 	gtk-icon-theme-name = Fluent
-	gtk-application-prefer-dark-theme = true
 INI
 
 ## Fontconfig belt-and-suspenders: map the generic sans-serif to Segoe UI and force

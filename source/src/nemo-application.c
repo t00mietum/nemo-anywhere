@@ -80,6 +80,7 @@
 #include <libnemo-private/nemo-favorites.h>
 #include <libnemo-private/nemo-network-win32.h>
 #include <libnemo-private/nemo-trash-win32.h>
+#include "nemo-win32-appearance.h"
 
 #include <libnemo-private/nemo-desktop-thumbnail.h>
 
@@ -304,6 +305,20 @@ process_system_theme (GtkSettings *gtk_settings)
     g_free (theme_name);
 }
 
+#ifdef G_OS_WIN32
+/* Mirror the Windows system light/dark app setting onto GTK. The Fluent theme
+   ships gtk.css (light) + gtk-dark.css (dark) and GTK swaps on this property, so
+   toggling it live re-themes the running app. One colourful icon theme serves
+   both modes (symbolics recolour to the foreground). */
+static void
+follow_system_dark (gboolean dark, gpointer data)
+{
+    g_object_set (gtk_settings_get_default (),
+                  "gtk-application-prefer-dark-theme", dark,
+                  NULL);
+}
+#endif
+
 static void
 init_icons_and_styles (void)
 {
@@ -329,6 +344,12 @@ init_icons_and_styles (void)
     g_signal_connect_swapped (gtk_settings, "notify::gtk-theme-name", G_CALLBACK (process_system_theme), gtk_settings);
 
     process_system_theme (gtk_settings);
+
+#ifdef G_OS_WIN32
+    /* Match Windows' light/dark app setting now, then follow it live. */
+    follow_system_dark (nemo_win32_prefers_dark (), NULL);
+    nemo_win32_watch_dark (follow_system_dark, NULL);
+#endif
 }
 
 static gboolean
