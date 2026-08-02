@@ -1902,6 +1902,7 @@ rename_file (NemoView *view, NemoFile *new_file)
 					    100, (GSourceFunc)delayed_rename_file_hack_callback,
 					    data, (GDestroyNotify) delayed_rename_file_hack_removed);
 
+		/* cppcheck-suppress memleak ; data is owned by the timeout, freed via its GDestroyNotify */
 		return;
 	}
 
@@ -2697,6 +2698,7 @@ get_bulk_rename_tool (void)
 {
 	char *bulk_rename_tool;
 	g_settings_get (nemo_preferences, NEMO_PREFERENCES_BULK_RENAME_TOOL, "^ay", &bulk_rename_tool);
+	/* cppcheck-suppress returnDanglingLifetime ; g_strstrip strips in place and returns its heap arg */
 	return g_strstrip (bulk_rename_tool);
 }
 
@@ -8062,6 +8064,94 @@ action_location_open_in_new_tab_callback (GtkAction *action,
 }
 
 static void
+action_location_open_callback (GtkAction *action,
+			       gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	nemo_view_activate_file (view, file, 0);
+}
+
+static void
+action_location_open_in_terminal_callback (GtkAction *action,
+					   gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	char *path;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	path = nemo_file_get_path (file);
+	if (path != NULL) {
+		open_in_terminal (path);
+		g_free (path);
+	}
+}
+
+static void
+action_location_open_as_root_callback (GtkAction *action,
+				       gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	char *path;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	path = nemo_file_get_path (file);
+	if (path != NULL) {
+		open_as_root (view, path);
+		g_free (path);
+	}
+}
+
+static void
+action_location_new_folder_callback (GtkAction *action,
+				     gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	NewFolderData *data;
+	char *parent_uri;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	data = new_folder_data_new (view);
+	g_signal_connect_data (view, "add_file",
+			       G_CALLBACK (track_newly_added_locations), data,
+			       (GClosureNotify) NULL, G_CONNECT_AFTER);
+
+	parent_uri = nemo_file_get_uri (file);
+	nemo_file_operations_new_folder (GTK_WIDGET (view), NULL, parent_uri,
+					     new_folder_done, data);
+	g_free (parent_uri);
+}
+
+static void
 action_location_cut_callback (GtkAction *action,
 			      gpointer   callback_data)
 {
@@ -8413,6 +8503,27 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Open in New _Tab"), "",
   /* tooltip */                  N_("Open this folder in a new tab"),
 				 G_CALLBACK (action_location_open_in_new_tab_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN, NULL,
+  /* label, accelerator */       N_("_Open"), "",
+  /* tooltip */                  N_("Open this folder"),
+				 G_CALLBACK (action_location_open_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_IN_TERMINAL, "utilities-terminal-symbolic",
+  /* label, accelerator */       N_("Open in Terminal"), "",
+  /* tooltip */                  N_("Open a terminal in this folder"),
+				 G_CALLBACK (action_location_open_in_terminal_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_AS_ROOT, "dialog-password-symbolic",
+#ifdef G_OS_WIN32
+  /* label, accelerator */       N_("Open as Administrator"), "",
+  /* tooltip */                  N_("Open this folder with administrator privileges"),
+#else
+  /* label, accelerator */       N_("Open as Root"), "",
+  /* tooltip */                  N_("Open this folder with administration privileges"),
+#endif
+				 G_CALLBACK (action_location_open_as_root_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_NEW_FOLDER, "folder-new-symbolic",
+  /* label, accelerator */       N_("Create New _Folder"), "",
+  /* tooltip */                  N_("Create a new empty folder inside this folder"),
+				 G_CALLBACK (action_location_new_folder_callback) },
 
   /* name, stock id */         { NEMO_ACTION_LOCATION_CUT, "edit-cut-symbolic",
   /* label, accelerator */       N_("Cu_t"), "",
@@ -9437,15 +9548,54 @@ real_update_location_menu (NemoView *view)
 
 	file = view->details->location_popup_directory_as_file;
 	g_assert (NEMO_IS_FILE (file));
-	g_assert (nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO |
-						NEMO_FILE_ATTRIBUTE_MOUNT |
-						NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO));
+	/* INFO is always loaded for these files; MOUNT/FILESYSTEM_INFO may still be
+	   pending for a path-bar ancestor. We pop up now regardless (see
+	   schedule_pop_up_location_context_menu) - the volume items just stay hidden
+	   until that info exists, rather than deferring the whole menu. */
 
 	is_special_link = FALSE;
 	is_desktop_or_home_dir = nemo_file_is_home (file)
 		|| nemo_file_is_desktop_directory (file);
 
     is_recent = nemo_file_is_in_recent (file);
+
+	/* Path-bar folder actions: Open, terminal, admin, new folder inside.
+	   Terminal/admin need a real local path; new folder needs write access. */
+	{
+		char *local_path = nemo_file_get_path (file);
+		gboolean has_local_path = local_path != NULL;
+		g_free (local_path);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_OPEN);
+		gtk_action_set_visible (action, TRUE);
+		gtk_action_set_sensitive (action, TRUE);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_OPEN_IN_TERMINAL);
+		gtk_action_set_visible (action, !is_recent && has_local_path);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_OPEN_AS_ROOT);
+		gtk_action_set_visible (action, !is_recent && has_local_path && !nemo_user_is_root ());
+
+		/* New folder lands inside this segment, so only offer it for the
+		   folder actually on display - an ancestor segment would create
+		   somewhere you can't see. */
+		gboolean is_current_dir = FALSE;
+		if (view->details->directory_as_file != NULL) {
+			GFile *seg_loc = nemo_file_get_location (file);
+			GFile *cur_loc = nemo_file_get_location (view->details->directory_as_file);
+			is_current_dir = g_file_equal (seg_loc, cur_loc);
+			g_object_unref (seg_loc);
+			g_object_unref (cur_loc);
+		}
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_NEW_FOLDER);
+		gtk_action_set_visible (action, !is_recent);
+		gtk_action_set_sensitive (action, is_current_dir && nemo_file_can_write (file));
+	}
 
 	can_delete_file =
 		nemo_file_can_delete (file) &&
@@ -10169,10 +10319,11 @@ location_popup_file_attributes_ready (NemoFile *file,
 
 	view = NEMO_VIEW (data);
 	g_assert (NEMO_IS_VIEW (view));
-
 	g_assert (file == view->details->location_popup_directory_as_file);
 
-	real_pop_up_location_context_menu (view);
+	/* Just a warm-load completion (see schedule_pop_up_location_context_menu) -
+	   the menu was already popped up synchronously, so there's nothing to do but
+	   let the now-cached mount/filesystem info benefit the next right-click. */
 }
 
 static void
@@ -10200,23 +10351,31 @@ schedule_pop_up_location_context_menu (NemoView *view,
 	}
 	view->details->location_popup_event = (GdkEventButton *) gdk_event_copy ((GdkEvent *)event);
 
-	if (file == view->details->location_popup_directory_as_file) {
-		if (nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO |
-						  NEMO_FILE_ATTRIBUTE_MOUNT |
-						  NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO)) {
-			real_pop_up_location_context_menu (view);
-		}
-	} else {
+	if (file != view->details->location_popup_directory_as_file) {
 		unschedule_pop_up_location_context_menu (view);
-
 		view->details->location_popup_directory_as_file = nemo_file_ref (file);
-		nemo_file_call_when_ready (view->details->location_popup_directory_as_file,
-					       NEMO_FILE_ATTRIBUTE_INFO |
-					       NEMO_FILE_ATTRIBUTE_MOUNT |
-					       NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO,
-					       location_popup_file_attributes_ready,
-					       view);
+
+		/* Warm mount/filesystem info in the background so a later right-click on
+		   this segment can show the volume items. We don't wait on it - see below. */
+		if (!nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO |
+						     NEMO_FILE_ATTRIBUTE_MOUNT |
+						     NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO)) {
+			nemo_file_call_when_ready (file,
+						       NEMO_FILE_ATTRIBUTE_INFO |
+						       NEMO_FILE_ATTRIBUTE_MOUNT |
+						       NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO,
+						       location_popup_file_attributes_ready,
+						       view);
+		}
 	}
+
+	/* Pop up synchronously, inside this button-press, so the menu grab stays tied
+	   to the press. The old code deferred the popup to the call_when_ready callback
+	   whenever the file wasn't loaded yet; that fired after the button release with
+	   a stale event, so the menu flashed open and shut and you had to right-click a
+	   second time. INFO is already loaded for path-bar segments, so the core items
+	   are correct; the volume items just stay hidden until the warm-load lands. */
+	real_pop_up_location_context_menu (view);
 }
 
 /**

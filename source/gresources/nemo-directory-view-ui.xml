@@ -237,10 +237,18 @@
 </popup>
 <popup name="location">
 	<placeholder name="Open Placeholder">
+		<menuitem name="LocationOpen" action="LocationOpen"/>
 		<menuitem name="LocationOpenInNewTab" action="LocationOpenInNewTab"/>
 		<menuitem name="LocationOpenAlternate" action="LocationOpenAlternate"/>
+		<separator name="Location Open Advanced Separator"/>
+		<menuitem name="LocationOpenInTerminal" action="LocationOpenInTerminal"/>
+		<menuitem name="LocationOpenAsRoot" action="LocationOpenAsRoot"/>
 	</placeholder>
 	<separator name="Location After Open Separator"/>
+	<placeholder name="New Object Actions">
+		<menuitem name="LocationNewFolder" action="LocationNewFolder"/>
+	</placeholder>
+	<separator name="Location After New Object Separator"/>
 	<placeholder name="Clipboard Actions">
 		<menuitem name="Cut" action="LocationCut"/>
 		<menuitem name="Copy" action="LocationCopy"/>
