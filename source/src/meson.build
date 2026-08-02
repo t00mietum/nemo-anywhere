@@ -94,6 +94,8 @@ nemo = executable('nemo-anywhere',
   include_directories: [ rootInclude ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
+  # GUI subsystem so Windows doesn't spawn a console window (no-op elsewhere)
+  win_subsystem: 'windows',
   install: true
 )
 
@@ -107,6 +109,7 @@ nemo_connect_server = executable('nemo-anywhere-connect-server',
   include_directories: [ rootInclude, ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
+  win_subsystem: 'windows',
   install: true
 )
 
@@ -115,6 +118,7 @@ nemo_open_with = executable('nemo-anywhere-open-with',
   include_directories: [ rootInclude, ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
+  win_subsystem: 'windows',
   install: true
 )
 
