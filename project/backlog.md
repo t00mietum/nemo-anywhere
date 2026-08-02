@@ -92,7 +92,10 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Done: the autorun-software helper, its menu entry, and the "prompt or autorun programs" preference are gone.
 	- Done: the inserted-media bar never offers to run software from media. Other media notices (audio CD, photos) unchanged, and automount / auto-open still work - drives are noticed, nothing runs.
 
-- 🔘 Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
+- 🛠️ Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
+	- ✅ Create: "Make Link" and the drag "_Link Here" now write a `.lnk` shell shortcut on Windows (via `IShellLinkW`), in place of the POSIX symlink the win32 file layer can't make. Round-trip verified by a test that loads the shortcut back through the shell.
+	- 🔘 Edit: a properties view to see/change a `.lnk`'s target (the analog of the `.desktop` launcher editor).
+	- 🔘 Follow on open: double-clicking a `.lnk` should navigate to / open its target.
 
 - 🔘 Ship nemo's own bundled icons and data files on Windows.
 	- Cause: the data dir is a compile-time absolute Unix path, so the sort-menu icons, eject icon, and emblem art don't resolve on Windows.
