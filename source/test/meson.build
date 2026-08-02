@@ -44,6 +44,15 @@ test('Trash win32 test',
   args: []
 )
 
+test('Shortcut win32 test',
+  executable('test-nemo-shortcut-win32',
+    [ 'test-nemo-shortcut-win32.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, win_shell ],
+  ),
+  args: []
+)
+
 test('GIO fileops probe',
   executable('test-gio-fileops',
     [ 'test-gio-fileops.c' ],

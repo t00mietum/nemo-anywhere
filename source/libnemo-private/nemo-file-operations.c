@@ -69,6 +69,7 @@
 #include "nemo-file-undo-operations.h"
 #include "nemo-file-undo-manager.h"
 #include "nemo-job-queue.h"
+#include "nemo-shortcut-win32.h"
 
 /* TODO: TESTING!!! */
 
@@ -5730,6 +5731,45 @@ get_abs_path_for_symlink (GFile *file)
 }
 
 
+#ifdef G_OS_WIN32
+/* Windows has no POSIX symlinks in the file layer; a "link" is a .lnk shell
+ * shortcut. Rewrite *dest to carry the required .lnk extension, then save the
+ * shortcut pointing at target_path. On success *dest owns the .lnk GFile. */
+static gboolean
+win_create_lnk (GFile **dest, const char *target_path, GError **error)
+{
+	GFile *dir, *lnk;
+	char *base, *lnk_base, *lnk_path;
+	gboolean ok;
+
+	base = g_file_get_basename (*dest);
+	if (g_str_has_suffix (base, ".lnk")) {
+		lnk_base = g_strdup (base);
+	} else {
+		lnk_base = g_strconcat (base, ".lnk", NULL);
+	}
+	g_free (base);
+
+	dir = g_file_get_parent (*dest);
+	lnk = g_file_get_child (dir, lnk_base);
+	g_object_unref (dir);
+	g_free (lnk_base);
+
+	lnk_path = g_file_get_path (lnk);
+	ok = (lnk_path != NULL) &&
+	     nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+	g_free (lnk_path);
+
+	if (ok) {
+		g_object_unref (*dest);
+		*dest = lnk;
+	} else {
+		g_object_unref (lnk);
+	}
+	return ok;
+}
+#endif
+
 static void
 link_file (CopyMoveJob *job,
 	   GFile *src, GFile *dest_dir,
@@ -5773,10 +5813,18 @@ link_file (CopyMoveJob *job,
 	path = get_abs_path_for_symlink (src);
 	if (path == NULL) {
 		not_local = TRUE;
-	} else if (g_file_make_symbolic_link (dest,
+	} else if (
+#ifdef G_OS_WIN32
+		   /* dest is rewritten to a .lnk on success; the bookkeeping below
+		    * then records the shortcut file. */
+		   win_create_lnk (&dest, path, &error)
+#else
+		   g_file_make_symbolic_link (dest,
 					      path,
 					      common->cancellable,
-					      &error)) {
+					      &error)
+#endif
+		  ) {
 
 		if (common->undo_info != NULL) {
 			nemo_file_undo_info_ext_add_origin_target_pair (NEMO_FILE_UNDO_INFO_EXT (common->undo_info),
