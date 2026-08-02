@@ -202,7 +202,7 @@ thumbnailer_load (Thumbnailer *thumb)
 
       if (path_to_exec == NULL)
         {
-          g_message ("Ignoring thumbnailer with missing binary: '%s'", thumb->try_exec);
+          g_debug ("Ignoring thumbnailer with missing binary: '%s'", thumb->try_exec);
           thumbnailer_unref (thumb);
           g_key_file_free (key_file);
           return NULL;
@@ -324,22 +324,31 @@ create_loader (GFile        *file,
   char *mime_type;
   char *filename;
 
+  char *content_type;
+
   loader = NULL;
 
   /* need to specify the type here because the gdk_pixbuf_loader_write
      doesn't have access to the filename in order to correct detect
      the image type. */
   filename = g_file_get_basename (file);
-  mime_type = g_content_type_guess (filename, data, size, NULL);
+  content_type = g_content_type_guess (filename, data, size, NULL);
   g_free (filename);
+
+  /* the loader wants a real mime type; on win32 the content type is a bare
+     extension, so convert (a no-op on unix) */
+  mime_type = content_type != NULL ? g_content_type_get_mime_type (content_type) : NULL;
+  g_free (content_type);
 
   if (mime_type != NULL) {
     loader = gdk_pixbuf_loader_new_with_mime_type (mime_type, &error);
   }
 
-  if (loader == NULL && error != NULL) {
-    g_warning ("Unable to create loader for mime type %s: %s", mime_type, error->message);
-    g_clear_error (&error);
+  if (loader == NULL) {
+    if (error != NULL) {
+      g_debug ("Unable to create loader for mime type %s: %s", mime_type, error->message);
+      g_clear_error (&error);
+    }
     loader = gdk_pixbuf_loader_new ();
   }
   g_free (mime_type);
@@ -398,7 +407,7 @@ _gdk_pixbuf_new_from_uri_at_scale (const char *uri,
         input_stream = G_INPUT_STREAM (g_file_read (file, NULL, &error));
         if (input_stream == NULL) {
             if (error != NULL) {
-                g_warning ("Unable to create an input stream for %s: %s", uri, error->message);
+                g_debug ("Unable to create an input stream for %s: %s", uri, error->message);
                 g_clear_error (&error);
             }
 	    g_object_unref (file);
@@ -417,7 +426,7 @@ _gdk_pixbuf_new_from_uri_at_scale (const char *uri,
 					  NULL,
 					  &error);
         if (error != NULL) {
-            g_warning ("Error reading from %s: %s", uri, error->message);
+            g_debug ("Error reading from %s: %s", uri, error->message);
             g_clear_error (&error);
         }
 	if (bytes_read == -1) {
@@ -444,7 +453,7 @@ _gdk_pixbuf_new_from_uri_at_scale (const char *uri,
 				      (unsigned char *)buffer,
 				      bytes_read,
 				      &error)) {
-            g_warning ("Error creating thumbnail for %s: %s", uri, error->message);
+            g_debug ("Error creating thumbnail for %s: %s", uri, error->message);
             g_clear_error (&error);
 	    result = FALSE;
 	    break;
@@ -1043,7 +1052,7 @@ mimetype_supported_by_gdk_pixbuf (const char *mime_type)
         GHashTable *hash;
 
         hash = g_hash_table_new_full (g_str_hash,
-                                      (GEqualFunc) g_content_type_equals,
+                                      g_str_equal,
                                       g_free, NULL);
 
         formats = gdk_pixbuf_get_formats ();
@@ -1057,9 +1066,19 @@ mimetype_supported_by_gdk_pixbuf (const char *mime_type)
 
             for (i = 0; mime_types[i] != NULL; i++)
               {
+                    /* the raw mime, plus its content type where one exists. On
+                       win32 an unmapped mime comes back as the wildcard "*" -
+                       keeping that would make EVERY unknown file type look
+                       thumbnailable, so drop it. */
                     g_hash_table_insert (hash,
-                                         (gpointer) g_content_type_from_mime_type (mime_types[i]),
+                                         g_strdup (mime_types[i]),
                                          GUINT_TO_POINTER (1));
+
+                    key = g_content_type_from_mime_type (mime_types[i]);
+                    if (g_strcmp0 (key, "*") != 0)
+                        g_hash_table_insert (hash, key, GUINT_TO_POINTER (1));
+                    else
+                        g_free (key);
               }
 
             g_strfreev (mime_types);
@@ -1071,12 +1090,13 @@ mimetype_supported_by_gdk_pixbuf (const char *mime_type)
         g_once_init_leave (&formats_hash, (gsize) hash);
     }
 
-    key = g_content_type_from_mime_type (mime_type);
-    if (g_hash_table_lookup ((void*)formats_hash, key))
-            result = TRUE;
-    else
-            result = FALSE;
-    g_free (key);
+    result = g_hash_table_lookup ((void*)formats_hash, mime_type) != NULL;
+    if (!result) {
+        key = g_content_type_from_mime_type (mime_type);
+        if (g_strcmp0 (key, "*") != 0)
+            result = g_hash_table_lookup ((void*)formats_hash, key) != NULL;
+        g_free (key);
+    }
 
     return result;
 }
@@ -1267,6 +1287,7 @@ nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *
     {
       int fd;
 
+      /* cppcheck-suppress invalidFunctionArgStr - arg 2 is an out param, not a string */
       fd = g_file_open_tmp (".nemo_desktop_thumbnail.XXXXXX", &tmpname, NULL);
 
       if (fd != -1)
