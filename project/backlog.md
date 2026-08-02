@@ -107,7 +107,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Features and enhancements
 
-- 🔘 Add a C formatter/linter gate and wire it into the format/lint stages.
+- 🔘 Don't continuously spam stdout/stderr with meaningless debug messages.
+
+- 🔘 Dimmer highlight of mouseover line. It can easily get confused with line selection.
+
+- 🔘 Right-click from - and drag-n-drop to - a path button, should behave as if it were acting on a folder.
+
+- 🔘 Path button bar should immediately return to buttons, any time the path defocuses, not just 'esc' hit.
+
+- 🔘 Hit 'Esc' when focus is in the folder/file pane to completely remove selection. (E.g. to use menu key on background.) Esc again to return it to where it was.
 
 - In "find" mode:
 	- 🔘 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
@@ -125,7 +133,11 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🔘 Always operate on whole rows. E.g. if when right-clicking in between columns and not on part of an existing selection, select the entire row before opening right-click menu.
 
-- 🔘 Never show ghost row selection(s). Under some circumstances, there can appear to be two sets of files "selected", but only one set actually is. This is confusing. (Figure out reproducibility steps.)
+- 🔘 Windows-specific:
+	Hide/show hidden files should consider both:
+		- Linux-style dot-files
+		- Native Windows "hidden" attribute
+	Windows & NTFS: Any dir symlink through any mechanism should also allow junction (ordered higher in preference than symlink).
 
 - 🔘 New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 
@@ -180,6 +192,10 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Fixed: folders always report the folder type, never guessed.
 
 #### Done - Features and enhancements
+
+- ✅ Add a C formatter/linter gate and wire it into the format/lint stages.
+	- Done: check-only cppcheck over the changed C files only, wired into both pipelines (Windows stage 1 + gate, Linux lint stage). No in-place formatter - a full-tree reformat of the inherited code would bury history in churn.
+	- Done: a box without cppcheck skips with a warning instead of blocking a push.
 
 - ✅ Change default settings:
 	- ✅ List view, 66% size.

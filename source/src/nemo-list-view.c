@@ -1436,6 +1436,7 @@ row_collapsed_callback (GtkTreeView *treeview, GtkTreeIter *iter, GtkTreePath *p
 	g_timeout_add_seconds (COLLAPSE_TO_UNLOAD_DELAY,
 			       unload_file_timeout,
 			       unload_data);
+	/* cppcheck-suppress memleak - unload_file_timeout frees it */
 }
 
 static void
