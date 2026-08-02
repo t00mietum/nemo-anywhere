@@ -111,8 +111,6 @@ nemo_x_content_bar_set_x_content_type (NemoXContentBar *bar, const char *x_conte
 		message = g_strdup (_("The media contains digital photos."));
 	} else if (strcmp (x_content_type, "x-content/audio-player") == 0) {
 		message = g_strdup (_("These files are on a digital audio player."));
-	} else if (strcmp (x_content_type, "x-content/software") == 0) {
-		message = g_strdup (_("The media contains software."));
 	} else {
 		/* fallback to generic greeting */
 		message = g_strdup_printf (_("The media has been detected as \"%s\"."), description);
