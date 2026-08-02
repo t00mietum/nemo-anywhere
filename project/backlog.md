@@ -73,7 +73,9 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
 	- 🔘 No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
 
-- 🔘 No autorun, ever, on any platform - not even an option. Notice a new drive; never run anything off it. Remove the autorun-software helper and its media-autorun path.
+- ✅ No autorun, ever, on any platform - not even an option. Notice a new drive; never run anything off it. Remove the autorun-software helper and its media-autorun path.
+	- Done: the autorun-software helper, its menu entry, and the "prompt or autorun programs" preference are gone.
+	- Done: the inserted-media bar never offers to run software from media. Other media notices (audio CD, photos) unchanged, and automount / auto-open still work - drives are noticed, nothing runs.
 
 - 🔘 Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
 

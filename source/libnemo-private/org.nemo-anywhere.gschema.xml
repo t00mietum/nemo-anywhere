@@ -943,9 +943,6 @@
     <key name="automount-open" type="b">
       <default>true</default>
     </key>
-    <key name="autorun-never" type="b">
-      <default>false</default>
-    </key>
   </schema>
 
   <schema id="org.nemo-anywhere.compat.terminal" path="/org/nemo-anywhere/compat/terminal/">

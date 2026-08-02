@@ -1329,8 +1329,10 @@ nemo_window_slot_show_x_content_bar (NemoWindowSlot *slot, GMount *mount, const 
 			continue;
 		}
 
-		/* don't show the cluebar for windows software */
-		if (g_content_type_is_a (x_content_types[n], "x-content/win32-software")) {
+		/* never offer to run software off media, on any platform */
+		if (g_content_type_is_a (x_content_types[n], "x-content/software") ||
+		    g_content_type_is_a (x_content_types[n], "x-content/unix-software") ||
+		    g_content_type_is_a (x_content_types[n], "x-content/win32-software")) {
 			continue;
 		}
 

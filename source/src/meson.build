@@ -97,14 +97,6 @@ nemo = executable('nemo-anywhere',
   install: true
 )
 
-nemo_autorun_software = executable('nemo-anywhere-autorun-software',
-  [ 'nemo-autorun-software.c' ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  install: true
-)
-
 nemo_connect_server = executable('nemo-anywhere-connect-server',
   [
     'nemo-bookmark-list.c',
