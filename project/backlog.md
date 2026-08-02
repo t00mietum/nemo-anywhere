@@ -107,7 +107,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Features and enhancements
 
-- 🔘 Dimmer highlight of mouseover line. It can easily get confused with line selection.
+- ✅ Dimmer highlight of mouseover line. It can easily get confused with line selection.
+	- App CSS dims file-pane/tree row :hover to 0.035 alpha (theme was 0.08), scoped `:not(:selected)`; confirmed by eyeball.
 
 - 🔘 Right-click from - and drag-n-drop to - a path button, should behave as if it were acting on a folder.
 

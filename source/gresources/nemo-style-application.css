@@ -82,3 +82,11 @@ NemoDesktopWindow GtkPaned {
 #drop-bar {
     opacity: 1.0;
 }
+
+/* Dim the mouseover prelight on file-pane / tree rows so a hovered line
+   doesn't read as a half-selected one. Themes (Fluent) paint .view:hover at
+   ~0.08 alpha, close enough to selection to confuse; drop it well under that.
+   :not(:selected) keeps a hovered+selected row fully selected-looking. */
+.nemo-window treeview.view:hover:not(:selected) {
+	background-color: alpha(currentColor, 0.035);
+}
