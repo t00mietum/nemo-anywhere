@@ -79,11 +79,15 @@ fi
 ## (nemo-lib-self-check-functions.h), so it fires for any .c that includes it.
 ## The two nemo-dnd.c items are inherited-legacy noise in the gnome-icon-list
 ## drag encoder/parser, surfaced only because a change touched that big file.
+## The nemo-mime-actions.c trio is the same story in the activation code path.
 fEcho "C lint (cppcheck, check-only) over ${#files[@]} changed file(s)..."
 cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=missingInclude --suppress=assertWithSideEffect \
 	--suppress=unknownMacro \
 	--suppress=invalidPrintfArgType_uint:*nemo-dnd.c \
 	--suppress=nullPointerRedundantCheck:*nemo-dnd.c \
+	--suppress=CastAddressToIntegerAtReturn:*nemo-mime-actions.c \
+	--suppress=uselessAssignmentPtrArg:*nemo-mime-actions.c \
+	--suppress=nullPointerRedundantCheck:*nemo-mime-actions.c \
 	--quiet --error-exitcode=2 "${files[@]}"
 fEcho "OK: C lint: no findings"

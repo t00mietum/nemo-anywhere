@@ -24,6 +24,13 @@ gboolean nemo_shortcut_win32_create (const char  *target_path,
                                      const char  *description,
                                      GError     **error);
 
+/* Read the file-system target a .lnk points at. Returns FALSE (and leaves
+ * *target_path NULL) if the shortcut has no path target - e.g. it points at a
+ * virtual shell item. Caller frees *target_path. */
+gboolean nemo_shortcut_win32_read   (const char  *lnk_path,
+                                     char       **target_path,
+                                     GError     **error);
+
 G_END_DECLS
 
 #endif /* NEMO_SHORTCUT_WIN32_H */

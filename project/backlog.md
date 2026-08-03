@@ -95,7 +95,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 - 🛠️ Native Windows shortcuts: create and edit `.lnk` files, the Windows analog of `.desktop` launchers.
 	- ✅ Create: "Make Link" and the drag "_Link Here" now write a `.lnk` shell shortcut on Windows (via `IShellLinkW`), in place of the POSIX symlink the win32 file layer can't make. Round-trip verified by a test that loads the shortcut back through the shell.
 	- 🔘 Edit: a properties view to see/change a `.lnk`'s target (the analog of the `.desktop` launcher editor).
-	- 🔘 Follow on open: double-clicking a `.lnk` should navigate to / open its target.
+	- ✅ Follow on open: opening a `.lnk` now follows through to its target - a folder navigates in place, a file opens as if the target were double-clicked. Reading the target round-trips through the shell (test-verified).
 
 - 🔘 Ship nemo's own bundled icons and data files on Windows.
 	- Cause: the data dir is a compile-time absolute Unix path, so the sort-menu icons, eject icon, and emblem art don't resolve on Windows.
