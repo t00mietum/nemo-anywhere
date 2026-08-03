@@ -6,8 +6,8 @@
 ##	  GTK/gvfs at all, so this is what actually proves the app runs and browses.
 ##	- Runs INSIDE the nemo-winbuild container: docker exec nemo-winbuild bash /src/cicd/win/gui-smoke.bash
 ##	- Syntax: gui-smoke.bash [SHOT_PNG] [SECONDS]   (defaults /tmp/shot.png, 16)
-##	- Wine needs its DLLs and schemas on-path: WINEPATH -> sysroot bin + the built
-##	  extension dll dir; GSETTINGS_SCHEMA_DIR -> a dir holding nemo's schema merged
+##	- Wine needs its DLLs and schemas on-path: WINEPATH -> sysroot bin (the extension
+##	  lib is folded into the exe); GSETTINGS_SCHEMA_DIR -> a dir holding nemo's schema merged
 ##	  with the sysroot GTK schemas, compiled here (glib-compile-schemas output is
 ##	  arch-independent, so the Linux tool's result works for the wine build).
 
@@ -36,7 +36,7 @@ glib-compile-schemas "$SCHEMAS"
 
 export WINEDEBUG=-all
 export DISPLAY="$DISP"
-export WINEPATH="Z:\\opt\\win-sysroot\\mingw64\\bin;Z:\\build-win\\libnemo-extension"
+export WINEPATH="Z:\\opt\\win-sysroot\\mingw64\\bin"
 export GSETTINGS_SCHEMA_DIR="Z:\\tmp\\nemo-schemas"
 
 fEcho "Starting Xvfb $DISP"

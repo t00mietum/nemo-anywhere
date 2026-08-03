@@ -2,11 +2,11 @@
 
 ##	- Purpose: Run the cross-built Windows nemo-anywhere.exe as a GUI app on the
 ##	  host's live X display via host wine (not the container's - that one is headless).
-##	  Stages a runtime snapshot (GTK DLLs, pixbuf loaders, icons, schemas, the exe +
-##	  extension dll) from the nemo-winbuild container into cicd/artifacts/win-run,
+##	  Stages a runtime snapshot (GTK DLLs, pixbuf loaders, icons, schemas, the exe -
+##	  extension lib folded in) from the nemo-winbuild container into cicd/artifacts/win-run,
 ##	  then launches wine against it. The mingw64/ layout is preserved so GTK's
 ##	  relative lookups (loaders, schemas, icons) resolve without extra env.
-##	- The staged copy is a snapshot: the exe + extension dll are re-copied on every
+##	- The staged copy is a snapshot: the exe is re-copied on every
 ##	  run when the container is up, so a fresh ninja build is picked up automatically.
 ##	  Pass --restage to rebuild the whole snapshot (after a sysroot change).
 ##	- Each run replaces the last: a previous instance of this staged build is killed
@@ -74,7 +74,7 @@ fi
 # fresh build -> fresh exe, every run the container is up
 if container_up; then
 	docker exec "$CONTAINER" sh -c '
-		cp /build-win/src/nemo-anywhere.exe /build-win/libnemo-extension/libnemo-anywhere-extension-1.dll /src/cicd/artifacts/win-run/app/
+		cp /build-win/src/nemo-anywhere.exe /src/cicd/artifacts/win-run/app/
 		cp /src/source/libnemo-private/org.nemo-anywhere.gschema.xml /src/cicd/artifacts/win-run/mingw64/share/glib-2.0/schemas/'
 	docker exec "$CONTAINER" chown -R "$(id -u):$(id -g)" /src/cicd/artifacts/win-run/app /src/cicd/artifacts/win-run/mingw64/share/glib-2.0/schemas
 	glib-compile-schemas "${DEST}/mingw64/share/glib-2.0/schemas"

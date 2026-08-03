@@ -11,7 +11,7 @@
 ##	  import set; we union the closures of the app exes, the pixbuf loaders
 ##	  (dlopen'd, so not in the app's own ldd), and the runtime helper exes.
 ##	- Layout produced under DEST (matches the win-run snapshot n8runfm reads):
-##	    app/       nemo-anywhere.exe + libnemo-anywhere-extension-1.dll (one exe on Windows)
+##	    app/       nemo-anywhere.exe (single exe on Windows; extension lib is folded in)
 ##	    mingw64/bin, lib/gdk-pixbuf-2.0, share/{glib-2.0/schemas,icons,themes,thumbnailers}, etc
 ##	- Run under the mingw64 environment: MSYSTEM=MINGW64 bash cicd/win/stage-native.bash <build-dir> <dest-dir>
 ##	- Syntax: stage-native.bash <build-dir> <dest-dir>   (dest is wiped and rebuilt)
@@ -37,10 +37,9 @@ rm -rf "${DEST}"
 mkdir -p "${DEST}/app" "${DEST}/mingw64/bin" "${DEST}/mingw64/lib" \
 	"${DEST}/mingw64/share/glib-2.0" "${DEST}/mingw64/etc"
 
-## App: the main exe and its statically-linked extension dll (the exe won't even
-## load without it beside it). Windows builds a single exe - no sibling helpers.
+## App: just the main exe. The extension lib is statically linked in, so there's no
+## sibling dll; Windows builds a single exe - no helper exes either.
 cp "${BUILD}/src/"*.exe "${DEST}/app/"
-cp "${BUILD}/libnemo-extension/libnemo-anywhere-extension-1.dll" "${DEST}/app/"
 
 ## Runtime helper exes that GLib/GTK spawn or that nemo discovers as thumbnailers.
 ## bin is on PATH in the launched app, so these resolve; the thumbnailer .thumbnailer
@@ -57,12 +56,12 @@ cp -r "${MINGW}/lib/gdk-pixbuf-2.0" "${DEST}/mingw64/lib/"
 
 ## Dependency closure. ldd is recursive on PE; keep only /mingw64 paths (System32 and
 ## the app-local dlls stay out of the bundle's mingw64/bin). Collect over every binary
-## that gets loaded: the app exes+dll, the helper exes, and each pixbuf loader.
-closure_bins=("${DEST}/app/"*.exe "${DEST}/app/"*.dll)
+## that gets loaded: the app exe, the helper exes, and each pixbuf loader.
+closure_bins=("${DEST}/app/"*.exe)
 for h in "${helper_exes[@]}"; do [[ -f "${DEST}/mingw64/bin/${h}" ]] && closure_bins+=("${DEST}/mingw64/bin/${h}"); done
 while IFS= read -r loader; do closure_bins+=("$loader"); done < <(find "${DEST}/mingw64/lib/gdk-pixbuf-2.0" -name '*.dll')
 
-## app/ on PATH so ldd can resolve the extension dll; collect the unique /mingw64 dlls.
+## app/ on PATH so ldd resolves any app-local deps; collect the unique /mingw64 dlls.
 tmplist="$(mktemp)"
 for bin in "${closure_bins[@]}"; do
 	PATH="${DEST}/app:${MINGW}/bin:${PATH}" ldd "$bin" 2>/dev/null \
