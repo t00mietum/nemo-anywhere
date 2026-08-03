@@ -48,6 +48,9 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-signaller.h>
 #include <libnemo-private/nemo-mime-application-chooser.h>
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-shortcut-win32.h>
+#endif
 #include <sys/stat.h>
 
 enum {
@@ -2217,6 +2220,55 @@ activation_start_mountables (ActivateParameters *parameters)
 		activation_get_activation_uris (parameters);
 }
 
+#ifdef G_OS_WIN32
+/* Follow-on-open for .lnk shortcuts: swap any Windows shortcut in the list for
+ * the file it points at, so activating a shortcut behaves like the target -
+ * navigate into a folder, open a file - instead of trying to "open" the .lnk
+ * itself. Returns a newly-owned list with targets substituted (non-shortcuts
+ * ref-copied), or NULL if the list held no followable shortcut. */
+static GList *
+resolve_win32_shortcuts (GList *files)
+{
+	GList *resolved = NULL;
+	GList *l;
+	gboolean any = FALSE;
+
+	for (l = files; l != NULL; l = l->next) {
+		NemoFile *file = NEMO_FILE (l->data);
+		char *path = nemo_file_get_path (file);
+		char *target = NULL;
+		gsize len = path ? strlen (path) : 0;
+
+		if (path != NULL && len > 4 &&
+		    g_ascii_strcasecmp (path + len - 4, ".lnk") == 0 &&
+		    nemo_shortcut_win32_read (path, &target, NULL) && target != NULL) {
+			char *uri = g_filename_to_uri (target, NULL, NULL);
+			NemoFile *tfile = uri ? nemo_file_get_by_uri (uri) : NULL;
+
+			if (tfile != NULL) {
+				resolved = g_list_prepend (resolved, tfile);
+				any = TRUE;
+			} else {
+				resolved = g_list_prepend (resolved, nemo_file_ref (file));
+			}
+			g_free (uri);
+		} else {
+			resolved = g_list_prepend (resolved, nemo_file_ref (file));
+		}
+
+		g_free (target);
+		g_free (path);
+	}
+
+	resolved = g_list_reverse (resolved);
+	if (!any) {
+		nemo_file_list_free (resolved);
+		return NULL;
+	}
+	return resolved;
+}
+#endif
+
 /**
  * nemo_mime_activate_files:
  *
@@ -2244,6 +2296,20 @@ nemo_mime_activate_files (GtkWindow *parent_window,
 	if (files == NULL) {
 		return;
 	}
+
+#ifdef G_OS_WIN32
+	{
+		/* Redispatch on shortcut targets so opening a .lnk follows through
+		 * (the targets carry no .lnk, so this recurses at most one hop). */
+		GList *resolved = resolve_win32_shortcuts (files);
+		if (resolved != NULL) {
+			nemo_mime_activate_files (parent_window, slot, resolved,
+						  launch_directory, flags, user_confirmation);
+			nemo_file_list_free (resolved);
+			return;
+		}
+	}
+#endif
 
 	DEBUG_FILES (files, "Calling activate_files() with files:");
 
