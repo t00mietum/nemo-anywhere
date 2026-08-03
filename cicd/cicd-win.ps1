@@ -17,7 +17,7 @@
 ##		  json-glib, libexif, libgsf). A missing toolchain warn-skips the build/stage
 ##		  (so sync + publish still run) unless -BuildStrict makes it a hard failure.
 ##		- The dogfood bundle is a whole folder (nemo is a GTK prefix, not a lone exe):
-##		  the exe + its statically-linked extension dll in app\, and the mingw64 DLL
+##		  the single exe (extension lib folded in) in app\, and the mingw64 DLL
 ##		  dependency CLOSURE + pixbuf loaders + schemas + icons under mingw64\. It is
 ##		  self-contained (runs on a box with no MSYS2). n8runfm.ps1 keeps its own
 ##		  stamped pool from the same staged bundle.
@@ -222,9 +222,9 @@ function fLint {
 	if ($script:MingwRc -ne 0) { fDie "C lint failed (exit $($script:MingwRc))" }
 }
 
-## Native smoke: run the built exe's --version on real Windows. The exe statically
-## imports the extension dll, so that must sit beside it; the GTK DLLs come from the
-## host mingw64\bin on PATH. Proves the build links and loads.
+## Native smoke: run the built exe's --version on real Windows. The extension lib is
+## folded into the exe; the GTK DLLs come from the host mingw64\bin on PATH. Proves
+## the build links and loads.
 function fSmoke {
 	param([Parameter(Mandatory)][string]$Exe, [Parameter(Mandatory)][string]$RuntimeBin)
 	$out = ""
@@ -237,15 +237,10 @@ function fSmoke {
 	fEcho "OK: smoke: $out"
 }
 
-## Ensure the exe can smoke in place: the statically-linked extension dll has to be
-## beside it (the build leaves it in libnemo-extension/). Returns the exe path.
+## Path to the freshly built exe for the in-place smoke. The extension lib is folded
+## in, so nothing else needs to sit beside it. Returns the exe path.
 function fPrepInPlaceSmoke {
-	$exe = Join-Path $BuildDir "src\$ExeName.exe"
-	$ext = Join-Path $BuildDir "libnemo-extension\libnemo-anywhere-extension-1.dll"
-	if ((Test-Path -LiteralPath $ext)) {
-		Copy-Item -LiteralPath $ext -Destination (Join-Path $BuildDir "src") -Force
-	}
-	return $exe
+	return (Join-Path $BuildDir "src\$ExeName.exe")
 }
 
 ## Stage the self-contained runtime bundle via the shared bash helper (it needs ldd
