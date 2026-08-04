@@ -17,6 +17,60 @@ test('Directory Async test',
   args: []
 )
 
+test('Metadata store test',
+  executable('test-nemo-metadata-store',
+    [ 'test-nemo-metadata-store.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('User input parse test',
+  executable('test-eel-user-input',
+    [ 'test-eel-user-input.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('Trash win32 test',
+  executable('test-nemo-trash-win32',
+    [ 'test-nemo-trash-win32.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('Shortcut win32 test',
+  executable('test-nemo-shortcut-win32',
+    [ 'test-nemo-shortcut-win32.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, win_shell ],
+  ),
+  args: []
+)
+
+test('GIO fileops probe',
+  executable('test-gio-fileops',
+    [ 'test-gio-fileops.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('DBus manager no-bus test',
+  executable('test-nemo-dbus-manager',
+    [ 'test-nemo-dbus-manager.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Copy test',
   executable('test-nemo-copy',
     [ 'test-copy.c', 'test.c' ],

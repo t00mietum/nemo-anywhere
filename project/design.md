@@ -21,6 +21,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 	- [Dependency landscape](#dependency-landscape)
 	- [Toolchain](#toolchain)
 	- [Building Linux reference](#building-linux-reference)
+	- [Building Windows cross](#building-windows-cross)
 	- [Open questions](#open-questions)
 - [New project](#new-project)
 - [Project structure](#project-structure)
@@ -35,6 +36,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 	- [Saves and persistence](#saves-and-persistence)
 	- [UI](#ui)
 	- [Testing](#testing)
+- [Delivery CI/CD, branches, releases](#delivery-cicd-branches-releases)
 
 <!-- /TOC -->
 
@@ -94,9 +96,9 @@ Nemo is C with GTK3, built with meson. The stack splits into portable and platfo
 	- GIO already abstracts some platform work (GFileMonitor, GVolumeMonitor) with per-OS backends, though coverage varies.
 
 - Platform-bound (the real porting work):
-	- Cinnamon coupling - xapp, cinnamon-desktop, and Nemo drawing the Cinnamon desktop/icons. Removing this is the core "de-Cinnamon" work and benefits all targets.
+	- Cinnamon coupling - xapp, cinnamon-desktop, and Nemo drawing the Cinnamon desktop/icons. Removing this was the core "de-Cinnamon" work and benefits all targets. Done: desktop management removed, both libraries replaced with in-tree portable equivalents (see "Decisions along the way").
 
-	- gvfs - mounts, network shares, trash. No direct Windows/macOS equivalent; the largest gap. Replace per platform or scope out network mounts initially.
+	- gvfs - mounts, network shares, trash, per-file metadata. No direct Windows/macOS equivalent; the largest gap. Decided approach: keep gvfs as an optional runtime dependency on Linux (it is desktop-agnostic, present on virtually every distro), and fill the gaps natively per platform - see the gvfs decision under "Decisions along the way".
 
 	- dbus - IPC and single-instance. Present on Linux/BSD, limited elsewhere; needs a portable path or removal.
 
@@ -106,7 +108,7 @@ Nemo is C with GTK3, built with meson. The stack splits into portable and platfo
 
 ### Toolchain
 
-First target is Windows, leaning toward MSYS2 / MinGW-w64: its GTK3 stack is well supported and stays closest to upstream's meson build. MSVC (via gvsbuild) and cross-compiling from Linux are alternatives. Final choice is confirmed when we reach that stage; the repo and a Linux baseline come first.
+First target is Windows. Among the options - native MSYS2/MinGW-w64 on Windows, MSVC via gvsbuild, and cross-compiling from Linux - we chose to **cross-compile from the Linux host with mingw-w64 and smoke-test under wine**. It reuses the toolchain already on the box, needs no Windows hardware, and fits the same "containerized reference build" model as Linux. The GTK3 Windows stack still comes from MSYS2, but as prebuilt packages extracted into a cross sysroot rather than a native MSYS2 environment. Native-Windows validation (running the .exe on real Windows) is deferred to when the cross build first links and runs under wine.
 
 The Linux reference build lives in a stock Debian 13 container rather than on the dev host directly - we decided that a pinned, clean distro image is the better known-good baseline, and it sidesteps host library drift. Upstream 6.6.4 builds and runs there unmodified with distro packages only.
 
@@ -123,7 +125,19 @@ Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable 
 - Configure and build:
 	- `meson setup build source`
 	- `ninja -C build`
-- The binary lands at `build/src/nemo`. Desktop drawing is the separate `nemo-desktop` binary - just don't run that one outside Cinnamon.
+- The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
+
+### Building (Windows cross)
+
+Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt MSYS2 packages unpacked into a sysroot. All of it lives in a dedicated `nemo-winbuild` container so neither the host nor the repo carries the Windows binaries.
+
+- `cicd/win/fetch-sysroot.bash` - resolves the transitive dependency closure of a few root packages (gtk3, json-glib, libexif, libgsf) from the MSYS2 pacman database and unpacks each `.pkg.tar.zst` into `/opt/win-sysroot`. No pacman needed; the `.db` is just a tarball of `desc` files we parse ourselves.
+- `cicd/win/win64.cross.txt` - meson cross file: mingw-w64 binaries, `wine` as the exe wrapper, `PKG_CONFIG_SYSROOT_DIR` pointed at the sysroot (the `.pc` files keep `prefix=/mingw64`).
+- `cicd/win/Dockerfile` - builds `nemo-winbuild`: mingw toolchain + native glib codegen tools (run on the build host) + wine + the baked sysroot.
+- Configure/build (source mounted at `/src`):
+	- `meson setup --cross-file /opt/win64.cross.txt -Dxmp=false /build-win /src/source`
+	- `ninja -C /build-win`
+- Deliberately off for Windows: XMP/exempi (not packaged for mingw - `-Dxmp=false`), and the Unix-only pieces (`gio-unix`, `x11`, SELinux, Tracker) which get `host_machine.system()` guards in meson plus `#ifdef` guards in the affected C files.
 
 ### Open questions
 
@@ -141,7 +155,7 @@ Repo root is kept deliberately clean: docs and license files, plus a handful of 
 - `project/` - design and backlog.
 - `assets/` - fork-authored assets.
 - `utility/` - standalone helper scripts and actions.
-- `cicd/` - build/release automation (planned).
+- `cicd/` - local build/release automation (the pipeline engine, git backup+publish, release helper, git hooks). See "Delivery".
 - `.github/` - repo metadata (ownership, funding).
 
 Upstream shipped everything at the root with decades of accumulated meta-files; the fork consolidated the build under `source/` and dropped the files that no longer serve a standalone, cross-platform project (old changelogs, distro packaging, upstream CI). Internal `source/` layout is the conventional GTK/meson structure, left intact.
@@ -154,6 +168,40 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 ## Decisions along the way
 
+- Desktop management is removed, not made optional. Nemo Anywhere is a file manager, not a desktop shell - drawing/owning the root desktop is inherently a Linux/Cinnamon-session concern and pulls in the deepest coupling (the `nemo-desktop` binary, the `org.Cinnamon` proxy, the per-monitor `x-nemo-desktop://` directory model). Cutting it outright is the cleanest de-Cinnamon step and benefits every target. Kept: the `.desktop` launcher-file properties editor and the multi-monitor geometry helper, both of which are ordinary file-manager features despite their "desktop" names.
+
+- The remaining Cinnamon libraries (xapp, cinnamon-desktop) are reimplemented with portable equivalents rather than compiled out behind flags, so the standalone build keeps favorites, thumbnails, tray/progress feedback, and the icon chooser instead of silently losing them. This is now done - the build links neither library.
+
+	- Favorites and the thumbnailer were adapted from their upstream implementations into libnemo-private (provenance and licenses noted per file), with settings moved under our own schema so nothing is shared with a co-installed Mint stack.
+	- The tray icon uses GTK's built-in status icon (deprecated upstream but still the only portable tray mechanism). Window taskbar progress was dropped outright - it is a Mint-only window-manager protocol with no portable equivalent.
+	- The icon chooser is a plain file picker with an image preview; browsing theme icons by name went away with it, which is an accepted simplification.
+
+- gvfs: keep it on Linux, replace the gaps natively elsewhere. gvfs turned out to be desktop-agnostic (a freedesktop/GIO service present on virtually every Linux desktop, not a Cinnamon thing), so on Linux it stays as an optional runtime dependency - when present it provides network shares, trash, mtp/sftp and so on; when absent the UI self-hides those entries. The per-platform gaps are filled as follows:
+
+	- Per-file/per-folder metadata (view and sort state, custom icons, emblems, favorite markers) moves to an app-owned portable store on all platforms, replacing the gvfs metadata daemon entirely. One store, one behavior everywhere; nothing is lost on Linux since these keys are already app-private.
+	- Trash on Windows: deleting to the Recycle Bin already works natively through GLib. In-app trash browsing (view, restore, empty) gets a native Recycle Bin backend rather than being scoped out.
+	- Network on Windows: native networking rather than a gvfs port - UNC paths work as ordinary paths, and network browsing enumerates the Windows network neighborhood natively.
+	- Virtual locations (network, computer, trash) are shown only when the running platform actually supports them, extending the runtime scheme check the codebase already uses.
+
+- Installing is a script, not a package. The primary install path is a one-liner that fetches a release, checks it, and puts it where that platform expects - no repository to add, no dependency hunt, and no packaging format to maintain per distro. Distro packages can come later without changing this.
+
+	- Two standalone installers rather than one script with a helper: `install.bash` (bash 3.2, so stock macOS runs it) and `install.ps1` (PowerShell 7). Each covers every platform it can reach on its own - the PowerShell one installs on unix itself instead of handing off - so neither depends on the other being present. The duplication is deliberate: it buys a one-liner that works from whichever shell someone already has open, and both are small.
+	- The app installs as a whole folder plus the two things that make it reachable: a menu entry, and a name on the PATH (a symlink on unix, a PATH entry on Windows). A file manager gets launched both ways, so both are worth wiring.
+	- User install is the default and needs no privileges. A system-wide install is opt-in and is the only path that escalates, which it states in the plan first.
+	- Every run prints what it is about to do and waits for a yes. Downloads are checksum-verified before anything is unpacked, so a bad download can never replace a working install. Reinstalling replaces in place, and `--uninstall` removes exactly what was added.
+
+- D-Bus and single-instance: kept as-is, no per-platform gating. Probing showed that GLib autolaunches a per-user D-Bus session bus on Windows as well, shared across processes, so GApplication's single-instance behavior works everywhere - launching a second copy hands its arguments to the first rather than opening a rival process - and the two D-Bus services (the freedesktop file-manager interface and the internal file-operations one) get a real connection. The only thing that needed hardening was the bus-less case: on a headless or minimal system, or a locked-down Windows where autolaunch fails, there is no connection at all, and the file-operations service (which only ever serves other processes) must simply not set itself up rather than fail. A single-instance process-per-window mode, if wanted, is a separate future choice layered on top of this, not a change to it.
+
+- Path separators: `/` and `\` both work in typed locations on every platform, without reserving `\`. On Windows both are already native separators. On POSIX, `\` is a legal filename character (files created over SMB shares really do contain it), so it is not reserved and no escape syntax is introduced; instead, typed input is normalized by fallback - the literal path is tried first, and only if it does not resolve is a `\`->`/` retry attempted. Pasted Windows-style paths work, real backslash-filenames keep working, and copy-paste interop with the rest of the platform is preserved.
+
+- Desktop-environment settings schemas are optional at runtime. Upstream read several Cinnamon/GNOME settings schemas that only exist on those desktops, and a missing schema is a hard abort in GLib. The app bundles fallback copies with the same keys and neutral defaults, and prefers the real desktop schema whenever the session provides it - Cinnamon integration is preserved, and every other environment (including Windows) starts clean.
+
+- Windows drive letters are first-class roots: the sidebar lists each fixed drive with a disk-usage bar, replacing the single Unix filesystem root, which has no meaning on Windows. Removable, optical, and network drives stay on the normal devices path, since that path carries eject and unmount.
+
+- Per-type file icons on Windows are derived from the file's content type, because the platform's file layer reports one generic icon for nearly every file. Thumbnails keep the freedesktop thumbnailer mechanism on every platform; the Windows runtime ships the thumbnailer tools and image-loader cache it needs.
+
+- "Open in terminal" and "open elevated" map to native equivalents per platform. On Windows: the native console (Windows Terminal, then PowerShell, then cmd) opened at the folder, and an elevated relaunch through the normal UAC prompt, labeled "Open as Administrator". On Linux: the configured terminal and a pkexec relaunch, labeled "Open as Root".
+
 ## Architecture
 
 ### Software stack
@@ -162,6 +210,38 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 ### Saves and persistence
 
+Three separate stores, each with its own lifetime.
+
+- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) go to the platform's settings store. On Linux that is the desktop's usual settings database; on Windows it is the registry. Nothing extra had to be written for Windows - the underlying library already picks the right one, and the schema is the same on both.
+
+- Per-folder view state - view mode, zoom, sort column, column layout - is app-owned and portable, in a single file under the user's config directory. This replaced the Linux-only metadata service so the behaviour is identical everywhere.
+	- Only a real per-folder choice is stored. A value that merely matches the current default is left out, so the folder keeps following the default if it later changes. Upstream stored it either way, which quietly pinned every folder you had ever opened.
+	- Changing a default in Settings also applies to the folders already on screen. Folders you are not looking at keep their own view and zoom until you visit them.
+
+- Window size, position, and maximized state are shared by all windows and live with the application settings. They are written shortly after a move or resize settles, rather than only when a window closes, so an abnormal exit doesn't discard them.
+
+Settings are deliberately isolated from an upstream Nemo installed alongside: separate schema, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
+
 ### UI
 
 ### Testing
+
+## Delivery (CI/CD, branches, releases)
+
+Guiding constraint: GitHub is dumb git hosting plus optional release storage, nothing more. No hosted CI, no Actions, as few third-party tools as possible; the whole pipeline runs locally (`cicd/cicd.bash`). This is the same delivery model proven on a sibling project, brought over as high-level concepts and actions - the branch flow, the merge gate, the release cut, the git backup+publish - not the language tooling. That sibling is a Rust/cargo project; nemo-anywhere is C/GTK built with meson/ninja in the `nemo-build` container, so each stage is wired to its meson/container equivalent (or left disabled until it exists).
+
+- Branch flow: feature branches merge `--no-ff` into `dev` (the integration target). `main` is release-only: merging dev into main cuts a release. Nothing is ever committed directly on main. Feature-branch pushes are not gated.
+- Merge gate: `cicd/cicd.bash --gate` runs as the `pre-push` hook for pushes to main or dev - the local stand-in for a hosted CI workflow. For nemo-anywhere today the gate is format-check (none yet) + lints (none yet) + tests, and "tests" is a container build followed by a headless `--version` smoke launch. Install the hook per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
+- Version-bump guard: the same pre-push hook blocks a push to main unless `source/meson.build` is a strict version increase over what's on main, and (once one exists) the README `Release-<ver>` badge matches. Skips the first main push and branch deletes.
+- Pipeline stages (the enduring shape; a stage self-skips when unconfigured): format -> debug build -> tests+lints -> profiler -> release build (native + cross) -> packages -> dogfood -> git backup+publish. Ready now: debug build, smoke test, backup+publish. The rest are present but disabled in `cicd/config.bash`, each carrying a `NEEDS:` note on what a meson/C equivalent would take (a C formatter/linter gate, a host-side release binary out of the container's `/build`, meson cross-compilation for Windows/ARM, Linux/Windows packaging). Nothing was speculatively ported.
+- Releases: `cicd/utility/release.bash` cuts from a clean main - tag `v<version>` (version read from `source/meson.build` alone) and optional push + GitHub Release upload. Tag+push work today; artifact attach is gated until the release-build stage produces host-side artifacts, and the first release needs a `Release-<ver>` README badge added on dev.
+- Backup+publish: `cicd/utility/n8git_backup-and-publish` rar-backs the project tree into `../versions/` (GFS-rotated) and then syncs/commits/pushes the current branch. It is the pipeline's last stage and can be run on its own.
+	- What the archive keeps: source, project docs, the pipeline itself, the repo's own assets, and anything under `cicd/artifacts/release` - release builds and the packages cut from them. What it drops: anything a command regenerates on demand, chiefly the staged Windows runtime snapshot (~67MB of library copies, rebuilt with one `--restage`), tool logs, and crash dumps. The decision was that a version backup should hold what would be painful to lose, not what a rebuild reproduces; the practical trigger was the snapshot alone taking each archive from about 1.6MB to 36MB.
+- Install: `install.bash` (Linux, BSD, WSL, macOS) and `install.ps1` (all of those plus Windows) at the repo root, run as one-liners straight from a shell. They read the releases page, so they depend on a fixed naming contract for release assets - the packaging stage has to produce exactly these names:
+	- `nemo-anywhere-<version>-<os>-<arch>.tar.gz` for unix, `.zip` for Windows, with `<os>` one of `linux`/`windows` and `<arch>` one of `x86_64`/`arm64`.
+	- `nemo-anywhere-<version>-sha256sums.txt` alongside them, in `sha256sum` format. This is what the installers verify against, and `release.bash` already writes and checks a file of that name.
+	- Each archive holds one top-level folder. On unix its entry point is `bin/nemo-anywhere` (the wrapper that wires the runtime environment); on Windows `nemo-anywhere.exe` sits at the folder root beside its DLLs, so the normal Windows library search finds them with no environment wiring at all.
+- Windows single-exe: alongside the zip, the pipeline packs the whole runtime (dlls, schemas, icons, themes) into one self-contained `nemo-anywhere.exe` with Enigma Virtual Box - an in-memory virtual file system, nothing extracted at run time. We decided this is the flagship Windows artifact: no library folder, no launcher, just an exe to copy anywhere.
+	- The pack source is the same flat prefix layout the zip contract uses (exe + dlls at the root, `lib/` `share/` `etc/` beside them); GLib-stack libraries resolve their data relative to their own dll, so that tree also runs unpacked with a bare double-click.
+	- Known trade-off: virtualizer-packed exes are occasionally false-flagged by antivirus; the plain zip stays available as the fallback artifact.
+- Build matrix: Linux x86_64 today (container). Windows (MSYS2/MinGW-w64) is the first cross target and is Phase 2; ARM and others follow. macOS/BSD deferred.

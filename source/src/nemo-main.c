@@ -33,11 +33,14 @@
 #include "nemo-main-application.h"
 
 #include <libnemo-private/nemo-debug.h>
+#include <libnemo-private/nemo-metadata-store.h>
 #include <eel/eel-debug.h>
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#ifdef G_OS_UNIX
 #include <gio/gdesktopappinfo.h>
+#endif
 
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
@@ -74,11 +77,20 @@ main (int argc, char *argv[])
 #endif
 
 	/* This will be done by gtk+ later, but for now, force it to GNOME */
+#ifdef G_OS_UNIX
 	g_desktop_app_info_set_desktop_env ("GNOME");
+#endif
 
 	if (g_getenv ("NEMO_DEBUG") != NULL) {
 		eel_make_warnings_and_criticals_stop_in_debugger ();
 	}
+
+#ifdef G_OS_WIN32
+	/* Freetype's default v40 interpreter hints lighter/thinner than native
+	 * Windows text; v35 is the classic grid-fitted GDI/ClearType look.
+	 * Must land before pango/freetype spin up; a user-set env still wins. */
+	g_setenv ("FREETYPE_PROPERTIES", "truetype:interpreter-version=35", FALSE);
+#endif
 	
 	/* Initialize gettext support */
 	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
@@ -101,6 +113,9 @@ main (int argc, char *argv[])
 
 	retval = g_application_run (G_APPLICATION (application),
 				    argc, argv);
+
+	/* don't lose a metadata save still sitting in its debounce window */
+	nemo_metadata_store_flush ();
 
 	g_object_unref (application);
 

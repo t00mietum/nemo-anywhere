@@ -889,6 +889,7 @@ nemo_drag_drop_action_ask (GtkWidget *widget,
 				      (actions & GDK_ACTION_COPY) != 0,
 				      &damd);
 	
+	/* Windows creates a .lnk shortcut here (no POSIX symlink needed). */
 	append_drop_action_menu_item (menu, _("_Link Here"),
 				      GDK_ACTION_LINK,
 				      (actions & GDK_ACTION_LINK) != 0,

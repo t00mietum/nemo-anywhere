@@ -1,7 +1,7 @@
 # Meson build file
 
 # https://github.com/linuxmint/nemo
-project('nemo-anywhere', 'c', version : '6.6.4', meson_version : '>=0.56.0')
+project('nemo-anywhere', 'c', version : '1.0.0-beta1', meson_version : '>=0.56.0')
 
 # Install slug: co-install alongside upstream Nemo without file/bus/schema clashes.
 appSlug = 'nemo-anywhere'
@@ -69,22 +69,35 @@ endif
 # Find dependencies
 
 glib_version = '>=2.45.7'
+is_windows = host_machine.system() == 'windows'
 
 math    = cc.find_library('m', required: true)
 
 gtk     = dependency('gtk+-3.0',                    version: '>=3.10.0')
 gio     = dependency('gio-2.0',                     version: glib_version)
-gio_unix= dependency('gio-unix-2.0',                version: glib_version)
 glib    = dependency('glib-2.0',                    version: glib_version)
 gmodule = dependency('gmodule-no-export-2.0',       version: glib_version)
 gobject = dependency('gobject-2.0',                 version: '>=2.0')
-go_intr = dependency('gobject-introspection-1.0',   version: '>=1.0')
 json    = dependency('json-glib-1.0',               version: '>=1.6')
 
-cinnamon= dependency('cinnamon-desktop',            version: '>=4.8.0')
 gail    = dependency('gail-3.0')
-x11     = dependency('x11')
-xapp    = dependency('xapp',                        version: '>=2.0.0')
+
+# Unix/X11-only deps, absent from the Windows (mingw) sysroot. Empty placeholders on
+# Windows keep the downstream dependency lists intact; the C code guards the actual
+# API use with #ifdef (GDK_WINDOWING_X11, G_OS_UNIX).
+if is_windows
+  gio_unix = declare_dependency()
+  x11      = declare_dependency()
+  go_intr  = declare_dependency()
+  # shell/COM libs for the Recycle Bin trash backend, mpr for network enumeration,
+  # advapi32 for the registry (system light/dark theme follow)
+  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lmpr', '-ladvapi32'])
+else
+  gio_unix = dependency('gio-unix-2.0',              version: glib_version)
+  x11      = dependency('x11')
+  go_intr  = dependency('gobject-introspection-1.0', version: '>=1.0')
+  win_shell = declare_dependency()
+endif
 
 # Facultative dependencies
 

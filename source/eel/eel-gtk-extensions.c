@@ -34,8 +34,11 @@
 #include "eel-gdk-extensions.h"
 #include "eel-string.h"
 
+#ifdef GDK_WINDOWING_X11
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <gdk/gdkx.h>
+#endif
 #include <gdk/gdk.h>
 #include <gdk/gdkprivate.h>
 #ifdef GDK_WINDOWING_WAYLAND
@@ -370,11 +373,12 @@ eel_gtk_message_dialog_set_details_label (GtkMessageDialog *dialog,
 	gtk_widget_show (expander);
 }
 
-XID
+gulong
 eel_gtk_get_window_xid (GtkWindow *window)
 {
     g_return_val_if_fail (GTK_IS_WINDOW (window), 0);
 
+#ifdef GDK_WINDOWING_X11
     if (eel_check_is_wayland ()) {
         g_debug ("eel_gtk_get_window_xid: called on Wayland, returning 0");
         return 0;
@@ -384,6 +388,9 @@ eel_gtk_get_window_xid (GtkWindow *window)
     g_return_val_if_fail (GDK_IS_X11_WINDOW (gdkw), 0);
 
     return gdk_x11_window_get_xid (gdkw);
+#else
+    return 0;
+#endif
 }
 
 gboolean

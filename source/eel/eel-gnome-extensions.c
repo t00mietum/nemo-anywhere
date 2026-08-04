@@ -60,6 +60,20 @@ static const struct {
     { "xterm", "-e", TRUE },
 };
 
+/* Real DE terminal schema if the session has it, else our bundled compat copy. */
+static GSettings *
+terminal_settings_new (void)
+{
+    GSettingsSchemaSource *source = g_settings_schema_source_get_default ();
+    GSettingsSchema *schema = source ? g_settings_schema_source_lookup (source, "org.cinnamon.desktop.default-applications.terminal", TRUE) : NULL;
+
+    if (schema != NULL) {
+        g_settings_schema_unref (schema);
+        return g_settings_new ("org.cinnamon.desktop.default-applications.terminal");
+    }
+    return g_settings_new ("org.nemo-anywhere.compat.terminal");
+}
+
 static char *
 prepend_terminal_to_command_line (const char *command_line)
 {
@@ -72,7 +86,7 @@ prepend_terminal_to_command_line (const char *command_line)
 
     g_return_val_if_fail (command_line != NULL, g_strdup (command_line));
 
-    settings = g_settings_new ("org.cinnamon.desktop.default-applications.terminal");
+    settings = terminal_settings_new ();
     terminal = g_settings_get_string (settings, "exec");
 
     if (terminal != NULL) {

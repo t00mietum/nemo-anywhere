@@ -36,7 +36,7 @@
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <libxapp/xapp-favorites.h>
+#include <libnemo-private/nemo-favorites.h>
 
 /* turn this on to see messages about each load_directory call: */
 #if 0
@@ -54,6 +54,13 @@
 #endif
 
 #define DIRECTORY_LOAD_ITEMS_PER_CALLBACK 100
+
+#ifdef G_OS_WIN32
+/* Bound on how many unstattable children we'll skip past before giving up on a
+ * folder load (see more_files_callback). Just a paranoia cap - the enumerator
+ * advances past each bad entry, so it terminates at end-of-dir on its own. */
+#define DIRECTORY_LOAD_MAX_SKIP 256
+#endif
 
 /* Keep async. jobs down to this number for all directories. */
 #define MAX_ASYNC_JOBS 10
@@ -91,6 +98,9 @@ struct DirectoryLoadState {
 	GHashTable *load_mime_list_hash;
 	NemoFile *load_directory_file;
 	int load_file_count;
+#ifdef G_OS_WIN32
+	int win_skip_count;
+#endif
 };
 
 struct MimeListState {
@@ -2016,6 +2026,28 @@ more_files_callback (GObject *source_object,
 	}
 
 	if (files == NULL) {
+#ifdef G_OS_WIN32
+		/* Under wine a child we can't stat (a unix symlink, a special dir
+		 * like a btrfs snapshot mount) fails the whole next_files batch with
+		 * G_IO_ERROR_FAILED, even though the enumerator has already advanced
+		 * past it and the rest of the folder lists fine. Skip it and keep
+		 * going instead of aborting the load with an error dialog (which also
+		 * left the busy cursor stuck, since the load never completed). */
+		if (error != NULL && error->domain == G_IO_ERROR &&
+		    error->code == G_IO_ERROR_FAILED &&
+		    state->win_skip_count < DIRECTORY_LOAD_MAX_SKIP) {
+			state->win_skip_count++;
+			g_clear_error (&error);
+			g_file_enumerator_next_files_async (state->enumerator,
+							    DIRECTORY_LOAD_ITEMS_PER_CALLBACK,
+							    G_PRIORITY_DEFAULT,
+							    state->cancellable,
+							    more_files_callback,
+							    state);
+			nemo_directory_unref (directory);
+			return;
+		}
+#endif
 		directory_load_done (directory, error);
 		directory_load_state_free (state);
 	} else {
@@ -3190,7 +3222,39 @@ query_info_callback (GObject *source_object,
 
 	error = NULL;
 	info = g_file_query_info_finish (G_FILE (source_object), res, &error);
-	
+
+#ifdef G_OS_WIN32
+	/* Under wine, GLib's win32 stat fails with G_IO_ERROR_FAILED on paths
+	 * that are really unix symlinks - the drives mapped to unix (Z: -> /,
+	 * mounts) and the profile's XDG folders (Desktop, Documents, ...) - even
+	 * though the folder enumerates fine. Left alone this reports a perfectly
+	 * browsable location as broken (error dialog, load never completes, busy
+	 * cursor stuck on). If we can open it, synthesize directory info so the
+	 * load proceeds; the children come from enumeration, which works. */
+	if (info == NULL && error != NULL &&
+	    error->domain == G_IO_ERROR && error->code == G_IO_ERROR_FAILED) {
+		GFile *loc = G_FILE (source_object);
+		GFileEnumerator *en = g_file_enumerate_children (loc, G_FILE_ATTRIBUTE_STANDARD_NAME,
+								 G_FILE_QUERY_INFO_NONE, NULL, NULL);
+		if (en != NULL) {
+			char *bname = g_file_get_basename (loc);
+
+			g_file_enumerator_close (en, NULL, NULL);
+			g_object_unref (en);
+
+			info = g_file_info_new ();
+			g_file_info_set_file_type (info, G_FILE_TYPE_DIRECTORY);
+			g_file_info_set_content_type (info, "inode/directory");
+			if (bname != NULL) {
+				g_file_info_set_name (info, bname);
+				g_file_info_set_display_name (info, bname);
+			}
+			g_free (bname);
+			g_clear_error (&error);
+		}
+	}
+#endif
+
 	if (info == NULL) {
 		if (error->domain == G_IO_ERROR && error->code == G_IO_ERROR_NOT_FOUND) {
 			/* mark file as gone */
@@ -3317,7 +3381,7 @@ favorite_check_callback (gpointer user_data)
     gboolean is_favorite;
 
     uri = nemo_file_get_uri (favorite_check_file);
-    is_favorite = xapp_favorites_find_by_uri (xapp_favorites_get_default (), uri) != NULL;
+    is_favorite = nemo_favorites_find_by_uri (nemo_favorites_get_default (), uri) != NULL;
 
     favorite_check_file->details->favorite_checked = TRUE;
 

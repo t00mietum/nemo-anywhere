@@ -27,7 +27,6 @@
 #include "nemo-window-slot.h"
 
 #include "nemo-actions.h"
-#include "nemo-desktop-window.h"
 #include "nemo-floating-bar.h"
 #include "nemo-window-private.h"
 #include "nemo-window-manage-views.h"
@@ -285,7 +284,7 @@ create_nsr_box (void)
 
     box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
 
-    widget = gtk_image_new_from_icon_name ("xsi-search-symbolic", GTK_ICON_SIZE_DIALOG);
+    widget = gtk_image_new_from_icon_name ("system-search-symbolic", GTK_ICON_SIZE_DIALOG);
     gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
     widget = gtk_label_new (_("No files found"));

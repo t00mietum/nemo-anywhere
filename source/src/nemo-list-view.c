@@ -1436,6 +1436,7 @@ row_collapsed_callback (GtkTreeView *treeview, GtkTreeIter *iter, GtkTreePath *p
 	g_timeout_add_seconds (COLLAPSE_TO_UNLOAD_DELAY,
 			       unload_file_timeout,
 			       unload_data);
+	/* cppcheck-suppress memleak - unload_file_timeout frees it */
 }
 
 static void
@@ -2441,80 +2442,6 @@ on_size_allocation_changed (GtkWidget    *widget,
 }
 
 static void
-update_date_fonts (NemoListView *view)
-{
-    g_return_if_fail (NEMO_IS_LIST_VIEW (view));
-    NemoDateFontChoice mono_pref;
-    gchar *font_name;
-    PangoStyle date_style;
-    gchar *date_name = NULL;
-    gchar *date_family = NULL;
-
-    GtkSettings *settings = gtk_settings_get_default ();
-    g_object_get (settings, "gtk-font-name", &font_name, NULL);
-
-    mono_pref = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FONT_CHOICE);
-
-    if (g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FORMAT) == NEMO_DATE_FORMAT_INFORMAL ||
-        mono_pref == NEMO_DATE_FONT_CHOICE_NONE ||
-        g_strstr_len (font_name, -1, "Mono")) {
-        date_name = g_strdup (font_name);
-    } else {
-        if (mono_pref == NEMO_DATE_FONT_CHOICE_AUTO) {
-            PangoFontDescription *font_desc = pango_font_description_from_string (font_name);
-            const gchar *current_font_family = pango_font_description_get_family (font_desc);
-
-            if (current_font_family != NULL) {
-                date_family = nemo_global_preferences_get_mono_font_family_match (current_font_family);
-            } else {
-                g_warning ("No font family name set, not using monospace for date columns");
-                date_family = NULL;
-            }
-
-            date_style = pango_font_description_get_style (font_desc);
-
-            pango_font_description_free (font_desc);
-        } else {
-            date_name = nemo_global_preferences_get_mono_system_font ();
-        }
-    }
-
-    GList *combined = g_list_copy (view->details->cells);
-    combined = g_list_prepend (combined, view->details->file_name_cell);
-    GList *l;
-
-    for (l = combined; l != NULL; l = l->next) {
-        GtkCellRenderer *cell = GTK_CELL_RENDERER (l->data);
-        const gchar *column_id = g_object_get_data (G_OBJECT (cell), "column-id");
-
-        if (g_str_has_prefix (column_id, "date_")) {
-            if (date_family) {
-                g_object_set (GTK_CELL_RENDERER_TEXT (cell),
-                              "family", date_family,
-                              "style", date_style,
-                              NULL);
-            } else {
-                g_object_set (GTK_CELL_RENDERER_TEXT (cell),
-                              "font", date_name,
-                              NULL);
-            }
-        }
-        else {
-            g_object_set (GTK_CELL_RENDERER_TEXT (cell),
-                          "font", font_name,
-                          NULL);
-        }
-    }
-
-    gtk_widget_queue_draw (GTK_WIDGET (view->details->tree_view));
-
-    g_list_free (combined);
-    g_free (font_name);
-    g_free (date_family);
-    g_free (date_name);
-}
-
-static void
 create_and_set_up_tree_view (NemoListView *view)
 {
 	GtkCellRenderer *cell;
@@ -2699,10 +2626,14 @@ create_and_set_up_tree_view (NemoListView *view)
 
 			cell = gtk_cell_renderer_text_new ();
 			view->details->file_name_cell = (GtkCellRendererText *)cell;
+            /* No width-chars here on purpose: it would set a ~40-char minimum on the
+             * cell, which the column can never shrink below. Name is the expanding
+             * column, so it has to be able to give space back when the window narrows -
+             * otherwise the trailing columns get pushed off instead. The floor is the
+             * column's own min-width above; ellipsizing takes care of long names. */
             g_object_set (cell,
                           "xpad", 5,
                           "ellipsize", PANGO_ELLIPSIZE_END,
-                          "width-chars", 40,
                           NULL);
 
             g_object_set_data_full (G_OBJECT (cell),
@@ -2764,11 +2695,6 @@ create_and_set_up_tree_view (NemoListView *view)
 		g_free (label);
 	}
 
-    update_date_fonts (view);
-    GtkSettings *gtk_settings = gtk_settings_get_default ();
-    g_signal_connect_swapped (gtk_settings, "notify::gtk-font-name", G_CALLBACK (update_date_fonts), view);
-    g_signal_connect_swapped (nemo_preferences, "changed::" NEMO_PREFERENCES_DATE_FONT_CHOICE, G_CALLBACK (update_date_fonts), view);
-    g_signal_connect_swapped (gnome_interface_preferences, "changed::" NEMO_PREFERENCES_MONO_FONT_NAME, G_CALLBACK (update_date_fonts), view);
 	nemo_column_list_free (nemo_columns);
 
 	default_visible_columns = g_settings_get_strv (nemo_list_view_preferences,
@@ -4049,6 +3975,16 @@ default_zoom_level_changed_callback (gpointer callback_data)
 
 	list_view = NEMO_LIST_VIEW (callback_data);
 
+	/* Setting a new default is an instruction about the folder in front of you,
+	 * so let go of whatever zoom that folder had pinned and take the default.
+	 */
+	if (nemo_global_preferences_get_ignore_view_metadata ()) {
+		nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), -1);
+	} else {
+		nemo_file_set_metadata (nemo_view_get_directory_as_file (NEMO_VIEW (list_view)),
+					NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, NULL, NULL);
+	}
+
 	set_zoom_level_from_metadata_and_preferences (list_view);
 }
 
@@ -4117,9 +4053,6 @@ nemo_list_view_dispose (GObject *object)
 	NemoListView *list_view;
 
 	list_view = NEMO_LIST_VIEW (object);
-
-    g_signal_handlers_disconnect_by_func (gtk_settings_get_default (), update_date_fonts, list_view);
-    g_signal_handlers_disconnect_by_func (nemo_preferences, update_date_fonts, list_view);
 
 	if (list_view->details->model) {
 		stop_cell_editing (list_view);

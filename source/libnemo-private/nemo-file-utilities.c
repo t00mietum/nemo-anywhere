@@ -24,6 +24,7 @@
 
 #include <config.h>
 #include "nemo-file-utilities.h"
+#include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-global-preferences.h"
 #include "nemo-lib-self-check-functions.h"
@@ -1555,10 +1556,10 @@ get_best_name (GtkIconTheme *icon_theme,
 
         if (g_strcmp0 (type_name, "volume") == 0 ||
             g_strcmp0 (type_name, "drive") == 0) {
-            icon_name = g_strdup ("xsi-drive-removable-media-symbolic");
+            icon_name = g_strdup ("drive-removable-media-symbolic");
         }
         else {
-            icon_name = g_strdup ("xsi-drive-harddisk-symbolic");
+            icon_name = g_strdup ("drive-harddisk-symbolic");
         }
     }
 
@@ -1674,6 +1675,13 @@ nemo_get_best_guess_file_mimetype (const gchar *filename,
     g_return_val_if_fail (info != NULL, g_strdup ("application/octet-stream"));
 
     gchar *mime_type = NULL;
+
+    /* A directory's type is always inode/directory - never guess it from the
+     * name. On Windows dirs can report size 0, which otherwise dropped them into
+     * the zero-length name-guess path below and mislabelled folders. */
+    if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
+        return g_strdup ("inode/directory");
+    }
 
     if (size > 0) {
         /* Default behavior */

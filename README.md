@@ -7,7 +7,8 @@
 
 ![Made with](https://img.shields.io/badge/Made%20with-C-1f425f.svg)
 ![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)
-![Lifecycle](https://img.shields.io/badge/Lifecycle-Alpha-orange)
+![Release](https://img.shields.io/badge/Release-1.0.0--beta1-orange.svg)
+![Lifecycle](https://img.shields.io/badge/Lifecycle-Beta-yellow)
 ![Support](https://img.shields.io/badge/Support-Maintained-brightgreen)
 
 </div>
@@ -42,8 +43,10 @@ Nemo, freed from its desktop. A great file manager should run anywhere. This one
 - [Existing features](#existing-features)
 - [What this fork adds or enhances](#what-this-fork-adds-or-enhances)
 - [Status](#status)
-- [Installing](#installing)
+- [Installation](#installation)
+	- [Direct](#direct)
 - [Building from source](#building-from-source)
+- [Longer-term roadmap](#longer-term-roadmap)
 - [Copyright and license](#copyright-and-license)
 
 <!-- /TOC -->
@@ -56,11 +59,13 @@ There is one catch. It belongs to the Cinnamon desktop. If you run anything else
 
 This project cuts the strings:
 
-- Take Nemo as-is, from the source.
+- It takes Nemo as-is, from the source.
 
-- Remove every assumption that says "you are running Cinnamon" or even "you are running Linux".
+- Removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
 
-- Ship it everywhere.
+- Removes the heavy desktop integration. Your existing manager is untounched - which can even be original Nemo, they don't conflict. (This is also a big step towards OS portability.)
+
+- Shippable everywhere. (At least, desktop OSes.)
 
 That means, in order:
 
@@ -124,13 +129,48 @@ Early bring-up. The fork is established and the Linux baseline builds and runs. 
 
 - Design and reasoning: [project/design.md](project/design.md)
 
-## Installing
+## Installation
 
-No releases yet. When per-platform installers exist, they will land on the releases page with the GTK runtime bundled - no hunting for dependencies.
+The installer is the primary way to get Nemo Anywhere, on every platform. One command, and the release it fetches ships with the GTK runtime bundled - no hunting for dependencies. Building from source is for working on it, not for using it.
+
+No releases yet, so nothing to install today. The installers below are ready and waiting for the first one.
+
+### Direct
+
+One command. It downloads the latest release, verifies its checksum, tells you exactly what it is about to do, and waits for a yes.
+
+Linux, BSD, macOS, WSL:
+
+~~~bash
+bash <(curl -fsSL https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.bash)  [--release dev|stable]  [--target user|system]  [--arch x64|amd64|arm64]
+~~~
+
+Windows - or anywhere else with PowerShell 7, since it is a standalone installer in its own right and not a wrapper around the one above:
+
+~~~powershell
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))  [-Release dev|stable]  [-Target user|system]  [-Arch x64|amd64|arm64]
+~~~
+
+Add `--uninstall` (or `-Uninstall`) to reverse it. Reinstalling over an existing copy is fine - it replaces it.
+
+Where it lands:
+
+| OS      | User install (default)              | ￩ Launcher                                                | (or) System install     | ￩ Launcher
+| :---    | :---                                | :---                                                      | :---                    | :---
+| Linux   | ~/.local/share/nemo-anywhere/       | ~/.local/share/applications/ + ~/.local/bin/nemo-anywhere | /opt/nemo-anywhere/     | /usr/local/share/applications/ + /usr/local/bin/nemo-anywhere
+| BSD     | ~/.local/share/nemo-anywhere/       | ~/.local/share/applications/ + ~/.local/bin/nemo-anywhere | /usr/local/nemo-anywhere/ | /usr/local/share/applications/ + /usr/local/bin/nemo-anywhere
+| Windows | %LOCALAPPDATA%\Programs\Nemo Anywhere\ | Start Menu shortcut + a PATH entry                     | C:\Program Files\Nemo Anywhere\ | Start Menu shortcut + a PATH entry
+| macOS   | *pending a macOS build*             |                                                           |                         |
+
+Settings live in `~/.config/nemo-anywhere` (`%APPDATA%\nemo-anywhere` on Windows) and are left alone by an uninstall.
 
 ## Building from source
 
 Right now this builds like upstream Nemo: meson and ninja on a Linux box with the GTK3 development stack. Stock Debian 13 packages are a known-good baseline. See [project/design.md](project/design.md) for the package list and steps.
+
+## Longer-term roadmap
+
+For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt). That's what the sister project [Captain Nemo](https://github.com/t00mietum/captain-nemo) is for, once this project reaches v1.0.0 stable.
 
 ## Copyright and license
 

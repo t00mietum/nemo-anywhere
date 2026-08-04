@@ -34,7 +34,6 @@
 #include "nemo-actions.h"
 #include "nemo-application.h"
 #include "nemo-bookmarks-window.h"
-#include "nemo-desktop-window.h"
 #include "nemo-location-bar.h"
 #include "nemo-mime-actions.h"
 #include "nemo-notebook.h"
@@ -55,7 +54,9 @@
 #include <eel/eel-vfs-extensions.h>
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -91,6 +92,8 @@ static void side_pane_id_changed                    (NemoWindow            *wind
 static void toggle_menubar                          (NemoWindow            *window,
                                                      gint                   action);
 static void nemo_window_reload                      (NemoWindow            *window);
+static void cancel_pending_geometry_save            (NemoWindow            *window);
+static void default_folder_viewer_changed           (NemoWindow            *window);
 
 /* Sanity check: highest mouse button value I could find was 14. 5 is our
  * lower threshold (well-documented to be the one of the button events for the
@@ -263,7 +266,16 @@ update_cursor (NemoWindow *window)
                 gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), cursor);
 		g_object_unref (cursor);
 	} else {
+#ifdef G_OS_WIN32
+		/* Reset to the arrow explicitly rather than clearing to NULL, so
+		 * the busy cursor can't linger if the win32 backend doesn't fall
+		 * back to the default on its own. */
+		cursor = gdk_cursor_new (GDK_LEFT_PTR);
+		gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), cursor);
+		g_object_unref (cursor);
+#else
                 gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), NULL);
+#endif
         }
 }
 
@@ -309,15 +321,13 @@ nemo_window_prompt_for_location (NemoWindow *window,
 
     g_return_if_fail (NEMO_IS_WINDOW (window));
 
-    if (!NEMO_IS_DESKTOP_WINDOW (window)) {
-        if (initial) {
-            NemoEntry *entry;
-            nemo_window_show_location_entry(window);
-            pane = window->details->active_pane;
-            entry = nemo_location_bar_get_entry (NEMO_LOCATION_BAR (pane->location_bar));
-            nemo_entry_set_text (entry, initial);
-            gtk_editable_set_position (GTK_EDITABLE (entry), -1);
-        }
+    if (initial) {
+        NemoEntry *entry;
+        nemo_window_show_location_entry(window);
+        pane = window->details->active_pane;
+        entry = nemo_location_bar_get_entry (NEMO_LOCATION_BAR (pane->location_bar));
+        nemo_entry_set_text (entry, initial);
+        gtk_editable_set_position (GTK_EDITABLE (entry), -1);
     }
 }
 
@@ -864,8 +874,13 @@ nemo_window_finalize (GObject *object)
 		window->details->sidebar_width_handler_id = 0;
 	}
 
+	cancel_pending_geometry_save (window);
+
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                                           nemo_window_sync_thumbnail_action,
+                                          window);
+    g_signal_handlers_disconnect_by_func (nemo_preferences,
+                                          default_folder_viewer_changed,
                                           window);
 
     clear_menu_hide_delay (window);
@@ -978,6 +993,51 @@ nemo_window_save_geometry (NemoWindow *window)
 			(nemo_window_state, NEMO_WINDOW_STATE_MAXIMIZED,
 			 is_maximized);
 	}
+}
+
+static gboolean
+save_geometry_cb (gpointer user_data)
+{
+	NemoWindow *window = user_data;
+
+	window->details->geometry_handler_id = 0;
+
+	nemo_window_save_geometry (window);
+
+	return FALSE;
+}
+
+static void
+cancel_pending_geometry_save (NemoWindow *window)
+{
+	if (window->details->geometry_handler_id != 0) {
+		g_source_remove (window->details->geometry_handler_id);
+		window->details->geometry_handler_id = 0;
+	}
+}
+
+/* Geometry used to be written only on a clean close, so anything that killed the
+ * process - a crash, or a launcher replacing the running copy - lost it. Save on
+ * a settled move/resize instead, debounced so a drag writes once at the end.
+ */
+static gboolean
+nemo_window_configure_event (GtkWidget         *widget,
+			     GdkEventConfigure *event)
+{
+	NemoWindow *window = NEMO_WINDOW (widget);
+
+	if (gtk_widget_get_mapped (widget)) {
+		cancel_pending_geometry_save (window);
+
+		window->details->geometry_handler_id =
+			g_timeout_add (500, save_geometry_cb, window);
+	}
+
+	if (GTK_WIDGET_CLASS (nemo_window_parent_class)->configure_event != NULL) {
+		return GTK_WIDGET_CLASS (nemo_window_parent_class)->configure_event (widget, event);
+	}
+
+	return FALSE;
 }
 
 void
@@ -1960,6 +2020,38 @@ use_extra_mouse_buttons_changed (gpointer callback_data)
 	mouse_extra_buttons = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS);
 }
 
+/* Open folders used to keep the view they were built with, so a new default only
+ * showed up somewhere else. Switch what is already on screen instead.
+ */
+static void
+default_folder_viewer_changed (NemoWindow *window)
+{
+	GList *l, *walk;
+	gchar *view_id;
+
+	view_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
+
+	if (view_id == NULL) {
+		return;
+	}
+
+	for (walk = window->details->panes; walk; walk = walk->next) {
+		NemoWindowPane *pane = walk->data;
+
+		for (l = pane->slots; l != NULL; l = l->next) {
+			NemoWindowSlot *slot = l->data;
+
+			if (slot->location == NULL) {
+				continue;
+			}
+
+			nemo_window_slot_set_content_view (slot, view_id);
+		}
+	}
+
+	g_free (view_id);
+}
+
 
 /*
  * Main API
@@ -2013,6 +2105,10 @@ nemo_window_init (NemoWindow *window)
 				  "changed::" NEMO_PREFERENCES_INHERIT_SHOW_THUMBNAILS,
 				  G_CALLBACK(nemo_window_sync_thumbnail_action),
 				  window);
+    g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER,
+				  G_CALLBACK(default_folder_viewer_changed),
+				  window);
 }
 
 static NemoIconInfo *
@@ -2030,6 +2126,7 @@ real_window_close (NemoWindow *window)
 {
 	g_return_if_fail (NEMO_IS_WINDOW (window));
 
+	cancel_pending_geometry_save (window);
 	nemo_window_save_geometry (window);
 
 	gtk_widget_destroy (GTK_WIDGET (window));
@@ -2053,6 +2150,7 @@ nemo_window_class_init (NemoWindowClass *class)
 	wclass->key_press_event = nemo_window_key_press_event;
     wclass->key_release_event = nemo_window_key_release_event;
 	wclass->window_state_event = nemo_window_state_event;
+	wclass->configure_event = nemo_window_configure_event;
 	wclass->button_press_event = nemo_window_button_press_event;
 	wclass->delete_event = nemo_window_delete_event;
 
@@ -2291,13 +2389,11 @@ void
 nemo_window_set_show_sidebar (NemoWindow *window,
                               gboolean show)
 {
-    if (!NEMO_IS_DESKTOP_WINDOW (window)) {
-        window->details->show_sidebar = show;
+    window->details->show_sidebar = show;
 
-        g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
+    g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
 
-        g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
-    }
+    g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
 }
 
 gboolean

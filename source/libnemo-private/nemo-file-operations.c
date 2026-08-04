@@ -38,6 +38,7 @@
 #include <errno.h>
 
 #include "nemo-file-operations.h"
+#include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-file-changes-queue.h"
 #include "nemo-lib-self-check-functions.h"
@@ -55,12 +56,10 @@
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 #include <glib.h>
-#include <libxapp/xapp-favorites.h>
+#include <libnemo-private/nemo-favorites.h>
 
 #include "nemo-file-changes-queue.h"
 #include "nemo-file-private.h"
-#include "nemo-desktop-icon-file.h"
-#include "nemo-desktop-link-monitor.h"
 #include "nemo-global-preferences.h"
 #include "nemo-link.h"
 #include "nemo-desktop-utils.h"
@@ -70,6 +69,7 @@
 #include "nemo-file-undo-operations.h"
 #include "nemo-file-undo-manager.h"
 #include "nemo-job-queue.h"
+#include "nemo-shortcut-win32.h"
 
 /* TODO: TESTING!!! */
 
@@ -1891,7 +1891,7 @@ delete_dir (CommonJob *job, GFile *dir,
 		} else {
             gchar *uri = g_file_get_uri (dir);
             if (!eel_uri_is_favorite (uri)) {
-                xapp_favorites_remove (xapp_favorites_get_default (), uri);
+                nemo_favorites_remove (nemo_favorites_get_default (), uri);
             }
             g_free (uri);
 
@@ -1930,7 +1930,7 @@ delete_file (CommonJob *job, GFile *file,
         // in its native location, otherwise FavoriteVfsFile->file_delete will have
         // already removed it. This is the same with delete_dir and trash_file
         if (!eel_uri_is_favorite (uri)) {
-            xapp_favorites_remove (xapp_favorites_get_default (), uri);
+            nemo_favorites_remove (nemo_favorites_get_default (), uri);
         }
 
         g_free (uri);
@@ -2127,8 +2127,8 @@ trash_files (CommonJob *job, GList *files, guint *files_skipped)
 		} else {
             gchar *uri = g_file_get_uri (file);
             if (!eel_uri_is_favorite (uri)) {
-                XAppFavorites *favorites = xapp_favorites_get_default ();
-                xapp_favorites_remove (favorites, uri);
+                NemoFavorites *favorites = nemo_favorites_get_default ();
+                nemo_favorites_remove (favorites, uri);
 
                 // move-to-trash doesn't recurse, it just trashes the toplevel, and
                 // the recent backend (gvfs) takes care of the rest. If we trash a folder
@@ -2138,21 +2138,21 @@ trash_files (CommonJob *job, GList *files, guint *files_skipped)
 
                 GList *to_remove, *infos, *iter;
 
-                infos = xapp_favorites_get_favorites (favorites, NULL);
+                infos = nemo_favorites_get_favorites (favorites, NULL);
                 to_remove = NULL;
 
                 for (iter = infos; iter != NULL; iter = iter->next) {
-                    XAppFavoriteInfo *info = (XAppFavoriteInfo *) iter->data;
+                    NemoFavoriteInfo *info = (NemoFavoriteInfo *) iter->data;
 
                     if (info->uri && g_str_has_prefix (info->uri, uri)) {
                         to_remove = g_list_prepend (to_remove, g_strdup (info->uri));
                     }
                 }
 
-                g_list_free_full (infos, (GDestroyNotify) xapp_favorite_info_free);
+                g_list_free_full (infos, (GDestroyNotify) nemo_favorite_info_free);
 
                 for (iter = to_remove; iter != NULL; iter = iter->next) {
-                    xapp_favorites_remove (favorites, (const gchar *) iter->data);
+                    nemo_favorites_remove (favorites, (const gchar *) iter->data);
                 }
 
                 g_list_free_full (to_remove, g_free);
@@ -3398,8 +3398,14 @@ get_max_name_length (GFile *file_dir)
 	if (!dir)
 		return max_length;
 
+#ifdef G_OS_UNIX
 	max_path = pathconf (dir, _PC_PATH_MAX);
 	max_name = pathconf (dir, _PC_NAME_MAX);
+#else
+	/* No pathconf on Windows; use conservative NTFS component limits. */
+	max_path = 260;
+	max_name = 255;
+#endif
 
 	if (max_name == -1 && max_path == -1) {
 		max_length = -1;
@@ -4586,7 +4592,7 @@ copy_move_file (CopyMoveJob *copy_job,
             gchar *dest_uri = g_file_get_uri (dest);
 
             if (!eel_uri_is_favorite (src_uri)) {
-                xapp_favorites_rename (xapp_favorites_get_default (), src_uri, dest_uri);
+                nemo_favorites_rename (nemo_favorites_get_default (), src_uri, dest_uri);
             }
 
             g_free (src_uri);
@@ -5263,7 +5269,7 @@ move_file_prepare (CopyMoveJob *move_job,
         gchar *dest_uri = g_file_get_uri (dest);
 
         if (!eel_uri_is_favorite (src_uri)) {
-            xapp_favorites_rename (xapp_favorites_get_default (), src_uri, dest_uri);
+            nemo_favorites_rename (nemo_favorites_get_default (), src_uri, dest_uri);
         }
 
         g_free (src_uri);
@@ -5725,6 +5731,45 @@ get_abs_path_for_symlink (GFile *file)
 }
 
 
+#ifdef G_OS_WIN32
+/* Windows has no POSIX symlinks in the file layer; a "link" is a .lnk shell
+ * shortcut. Rewrite *dest to carry the required .lnk extension, then save the
+ * shortcut pointing at target_path. On success *dest owns the .lnk GFile. */
+static gboolean
+win_create_lnk (GFile **dest, const char *target_path, GError **error)
+{
+	GFile *dir, *lnk;
+	char *base, *lnk_base, *lnk_path;
+	gboolean ok;
+
+	base = g_file_get_basename (*dest);
+	if (g_str_has_suffix (base, ".lnk")) {
+		lnk_base = g_strdup (base);
+	} else {
+		lnk_base = g_strconcat (base, ".lnk", NULL);
+	}
+	g_free (base);
+
+	dir = g_file_get_parent (*dest);
+	lnk = g_file_get_child (dir, lnk_base);
+	g_object_unref (dir);
+	g_free (lnk_base);
+
+	lnk_path = g_file_get_path (lnk);
+	ok = (lnk_path != NULL) &&
+	     nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+	g_free (lnk_path);
+
+	if (ok) {
+		g_object_unref (*dest);
+		*dest = lnk;
+	} else {
+		g_object_unref (lnk);
+	}
+	return ok;
+}
+#endif
+
 static void
 link_file (CopyMoveJob *job,
 	   GFile *src, GFile *dest_dir,
@@ -5768,10 +5813,18 @@ link_file (CopyMoveJob *job,
 	path = get_abs_path_for_symlink (src);
 	if (path == NULL) {
 		not_local = TRUE;
-	} else if (g_file_make_symbolic_link (dest,
+	} else if (
+#ifdef G_OS_WIN32
+		   /* dest is rewritten to a .lnk on success; the bookkeeping below
+		    * then records the shortcut file. */
+		   win_create_lnk (&dest, path, &error)
+#else
+		   g_file_make_symbolic_link (dest,
 					      path,
 					      common->cancellable,
-					      &error)) {
+					      &error)
+#endif
+		  ) {
 
 		if (common->undo_info != NULL) {
 			nemo_file_undo_info_ext_add_origin_target_pair (NEMO_FILE_UNDO_INFO_EXT (common->undo_info),

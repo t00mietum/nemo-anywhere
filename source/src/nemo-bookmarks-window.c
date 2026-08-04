@@ -35,6 +35,7 @@
 
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-gnome-extensions.h>
+#include <eel/eel-vfs-extensions.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -253,10 +254,10 @@ create_bookmarks_window (NemoBookmarkList *list, GObject *undo_manager_source)
     sort_button = (GtkWidget *)gtk_builder_get_object (builder, "bookmark_sort_button");
 	close_button = (GtkWidget *)gtk_builder_get_object (builder, "bookmark_close_button");
 
-    gtk_button_set_image (GTK_BUTTON (remove_button), gtk_image_new_from_icon_name ("xsi-list-remove-symbolic", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_image (GTK_BUTTON (jump_button), gtk_image_new_from_icon_name ("xsi-go-jump-symbolic", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_image (GTK_BUTTON (sort_button), gtk_image_new_from_icon_name ("xsi-view-sort-ascending-symbolic", GTK_ICON_SIZE_BUTTON));
-    gtk_button_set_image (GTK_BUTTON (close_button), gtk_image_new_from_icon_name ("xsi-window-close-symbolic", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_image (GTK_BUTTON (remove_button), gtk_image_new_from_icon_name ("list-remove-symbolic", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_image (GTK_BUTTON (jump_button), gtk_image_new_from_icon_name ("go-jump-symbolic", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_image (GTK_BUTTON (sort_button), gtk_image_new_from_icon_name ("view-sort-ascending-symbolic", GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_image (GTK_BUTTON (close_button), gtk_image_new_from_icon_name ("window-close-symbolic", GTK_ICON_SIZE_BUTTON));
 
 	set_up_close_accelerator (window);
 	nemo_undo_share_undo_manager (G_OBJECT (window), undo_manager_source);
@@ -784,7 +785,7 @@ update_bookmark_from_text (void)
 			return;
 		}
 
-		location = g_file_parse_name 
+		location = eel_g_file_new_for_user_input
 			(gtk_entry_get_text (GTK_ENTRY (uri_field)));
 		
 		bookmark = nemo_bookmark_new (location,

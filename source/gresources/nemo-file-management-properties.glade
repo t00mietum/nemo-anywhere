@@ -33,62 +33,62 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
   <object class="GtkImage" id="image1">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-go-previous-symbolic</property>
+    <property name="icon-name">go-previous-symbolic</property>
   </object>
   <object class="GtkImage" id="image10">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-edit-find-symbolic</property>
+    <property name="icon-name">edit-find-symbolic</property>
   </object>
   <object class="GtkImage" id="image11">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-view-grid-symbolic</property>
+    <property name="icon-name">view-grid-symbolic</property>
   </object>
   <object class="GtkImage" id="image12">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-view-list-symbolic</property>
+    <property name="icon-name">view-list-symbolic</property>
   </object>
   <object class="GtkImage" id="image13">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-view-compact-symbolic</property>
+    <property name="icon-name">view-continuous-symbolic</property>
   </object>
   <object class="GtkImage" id="image14">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-preview-symbolic</property>
+    <property name="icon-name">image-x-generic-symbolic</property>
   </object>
   <object class="GtkImage" id="image15">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-view-dual-symbolic</property>
+    <property name="icon-name">view-dual-symbolic</property>
   </object>
   <object class="GtkImage" id="image2">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-go-next-symbolic</property>
+    <property name="icon-name">go-next-symbolic</property>
   </object>
   <object class="GtkImage" id="image3">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-go-up-symbolic</property>
+    <property name="icon-name">go-up-symbolic</property>
   </object>
   <object class="GtkImage" id="image4">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-view-refresh-symbolic</property>
+    <property name="icon-name">view-refresh-symbolic</property>
   </object>
   <object class="GtkImage" id="image5">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-computer-symbolic</property>
+    <property name="icon-name">computer-symbolic</property>
   </object>
   <object class="GtkImage" id="image6">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-go-home-symbolic</property>
+    <property name="icon-name">go-home-symbolic</property>
   </object>
   <object class="GtkImage" id="image7">
     <property name="visible">True</property>
@@ -98,29 +98,12 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
   <object class="GtkImage" id="image8">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-utilities-terminal-symbolic</property>
+    <property name="icon-name">utilities-terminal-symbolic</property>
   </object>
   <object class="GtkImage" id="image9">
     <property name="visible">True</property>
     <property name="can-focus">False</property>
-    <property name="icon-name">xsi-folder-new-symbolic</property>
-  </object>
-  <object class="GtkListStore" id="liststore1">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">Matching monospace font</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">System monospace font</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Normal font</col>
-      </row>
-    </data>
+    <property name="icon-name">folder-new-symbolic</property>
   </object>
   <object class="GtkListStore" id="model1">
     <columns>
@@ -393,7 +376,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <child>
-              <object class="XAppStackSidebar">
+              <object class="GtkStackSidebar">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="stack">page_stack</property>
@@ -1024,7 +1007,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   <packing>
                     <property name="name">views</property>
                     <property name="title" translatable="yes">Views</property>
-                    <property name="icon-name">xsi-view-grid-symbolic</property>
+                    <property name="icon-name">view-grid-symbolic</property>
                   </packing>
                 </child>
                 <child>
@@ -1563,22 +1546,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkCheckButton" id="media_autorun_checkbutton">
-                                            <property name="label" translatable="yes">Prompt or autorun/autostart programs when media are inserted</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">2</property>
-                                          </packing>
-                                        </child>
-                                        <child>
                                           <object class="GtkCheckButton" id="close_device_view_on_eject_checkbutton">
                                             <property name="label" translatable="yes">Automatically close the device's tab, pane, or window when a device is unmounted or ejected</property>
                                             <property name="visible">True</property>
@@ -1965,58 +1932,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                     <property name="expand">False</property>
                                     <property name="fill">False</property>
                                     <property name="position">1</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkAlignment" id="alignment10">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="left-padding">40</property>
-                                    <child>
-                                      <object class="GtkBox" id="hbox2">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="spacing">12</property>
-                                        <child>
-                                          <object class="GtkLabel" id="label1">
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">False</property>
-                                            <property name="label" translatable="yes">Style:</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="mnemonic-widget">date_format_combobox</property>
-                                            <property name="xalign">0</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">0</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkComboBox" id="date_font_choice_combobox">
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">False</property>
-                                            <property name="model">liststore1</property>
-                                            <child>
-                                              <object class="GtkCellRendererText" id="renderer6"/>
-                                              <attributes>
-                                                <attribute name="text">0</attribute>
-                                              </attributes>
-                                            </child>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">2</property>
                                   </packing>
                                 </child>
                               </object>
@@ -2412,7 +2327,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   <packing>
                     <property name="name">list-columns</property>
                     <property name="title" translatable="yes">List Columns</property>
-                    <property name="icon-name">xsi-view-list-symbolic</property>
+                    <property name="icon-name">view-list-symbolic</property>
                     <property name="position">3</property>
                   </packing>
                 </child>
@@ -4320,7 +4235,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   <packing>
                     <property name="name">page0</property>
                     <property name="title" translatable="yes">Context Menus</property>
-                    <property name="icon-name">xsi-open-menu-symbolic</property>
+                    <property name="icon-name">open-menu-symbolic</property>
                     <property name="position">6</property>
                   </packing>
                 </child>
@@ -4350,7 +4265,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   <packing>
                     <property name="name">templates</property>
                     <property name="title" translatable="yes">Document Templates</property>
-                    <property name="icon-name">xsi-folder-templates-symbolic</property>
+                    <property name="icon-name">folder-templates-symbolic</property>
                     <property name="position">7</property>
                   </packing>
                 </child>

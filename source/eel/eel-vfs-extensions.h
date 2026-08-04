@@ -30,6 +30,7 @@
 #define EEL_VFS_EXTENSIONS_H
 
 #include <glib.h>
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
@@ -46,6 +47,8 @@ gboolean           eel_uri_is_recent                     (const char           *
 gboolean           eel_uri_is_favorite                   (const char           *uri);
 gboolean           eel_uri_is_network                    (const char           *uri);
 gboolean           eel_vfs_supports_uri_scheme           (const gchar       *scheme);
+
+GFile *            eel_g_file_new_for_user_input         (const char           *text);
 
 char *             eel_make_valid_utf8                   (const char           *name);
 

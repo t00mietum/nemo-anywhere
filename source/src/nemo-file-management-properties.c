@@ -51,7 +51,6 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_ZOOM_WIDGET "list_view_zoom_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SORT_ORDER_WIDGET "sort_order_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET "date_format_combobox"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FONT_CHOICE_WIDGET "date_font_choice_combobox"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET "preview_image_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_FOLDER_WIDGET "preview_folder_combobox"
@@ -95,7 +94,6 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_CLOSE_DEVICE_VIEW_ON_EJECT_WIDGET "close_device_view_on_eject_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOMOUNT_MEDIA_WIDGET "media_automount_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOOPEN_MEDIA_WIDGET "media_autoopen_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_AUTORUN_MEDIA_WIDGET "media_autorun_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DETECT_CONTENT_MEDIA_WIDGET "media_detect_content_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_ADVANCED_PERMISSIONS_WIDGET "show_advanced_permissions_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_START_WITH_DUAL_PANE_WIDGET "start_with_dual_pane_checkbutton"
@@ -160,13 +158,6 @@ static const char * const date_format_values[] = {
 	"iso",
 	"informal",
 	NULL
-};
-
-static const char * const date_font_choice_values[] = {
-    "auto-mono",
-    "system-mono",
-    "no-mono",
-    NULL
 };
 
 static const char * const preview_image_values[] = {
@@ -837,25 +828,6 @@ on_dialog_destroy (GtkWidget *widget,
 }
 
 static void
-on_date_format_combo_changed (GtkComboBox *widget,
-                              gpointer     user_data)
-{
-    GtkBuilder *builder = GTK_BUILDER (user_data);
-    gint active = gtk_combo_box_get_active (widget);
-
-    switch (active) {
-        case NEMO_DATE_FORMAT_LOCALE:
-        case NEMO_DATE_FORMAT_ISO:
-            gtk_widget_set_sensitive (GTK_WIDGET (gtk_builder_get_object (builder, NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FONT_CHOICE_WIDGET)), TRUE);
-            break;
-        case NEMO_DATE_FORMAT_INFORMAL:
-        default:
-            gtk_widget_set_sensitive (GTK_WIDGET (gtk_builder_get_object (builder, NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FONT_CHOICE_WIDGET)), FALSE);
-            break;
-    }
-}
-
-static void
 set_gtk_filechooser_sort_first (GObject *object,
 				GParamSpec *pspec)
 {
@@ -1016,10 +988,6 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET,
 			   NEMO_PREFERENCES_DATE_FORMAT,
 			   (const char **) date_format_values);
-    bind_builder_enum (builder, nemo_preferences,
-               NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FONT_CHOICE_WIDGET,
-               NEMO_PREFERENCES_DATE_FONT_CHOICE,
-               (const char **) date_font_choice_values);
 	bind_builder_radio (builder, nemo_preferences,
 			    (const char **) click_behavior_components,
 			    NEMO_PREFERENCES_CLICK_POLICY,
@@ -1042,10 +1010,6 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     bind_builder_bool (builder, gnome_media_handling_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOOPEN_MEDIA_WIDGET,
                GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT_OPEN);
-
-    bind_builder_bool_inverted (builder, gnome_media_handling_preferences,
-               NEMO_FILE_MANAGEMENT_PROPERTIES_AUTORUN_MEDIA_WIDGET,
-               GNOME_DESKTOP_MEDIA_HANDLING_AUTORUN);
 
     bind_builder_bool (builder, nemo_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_DETECT_CONTENT_MEDIA_WIDGET,
@@ -1133,12 +1097,6 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     /* to make checkbox for quickrenames get disabled when single click is selected */ 
     setup_quick_renames(builder);
     connect_quick_renames(builder);
-
-    g_signal_connect (gtk_builder_get_object (builder, NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET), "changed",
-                      G_CALLBACK (on_date_format_combo_changed), builder);
-
-    on_date_format_combo_changed (GTK_COMBO_BOX (gtk_builder_get_object (builder, NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET)),
-                                  builder);
 
 	nemo_file_management_properties_dialog_setup_icon_caption_page (builder);
 	nemo_file_management_properties_dialog_setup_list_column_page (builder);

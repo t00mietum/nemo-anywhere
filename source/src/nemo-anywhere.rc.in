@@ -1,0 +1,35 @@
+/* Windows VERSIONINFO resource (generated from this .in by meson configure_file).
+   Gives the exe real publisher/version metadata - looks legit in Properties, and a
+   blank-metadata binary scores worse with AV heuristics. \251 is the octal escape
+   for the copyright sign, kept so this source stays ASCII. */
+
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+	FILEVERSION     @VER_MAJOR@,@VER_MINOR@,@VER_PATCH@,0
+	PRODUCTVERSION  @VER_MAJOR@,@VER_MINOR@,@VER_PATCH@,0
+	FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+	FILEFLAGS       0x0L
+	FILEOS          VOS__WINDOWS32
+	FILETYPE        VFT_APP
+	FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904b0"
+		BEGIN
+			VALUE "CompanyName",      "t00mietum"
+			VALUE "FileDescription",  "Nemo Anywhere file manager"
+			VALUE "FileVersion",      "@VERSION@"
+			VALUE "InternalName",     "nemo-anywhere"
+			VALUE "LegalCopyright",   "Copyright \251 2026 t00mietum. GPL-2.0-only."
+			VALUE "OriginalFilename", "nemo-anywhere.exe"
+			VALUE "ProductName",      "Nemo Anywhere"
+			VALUE "ProductVersion",   "@VERSION@"
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1200
+	END
+END

@@ -42,7 +42,6 @@
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-thumbnails.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
 
 static void update_layout_constants (NemoIconContainer *container);
 
@@ -164,10 +163,6 @@ nemo_icon_view_grid_container_get_icon_description (NemoIconContainer *container
 	file = NEMO_FILE (data);
 	g_assert (NEMO_IS_FILE (file));
 
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		return NULL;
-	}
-
 	mime_type = nemo_file_get_mime_type (file);
 	description = g_content_type_get_description (mime_type);
 	g_free (mime_type);
@@ -268,10 +263,9 @@ nemo_icon_view_grid_container_get_icon_text (NemoIconContainer *container,
         return;
     }
 
-    if (NEMO_IS_DESKTOP_ICON_FILE (file) ||
-        nemo_file_is_nemo_link (file)) {
-        /* Don't show the normal extra information for desktop icons,
-         * or desktop files, it doesn't make sense. */
+    if (nemo_file_is_nemo_link (file)) {
+        /* Don't show the normal extra information for desktop files,
+         * it doesn't make sense. */
         *additional_text = NULL;
         return;
     }
@@ -327,39 +321,7 @@ typedef enum {
 static SortCategory
 get_sort_category (NemoFile *file)
 {
-	NemoDesktopLink *link;
-	SortCategory category;
-
-	category = SORT_OTHER;
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-		if (link != NULL) {
-			switch (nemo_desktop_link_get_link_type (link)) {
-			case NEMO_DESKTOP_LINK_COMPUTER:
-				category = SORT_COMPUTER_LINK;
-				break;
-			case NEMO_DESKTOP_LINK_HOME:
-				category = SORT_HOME_LINK;
-				break;
-			case NEMO_DESKTOP_LINK_MOUNT:
-				category = SORT_MOUNT_LINK;
-				break;
-			case NEMO_DESKTOP_LINK_TRASH:
-				category = SORT_TRASH_LINK;
-				break;
-			case NEMO_DESKTOP_LINK_NETWORK:
-				category = SORT_NETWORK_LINK;
-				break;
-			default:
-				category = SORT_OTHER;
-				break;
-			}
-			g_object_unref (link);
-		}
-	}
-
-	return category;
+	return SORT_OTHER;
 }
 
 static int

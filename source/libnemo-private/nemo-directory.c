@@ -33,7 +33,6 @@
 #include "nemo-global-preferences.h"
 #include "nemo-lib-self-check-functions.h"
 #include "nemo-metadata.h"
-#include "nemo-desktop-directory.h"
 #include "nemo-vfs-directory.h"
 #include <eel/eel-glib-extensions.h>
 #include <eel/eel-string.h>
@@ -493,9 +492,7 @@ nemo_directory_new (GFile *location)
 
 	uri = g_file_get_uri (location);
 	
-	if (eel_uri_is_desktop (uri)) {
-		directory = NEMO_DIRECTORY (g_object_new (NEMO_TYPE_DESKTOP_DIRECTORY, NULL));
-	} else if (eel_uri_is_search (uri)) {
+	if (eel_uri_is_search (uri)) {
 		directory = NEMO_DIRECTORY (g_object_new (NEMO_TYPE_SEARCH_DIRECTORY, NULL));
 	} else {
 		directory = NEMO_DIRECTORY (g_object_new (NEMO_TYPE_VFS_DIRECTORY, NULL));

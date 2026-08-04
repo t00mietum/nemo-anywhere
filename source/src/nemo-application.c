@@ -66,7 +66,9 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef G_OS_UNIX
 #include <pwd.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
 #include <glib/gstdio.h>
@@ -75,10 +77,12 @@
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
-#include <libxapp/xapp-favorites.h>
+#include <libnemo-private/nemo-favorites.h>
+#include <libnemo-private/nemo-network-win32.h>
+#include <libnemo-private/nemo-trash-win32.h>
+#include "nemo-win32-appearance.h"
 
-#define GNOME_DESKTOP_USE_UNSTABLE_API
-#include <libcinnamon-desktop/gnome-desktop-thumbnail.h>
+#include <libnemo-private/nemo-desktop-thumbnail.h>
 
 #define NEMO_ACCEL_MAP_SAVE_DELAY 30
 
@@ -293,13 +297,27 @@ process_system_theme (GtkSettings *gtk_settings)
                   NULL);
 
     if (!is_known_supported_theme (theme_name)) {
-        g_warning ("Current gtk theme is not known to have nemo support (%s) - checking...", theme_name);
+        g_debug ("Current gtk theme is not known to have nemo support (%s) - checking...", theme_name);
         add_fallback_mandatory_css_provider (theme_name);
     }
 
     gtk_style_context_reset_widgets (gdk_screen_get_default ());
     g_free (theme_name);
 }
+
+#ifdef G_OS_WIN32
+/* Mirror the Windows system light/dark app setting onto GTK. The Fluent theme
+   ships gtk.css (light) + gtk-dark.css (dark) and GTK swaps on this property, so
+   toggling it live re-themes the running app. One colourful icon theme serves
+   both modes (symbolics recolour to the foreground). */
+static void
+follow_system_dark (gboolean dark, gpointer data)
+{
+    g_object_set (gtk_settings_get_default (),
+                  "gtk-application-prefer-dark-theme", dark,
+                  NULL);
+}
+#endif
 
 static void
 init_icons_and_styles (void)
@@ -326,6 +344,12 @@ init_icons_and_styles (void)
     g_signal_connect_swapped (gtk_settings, "notify::gtk-theme-name", G_CALLBACK (process_system_theme), gtk_settings);
 
     process_system_theme (gtk_settings);
+
+#ifdef G_OS_WIN32
+    /* Match Windows' light/dark app setting now, then follow it live. */
+    follow_system_dark (nemo_win32_prefers_dark (), NULL);
+    nemo_win32_watch_dark (follow_system_dark, NULL);
+#endif
 }
 
 static gboolean
@@ -555,6 +579,17 @@ nemo_application_startup (GApplication *app)
 	/* initialize preferences and create the global GSettings objects */
 	nemo_global_preferences_init ();
 
+	/* register the favorites:/// scheme before anything queries for it
+	 * (upstream relied on the xapp gtk module doing this at gtk init) */
+	nemo_favorites_get_default ();
+
+#ifdef G_OS_WIN32
+	/* trash:/// over the Recycle Bin and network:/// over WNet,
+	 * same before-anything-queries rule */
+	nemo_trash_win32_register ();
+	nemo_network_win32_register ();
+#endif
+
     /* Run desktop- or main- specific things */
     NEMO_APPLICATION_CLASS (G_OBJECT_GET_CLASS (self))->continue_startup (self);
 
@@ -586,10 +621,10 @@ nemo_application_startup (GApplication *app)
      * If running as a normal user, do a quick check, and we'll notify the
      * user later if there's a problem via an infobar */
     if (nemo_user_is_root ()) {
-        if (!gnome_desktop_thumbnail_cache_check_permissions (NULL, FALSE))
-            gnome_desktop_thumbnail_cache_fix_permissions ();
+        if (!nemo_desktop_thumbnail_cache_check_permissions (NULL, FALSE))
+            nemo_desktop_thumbnail_cache_fix_permissions ();
     } else {
-        if (!gnome_desktop_thumbnail_cache_check_permissions (NULL, TRUE))
+        if (!nemo_desktop_thumbnail_cache_check_permissions (NULL, TRUE))
             self->priv->cache_problem = TRUE;
     }
 }

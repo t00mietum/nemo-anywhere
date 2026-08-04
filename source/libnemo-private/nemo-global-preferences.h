@@ -43,8 +43,6 @@ G_BEGIN_DECLS
 #define NEMO_PREFERENCES_SHOW_HIDDEN_FILES			"show-hidden-files"
 #define NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS		"show-advanced-permissions"
 #define NEMO_PREFERENCES_DATE_FORMAT            "date-format"
-#define NEMO_PREFERENCES_DATE_FONT_CHOICE  "date-font-choice"
-#define NEMO_PREFERENCES_MONO_FONT_NAME "monospace-font-name"
 
 /* Mouse */
 #define NEMO_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS		"mouse-use-extra-buttons"
@@ -57,13 +55,6 @@ typedef enum
 	NEMO_DATE_FORMAT_ISO,
 	NEMO_DATE_FORMAT_INFORMAL
 } NemoDateFormat;
-
-typedef enum
-{
-    NEMO_DATE_FONT_CHOICE_AUTO,
-    NEMO_DATE_FONT_CHOICE_SYSTEM,
-    NEMO_DATE_FONT_CHOICE_NONE
-} NemoDateFontChoice;
 
 typedef enum
 {
@@ -241,7 +232,6 @@ typedef enum
 
 #define GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT            "automount"
 #define GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT_OPEN       "automount-open"
-#define GNOME_DESKTOP_MEDIA_HANDLING_AUTORUN              "autorun-never"
 #define NEMO_PREFERENCES_MEDIA_HANDLING_DETECT_CONTENT    "detect-content"
 
 /* Terminal */
@@ -301,9 +291,6 @@ gint nemo_global_preferences_get_tooltip_flags (void);
 gboolean nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key);
 gchar **nemo_global_preferences_get_fileroller_mimetypes (void);
 
-gchar *nemo_global_preferences_get_mono_system_font (void);
-gchar *nemo_global_preferences_get_mono_font_family_match (const gchar *in_family);
-
 extern GSettings *nemo_preferences;
 extern GSettings *nemo_icon_view_preferences;
 extern GSettings *nemo_list_view_preferences;
@@ -321,7 +308,6 @@ extern GSettings *gnome_media_handling_preferences;
 extern GSettings *gnome_terminal_preferences;
 extern GSettings *cinnamon_privacy_preferences;
 extern GSettings *cinnamon_interface_preferences;
-extern GSettings *gnome_interface_preferences;
 
 /* Cached for fast access and used in nemo-file.c for constructing date/time strings */
 extern GTimeZone      *prefs_current_timezone;

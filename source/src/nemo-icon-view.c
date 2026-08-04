@@ -33,8 +33,6 @@
 #include "nemo-view-dnd.h"
 #include "nemo-view-factory.h"
 #include "nemo-window.h"
-#include "nemo-desktop-window.h"
-#include "nemo-desktop-manager.h"
 #include "nemo-application.h"
 
 #include <stdlib.h>
@@ -57,9 +55,7 @@
 #include <libnemo-private/nemo-link.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-clipboard.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
 #include <libnemo-private/nemo-desktop-utils.h>
-#include <libnemo-private/nemo-desktop-directory.h>
 
 #define DEBUG_FLAG NEMO_DEBUG_ICON_VIEW
 #include <libnemo-private/nemo-debug.h>
@@ -68,7 +64,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include <sys/types.h>
+#ifdef G_OS_UNIX
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 
 #define POPUP_PATH_ICON_APPEARANCE		"/selection/Icon Appearance Items"
@@ -227,21 +225,7 @@ nemo_icon_view_destroy (GtkWidget *object)
 static void
 sync_directory_monitor_number (NemoIconView *view, NemoFile *file)
 {
-    NemoDirectory *directory;
-    NemoDesktopWindow *desktop_window;
-    gint monitor;
-
-    if (!view->details->is_desktop) {
-        return;
-    }
-
-    desktop_window = NEMO_DESKTOP_WINDOW (nemo_view_get_nemo_window (NEMO_VIEW (view)));
-
-    monitor = nemo_desktop_window_get_monitor (desktop_window);
-
-    directory = nemo_view_get_model (NEMO_VIEW (view));
-
-    NEMO_DESKTOP_DIRECTORY (directory)->display_number = monitor;
+    /* No-op without the desktop shell (per-monitor desktop directories are gone). */
 }
 
 
@@ -2106,6 +2090,18 @@ default_zoom_level_changed_callback (gpointer callback_data)
 
 	if (nemo_view_supports_zooming (NEMO_VIEW (icon_view))) {
 		file = nemo_view_get_directory_as_file (NEMO_VIEW (icon_view));
+
+        /* Setting a new default is an instruction about the folder in front of you,
+         * so let go of whatever zoom that folder had pinned and take the default.
+         */
+        if (nemo_global_preferences_get_ignore_view_metadata ()) {
+            nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), -1);
+        } else {
+            nemo_file_set_metadata (file,
+                                    nemo_icon_view_is_compact (icon_view) ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
+                                                                          : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                    NULL, NULL);
+        }
 
         if (nemo_global_preferences_get_ignore_view_metadata () &&
             nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > -1) {

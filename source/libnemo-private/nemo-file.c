@@ -28,9 +28,6 @@
 #include "nemo-directory-notify.h"
 #include "nemo-directory-private.h"
 #include "nemo-signaller.h"
-#include "nemo-desktop-directory.h"
-#include "nemo-desktop-directory-file.h"
-#include "nemo-desktop-icon-file.h"
 #include "nemo-file-attributes.h"
 #include "nemo-file-private.h"
 #include "nemo-file-operations.h"
@@ -40,6 +37,7 @@
 #include "nemo-lib-self-check-functions.h"
 #include "nemo-link.h"
 #include "nemo-metadata.h"
+#include "nemo-metadata-store.h"
 #include "nemo-module.h"
 #include "nemo-search-directory.h"
 #include "nemo-search-engine.h"
@@ -54,7 +52,7 @@
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-vfs-extensions.h>
 #include <eel/eel-string.h>
-#include <grp.h>
+#include <libnemo-private/nemo-posix-compat.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
@@ -62,8 +60,7 @@
 #include <glib.h>
 #include <libnemo-extension/nemo-file-info.h>
 #include <libnemo-extension/nemo-extension-private.h>
-#include <libxapp/xapp-favorites.h>
-#include <pwd.h>
+#include <libnemo-private/nemo-favorites.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
@@ -410,11 +407,76 @@ get_metadata_from_info (GFileInfo *info)
 	return metadata;
 }
 
+/* The store key for a file: its uri, except favorites entries resolve to
+ * the real file they point at, so markers land on the target. */
+char *
+nemo_file_get_metadata_store_uri (NemoFile *file)
+{
+	char *uri;
+
+	uri = nemo_file_get_uri (file);
+	if (eel_uri_is_favorite (uri)) {
+		char *target;
+
+		target = nemo_file_get_activation_uri (file);
+		if (target != NULL && !eel_uri_is_favorite (target)) {
+			g_free (uri);
+			return target;
+		}
+		g_free (target);
+	}
+
+	return uri;
+}
+
+/* Like nemo_file_get_metadata_store_uri, but safe on a file that has no
+ * name yet (a fresh nemo_file_new_from_info mid-first-update) - identity
+ * comes from the enumerated info instead. */
+static char *
+metadata_store_uri_from_info (NemoFile *file, GFileInfo *info)
+{
+	const char *info_name, *target;
+	GFile *location;
+	char *uri;
+
+	if (file->details->name != NULL || nemo_file_is_self_owned (file)) {
+		return nemo_file_get_metadata_store_uri (file);
+	}
+
+	info_name = g_file_info_get_name (info);
+	if (info_name == NULL) {
+		return NULL;
+	}
+
+	location = g_file_get_child (file->details->directory->details->location,
+				     info_name);
+	uri = g_file_get_uri (location);
+	g_object_unref (location);
+
+	if (uri != NULL && eel_uri_is_favorite (uri)) {
+		target = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
+		if (target != NULL && !eel_uri_is_favorite (target)) {
+			g_free (uri);
+			uri = g_strdup (target);
+		}
+	}
+
+	return uri;
+}
+
 gboolean
 nemo_file_update_metadata_from_info (NemoFile *file,
 					 GFileInfo *info)
 {
 	gboolean changed = FALSE;
+	char *store_uri;
+
+	/* our store shadows whatever a gvfs metadata daemon may have supplied */
+	store_uri = metadata_store_uri_from_info (file, info);
+	if (store_uri != NULL) {
+		nemo_metadata_store_apply_to_info (store_uri, info);
+		g_free (store_uri);
+	}
 
 	if (g_file_info_has_namespace (info, "metadata")) {
 		GHashTable *metadata;
@@ -434,6 +496,80 @@ nemo_file_update_metadata_from_info (NemoFile *file,
 	}
 
 	return changed;
+}
+
+/* Update the in-memory metadata hash directly - store-backed writes don't
+ * round-trip through a GIO query anymore. values non-NULL means a list
+ * entry; value NULL with values NULL unsets the key. Fires changed. */
+void
+nemo_file_set_metadata_internal (NemoFile *file,
+				     const char *key,
+				     const char *value,
+				     char **values)
+{
+	guint id, list_id;
+	gpointer old;
+	gboolean changed = FALSE;
+
+	id = nemo_metadata_get_id (key);
+	if (id == 0) {
+		return;
+	}
+	list_id = id | METADATA_ID_IS_LIST_MASK;
+
+	if (file->details->metadata == NULL) {
+		file->details->metadata = g_hash_table_new (NULL, NULL);
+	}
+
+	/* an entry is either a string or a list; drop the other variant */
+	if (values != NULL) {
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (id));
+			g_free (old);
+			changed = TRUE;
+		}
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (list_id));
+		if (old == NULL || !eel_g_strv_equal ((char **) old, values)) {
+			g_strfreev ((char **) old);
+			g_hash_table_insert (file->details->metadata,
+					     GUINT_TO_POINTER (list_id),
+					     g_strdupv (values));
+			changed = TRUE;
+		}
+	} else if (value != NULL) {
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (list_id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (list_id));
+			g_strfreev ((char **) old);
+			changed = TRUE;
+		}
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (id));
+		if (old == NULL || strcmp ((char *) old, value) != 0) {
+			g_free (old);
+			g_hash_table_insert (file->details->metadata,
+					     GUINT_TO_POINTER (id),
+					     g_strdup (value));
+			changed = TRUE;
+		}
+	} else {
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (id));
+			g_free (old);
+			changed = TRUE;
+		}
+		old = g_hash_table_lookup (file->details->metadata, GUINT_TO_POINTER (list_id));
+		if (old != NULL) {
+			g_hash_table_remove (file->details->metadata, GUINT_TO_POINTER (list_id));
+			g_strfreev ((char **) old);
+			changed = TRUE;
+		}
+	}
+
+	if (changed) {
+		nemo_file_changed (file);
+	}
 }
 
 void
@@ -531,15 +667,7 @@ nemo_file_new_from_filename (NemoDirectory *directory,
 	g_assert (filename != NULL);
 	g_assert (filename[0] != '\0');
 
-	if (NEMO_IS_DESKTOP_DIRECTORY (directory)) {
-		if (self_owned) {
-			file = NEMO_FILE (g_object_new (NEMO_TYPE_DESKTOP_DIRECTORY_FILE, NULL));
-		} else {
-			/* This doesn't normally happen, unless the user somehow types in a uri
-			 * that references a file like this. (See #349840) */
-			file = NEMO_FILE (g_object_new (NEMO_TYPE_VFS_FILE, NULL));
-		}
-	} else if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
+	if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
 		if (self_owned) {
 			file = NEMO_FILE (g_object_new (NEMO_TYPE_SEARCH_DIRECTORY_FILE, NULL));
 		} else {
@@ -1541,18 +1669,6 @@ nemo_file_can_rename (NemoFile *file)
 
 	can_rename = TRUE;
 
-	/* Certain types of links can't be renamed */
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		NemoDesktopLink *link;
-
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-
-		if (link != NULL) {
-			can_rename = nemo_desktop_link_can_rename (link);
-			g_object_unref (link);
-		}
-	}
-
 	if (!can_rename) {
 		return FALSE;
 	}
@@ -1640,10 +1756,6 @@ nemo_file_get_local_uri (NemoFile *file)
 	GFile *loc;
 
 	g_return_val_if_fail (NEMO_IS_FILE (file), NULL);
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		return nemo_file_get_uri (file);
-	}
 
 	loc = nemo_file_get_location (file);
 	path = g_file_get_path (loc);
@@ -1823,7 +1935,9 @@ rename_get_info_callback (GObject *source_object,
 		new_uri = nemo_file_get_uri (op->file);
 		nemo_directory_moved (old_uri, new_uri);
 
-        xapp_favorites_rename (xapp_favorites_get_default (),
+		nemo_metadata_store_rename (old_uri, new_uri);
+
+        nemo_favorites_rename (nemo_favorites_get_default (),
                                old_uri,
                                new_uri);
 
@@ -1941,8 +2055,7 @@ nemo_file_rename (NemoFile *file,
 	 * (1) rename returns an error if new & old are same.
 	 * (2) We don't want to send file-changed signal if nothing changed.
 	 */
-	if (!NEMO_IS_DESKTOP_ICON_FILE (file) &&
-	    !is_renameable_desktop_file &&
+	if (!is_renameable_desktop_file &&
 	    name_is (file, new_name)) {
 		(* callback) (file, NULL, NULL, callback_data);
 		return;
@@ -1963,32 +2076,6 @@ nemo_file_rename (NemoFile *file,
 
 		(* callback) (file, NULL, error, callback_data);
 		g_error_free (error);
-		return;
-	}
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		NemoDesktopLink *link;
-
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-		old_name = nemo_file_get_display_name (file);
-
-		if ((old_name != NULL && strcmp (new_name, old_name) == 0)) {
-			success = TRUE;
-		} else {
-			success = (link != NULL && nemo_desktop_link_rename (link, new_name));
-		}
-
-		if (success) {
-			(* callback) (file, NULL, NULL, callback_data);
-		} else {
-			error = g_error_new (G_IO_ERROR, G_IO_ERROR_FAILED,
-					     _("Unable to rename desktop icon"));
-			(* callback) (file, NULL, error, callback_data);
-			g_error_free (error);
-		}
-
-		g_free (old_name);
-		g_object_unref (link);
 		return;
 	}
 
@@ -2260,6 +2347,55 @@ access_ok (const gchar *path)
 
     return TRUE;
 }
+
+#ifdef G_OS_WIN32
+/* win32 GIO returns a flat "text-x-generic" icon for every file (only dirs get
+ * "folder"), so on Windows every file would look identical. It does report the
+ * right mime type though, so derive a proper freedesktop themed icon from it -
+ * e.g. image/png -> {image-png, image-x-generic, text-x-generic}. Returns NULL
+ * (keep GIO's icon) for directories/symlinks/mounts and unknown types. */
+static GIcon *
+win32_themed_icon_for_mime_type (const char *mime_type)
+{
+	const char *slash;
+	char *media, *specific, *media_generic;
+	char *names[3];
+	GIcon *icon;
+
+	if (mime_type == NULL || g_content_type_is_unknown (mime_type)) {
+		return NULL;
+	}
+
+	slash = strchr (mime_type, '/');
+	if (slash == NULL || slash == mime_type) {
+		return NULL;
+	}
+
+	media = g_strndup (mime_type, slash - mime_type);
+	if (strcmp (media, "inode") == 0) {           /* directory, symlink, mount */
+		g_free (media);
+		return NULL;
+	}
+
+	specific = g_strdup (mime_type);
+	for (char *p = specific; *p != '\0'; p++) {
+		if (*p == '/') {
+			*p = '-';
+		}
+	}
+	media_generic = g_strconcat (media, "-x-generic", NULL);
+
+	names[0] = specific;                          /* image-png            */
+	names[1] = media_generic;                     /* image-x-generic      */
+	names[2] = (char *) "text-x-generic";         /* last-resort fallback */
+	icon = g_themed_icon_new_from_names (names, 3);
+
+	g_free (media);
+	g_free (specific);
+	g_free (media_generic);
+	return icon;
+}
+#endif
 
 static gboolean
 update_info_internal (NemoFile *file,
@@ -2722,6 +2858,25 @@ update_info_internal (NemoFile *file,
     }
 
     g_free (mime_type);
+
+#ifdef G_OS_WIN32
+    /* GIO on win32 hands every file a flat "text-x-generic" icon; swap in a
+     * per-type themed icon. On win32 the "content type" is the extension (".mp3"),
+     * so convert it to a real mime ("audio/mpeg") first. Directories/unknown
+     * types keep GIO's icon. */
+    {
+        char *real_mime = file->details->mime_type != NULL
+            ? g_content_type_get_mime_type (file->details->mime_type) : NULL;
+        GIcon *win_icon = win32_themed_icon_for_mime_type (real_mime);
+        if (win_icon != NULL) {
+            if (file->details->icon != NULL) {
+                g_object_unref (file->details->icon);
+            }
+            file->details->icon = win_icon;
+        }
+        g_free (real_mime);
+    }
+#endif
 
 	if (changed) {
 		add_to_link_hash_table (file);
@@ -3790,9 +3945,13 @@ nemo_file_set_metadata (NemoFile *file,
 	g_return_if_fail (key != NULL);
 	g_return_if_fail (key[0] != '\0');
 
+	/* Storing a value that already matches the default pins the file to today's
+	 * default forever - drop it instead, so reads keep falling back to whatever
+	 * the preference currently says.
+	 */
 	val = metadata;
-	if (val == NULL) {
-		val = default_metadata;
+	if (g_strcmp0 (val, default_metadata) == 0) {
+		val = NULL;
 	}
 
 	NEMO_FILE_CLASS (G_OBJECT_GET_CLASS (file))->set_metadata (file, key, val);
@@ -4229,23 +4388,8 @@ nemo_file_get_drop_target_uri (NemoFile *file)
 {
 	char *uri, *target_uri;
 	GFile *location;
-	NemoDesktopLink *link;
 
 	g_return_val_if_fail (NEMO_IS_FILE (file), NULL);
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (file));
-
-		if (link != NULL) {
-			location = nemo_desktop_link_get_activation_location (link);
-			g_object_unref (link);
-			if (location != NULL) {
-				uri = g_file_get_uri (location);
-				g_object_unref (location);
-				return uri;
-			}
-		}
-	}
 
 	uri = nemo_file_get_uri (file);
 
@@ -4774,7 +4918,7 @@ nemo_file_get_control_icon_name (NemoFile *file)
 
                 if (g_strcmp0 (icon_name, "inode-directory-symbolic") == 0) {
                     g_free (icon_name);
-                    icon_name = g_strdup ("xsi-folder-symbolic");
+                    icon_name = g_strdup ("folder-symbolic");
                 }
             }
 
@@ -4847,11 +4991,11 @@ nemo_file_set_is_favorite (NemoFile *file,
 
     if (favorite)
     {
-        xapp_favorites_add (xapp_favorites_get_default (), uri);
+        nemo_favorites_add (nemo_favorites_get_default (), uri);
     }
     else
     {
-        xapp_favorites_remove (xapp_favorites_get_default (), uri);
+        nemo_favorites_remove (nemo_favorites_get_default (), uri);
     }
 
     nemo_file_unref (real_file);
@@ -5659,6 +5803,11 @@ nemo_file_can_set_permissions (NemoFile *file)
     {
         return FALSE;
     }
+
+#ifdef G_OS_WIN32
+	/* GLib's win32 unix::mode is fabricated; chmod only toggles read-only */
+	return FALSE;
+#endif
 
 	if (file->details->uid != -1 &&
 	    nemo_file_is_local (file)) {
@@ -8355,14 +8504,6 @@ nemo_file_invalidate_attributes_internal (NemoFile *file,
 	Request request;
 
 	if (file == NULL) {
-		return;
-	}
-
-	if (NEMO_IS_DESKTOP_ICON_FILE (file)) {
-		/* Desktop icon files are always up to date.
-		 * If we invalidate their attributes they
-		 * will lose data, so we just ignore them.
-		 */
 		return;
 	}
 

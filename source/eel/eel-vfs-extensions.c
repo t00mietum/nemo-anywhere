@@ -93,6 +93,40 @@ eel_vfs_supports_uri_scheme (const gchar *scheme)
    return FALSE;
 }
 
+/* Typed-location parsing that accepts backslash separators everywhere.
+ * The literal text always wins - a real backslash-named file stays
+ * reachable and nothing is reserved - but if the literal form is a
+ * local path that doesn't exist and contains backslashes, a \ -> /
+ * retry lets pasted Windows-style paths resolve. */
+GFile *
+eel_g_file_new_for_user_input (const char *text)
+{
+	GFile *location;
+
+	location = g_file_parse_name (text);
+
+	if (strchr (text, '\\') != NULL &&
+	    g_file_is_native (location) &&
+	    !g_file_query_exists (location, NULL)) {
+		char *converted;
+		GFile *retry;
+
+		converted = g_strdelimit (g_strdup (text), "\\", '/');
+		retry = g_file_parse_name (converted);
+		g_free (converted);
+
+		if (g_file_is_native (retry) &&
+		    g_file_query_exists (retry, NULL)) {
+			g_object_unref (location);
+			location = retry;
+		} else {
+			g_object_unref (retry);
+		}
+	}
+
+	return location;
+}
+
 char *
 eel_make_valid_utf8 (const char *name)
 {

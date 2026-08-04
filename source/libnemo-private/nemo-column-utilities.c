@@ -104,6 +104,8 @@ get_builtin_columns (void)
 					       "description", _("The date the file was accessed."),
 					       NULL));
 
+#ifndef G_OS_WIN32
+	/* POSIX ownership/mode - meaningless (fabricated) on Windows */
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "owner",
@@ -135,6 +137,7 @@ get_builtin_columns (void)
 					       "label", _("Octal Permissions"),
 					       "description", _("The permissions of the file, in octal notation."),
 					       NULL));
+#endif
 
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,

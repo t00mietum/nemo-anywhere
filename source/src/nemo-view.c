@@ -32,7 +32,6 @@
 #include "nemo-view.h"
 
 #include "nemo-actions.h"
-#include "nemo-desktop-icon-view.h"
 #include "nemo-error-reporting.h"
 #include "nemo-list-view.h"
 #include "nemo-mime-actions.h"
@@ -44,7 +43,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#endif
+
+#ifdef G_OS_WIN32
+#include "nemo-view-win32.h"
+#endif
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <glib.h>
@@ -64,8 +69,6 @@
 #include <libnemo-private/nemo-bookmark.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-clipboard-monitor.h>
-#include <libnemo-private/nemo-desktop-icon-file.h>
-#include <libnemo-private/nemo-desktop-directory.h>
 #include <libnemo-private/nemo-search-directory.h>
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-dnd.h>
@@ -406,11 +409,7 @@ real_get_backing_uri (NemoView *view)
 
 	directory = view->details->model;
 
-	if (NEMO_IS_DESKTOP_DIRECTORY (directory)) {
-		directory = nemo_desktop_directory_get_real_directory (NEMO_DESKTOP_DIRECTORY (directory));
-	} else {
-		nemo_directory_ref (directory);
-	}
+	nemo_directory_ref (directory);
 
 	uri = nemo_directory_get_uri (directory);
 
@@ -1903,6 +1902,7 @@ rename_file (NemoView *view, NemoFile *new_file)
 					    100, (GSourceFunc)delayed_rename_file_hack_callback,
 					    data, (GDestroyNotify) delayed_rename_file_hack_removed);
 
+		/* cppcheck-suppress memleak ; data is owned by the timeout, freed via its GDestroyNotify */
 		return;
 	}
 
@@ -2698,6 +2698,7 @@ get_bulk_rename_tool (void)
 {
 	char *bulk_rename_tool;
 	g_settings_get (nemo_preferences, NEMO_PREFERENCES_BULK_RENAME_TOOL, "^ay", &bulk_rename_tool);
+	/* cppcheck-suppress returnDanglingLifetime ; g_strstrip strips in place and returns its heap arg */
 	return g_strstrip (bulk_rename_tool);
 }
 
@@ -4362,25 +4363,11 @@ nemo_view_duplicate_selection (NemoView *view, GList *files,
 static gboolean
 special_link_in_selection (NemoView *view, GList *selection)
 {
-	gboolean saw_link;
-	GList *node;
-	NemoFile *file;
-
 	g_return_val_if_fail (NEMO_IS_VIEW (view), FALSE);
 
-	saw_link = FALSE;
-
-	for (node = selection; node != NULL; node = node->next) {
-		file = NEMO_FILE (node->data);
-
-		saw_link = NEMO_IS_DESKTOP_ICON_FILE (file);
-
-		if (saw_link) {
-			break;
-		}
-	}
-
-	return saw_link;
+	/* Desktop special links (computer/home/trash/mount) only existed under the
+	 * desktop shell, which is gone. */
+	return FALSE;
 }
 
 /* desktop_or_home_dir_in_selection
@@ -5860,25 +5847,12 @@ get_file_paths_or_uris_as_newline_delimited_string (GList *selection, gboolean g
 {
 	char *path;
 	char *uri;
-	NemoDesktopLink *link;
 	GString *expanding_string;
 	GList *node;
-	GFile *location;
 
 	expanding_string = g_string_new ("");
 	for (node = selection; node != NULL; node = node->next) {
-		uri = NULL;
-		if (NEMO_IS_DESKTOP_ICON_FILE (node->data)) {
-			link = nemo_desktop_icon_file_get_link (NEMO_DESKTOP_ICON_FILE (node->data));
-			if (link != NULL) {
-				location = nemo_desktop_link_get_activation_location (link);
-				uri = g_file_get_uri (location);
-				g_object_unref (location);
-				g_object_unref (G_OBJECT (link));
-			}
-		} else {
-			uri = nemo_file_get_uri (NEMO_FILE (node->data));
-		}
+		uri = nemo_file_get_uri (NEMO_FILE (node->data));
 		if (uri == NULL) {
 			continue;
 		}
@@ -7092,6 +7066,7 @@ paste_into (NemoView *view,
 					data);
 }
 
+#ifndef G_OS_WIN32
 static void
 cb_open_as_root_watch (GPid pid, gint status, gpointer user_data)
 {
@@ -7106,10 +7081,19 @@ open_as_admin (NemoView *view, const gchar *path) {
 
     nemo_window_slot_open_location (view->details->slot, location, 0);
 }
+#endif
 
 static void
 open_as_root (NemoView *view, const gchar *path)
 {
+#ifdef G_OS_WIN32
+    /* Windows has no pkexec/admin:// - relaunch ourselves elevated at this path
+       via the shell "runas" verb, which raises the UAC prompt. The elevated
+       copy runs at a higher integrity level, so it becomes its own instance
+       rather than forwarding to the unelevated one. */
+    nemo_view_win32_open_elevated (path);
+    return;
+#else
     if (eel_check_is_wayland ()) {
         open_as_admin (view, path);
         return;
@@ -7125,8 +7109,16 @@ open_as_root (NemoView *view, const gchar *path)
                   NULL, NULL, &pid, NULL);
     g_child_watch_add(pid, (GChildWatchFunc)cb_open_as_root_watch, NULL);
     g_free (argv[2]);
+#endif
 }
 
+#ifdef G_OS_WIN32
+static void
+open_in_terminal (const gchar *path)
+{
+    nemo_view_win32_open_terminal (path);
+}
+#else
 static void
 open_in_terminal (const gchar *path)
 {
@@ -7151,6 +7143,7 @@ open_in_terminal (const gchar *path)
     g_strfreev (token);
     g_free (argv);
 }
+#endif
 
 static void
 action_paste_files_into_callback (GtkAction *action,
@@ -8071,6 +8064,94 @@ action_location_open_in_new_tab_callback (GtkAction *action,
 }
 
 static void
+action_location_open_callback (GtkAction *action,
+			       gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	nemo_view_activate_file (view, file, 0);
+}
+
+static void
+action_location_open_in_terminal_callback (GtkAction *action,
+					   gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	char *path;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	path = nemo_file_get_path (file);
+	if (path != NULL) {
+		open_in_terminal (path);
+		g_free (path);
+	}
+}
+
+static void
+action_location_open_as_root_callback (GtkAction *action,
+				       gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	char *path;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	path = nemo_file_get_path (file);
+	if (path != NULL) {
+		open_as_root (view, path);
+		g_free (path);
+	}
+}
+
+static void
+action_location_new_folder_callback (GtkAction *action,
+				     gpointer   callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	NewFolderData *data;
+	char *parent_uri;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	if (file == NULL) {
+		return;
+	}
+
+	data = new_folder_data_new (view);
+	g_signal_connect_data (view, "add_file",
+			       G_CALLBACK (track_newly_added_locations), data,
+			       (GClosureNotify) NULL, G_CONNECT_AFTER);
+
+	parent_uri = nemo_file_get_uri (file);
+	nemo_file_operations_new_folder (GTK_WIDGET (view), NULL, parent_uri,
+					     new_folder_done, data);
+	g_free (parent_uri);
+}
+
+static void
 action_location_cut_callback (GtkAction *action,
 			      gpointer   callback_data)
 {
@@ -8208,10 +8289,10 @@ nemo_view_init_show_hidden_files (NemoView *view)
 }
 
 static const GtkActionEntry directory_view_entries[] = {
-  /* name, stock id, label */  { "New Documents", "xsi-document-new-symbolic", N_("Create New _Document") },
+  /* name, stock id, label */  { "New Documents", "document-new-symbolic", N_("Create New _Document") },
   /* name, stock id, label */  { "Open With", NULL, N_("Open Wit_h"),
 				 NULL, N_("Choose a program with which to open the selected item") },
-  /* name, stock id */         { "Properties", "xsi-document-properties-symbolic",
+  /* name, stock id */         { "Properties", "document-properties-symbolic",
   /* label, accelerator */       N_("_Properties"), "<alt>Return",
   /* tooltip */                  N_("View or modify the properties of each selected item"),
 				 G_CALLBACK (action_properties_callback) },
@@ -8219,7 +8300,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       "PropertiesAccel", "<control>I",
   /* tooltip */                  NULL,
 				 G_CALLBACK (action_properties_callback) },
-  /* name, stock id */         { "New Folder", "xsi-folder-new-symbolic",
+  /* name, stock id */         { "New Folder", "folder-new-symbolic",
   /* label, accelerator */       N_("Create New _Folder"), "<control><shift>N",
   /* tooltip */                  N_("Create a new empty folder inside this folder"),
 				 G_CALLBACK (action_new_folder_callback) },
@@ -8245,20 +8326,25 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Open in New _Tab"), "<control><shift>t",
   /* tooltip */                  N_("Open each selected item in a new tab"),
 				 G_CALLBACK (action_open_new_tab_callback) },
-  /* name, stock id */         { NEMO_ACTION_OPEN_IN_TERMINAL, "xsi-utilities-terminal-symbolic",
+  /* name, stock id */         { NEMO_ACTION_OPEN_IN_TERMINAL, "utilities-terminal-symbolic",
   /* label, accelerator */       N_("Open in Terminal"), "",
   /* tooltip */                  N_("Open terminal in the selected folder"),
 				 G_CALLBACK (action_open_in_terminal_callback) },
-  /* name, stock id */         { NEMO_ACTION_OPEN_AS_ROOT, "xsi-dialog-password-symbolic",
+  /* name, stock id */         { NEMO_ACTION_OPEN_AS_ROOT, "dialog-password-symbolic",
+#ifdef G_OS_WIN32
+  /* label, accelerator */       N_("Open as Administrator"), "",
+  /* tooltip */                  N_("Open the folder with administrator privileges"),
+#else
   /* label, accelerator */       N_("Open as Root"), "",
   /* tooltip */                  N_("Open the folder with administration privileges"),
+#endif
 				 G_CALLBACK (action_open_as_root_callback) },
 
-  /* name, stock id */         { NEMO_ACTION_FOLLOW_SYMLINK, "xsi-go-jump-symbolic",
+  /* name, stock id */         { NEMO_ACTION_FOLLOW_SYMLINK, "go-jump-symbolic",
   /* label, accelerator */       N_("Follow link to original file"), "",
   /* tooltip */                  N_("Navigate to the original file that this symbolic link points to"),
                  G_CALLBACK (action_follow_symlink_callback) },
-  /* name, stock id */         { NEMO_ACTION_OPEN_CONTAINING_FOLDER, "xsi-go-jump-symbolic",
+  /* name, stock id */         { NEMO_ACTION_OPEN_CONTAINING_FOLDER, "go-jump-symbolic",
   /* label, accelerator */       N_("Open containing folder"), "<control><alt>O",
   /* tooltip */                  N_("Navigate to the folder that the selected item is stored in"),
                  G_CALLBACK (action_open_containing_folder_callback) },
@@ -8274,21 +8360,21 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("E_mpty Trash"), NULL,
   /* tooltip */                  N_("Delete all items in the Trash"),
 				 G_CALLBACK (action_empty_trash_callback) },
-  /* name, stock id */         { "Cut", "xsi-edit-cut-symbolic",
+  /* name, stock id */         { "Cut", "edit-cut-symbolic",
   /* label, accelerator */       N_("Cu_t"), "<control>X",
   /* tooltip */                  N_("Prepare the selected files to be moved with a Paste command"),
 				 G_CALLBACK (action_cut_files_callback) },
-  /* name, stock id */         { "Copy", "xsi-edit-copy-symbolic",
+  /* name, stock id */         { "Copy", "edit-copy-symbolic",
   /* label, accelerator */       N_("_Copy"), "<control>C",
   /* tooltip */                  N_("Prepare the selected files to be copied with a Paste command"),
 				 G_CALLBACK (action_copy_files_callback) },
-  /* name, stock id */         { "Paste", "xsi-edit-paste-symbolic",
+  /* name, stock id */         { "Paste", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste"), "<control>V",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command"),
 				 G_CALLBACK (action_paste_files_callback) },
   /* We make accelerator "" instead of null here to not inherit the stock
      accelerator for paste */
-  /* name, stock id */         { "Paste Files Into", "xsi-edit-paste-symbolic",
+  /* name, stock id */         { "Paste Files Into", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste Into Folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into the selected folder"),
 				 G_CALLBACK (action_paste_files_into_callback) },
@@ -8334,11 +8420,11 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Restore"), NULL,
 				 NULL,
                  G_CALLBACK (action_restore_from_trash_callback) },
- /* name, stock id */          { "Undo", "xsi-edit-undo-symbolic",
+ /* name, stock id */          { "Undo", "edit-undo-symbolic",
  /* label, accelerator */        N_("_Undo"), "<control>Z",
  /* tooltip */                   N_("Undo the last action"),
                                  G_CALLBACK (action_undo_callback) },
- /* name, stock id */	       { "Redo", "xsi-edit-redo-symbolic",
+ /* name, stock id */	       { "Redo", "edit-redo-symbolic",
  /* label, accelerator */        N_("_Redo"), "<control>Y",
  /* tooltip */                   N_("Redo the last undone action"),
                                  G_CALLBACK (action_redo_callback) },
@@ -8356,15 +8442,15 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Connect To This Server"), NULL,
   /* tooltip */                  N_("Make a permanent connection to this server"),
 				 G_CALLBACK (action_connect_to_server_link_callback) },
-  /* name, stock id */         { "Mount Volume", "xsi-media-mount-symbolic",
+  /* name, stock id */         { "Mount Volume", "drive-removable-media-symbolic",
   /* label, accelerator */       N_("_Mount"), NULL,
   /* tooltip */                  N_("Mount the selected volume"),
 				 G_CALLBACK (action_mount_volume_callback) },
-  /* name, stock id */         { "Unmount Volume", "xsi-media-eject-symbolic",
+  /* name, stock id */         { "Unmount Volume", "media-eject-symbolic",
   /* label, accelerator */       N_("_Unmount"), NULL,
   /* tooltip */                  N_("Unmount the selected volume"),
 				 G_CALLBACK (action_unmount_volume_callback) },
-  /* name, stock id */         { "Eject Volume", "xsi-media-eject-symbolic",
+  /* name, stock id */         { "Eject Volume", "media-eject-symbolic",
   /* label, accelerator */       N_("_Eject"), NULL,
   /* tooltip */                  N_("Eject the selected volume"),
 				 G_CALLBACK (action_eject_volume_callback) },
@@ -8380,15 +8466,15 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Detect Media"), NULL,
   /* tooltip */                  N_("Detect media in the selected drive"),
 				 G_CALLBACK (action_detect_media_callback) },
-  /* name, stock id */         { "Self Mount Volume", "xsi-media-mount-symbolic",
+  /* name, stock id */         { "Self Mount Volume", "drive-removable-media-symbolic",
   /* label, accelerator */       N_("_Mount"), NULL,
   /* tooltip */                  N_("Mount the volume associated with the open folder"),
 				 G_CALLBACK (action_self_mount_volume_callback) },
-  /* name, stock id */         { "Self Unmount Volume", "xsi-media-eject-symbolic",
+  /* name, stock id */         { "Self Unmount Volume", "media-eject-symbolic",
   /* label, accelerator */       N_("_Unmount"), NULL,
   /* tooltip */                  N_("Unmount the volume associated with the open folder"),
 				 G_CALLBACK (action_self_unmount_volume_callback) },
-  /* name, stock id */         { "Self Eject Volume", "xsi-media-eject-symbolic",
+  /* name, stock id */         { "Self Eject Volume", "media-eject-symbolic",
   /* label, accelerator */       N_("_Eject"), NULL,
   /* tooltip */                  N_("Eject the volume associated with the open folder"),
 				 G_CALLBACK (action_self_eject_volume_callback) },
@@ -8417,16 +8503,37 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Open in New _Tab"), "",
   /* tooltip */                  N_("Open this folder in a new tab"),
 				 G_CALLBACK (action_location_open_in_new_tab_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN, NULL,
+  /* label, accelerator */       N_("_Open"), "",
+  /* tooltip */                  N_("Open this folder"),
+				 G_CALLBACK (action_location_open_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_IN_TERMINAL, "utilities-terminal-symbolic",
+  /* label, accelerator */       N_("Open in Terminal"), "",
+  /* tooltip */                  N_("Open a terminal in this folder"),
+				 G_CALLBACK (action_location_open_in_terminal_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_AS_ROOT, "dialog-password-symbolic",
+#ifdef G_OS_WIN32
+  /* label, accelerator */       N_("Open as Administrator"), "",
+  /* tooltip */                  N_("Open this folder with administrator privileges"),
+#else
+  /* label, accelerator */       N_("Open as Root"), "",
+  /* tooltip */                  N_("Open this folder with administration privileges"),
+#endif
+				 G_CALLBACK (action_location_open_as_root_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_NEW_FOLDER, "folder-new-symbolic",
+  /* label, accelerator */       N_("Create New _Folder"), "",
+  /* tooltip */                  N_("Create a new empty folder inside this folder"),
+				 G_CALLBACK (action_location_new_folder_callback) },
 
-  /* name, stock id */         { NEMO_ACTION_LOCATION_CUT, "xsi-edit-cut-symbolic",
+  /* name, stock id */         { NEMO_ACTION_LOCATION_CUT, "edit-cut-symbolic",
   /* label, accelerator */       N_("Cu_t"), "",
   /* tooltip */                  N_("Prepare this folder to be moved with a Paste command"),
 				 G_CALLBACK (action_location_cut_callback) },
-  /* name, stock id */         { NEMO_ACTION_LOCATION_COPY, "xsi-edit-copy-symbolic",
+  /* name, stock id */         { NEMO_ACTION_LOCATION_COPY, "edit-copy-symbolic",
   /* label, accelerator */       N_("_Copy"), "",
   /* tooltip */                  N_("Prepare this folder to be copied with a Paste command"),
 				 G_CALLBACK (action_location_copy_callback) },
-  /* name, stock id */         { NEMO_ACTION_LOCATION_PASTE_FILES_INTO, "xsi-edit-paste-symbolic",
+  /* name, stock id */         { NEMO_ACTION_LOCATION_PASTE_FILES_INTO, "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste Into Folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into this folder"),
 				 G_CALLBACK (action_location_paste_files_into_callback) },
@@ -8443,15 +8550,15 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Restore"), NULL, NULL,
 				 G_CALLBACK (action_location_restore_from_trash_callback) },
 
-  /* name, stock id */         { "Location Mount Volume", "xsi-media-mount-symbolic",
+  /* name, stock id */         { "Location Mount Volume", "drive-removable-media-symbolic",
   /* label, accelerator */       N_("_Mount"), NULL,
   /* tooltip */                  N_("Mount the volume associated with this folder"),
 				 G_CALLBACK (action_location_mount_volume_callback) },
-  /* name, stock id */         { "Location Unmount Volume", "xsi-media-eject-symbolic",
+  /* name, stock id */         { "Location Unmount Volume", "media-eject-symbolic",
   /* label, accelerator */       N_("_Unmount"), NULL,
   /* tooltip */                  N_("Unmount the volume associated with this folder"),
 				 G_CALLBACK (action_location_unmount_volume_callback) },
-  /* name, stock id */         { "Location Eject Volume", "xsi-media-eject-symbolic",
+  /* name, stock id */         { "Location Eject Volume", "media-eject-symbolic",
   /* label, accelerator */       N_("_Eject"), NULL,
   /* tooltip */                  N_("Eject the volume associated with this folder"),
 				 G_CALLBACK (action_location_eject_volume_callback) },
@@ -8468,7 +8575,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Detect media in the selected drive"),
 				 G_CALLBACK (action_location_detect_media_callback) },
 
-  /* name, stock id */         { "LocationProperties", "xsi-document-properties-symbolic",
+  /* name, stock id */         { "LocationProperties", "document-properties-symbolic",
   /* label, accelerator */       N_("_Properties"), NULL,
   /* tooltip */                  N_("View or modify the properties of this folder"),
 				 G_CALLBACK (action_location_properties_callback) },
@@ -8495,27 +8602,27 @@ static const GtkActionEntry directory_view_entries[] = {
 				N_("_Desktop"), NULL,
 				N_("Move the current selection to the desktop"),
 				G_CALLBACK (action_move_to_desktop_callback) },
-                               {NEMO_ACTION_BROWSE_MOVE_TO, "xsi-document-open-symbolic",
+                               {NEMO_ACTION_BROWSE_MOVE_TO, "document-open-symbolic",
                 N_("Browse..."), NULL,
                 N_("Browse for a folder to move the selection to"),
                 G_CALLBACK (action_browse_for_move_to_folder_callback) },
-                               {NEMO_ACTION_BROWSE_COPY_TO, "xsi-document-open-symbolic",
+                               {NEMO_ACTION_BROWSE_COPY_TO, "document-open-symbolic",
                 N_("Browse..."), NULL,
                 N_("Browse for a folder to copy the selection to"),
                 G_CALLBACK (action_browse_for_copy_to_folder_callback) },
-                               {NEMO_ACTION_PIN_FILE, "xsi-pin-symbolic",
+                               {NEMO_ACTION_PIN_FILE, "view-pin-symbolic",
                 N_("P_in"), "<control><shift>D",
                 N_("Pin the selected file so it always appears at the top of this location's file list"),
                 G_CALLBACK (action_pin_unpin_file_callback) },
-                               {NEMO_ACTION_UNPIN_FILE, "xsi-unpin-symbolic",
+                               {NEMO_ACTION_UNPIN_FILE, "view-pin-symbolic",
                 N_("Unp_in"), "<control><shift>D",
                 N_("Unpin the selected file from the top of this location's file list"),
                 G_CALLBACK (action_pin_unpin_file_callback) },
-                               {NEMO_ACTION_FAVORITE_FILE, "xsi-favorite-symbolic",
+                               {NEMO_ACTION_FAVORITE_FILE, "starred-symbolic",
                 N_("Add to favorites"), NULL,
                 N_("Add the selected file to your favorites"),
                 G_CALLBACK (action_favorite_unfavorite_file_callback) },
-                               {NEMO_ACTION_UNFAVORITE_FILE, "xsi-unfavorite-symbolic",
+                               {NEMO_ACTION_UNFAVORITE_FILE, "non-starred-symbolic",
                 N_("Remove from favorites"), NULL,
                 N_("Remove the selected file from your favorites"),
                 G_CALLBACK (action_favorite_unfavorite_file_callback) }
@@ -8729,8 +8836,7 @@ file_list_all_are_folders (GList *file_list)
 
 	for (l = file_list; l != NULL; l = l->next) {
 		file = NEMO_FILE (l->data);
-		if (nemo_file_is_nemo_link (file) &&
-		    !NEMO_IS_DESKTOP_ICON_FILE (file)) {
+		if (nemo_file_is_nemo_link (file)) {
 			if (nemo_file_is_launcher (file)) {
 				return FALSE;
 			}
@@ -8762,8 +8868,7 @@ file_list_all_are_folders (GList *file_list)
 			if (!is_dir) {
 				return FALSE;
 			}
-		} else if (!(nemo_file_is_directory (file) ||
-			     NEMO_IS_DESKTOP_ICON_FILE (file))) {
+		} else if (!nemo_file_is_directory (file)) {
 			return FALSE;
 		}
 	}
@@ -9443,15 +9548,54 @@ real_update_location_menu (NemoView *view)
 
 	file = view->details->location_popup_directory_as_file;
 	g_assert (NEMO_IS_FILE (file));
-	g_assert (nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO |
-						NEMO_FILE_ATTRIBUTE_MOUNT |
-						NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO));
+	/* INFO is always loaded for these files; MOUNT/FILESYSTEM_INFO may still be
+	   pending for a path-bar ancestor. We pop up now regardless (see
+	   schedule_pop_up_location_context_menu) - the volume items just stay hidden
+	   until that info exists, rather than deferring the whole menu. */
 
-	is_special_link = NEMO_IS_DESKTOP_ICON_FILE (file);
+	is_special_link = FALSE;
 	is_desktop_or_home_dir = nemo_file_is_home (file)
 		|| nemo_file_is_desktop_directory (file);
 
     is_recent = nemo_file_is_in_recent (file);
+
+	/* Path-bar folder actions: Open, terminal, admin, new folder inside.
+	   Terminal/admin need a real local path; new folder needs write access. */
+	{
+		char *local_path = nemo_file_get_path (file);
+		gboolean has_local_path = local_path != NULL;
+		g_free (local_path);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_OPEN);
+		gtk_action_set_visible (action, TRUE);
+		gtk_action_set_sensitive (action, TRUE);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_OPEN_IN_TERMINAL);
+		gtk_action_set_visible (action, !is_recent && has_local_path);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_OPEN_AS_ROOT);
+		gtk_action_set_visible (action, !is_recent && has_local_path && !nemo_user_is_root ());
+
+		/* New folder lands inside this segment, so only offer it for the
+		   folder actually on display - an ancestor segment would create
+		   somewhere you can't see. */
+		gboolean is_current_dir = FALSE;
+		if (view->details->directory_as_file != NULL) {
+			GFile *seg_loc = nemo_file_get_location (file);
+			GFile *cur_loc = nemo_file_get_location (view->details->directory_as_file);
+			is_current_dir = g_file_equal (seg_loc, cur_loc);
+			g_object_unref (seg_loc);
+			g_object_unref (cur_loc);
+		}
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_LOCATION_NEW_FOLDER);
+		gtk_action_set_visible (action, !is_recent);
+		gtk_action_set_sensitive (action, is_current_dir && nemo_file_can_write (file));
+	}
 
 	can_delete_file =
 		nemo_file_can_delete (file) &&
@@ -9660,6 +9804,7 @@ real_update_menus (NemoView *view)
                      && !selection_contains_special_link;
 
 	can_duplicate_files = can_create_files && can_copy_files;
+	/* Windows uses .lnk shell shortcuts in place of POSIX symlinks. */
 	can_link_files = can_create_files && can_copy_files;
 
     is_desktop_view = get_is_desktop_view (view);
@@ -9750,7 +9895,7 @@ real_update_menus (NemoView *view)
 	}
 
     if (app_icon == NULL) {
-        app_icon = g_themed_icon_new ("xsi-folder-open-symbolic");
+        app_icon = g_themed_icon_new ("folder-open-symbolic");
     }
 
     action = gtk_action_group_get_action (view->details->dir_action_group,
@@ -10170,10 +10315,11 @@ location_popup_file_attributes_ready (NemoFile *file,
 
 	view = NEMO_VIEW (data);
 	g_assert (NEMO_IS_VIEW (view));
-
 	g_assert (file == view->details->location_popup_directory_as_file);
 
-	real_pop_up_location_context_menu (view);
+	/* Just a warm-load completion (see schedule_pop_up_location_context_menu) -
+	   the menu was already popped up synchronously, so there's nothing to do but
+	   let the now-cached mount/filesystem info benefit the next right-click. */
 }
 
 static void
@@ -10201,23 +10347,31 @@ schedule_pop_up_location_context_menu (NemoView *view,
 	}
 	view->details->location_popup_event = (GdkEventButton *) gdk_event_copy ((GdkEvent *)event);
 
-	if (file == view->details->location_popup_directory_as_file) {
-		if (nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO |
-						  NEMO_FILE_ATTRIBUTE_MOUNT |
-						  NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO)) {
-			real_pop_up_location_context_menu (view);
-		}
-	} else {
+	if (file != view->details->location_popup_directory_as_file) {
 		unschedule_pop_up_location_context_menu (view);
-
 		view->details->location_popup_directory_as_file = nemo_file_ref (file);
-		nemo_file_call_when_ready (view->details->location_popup_directory_as_file,
-					       NEMO_FILE_ATTRIBUTE_INFO |
-					       NEMO_FILE_ATTRIBUTE_MOUNT |
-					       NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO,
-					       location_popup_file_attributes_ready,
-					       view);
+
+		/* Warm mount/filesystem info in the background so a later right-click on
+		   this segment can show the volume items. We don't wait on it - see below. */
+		if (!nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO |
+						     NEMO_FILE_ATTRIBUTE_MOUNT |
+						     NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO)) {
+			nemo_file_call_when_ready (file,
+						       NEMO_FILE_ATTRIBUTE_INFO |
+						       NEMO_FILE_ATTRIBUTE_MOUNT |
+						       NEMO_FILE_ATTRIBUTE_FILESYSTEM_INFO,
+						       location_popup_file_attributes_ready,
+						       view);
+		}
 	}
+
+	/* Pop up synchronously, inside this button-press, so the menu grab stays tied
+	   to the press. The old code deferred the popup to the call_when_ready callback
+	   whenever the file wasn't loaded yet; that fired after the button release with
+	   a stale event, so the menu flashed open and shut and you had to right-click a
+	   second time. INFO is already loaded for path-bar segments, so the core items
+	   are correct; the volume items just stay hidden until the warm-load lands. */
+	real_pop_up_location_context_menu (view);
 }
 
 /**

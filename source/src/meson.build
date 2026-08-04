@@ -6,31 +6,17 @@ dbusBuiltSources = gnome.gdbus_codegen(
   object_manager: true
 )
 
-nemoBuiltSources = gnome.gdbus_codegen(
-  'nemo-cinnamon-dbus',
-  join_paths(meson.project_source_root(), 'data', 'org.Cinnamon.xml'),
-  interface_prefix: 'org.',
-  namespace: 'Nemo',
-  object_manager: true
-)
-
 nemoCommon_sources = [
   dbusBuiltSources,
-  nemoBuiltSources,
   'nemo-action-config-widget.c',
   'nemo-application.c',
-  'nemo-blank-desktop-window.c',
   'nemo-bookmark-list.c',
   'nemo-bookmarks-window.c',
   'nemo-config-base-widget.c',
   'nemo-connect-server-dialog-nonmain.c',
   'nemo-connect-server-dialog.c',
   'nemo-connect-server-operation.c',
-  'nemo-desktop-icon-grid-view.c',
   'nemo-desktop-item-properties.c',
-  'nemo-desktop-manager.c',
-  'nemo-desktop-overlay.c',
-  'nemo-desktop-window.c',
   'nemo-error-reporting.c',
   'nemo-extension-config-widget.c',
   'nemo-file-management-properties.c',
@@ -67,6 +53,8 @@ nemoCommon_sources = [
   'nemo-tree-sidebar.c',
   'nemo-view-dnd.c',
   'nemo-view-factory.c',
+  'nemo-view-win32.c',
+  'nemo-win32-appearance.c',
   'nemo-view.c',
   'nemo-window-bookmarks.c',
   'nemo-window-manage-views.c',
@@ -86,24 +74,12 @@ nemoWindow_headers = [
   'nemo-main-application.h',
 ]
 
-nemoDesktop_sources = [
-  'nemo-desktop-application.c',
-  'nemo-desktop-icon-view.c',
-  'nemo-desktop-main.c',
-]
-nemoDesktop_headers = [
-  'nemo-desktop-application.h',
-  'nemo-desktop-overlay.h',
-  'nemo-desktop-icon-view.h',
-]
-
-
 if enableEmptyView
   nemoCommon_sources += 'nemo-empty-view.c'
 endif
 
-nemo_deps = [ cinnamon, gail, glib, gtk, math,
-  egg, nemo_extension, nemo_private, xapp ]
+nemo_deps = [ gail, glib, gtk, math,
+  egg, nemo_extension, nemo_private, win_shell ]
 
 if exempi_enabled
   nemo_deps += exempi
@@ -113,57 +89,71 @@ if libexif_enabled
   nemo_deps += libexif
 endif
 
+# Windows: embed a VERSIONINFO resource (generated from nemo-anywhere.rc.in) so the
+# exe carries real publisher/version metadata. Empty list elsewhere (no-op).
+nemo_win_res = []
+if is_windows
+  winmod = import('windows')
+  ver = meson.project_version().split('.')
+  # FILEVERSION fields must be numeric, so strip any prerelease suffix from the
+  # patch (1.0.0-beta1 -> 0). The string fields below keep the full version.
+  patch = ver[2].split('-')[0]
+  rc_conf = configuration_data()
+  rc_conf.set('VER_MAJOR', ver[0])
+  rc_conf.set('VER_MINOR', ver[1])
+  rc_conf.set('VER_PATCH', patch)
+  rc_conf.set('VERSION',   meson.project_version())
+  nemo_rc = configure_file(
+    input:         'nemo-anywhere.rc.in',
+    output:        'nemo-anywhere.rc',
+    configuration: rc_conf,
+  )
+  nemo_win_res = winmod.compile_resources(nemo_rc)
+endif
+
 nemo = executable('nemo-anywhere',
-  nemoCommon_sources + nemoWindow_sources,
+  nemoCommon_sources + nemoWindow_sources + nemo_win_res,
   include_directories: [ rootInclude ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
+  # GUI subsystem so Windows doesn't spawn a console window (no-op elsewhere)
+  win_subsystem: 'windows',
   install: true
 )
 
-nemoDesktop = executable('nemo-anywhere-desktop',
-  nemoCommon_sources + nemoDesktop_sources,
-  include_directories: [ rootInclude],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  install: true
-)
+# Helper exes are Unix-only. On Windows the connect + open-with dialogs run
+# in-process and nothing spawns the standalone launchers; the extensions lister
+# has nothing to enumerate with no external plugin loading. Keeps Windows to a
+# single exe (the ultra-portable goal).
+if not is_windows
+  nemo_connect_server = executable('nemo-anywhere-connect-server',
+    [
+      'nemo-bookmark-list.c',
+      'nemo-connect-server-dialog.c',
+      'nemo-connect-server-dialog-main.c',
+      'nemo-connect-server-operation.c'
+    ],
+    include_directories: [ rootInclude, ],
+    c_args: nemo_definitions,
+    dependencies: nemo_deps,
+    install: true
+  )
 
-nemo_autorun_software = executable('nemo-anywhere-autorun-software',
-  [ 'nemo-autorun-software.c' ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  install: true
-)
+  nemo_open_with = executable('nemo-anywhere-open-with',
+    [ 'nemo-open-with-main.c' ],
+    include_directories: [ rootInclude, ],
+    c_args: nemo_definitions,
+    dependencies: nemo_deps,
+    install: true
+  )
 
-nemo_connect_server = executable('nemo-anywhere-connect-server',
-  [
-    'nemo-bookmark-list.c',
-    'nemo-connect-server-dialog.c',
-    'nemo-connect-server-dialog-main.c',
-    'nemo-connect-server-operation.c'
-  ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  install: true
-)
-
-nemo_open_with = executable('nemo-anywhere-open-with',
-  [ 'nemo-open-with-main.c' ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: nemo_deps,
-  install: true
-)
-
-# LibExecs
-nemo_extensions_list = executable('nemo-anywhere-extensions-list',
-  [ 'nemo-extensions-list.c' ],
-  include_directories: [ rootInclude, ],
-  c_args: nemo_definitions,
-  dependencies: [ nemo_deps ],
-  install: true,
-  install_dir: libExecPath,
-)
+  # LibExecs
+  nemo_extensions_list = executable('nemo-anywhere-extensions-list',
+    [ 'nemo-extensions-list.c' ],
+    include_directories: [ rootInclude, ],
+    c_args: nemo_definitions,
+    dependencies: [ nemo_deps ],
+    install: true,
+    install_dir: libExecPath,
+  )
+endif
