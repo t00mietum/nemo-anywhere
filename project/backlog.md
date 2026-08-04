@@ -116,7 +116,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Milestone 7 - Packaging
 
-- 🔘 Single-exe packaging stage in `cicd-win.ps1` - pack the staged DLL closure into one portable `.exe`.
+- ✅ Single-exe packaging stage in `cicd-win.ps1` - pack the staged DLL closure into one portable `.exe`.
+	- Done: `cicd/win/pack-portable.ps1` flattens the bundle and packs it with Enigma Virtual Box into one self-contained exe; wired as cicd-win stage 5.
+
+- 🛠️ Windows code signing + AV false-positive reduction.
+	- ✅ Embedded VERSIONINFO in the exe (real publisher/version metadata; a blank-metadata binary scores worse with AV heuristics and looks unfinished in Properties).
+	- ✅ Local `signtool` signing scaffold in cicd-win stage 5 - env-driven, no-op until a cert is configured (fits a token/store cert: Certum OSS, Azure Trusted Signing, or a commercial EV).
+	- 🛠️ SignPath Foundation (free OSS signing) for the released exe: release-only CI at `.github/workflows/release-win.yml` builds + packs + submits to SignPath. Blocked on cutting a first release (they need an already-released project) plus the Foundation application and repo secrets. Signed publisher shows as "SignPath Foundation". Setup steps in `cicd/win/signing.md`.
+	- 🔘 Also sign the release `.zip` contents and, once it exists, the installer (the workflow signs only the single exe today).
+	- 🔘 Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 
 ## Backlog
 
