@@ -1,7 +1,7 @@
 # Meson build file
 
 # https://github.com/linuxmint/nemo
-project('nemo-anywhere', 'c', version : '6.6.4', meson_version : '>=0.56.0')
+project('nemo-anywhere', 'c', version : '1.0.0-beta1', meson_version : '>=0.56.0')
 
 # Install slug: co-install alongside upstream Nemo without file/bus/schema clashes.
 appSlug = 'nemo-anywhere'
