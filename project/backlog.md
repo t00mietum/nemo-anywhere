@@ -122,7 +122,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 - 🛠️ Windows code signing + AV false-positive reduction.
 	- ✅ Embedded VERSIONINFO in the exe (real publisher/version metadata; a blank-metadata binary scores worse with AV heuristics and looks unfinished in Properties).
 	- ✅ Local `signtool` signing scaffold in cicd-win stage 5 - env-driven, no-op until a cert is configured (fits a token/store cert: Certum OSS, Azure Trusted Signing, or a commercial EV).
-	- 🛠️ SignPath Foundation (free OSS signing) for the released exe: release-only CI at `.github/workflows/release-win.yml` builds + packs + submits to SignPath. First prerelease `v1.0.0-beta1` is cut (unsigned exe attached), so the "already-released" gate is met; remaining: the Foundation application, the repo secrets, and a first green CI run. Signed publisher shows as "SignPath Foundation". Setup steps in `cicd/win/signing.md`.
+	- 🛠️ SignPath Foundation (free OSS signing) for the released exe: release-only CI at `.github/workflows/release-win.yml` builds + packs + submits to SignPath. First prerelease `v1.0.0-beta1` is cut (unsigned exe attached), so the "already-released" gate is met, and the CI is proven green (build + pack + upload validated). Remaining: the Foundation application and the repo secrets - the signed tag path then runs on its own. Signed publisher shows as "SignPath Foundation". Setup steps in `cicd/win/signing.md`.
 	- 🔘 Also sign the release `.zip` contents and, once it exists, the installer (the workflow signs only the single exe today).
 	- 🔘 Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 

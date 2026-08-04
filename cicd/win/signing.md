@@ -12,15 +12,21 @@ Free OV code signing for open-source projects, done in the cloud. The private ke
 ### Prerequisites before applying
 
 - OSI-approved license, no commercial dual-licensing. GPL-2.0-only qualifies.
+
 - Actively maintained, and **already released in the form to be signed**. SignPath wants a real release to point at, so cut the first `v<version>` release before applying.
+
 - Functionality described on the download/README page.
 
 ### One-time setup
 
 1. Apply for a SignPath Foundation account at signpath.org and create an organization for the project.
+
 2. Create a project (slug `nemo-anywhere`), an artifact configuration for the single exe, and a signing policy (e.g. `release-signing`).
+
 3. Connect this GitHub repository as the trusted build system, so SignPath can verify each submission came from `release-win.yml` on a tag build.
+
 4. Generate an API token for CI submissions.
+
 5. In the repo, set:
 	- Secret `SIGNPATH_API_TOKEN` - the API token.
 	- Variable `SIGNPATH_ORG_ID` - the SignPath organization id.
