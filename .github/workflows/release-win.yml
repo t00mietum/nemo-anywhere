@@ -32,6 +32,7 @@ permissions:
 jobs:
   build-sign-release:
     runs-on: windows-latest
+    timeout-minutes: 30
     env:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
