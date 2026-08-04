@@ -113,6 +113,7 @@ tmpsums="$(mktemp)"
 rm -f "${OUT:?}/${sums}"
 ( cd "$OUT" && find . -maxdepth 1 -type f -printf '%P\n' | sort | xargs sha256sum ) > "$tmpsums"
 mv "$tmpsums" "${OUT}/${sums}"
+chmod 644 "${OUT}/${sums}"	# mktemp makes it 0600
 
 fEcho_Clean ""
 fEcho "Artifacts in cicd/artifacts/release"
