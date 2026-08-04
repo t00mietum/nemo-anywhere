@@ -10,17 +10,19 @@
 ##		   1. lint          (check-only cppcheck over the changed C files)
 ##		   2. debug build   (meson setup -Dxmp=false + ninja, MSYS2 mingw64)
 ##		   3. tests         (native --version smoke of the built exe)
-##		   4. stage+dogfood (self-contained runtime bundle -> synced dogfood folder)
+##		   4. stage         (self-contained runtime bundle - the packer's input)
 ##		   5. packages      (portable single-exe via Enigma Virtual Box; NSIS later)
-##		   6. publish       (stash -> pull -> add -> commit -> push, current branch)
+##		   6. dogfood       (drop the single exe into the synced by-self folder)
+##		   7. publish       (stash -> pull -> add -> commit -> push, current branch)
 ##		- The build needs MSYS2 with the mingw64 GTK toolchain (gtk3, meson, ninja,
 ##		  json-glib, libexif, libgsf). A missing toolchain warn-skips the build/stage
 ##		  (so sync + publish still run) unless -BuildStrict makes it a hard failure.
-##		- The dogfood bundle is a whole folder (nemo is a GTK prefix, not a lone exe):
-##		  the single exe (extension lib folded in) in app\, and the mingw64 DLL
-##		  dependency CLOSURE + pixbuf loaders + schemas + icons under mingw64\. It is
-##		  self-contained (runs on a box with no MSYS2). n8runfm.ps1 keeps its own
-##		  stamped pool from the same staged bundle.
+##		- The staged bundle is a whole folder (nemo is a GTK prefix): the single exe
+##		  (extension lib folded in) in app\, and the mingw64 DLL dependency CLOSURE +
+##		  pixbuf loaders + schemas + icons under mingw64\. It is the INPUT to the
+##		  packer - the shipped/dogfood artifact is the single self-contained exe the
+##		  packer produces, dropped as one file (nemo-anywhere.exe) beside the other
+##		  by-self win64 apps. n8runfm.ps1 keeps its own stamped pool of that exe.
 ##		- What Windows can't do (dropped vs cicd.bash): the profiler (Unix sampler),
 ##		  the headless X harness / screenshots / demo (Xvfb), .deb/.rpm packages, and
 ##		  the rar version-archive step of publish (Linux publisher only).
@@ -125,10 +127,14 @@ $StagerRel = "cicd/win/stage-native.bash"
 $BuildDir = Join-Path $Root "cicd\artifacts\build-win"
 $StageDir = Join-Path $Root "cicd\artifacts\win-run"
 
-## Dogfood: the fixed runtime folder for hand-launching, into the SYNCED util tree
-## (rides Dropbox, any box can grab it) - a nemo-anywhere\ subfolder alongside the
-## other by-self win64 apps. n8runfm.ps1 keeps its own machine-local stamped pool.
-$DogfoodDir = "C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere"
+## Dogfood: the single self-contained exe dropped straight into the SYNCED by-self
+## win64 folder (rides Dropbox, any box can grab it), one file per app alongside the
+## others - no app subfolder, no dll tree. n8runfm.ps1 keeps its own local pool.
+$DogfoodRoot = "C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64"
+$DogfoodExe  = Join-Path $DogfoodRoot "$ExeName.exe"
+
+## The packer's output - the single self-contained exe (cicd/win/pack-portable.ps1).
+$PortableExe = Join-Path $Root "cicd\artifacts\win-portable\$ExeName.exe"
 
 ## The single version source. meson.build carries `version : '6.6.4'` (colon form).
 $VersionManifest = Join-Path $Root "source\meson.build"
@@ -255,16 +261,19 @@ function fStage {
 	fSmoke -Exe $exe -RuntimeBin (Join-Path $StageDir "mingw64\bin")
 }
 
-## Dogfood: mirror the staged bundle into the fixed synced folder. robocopy /MIR so
-## a shrunk bundle doesn't leave stale dlls behind; its exit codes 0-7 are success.
+## Dogfood: drop the single packed exe into the synced by-self folder as one file.
+## Needs the packer's output, so it runs after stage 5. Self-heals the pre-single-exe
+## layout: an old nemo-anywhere\ bundle subfolder here is retired on sight.
 function fDogfood {
-	if (-not (Test-Path -LiteralPath $StageDir)) { fWarn "no staged bundle to dogfood; skipping"; return }
-	New-Item -ItemType Directory -Path $DogfoodDir -Force | Out-Null
-	fEcho_Clean "robocopy $StageRel -> $DogfoodDir ..."
-	& robocopy $StageDir $DogfoodDir /MIR /NFL /NDL /NJH /NJS /NP /R:1 /W:1 | Out-Null
-	$rc = $LASTEXITCODE
-	if ($rc -ge 8) { fDie "dogfood copy failed (robocopy exit $rc)" }
-	fEcho "OK: dogfood -> $DogfoodDir"
+	if (-not (Test-Path -LiteralPath $PortableExe)) { fWarn "no portable exe to dogfood (pack skipped or failed); skipping"; return }
+	New-Item -ItemType Directory -Path $DogfoodRoot -Force | Out-Null
+	$oldBundle = Join-Path $DogfoodRoot $ExeName
+	if (Test-Path -LiteralPath $oldBundle) {
+		try { Remove-Item -LiteralPath $oldBundle -Recurse -Force -ErrorAction Stop; fNote "retired old bundle folder: $oldBundle" }
+		catch { fWarn "couldn't remove old bundle folder $oldBundle ($($_.Exception.Message))" }
+	}
+	Copy-Item -LiteralPath $PortableExe -Destination $DogfoodExe -Force
+	fEcho "OK: dogfood -> $DogfoodExe"
 }
 
 ## Pack: the staged bundle -> one self-contained exe (cicd/win/pack-portable.ps1,
@@ -441,8 +450,8 @@ function fMain {
 	fEcho_Clean "Lint ........: $(if ($NoFmt) { '(skipped)' } else { 'cppcheck, check-only, changed C files' })"
 	fEcho_Clean "Build .......: $(if ($NoBuild) { '(skipped)' } else { 'meson + ninja, native mingw64' })"
 	fEcho_Clean "Tests .......: $(if ($NoBuild) { '(skipped)' } else { 'native --version smoke' })"
-	fEcho_Clean "Dogfood .....: $(if ($NoDogfood -or $NoBuild) { '(skipped)' } else { $DogfoodDir })"
 	fEcho_Clean "Packages ....: $(if ($NoPack -or $NoBuild) { '(skipped)' } else { 'portable single-exe (Enigma Virtual Box)' })"
+	fEcho_Clean "Dogfood .....: $(if ($NoDogfood -or $NoBuild -or $NoPack) { '(skipped)' } else { $DogfoodExe })"
 	if ($NoPublish)          { fEcho_Clean "Publish .....: (skipped)" }
 	elseif ($publishMsg)     { fEcho_Clean "Publish .....: commit + push current branch (hands-off: `"$publishMsg`")" }
 	else                     { fEcho_Clean "Publish .....: commit + push current branch (will prompt; blank = editor)" }
@@ -473,8 +482,8 @@ function fMain {
 	elseif ($toolMiss) { fWarn "lint SKIPPED: $toolMiss" }
 	else { fLint }
 
-	## Stages 2-4: build, smoke, stage+dogfood. Guarded as one block: a missing
-	## toolchain warn-skips them all (so sync + publish still run) unless -BuildStrict.
+	## Stages 2-4: build, smoke, stage. Guarded as one block: a missing toolchain
+	## warn-skips them all (so sync + publish still run) unless -BuildStrict.
 	if ($NoBuild) {
 		fSection "2  Build"; fNote "build skipped (-NoBuild)"
 	} elseif ($toolMiss) {
@@ -486,10 +495,8 @@ function fMain {
 		fBuild
 		fSection "3  Tests"
 		fSmoke -Exe (fPrepInPlaceSmoke) -RuntimeBin $MingwBin
-		fSection "4  Stage + Dogfood"
+		fSection "4  Stage"
 		fStage
-		if ($NoDogfood) { fNote "dogfood skipped (-NoDogfood)" }
-		else { fDogfood }
 	}
 
 	## Stage 5: packages - the portable single-exe (Enigma Virtual Box). A missing
@@ -499,8 +506,15 @@ function fMain {
 	elseif (-not (Test-Path -LiteralPath (Join-Path $StageDir "app\$ExeName.exe"))) { fWarn "no staged bundle; pack skipped" }
 	else { fPack }
 
-	## Stage 6: publish.
-	fSection "6  Publish"
+	## Stage 6: dogfood - the packed single exe into the synced by-self folder. Needs
+	## the packer's output, so it follows stage 5; no build/pack means no exe to drop.
+	fSection "6  Dogfood"
+	if ($NoDogfood) { fNote "dogfood skipped (-NoDogfood)" }
+	elseif ($NoPack -or $NoBuild) { fNote "dogfood skipped (no pack)" }
+	else { fDogfood }
+
+	## Stage 7: publish.
+	fSection "7  Publish"
 	if ($NoPublish) { fNote "publish skipped" }
 	else { fPublish -Msg $publishMsg }
 
@@ -516,6 +530,9 @@ try {
 
 
 ##	History:
+##		- 2026-08-04: Dogfood is now the single packed exe, dropped as one file in the
+##		  by-self win64 folder (its own stage 6, after pack); the old robocopy of the
+##		  app\+mingw64\ bundle into a nemo-anywhere\ subfolder is gone.
 ##		- 2026-08-02: Stage 1 wired: check-only cppcheck lint over the changed C
 ##		  files (cicd/utility/lint-c.bash); the gate runs it too (now 3 steps).
 ##		- 2026-07-30: Created. Windows-NATIVE companion to cicd.bash: MSYS2/mingw64
