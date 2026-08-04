@@ -1,0 +1,114 @@
+# Release-only Windows build, pack, and sign.
+#
+# Why this exists: SignPath Foundation (free OSS code signing) will only sign
+# artifacts built by a verifiable CI system - it will not sign a locally-built
+# exe. So the released Windows single-exe is built and packed here, then submitted
+# to SignPath for signing. Day-to-day dev and dogfooding stay local (cicd-win.ps1);
+# only the release artifact runs through this.
+#
+# It mirrors the known-good local chain: MSYS2/mingw64 meson+ninja build ->
+# stage-native.bash (self-contained bundle) -> pack-portable.ps1 (EVB single exe).
+#
+# Signing is gated on the SIGNPATH_API_TOKEN secret: until the SignPath project is
+# approved and the secret/vars are set, the job still builds and attaches the
+# UNSIGNED exe, so it never hard-fails on a missing cert. See cicd/win/signing.md
+# for the one-time SignPath setup (and note the signed publisher shows as
+# "SignPath Foundation", not the project).
+#
+# Triggers: a pushed v* tag (the release cut), or a manual run for a build/pack
+# smoke without releasing.
+
+name: release-win
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # attach assets to the GitHub Release
+  id-token: write   # SignPath origin verification (OIDC)
+
+jobs:
+  build-sign-release:
+    runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: MSYS2 mingw64 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-json-glib
+            mingw-w64-x86_64-libexif
+            mingw-w64-x86_64-libgsf
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-desktop-file-utils
+            intltool
+
+      - name: Build (meson + ninja)
+        shell: msys2 {0}
+        run: |
+          meson setup -Dxmp=false build source
+          ninja -C build
+
+      - name: Stage self-contained runtime bundle
+        shell: msys2 {0}
+        run: bash cicd/win/stage-native.bash build cicd/artifacts/win-run
+
+      - name: Pack single exe (Enigma Virtual Box)
+        shell: pwsh
+        run: |
+          choco install enigmavirtualbox --ignore-checksums -y
+          pwsh -File cicd/win/pack-portable.ps1
+          if (-not (Test-Path cicd/artifacts/win-portable/nemo-anywhere.exe)) {
+            throw "pack produced no exe"
+          }
+
+      - name: Upload unsigned exe (build artifact + input to signing)
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: nemo-anywhere-win64-unsigned
+          path: cicd/artifacts/win-portable/nemo-anywhere.exe
+          if-no-files-found: error
+
+      # Submit the built exe to SignPath. Skipped (leaving the exe unsigned) until
+      # SIGNPATH_API_TOKEN is set, so an unconfigured repo still produces a build.
+      # Input names track the action's README - re-check them at setup time.
+      - name: Sign with SignPath
+        id: sign
+        if: ${{ env.SIGNPATH_API_TOKEN != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ env.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORG_ID }}
+          project-slug: nemo-anywhere
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      # Attach to the release on a tag build. Prefer the signed exe when present.
+      # Creates the release if the tag push arrived before release.bash made one.
+      - name: Publish to release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $exe = if (Test-Path signed/nemo-anywhere.exe) { "signed/nemo-anywhere.exe" }
+                 else { "cicd/artifacts/win-portable/nemo-anywhere.exe" }
+          gh release create "$env:TAG" --verify-tag --generate-notes --title "$env:TAG" 2>$null
+          gh release upload "$env:TAG" "$exe" --clobber
