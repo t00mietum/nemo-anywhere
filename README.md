@@ -7,7 +7,8 @@
 
 ![Made with](https://img.shields.io/badge/Made%20with-C-1f425f.svg)
 ![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)
-![Lifecycle](https://img.shields.io/badge/Lifecycle-Alpha-orange)
+![Release](https://img.shields.io/badge/Release-1.0.0--beta1-orange.svg)
+![Lifecycle](https://img.shields.io/badge/Lifecycle-Beta-yellow)
 ![Support](https://img.shields.io/badge/Support-Maintained-brightgreen)
 
 </div>

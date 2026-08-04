@@ -95,10 +95,13 @@ nemo_win_res = []
 if is_windows
   winmod = import('windows')
   ver = meson.project_version().split('.')
+  # FILEVERSION fields must be numeric, so strip any prerelease suffix from the
+  # patch (1.0.0-beta1 -> 0). The string fields below keep the full version.
+  patch = ver[2].split('-')[0]
   rc_conf = configuration_data()
   rc_conf.set('VER_MAJOR', ver[0])
   rc_conf.set('VER_MINOR', ver[1])
-  rc_conf.set('VER_PATCH', ver[2])
+  rc_conf.set('VER_PATCH', patch)
   rc_conf.set('VERSION',   meson.project_version())
   nemo_rc = configure_file(
     input:         'nemo-anywhere.rc.in',
