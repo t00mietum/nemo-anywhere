@@ -5,20 +5,22 @@
 ##		  concept as silkterm's n8runterm: keep a small pool of date-stamped
 ##		  release copies in a local target dir and launch the newest, passing
 ##		  through any arguments. Independent of the cicd pipeline.
-##		- Nemo Anywhere is a prefix (a whole directory tree), not a single exe, so
-##		  each copy is a dir 'nemofmdf_<YYYYMMDD-HHMMSS>_<tag>' where the stamp is
-##		  the source build's main-binary mtime - a given build is copied once, and
-##		  a running copy never blocks the copy.
-##		- Each run, in order: delete idle copies over 7 days old (in use = any
-##		  running process whose image lives inside the copy); refresh from the
-##		  source if its build is newer than what we hold; launch the newest.
+##		- A copy is stamped 'nemofmdf_<YYYYMMDD-HHMMSS>_<tag>' (+ '.exe' on Windows),
+##		  where the stamp is the source build's mtime - a given build is copied once,
+##		  and a running copy never blocks the copy. On Windows the copy is a single
+##		  self-contained exe (a file); on Linux it's the whole prefix dir (a tree).
+##		- Each run, in order: delete idle copies over 7 days old (in use = a running
+##		  process that IS the copy exe, or on Linux whose image lives inside the copy
+##		  dir); refresh from the source if its build is newer than what we hold;
+##		  launch the newest.
 ##		- Sources per OS (tag in the copy name):
 ##			lin  the synced dogfood prefix nemo-anywhere.app (Linux)
-##			win  the staged win-run snapshot from the cross build (Windows)
-##		- The launcher wires the runtime env itself (loader path, schemas, data
-##		  dirs), pointing everything at the stamped copy, then starts it detached
-##		  and exits - on unix the app's own output goes to a log in the target
-##		  dir, since it no longer has the caller's console.
+##			win  the packed single exe from the native build (Windows)
+##		- On Linux the launcher wires the runtime env itself (loader path, schemas,
+##		  data dirs) at the stamped copy; on Windows the packed exe carries its whole
+##		  runtime, so nothing is wired. Either way it starts the app detached and
+##		  exits - on unix the app's own output goes to a log in the target dir, since
+##		  it no longer has the caller's console.
 ##		- If no copy is held and the source is unreachable, falls back to the
 ##		  first installed known file manager.
 ##	History: At bottom of script.
@@ -37,20 +39,22 @@
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
 if ($IsWindows) {
-	## The freshest source is the local native build's staged bundle
-	## (cicd-win.ps1 stages it there); the synced dogfood folder is the fallback for
-	## a box without the repo. Clone root differs per host, so try known candidates
-	## and take the first whose main binary exists (first is kept if none do, so the
-	## copy step warn-skips like any unreachable source).
+	## Single self-contained exe now (extension + whole GTK runtime packed in), so a
+	## copy is one file, not a prefix tree - the same shape as silkterm's n8runterm.
+	## The freshest source is the local build's packed exe (cicd-win.ps1 produces it);
+	## the synced by-self drop is the fallback for a box without the repo. Clone root
+	## differs per host, so try candidates in order and take the first that exists.
 	$SourceCandidates = @(
-		"C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
-		"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
-		"C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere"
-		## Add the SMB path to a build host's snapshot here when it's shared, e.g.:
-		## "\\b23\...\t00mietum\nemo-anywhere\github\cicd\artifacts\win-run"
+		"C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
+		"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
+		"C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
+		## Add the SMB path to a build host's packed exe here when it's shared, e.g.:
+		## "\\b23\...\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
 	)
-	$SourceMainBin = "app\nemo-anywhere.exe"
+	$SourceMainBin = ""            # the source IS the exe (single file, no sub-path)
 	$SourceTag     = "win"
+	$CopyIsFile    = $true         # a held copy is one .exe file, not a dir tree
+	$CopyExt       = ".exe"
 	$TargetDir     = Join-Path $env:LOCALAPPDATA "nemo-anywhere-dogfood"
 } else {
 	$SourceCandidates = @(
@@ -59,10 +63,20 @@ if ($IsWindows) {
 	)
 	$SourceMainBin = "bin/nemo-anywhere"
 	$SourceTag     = "lin"
+	$CopyIsFile    = $false        # a held copy is the whole prefix dir
+	$CopyExt       = ""
 	$TargetDir     = Join-Path $HOME ".local/share/nemo-anywhere-dogfood"
 }
-$SourceDir = $SourceCandidates | Where-Object { Test-Path -LiteralPath (Join-Path $_ $SourceMainBin) } | Select-Object -First 1
+## First candidate that exists (its main binary on Linux, or the exe itself on
+## Windows where the source has no sub-path). Keep the first if none do, so the copy
+## step warn-skips it like any other unreachable source (held copies still run).
+$SourceDir = $SourceCandidates |
+	Where-Object { Test-Path -LiteralPath $(if ($SourceMainBin) { Join-Path $_ $SourceMainBin } else { $_ }) } |
+	Select-Object -First 1
 if (-not $SourceDir) { $SourceDir = $SourceCandidates[0] }
+
+## Get-ChildItem item-type for the pool: files on Windows (single exe), dirs on Linux.
+$CopyGciType = if ($CopyIsFile) { @{ File = $true } } else { @{ Directory = $true } }
 
 ## Prefix for the date-stamped copy dirs.
 $DogfoodPrefix = "nemofmdf"
@@ -123,7 +137,7 @@ function fMain {
 	$copy = fNewestCopy
 	if ($copy) {
 		fNote "running: $($copy.File.Name)"
-		$null = fLaunchNemo -CopyDir $copy.File.FullName -PassArgs $PassArgs
+		$null = fLaunchNemo -CopyPath $copy.File.FullName -PassArgs $PassArgs
 		return
 	}
 
@@ -138,7 +152,7 @@ function fMain {
 ## interrupted copy can never pass for a complete one. No-op if the source is
 ## unreachable or we're already current.
 function fCopyIfNewer {
-	$srcBin = Join-Path $SourceDir $SourceMainBin
+	$srcBin = if ($SourceMainBin) { Join-Path $SourceDir $SourceMainBin } else { $SourceDir }
 	if (-not (Test-Path -LiteralPath $srcBin)) {
 		fWarn "source not reachable: $srcBin"
 		return
@@ -153,7 +167,7 @@ function fCopyIfNewer {
 		return
 	}
 
-	$dst = Join-Path $TargetDir "${DogfoodPrefix}_${stamp}_${SourceTag}"
+	$dst = Join-Path $TargetDir "${DogfoodPrefix}_${stamp}_${SourceTag}${CopyExt}"
 	if (Test-Path -LiteralPath $dst) {
 		fNote "copy already present: $(Split-Path $dst -Leaf)"
 		return
@@ -162,8 +176,12 @@ function fCopyIfNewer {
 	$tmp = "$dst.tmp"
 	try {
 		if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
-		Copy-Item -LiteralPath $SourceDir -Destination $tmp -Recurse -Force -ErrorAction Stop
+		if ($CopyIsFile) { Copy-Item -LiteralPath $SourceDir -Destination $tmp -Force -ErrorAction Stop }
+		else             { Copy-Item -LiteralPath $SourceDir -Destination $tmp -Recurse -Force -ErrorAction Stop }
 		Rename-Item -LiteralPath $tmp -NewName (Split-Path $dst -Leaf) -ErrorAction Stop
+		## A synced-sourced exe can carry a mark-of-the-web; clear it so the launch
+		## isn't SmartScreen-blocked. Best-effort, Windows-only (no-op for a dir).
+		if ($CopyIsFile) { try { Unblock-File -LiteralPath $dst -ErrorAction SilentlyContinue } catch { } }
 		fNote "copied -> $(Split-Path $dst -Leaf)"
 	} catch {
 		fWarn "couldn't copy build ($($_.Exception.Message))"
@@ -178,12 +196,12 @@ function fCopyIfNewer {
 ## a foreign entry that merely shares the dir.
 function fDeleteOldBuilds {
 	## Any tag ages out here (incl. one-off hand-dropped tags).
-	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?$"
+	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?$([regex]::Escape($CopyExt))$"
 	$cutoff  = (Get-Date).AddDays(-$MaxAgeDays)
 	$running = @(fRunningExePaths)
 	$deleted = 0
 
-	Get-ChildItem -LiteralPath $TargetDir -Directory -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
+	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
 		Where-Object { $_.Name -match $rx } |
 		Where-Object { (fBuildTime $_) -lt $cutoff } |
 		ForEach-Object {
@@ -198,7 +216,7 @@ function fDeleteOldBuilds {
 ## fresh enough to be a concurrent run's copy in progress.
 function fDeleteStaleTmp {
 	$cutoff = (Get-Date).AddHours(-1)
-	Get-ChildItem -LiteralPath $TargetDir -Directory -Filter "${DogfoodPrefix}_*.tmp" -ErrorAction SilentlyContinue |
+	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*.tmp" -ErrorAction SilentlyContinue |
 		Where-Object { $_.LastWriteTime -lt $cutoff } |
 		ForEach-Object {
 			try {
@@ -212,8 +230,8 @@ function fDeleteStaleTmp {
 ## All stamped copies as objects { File, Name, Tag, Stamp(DateTime) }, current
 ## OS's tag only - a lin prefix can't run on Windows or vice versa.
 function fHeldCopies {
-	$rx = "^$([regex]::Escape($DogfoodPrefix))_(?<stamp>\d{8}-\d{6})_$([regex]::Escape($SourceTag))$"
-	Get-ChildItem -LiteralPath $TargetDir -Directory -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
+	$rx = "^$([regex]::Escape($DogfoodPrefix))_(?<stamp>\d{8}-\d{6})_$([regex]::Escape($SourceTag))$([regex]::Escape($CopyExt))$"
+	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
 		ForEach-Object {
 			if ($_.Name -match $rx) {
 				[pscustomobject]@{
@@ -235,7 +253,7 @@ function fNewestCopy {
 ## A copy's build time: the stamp embedded in its name if present, else mtime.
 function fBuildTime {
 	param([Parameter(Mandatory)]$DirInfo)
-	if ($DirInfo.Name -match "_(?<stamp>\d{8}-\d{6})(?:_[a-z0-9]+)?$") {
+	if ($DirInfo.Name -match "_(?<stamp>\d{8}-\d{6})(?:_[a-z0-9]+)?(?:\.[A-Za-z0-9]+)?$") {
 		return fParseStamp $Matches.stamp
 	}
 	return $DirInfo.LastWriteTime
@@ -256,8 +274,15 @@ function fRemoveIfIdle {
 		[Parameter(Mandatory)]$DirInfo,
 		[string[]]$Running
 	)
-	$prefix = $DirInfo.FullName + [System.IO.Path]::DirectorySeparatorChar
-	if ($Running | Where-Object { $_.StartsWith($prefix) }) {
+	if ($CopyIsFile) {
+		## Single exe: in use = a running process whose image IS this exact copy.
+		$inUse = $Running | Where-Object { $_ -ieq $DirInfo.FullName }
+	} else {
+		## Prefix dir: in use = a running process whose image lives inside the copy.
+		$prefix = $DirInfo.FullName + [System.IO.Path]::DirectorySeparatorChar
+		$inUse = $Running | Where-Object { $_.StartsWith($prefix) }
+	}
+	if ($inUse) {
 		fNote "kept (running): $($DirInfo.Name)"
 		return $false
 	}
@@ -286,25 +311,21 @@ function fRunningExePaths {
 ## else sees them.
 function fLaunchNemo {
 	param(
-		[Parameter(Mandatory)][string]$CopyDir,
+		[Parameter(Mandatory)][string]$CopyPath,
 		[string[]]$PassArgs
 	)
 
 	if ($IsWindows) {
-		## Exe in app\, GTK runtime in mingw64\ (DLL-relative lookups intact).
-		$exe = Join-Path $CopyDir "app\nemo-anywhere.exe"
-		$env:PATH = (Join-Path $CopyDir "mingw64\bin") + ";" + (Join-Path $CopyDir "app") + ";" + $env:PATH
-		$env:GSETTINGS_SCHEMA_DIR = (Join-Path $CopyDir "mingw64\share\glib-2.0\schemas") +
-			$(if ($env:GSETTINGS_SCHEMA_DIR) { ";" + $env:GSETTINGS_SCHEMA_DIR } else { "" })
-		$env:XDG_DATA_DIRS = (Join-Path $CopyDir "mingw64\share") +
-			$(if ($env:XDG_DATA_DIRS) { ";" + $env:XDG_DATA_DIRS } else { "" })
+		## Single self-contained exe - the copy IS the exe, and it carries its whole
+		## GTK runtime (dlls, schemas, data) packed inside, so nothing is wired.
+		$exe = $CopyPath
 	} else {
-		$exe = Join-Path $CopyDir "bin/nemo-anywhere"
-		$env:LD_LIBRARY_PATH = (Join-Path $CopyDir "lib/x86_64-linux-gnu") +
+		$exe = Join-Path $CopyPath "bin/nemo-anywhere"
+		$env:LD_LIBRARY_PATH = (Join-Path $CopyPath "lib/x86_64-linux-gnu") +
 			$(if ($env:LD_LIBRARY_PATH) { ":" + $env:LD_LIBRARY_PATH } else { "" })
-		$env:GSETTINGS_SCHEMA_DIR = (Join-Path $CopyDir "share/glib-2.0/schemas") +
+		$env:GSETTINGS_SCHEMA_DIR = (Join-Path $CopyPath "share/glib-2.0/schemas") +
 			$(if ($env:GSETTINGS_SCHEMA_DIR) { ":" + $env:GSETTINGS_SCHEMA_DIR } else { "" })
-		$env:XDG_DATA_DIRS = (Join-Path $CopyDir "share") + ":" +
+		$env:XDG_DATA_DIRS = (Join-Path $CopyPath "share") + ":" +
 			$(if ($env:XDG_DATA_DIRS) { $env:XDG_DATA_DIRS } else { "/usr/local/share:/usr/share" })
 	}
 
@@ -475,6 +496,9 @@ exit 0
 
 
 ##	History:
+##		- 2026-08-04: Windows copies are now a single packed exe (a file), not the
+##		  app\+mingw64\ bundle - source is the packed win-portable exe, the pool holds
+##		  '.exe' copies, and launch needs no env wiring. Linux stays a prefix dir.
 ##		- 2026-07-23: Launch detached - own session, stdio off the caller - so
 ##		  the launcher returns at once and the app outlives it.
 ##		- 2026-07-23: Created (nemo-anywhere analog of silkterm's n8runterm.ps1;
