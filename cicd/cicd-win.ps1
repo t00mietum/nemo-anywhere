@@ -23,6 +23,11 @@
 ##		  packer - the shipped/dogfood artifact is the single self-contained exe the
 ##		  packer produces, dropped as one file (nemo-anywhere.exe) beside the other
 ##		  by-self win64 apps. n8runfm.ps1 keeps its own stamped pool of that exe.
+##		- Code signing is optional and OFF unless configured via env: set
+##		  NEMO_SIGN_THUMBPRINT (an installed cert, incl. a hardware token) or
+##		  NEMO_SIGN_PFX (+ NEMO_SIGN_PFX_PASSWORD) to Authenticode-sign the packed
+##		  exe; unconfigured, the sign step is a no-op so the unsigned dev flow is
+##		  never blocked. Timestamp URL via NEMO_SIGN_TS_URL, signtool via NEMO_SIGNTOOL.
 ##		- What Windows can't do (dropped vs cicd.bash): the profiler (Unix sampler),
 ##		  the headless X harness / screenshots / demo (Xvfb), .deb/.rpm packages, and
 ##		  the rar version-archive step of publish (Linux publisher only).
@@ -38,6 +43,7 @@
 ##		   -NoBuild        skip the build + smoke + stage stages
 ##		   -NoDogfood      skip installing the staged bundle into the dogfood folder
 ##		   -NoPack         skip the portable single-exe pack stage
+##		   -NoSign         skip Authenticode signing (also auto-skips if unconfigured)
 ##		   -NoPublish      skip the git publish stage
 ##		   -BuildStrict    a missing MSYS2 toolchain aborts instead of warn-skip
 ##		   -Message MSG    publish hands-off with this commit message (no editor)
@@ -60,6 +66,7 @@ param(
 	[switch]$NoBuild,
 	[switch]$NoDogfood,
 	[switch]$NoPack,
+	[switch]$NoSign,
 	[switch]$NoPublish,
 	[switch]$BuildStrict,
 	[string]$Message = "",
@@ -138,6 +145,17 @@ $PortableExe = Join-Path $Root "cicd\artifacts\win-portable\$ExeName.exe"
 
 ## The single version source. meson.build carries `version : '6.6.4'` (colon form).
 $VersionManifest = Join-Path $Root "source\meson.build"
+
+## Code signing (optional; all from env so nothing secret lands in the repo). Signing
+## is a no-op unless a cert is configured, so the unsigned dev flow is never blocked.
+##   NEMO_SIGN_THUMBPRINT  SHA1 thumbprint of an installed cert (store or token) - preferred
+##   NEMO_SIGN_PFX (+ _PASSWORD)  a .pfx on disk (testing / self-signed)
+##   NEMO_SIGN_TS_URL      RFC-3161 timestamp URL (default below)
+##   NEMO_SIGNTOOL         explicit signtool.exe path (else PATH, then the Windows SDK)
+$SignThumbprint = $env:NEMO_SIGN_THUMBPRINT
+$SignPfx        = $env:NEMO_SIGN_PFX
+$SignPfxPass    = $env:NEMO_SIGN_PFX_PASSWORD
+$SignTsUrl      = if ($env:NEMO_SIGN_TS_URL) { $env:NEMO_SIGN_TS_URL } else { "http://timestamp.digicert.com" }
 
 ## Full-run transcript (gitignored; a Windows-side sibling of the Linux lint logs).
 $LogDir = Join-Path $Root "cicd\artifacts\lint-win"
@@ -276,9 +294,58 @@ function fDogfood {
 	fEcho "OK: dogfood -> $DogfoodExe"
 }
 
+## True when a signing identity is configured (thumbprint or pfx).
+function fSignConfigured { return [bool]($SignThumbprint -or $SignPfx) }
+
+## Locate signtool.exe: explicit override, then PATH, then the newest x64 build under
+## the Windows 10/11 SDK. $null when none found.
+function fFindSigntool {
+	if ($env:NEMO_SIGNTOOL -and (Test-Path -LiteralPath $env:NEMO_SIGNTOOL)) { return $env:NEMO_SIGNTOOL }
+	$onPath = Get-Command signtool.exe -ErrorAction SilentlyContinue
+	if ($onPath) { return $onPath.Source }
+	$kits = "C:\Program Files (x86)\Windows Kits\10\bin"
+	if (Test-Path -LiteralPath $kits) {
+		$cand = Get-ChildItem -LiteralPath $kits -Directory -ErrorAction SilentlyContinue |
+			Sort-Object Name -Descending |
+			ForEach-Object { Join-Path $_.FullName "x64\signtool.exe" } |
+			Where-Object { Test-Path -LiteralPath $_ } |
+			Select-Object -First 1
+		if ($cand) { return $cand }
+	}
+	return $null
+}
+
+## Authenticode-sign one file with a SHA-256 digest and an RFC-3161 timestamp, then
+## verify the chain. No-op (a note) when signing isn't configured, so an unsigned
+## build still ships. A missing signtool warns and leaves the exe unsigned; a real
+## signing error aborts (a half-signed release should not go out).
+function fSignFile {
+	param([Parameter(Mandatory)][string]$Path)
+	if (-not (fSignConfigured)) { fNote "signing not configured (set NEMO_SIGN_THUMBPRINT or NEMO_SIGN_PFX); leaving exe unsigned"; return }
+	$signtool = fFindSigntool
+	if (-not $signtool) { fWarn "signtool.exe not found (install the Windows SDK, or set NEMO_SIGNTOOL); leaving exe unsigned"; return }
+
+	$signArgs = @("sign", "/fd", "sha256", "/tr", $SignTsUrl, "/td", "sha256", "/v")
+	if ($SignThumbprint) {
+		$signArgs += @("/sha1", $SignThumbprint)
+	} else {
+		$signArgs += @("/f", $SignPfx)
+		if ($SignPfxPass) { $signArgs += @("/p", $SignPfxPass) }
+	}
+	$signArgs += $Path
+
+	& $signtool @signArgs
+	if ($LASTEXITCODE -ne 0) { fDie "signing failed (exit $LASTEXITCODE): $Path" }
+	## /pa = default authenticode policy; a self-signed/test cert verifies only if it
+	## is trusted on this box, so treat a verify miss as a warning, not a hard fail.
+	& $signtool @("verify", "/pa", "/v", $Path) | Out-Null
+	if ($LASTEXITCODE -ne 0) { fWarn "signed, but chain verify failed (untrusted/self-signed cert?): $Path" }
+	fEcho "OK: signed $Path"
+}
+
 ## Pack: the staged bundle -> one self-contained exe (cicd/win/pack-portable.ps1,
-## Enigma Virtual Box). The script warn-skips here when EVB isn't installed - the
-## dogfood bundle is still the daily driver; the single exe is the release artifact.
+## Enigma Virtual Box), then sign it (no-op unless a cert is configured). The script
+## warn-skips when EVB isn't installed - the dogfood/single exe is the release artifact.
 function fPack {
 	$evbFound = (Test-Path -LiteralPath "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe") -or
 		(Test-Path -LiteralPath "C:\Program Files\Enigma Virtual Box\enigmavbconsole.exe") -or
@@ -286,6 +353,8 @@ function fPack {
 	if (-not $evbFound) { fWarn "Enigma Virtual Box not installed; pack skipped"; return }
 	& pwsh -File (Join-Path $Root "cicd\win\pack-portable.ps1")
 	if ($LASTEXITCODE -ne 0) { fDie "portable pack failed (exit $LASTEXITCODE)" }
+	if ($NoSign) { fNote "signing skipped (-NoSign)" }
+	else { fSignFile -Path $PortableExe }
 }
 
 ## Stage 0: remote sync (see cicd-win history / fRemoteSync in the Linux gate). Make
@@ -451,6 +520,7 @@ function fMain {
 	fEcho_Clean "Build .......: $(if ($NoBuild) { '(skipped)' } else { 'meson + ninja, native mingw64' })"
 	fEcho_Clean "Tests .......: $(if ($NoBuild) { '(skipped)' } else { 'native --version smoke' })"
 	fEcho_Clean "Packages ....: $(if ($NoPack -or $NoBuild) { '(skipped)' } else { 'portable single-exe (Enigma Virtual Box)' })"
+	fEcho_Clean "Signing .....: $(if ($NoSign) { '(skipped)' } elseif (fSignConfigured) { 'Authenticode (configured)' } else { '(none configured)' })"
 	fEcho_Clean "Dogfood .....: $(if ($NoDogfood -or $NoBuild -or $NoPack) { '(skipped)' } else { $DogfoodExe })"
 	if ($NoPublish)          { fEcho_Clean "Publish .....: (skipped)" }
 	elseif ($publishMsg)     { fEcho_Clean "Publish .....: commit + push current branch (hands-off: `"$publishMsg`")" }
@@ -499,8 +569,8 @@ function fMain {
 		fStage
 	}
 
-	## Stage 5: packages - the portable single-exe (Enigma Virtual Box). A missing
-	## packer or bundle warn-skips (NSIS installer is still a later stage).
+	## Stage 5: packages - the portable single-exe (Enigma Virtual Box), then sign it
+	## (no-op unless a cert is configured). A missing packer or bundle warn-skips.
 	fSection "5  Packages"
 	if ($NoPack -or $NoBuild) { fNote "pack skipped" }
 	elseif (-not (Test-Path -LiteralPath (Join-Path $StageDir "app\$ExeName.exe"))) { fWarn "no staged bundle; pack skipped" }
@@ -530,6 +600,9 @@ try {
 
 
 ##	History:
+##		- 2026-08-04: Optional Authenticode signing of the packed exe (stage 5, after
+##		  pack), configured entirely by env (NEMO_SIGN_*); no-op/warn when unconfigured
+##		  or signtool is absent, so unsigned dev builds still ship. -NoSign to skip.
 ##		- 2026-08-04: Dogfood is now the single packed exe, dropped as one file in the
 ##		  by-self win64 folder (its own stage 6, after pack); the old robocopy of the
 ##		  app\+mingw64\ bundle into a nemo-anywhere\ subfolder is gone.
