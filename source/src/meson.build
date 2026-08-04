@@ -89,8 +89,27 @@ if libexif_enabled
   nemo_deps += libexif
 endif
 
+# Windows: embed a VERSIONINFO resource (generated from nemo-anywhere.rc.in) so the
+# exe carries real publisher/version metadata. Empty list elsewhere (no-op).
+nemo_win_res = []
+if is_windows
+  winmod = import('windows')
+  ver = meson.project_version().split('.')
+  rc_conf = configuration_data()
+  rc_conf.set('VER_MAJOR', ver[0])
+  rc_conf.set('VER_MINOR', ver[1])
+  rc_conf.set('VER_PATCH', ver[2])
+  rc_conf.set('VERSION',   meson.project_version())
+  nemo_rc = configure_file(
+    input:         'nemo-anywhere.rc.in',
+    output:        'nemo-anywhere.rc',
+    configuration: rc_conf,
+  )
+  nemo_win_res = winmod.compile_resources(nemo_rc)
+endif
+
 nemo = executable('nemo-anywhere',
-  nemoCommon_sources + nemoWindow_sources,
+  nemoCommon_sources + nemoWindow_sources + nemo_win_res,
   include_directories: [ rootInclude ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
