@@ -131,9 +131,9 @@ Early bring-up. The fork is established and the Linux baseline builds and runs. 
 
 ## Installation
 
-The installer is the primary way to get Nemo Anywhere, on every platform. One command, and the release it fetches ships with the GTK runtime bundled - no hunting for dependencies. Building from source is for working on it, not for using it.
+The installer is the primary way to get Nemo Anywhere, on every platform. One command, and it fetches the right build for the machine it is run on. Building from source is for working on it, not for using it.
 
-No releases yet, so nothing to install today. The installers below are ready and waiting for the first one.
+The first prerelease, 1.0.0-beta1, is on the [releases page](https://github.com/t00mietum/nemo-anywhere/releases). Windows gets one self-contained executable with the whole GTK runtime inside it - copy it anywhere and run it. Linux gets a small prefix that uses the GTK3 the distro already ships; it is built against glibc 2.35 and GTK 3.24.33, so Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 and anything newer will run it.
 
 ### Direct
 

@@ -111,8 +111,11 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🛠️ Get release binaries onto the host, plus an optimized buildtype, then turn on artifact collection.
 	- ✅ Done: host dogfood path proven. Release build staged in the container, copied out to a self-contained folder, launched via a small wrapper.
-	- 🔘 Wire into the pipeline: optimized-size-and-speed buildtype, automatic artifact collection.
-	- 🔘 Artifacts must come out under the names the installers look for (see design.md, Delivery).
+	- ✅ Done: Linux release lane at `cicd/linux/release.bash` - optimized stripped build on an Ubuntu 22.04 box (the glibc floor is what the binary is built against), staged into a relocatable prefix, packed as the tarball plus the sums file.
+	- ✅ Done: artifacts come out under the names the installers look for, and the artifact dir is wired in `config.bash` so `utility/release.bash` verifies and attaches them.
+	- 🔘 Wire the lane into the pipeline engine itself - its collector still assumes a bare binary and Cargo-shaped versions, so `RELEASE_ENABLE` stays 0.
+
+- 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 
 ### Milestone 7 - Packaging
 
@@ -126,6 +129,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- 🔘 Also sign the release `.zip` contents and, once it exists, the installer (the workflow signs only the single exe today).
 	- 🔘 Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 
+- 🔘 Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer has nothing to fetch even though the release has a working exe. The pack lane already produces the flat prefix the zip is made of.
+
 ## Backlog
 
 ### Misc to-do
@@ -133,6 +138,10 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 ### Bugs
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
+
+- 🔘 The action layout editor never opens: the app spawns it as `nemo-action-layout-editor`, but the binary installs under the app slug as `nemo-anywhere-action-layout-editor`. One missed rename from the rebrand.
+
+- 🔘 Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 
 - 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
 	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.

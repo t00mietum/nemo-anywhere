@@ -141,13 +141,15 @@ CROSS_TARGETS=()
 #		"Windows ARM64 (zig)|windows-arm64|target/aarch64-pc-windows-gnullvm/release/${EXE_NAME}.exe|cargo zigbuild --release --target aarch64-pc-windows-gnullvm"
 #	)
 
-## Stage 5 (after builds): collect versioned artifacts + sha256sums. NOT READY -
-## disabled (empty RELEASE_ARTIFACT_DIR -> collection self-skips).
-## Note the version source differs: meson.build carries `version : '6.6.4'`, NOT the
-## Cargo `version = "..."` the engine's default collector greps for. release.bash
-## parses the meson form; wire the same here when artifacts go live.
-## NEEDS: a host-side release binary first (see RELEASE_ENABLE note above).
-RELEASE_ARTIFACT_DIR=""
+## Stage 5 (after builds): collect versioned artifacts + sha256sums.
+## The artifacts themselves come from the per-platform release lanes, not from this
+## engine stage: cicd/linux/release.bash writes the Linux tarball + the sums file
+## here, and the Windows exe is built and signed by the release-win workflow. Setting
+## the dir is what lets utility/release.bash verify and attach them.
+## NEEDS (before RELEASE_ENABLE can flip to 1): the engine's own collector wipes this
+## dir and copies bare RELEASE_NATIVE_BIN binaries under Cargo-shaped version parsing
+## - it has to learn the meson version form and the archive contract first.
+RELEASE_ARTIFACT_DIR="cicd/artifacts/release"
 VERSION_MANIFEST="source/meson.build"
 #	Rust-era original (reference only):
 #	RELEASE_ARTIFACT_DIR="cicd/artifacts/release"
