@@ -115,21 +115,22 @@ tar -czf "${OUT}/${name}.tar.gz" -C "$OUT" \
 	"${name}"
 rm -rf "${OUT:?}/${name}"
 
-## One sums file per release covering every artifact present - the installers grep
-## it for their own asset's line, so extra lines (the Windows exe) are free.
+## One sums file per release covering this version's artifacts - the installers grep
+## it for their own asset's line, so extra lines (the Windows exe) are free. Matching
+## on the version keeps a leftover build for another version out of it.
 sums="${SLUG}-${ver}-sha256sums.txt"
 tmpsums="$(mktemp)"
 rm -f "${OUT:?}/${sums}"
 ## -0/-r: without them an empty dir still runs sha256sum, which then reads stdin
 ## and writes a bogus "-" line into the file the installers verify against, and a
 ## name with a space would be split into two arguments.
-( cd "$OUT" && find . -maxdepth 1 -type f -printf '%P\0' | sort -z | xargs -0 -r sha256sum ) > "$tmpsums"
+( cd "$OUT" && find . -maxdepth 1 -type f -name "${SLUG}-${ver}-*" -printf '%P\0' | sort -z | xargs -0 -r sha256sum ) > "$tmpsums"
 mv "$tmpsums" "${OUT}/${sums}"
 chmod 644 "${OUT}/${sums}"	# mktemp makes it 0600
 
 fEcho_Clean ""
 fEcho "Artifacts in cicd/artifacts/release"
-( cd "$OUT" && find . -maxdepth 1 -type f -printf '  %-52f %10s bytes\n' | sort )
+( cd "$OUT" && find . -maxdepth 1 -type f -name "${SLUG}-${ver}-*" -printf '  %-52f %10s bytes\n' | sort )
 fEcho_Clean ""
 fEcho_Clean "$(cat "${OUT}/${sums}")"
 fEcho_Clean ""

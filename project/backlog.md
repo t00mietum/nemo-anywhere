@@ -144,7 +144,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- 🔘 Also sign the release `.zip` contents and, once it exists, the installer (the workflow signs only the single exe today).
 	- 🔘 Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 
-- 🔘 Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer has nothing to fetch even though the release has a working exe. The pack lane already produces the flat prefix the zip is made of.
+- ✅ Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer had nothing to fetch even though the release carried a working exe.
+	- Done: `cicd/win/pack-zip.bash` builds it from the cross build, and it ships from `v1.0.0-beta2` on.
 
 ## Backlog
 
