@@ -100,11 +100,20 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: signed
 
+      # Notes come from the changelog section for this version. Writes nothing when
+      # the version has no section, and the publish step then falls back to the
+      # generated commit list rather than an empty body.
+      - name: Release notes from changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: bash cicd/utility/changelog-notes.bash "${GITHUB_REF_NAME}" > release-notes.md || rm -f release-notes.md
+
       # Attach to the release on a tag build. Prefer the signed exe when present.
       # Creates the release if the tag push arrived before release.bash made one.
       # A SemVer prerelease tag (a hyphen after the version core, e.g. v1.0.0-rc1 or
       # v0.9.0-beta) is marked prerelease; a plain v<version> is marked latest. The
-      # flag is enforced on edit too, so a pre-existing release gets it right.
+      # flag and the notes are enforced on edit too, so a release that already
+      # existed ends up with both right.
       - name: Publish to release
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
@@ -115,6 +124,12 @@ jobs:
           $exe = if (Test-Path signed/nemo-anywhere.exe) { "signed/nemo-anywhere.exe" }
                  else { "cicd/artifacts/win-portable/nemo-anywhere.exe" }
           $rel = if ($env:TAG -match '-') { "--prerelease" } else { "--latest" }
-          gh release create "$env:TAG" --verify-tag --generate-notes --title "$env:TAG" $rel 2>$null
-          gh release edit "$env:TAG" $rel 2>$null
+          $notes = "release-notes.md"
+          if ((Test-Path $notes) -and (Get-Item $notes).Length -gt 0) {
+            gh release create "$env:TAG" --verify-tag --title "$env:TAG" --notes-file $notes $rel 2>$null
+            gh release edit "$env:TAG" $rel --notes-file $notes 2>$null
+          } else {
+            gh release create "$env:TAG" --verify-tag --title "$env:TAG" --generate-notes $rel 2>$null
+            gh release edit "$env:TAG" $rel 2>$null
+          }
           gh release upload "$env:TAG" "$exe" --clobber
