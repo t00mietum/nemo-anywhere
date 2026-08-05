@@ -79,6 +79,9 @@ fi
 ## pattern all over this codebase - not worth per-site suppressions.
 ## nullPointerOutOfMemory assumes an allocator can return NULL; glib's abort
 ## instead, so every one of these is wrong by construction here.
+## normalCheckLevelMaxBranches just says a big file was analysed shallowly.
+## It is not a finding, but --error-exitcode counts it, so any change touching
+## a large file would fail the gate on it alone.
 ## The per-file entries below are inherited-legacy findings, each confirmed
 ## present on dev - they surfaced only because a sweep touched those files.
 ## unknownMacro: cppcheck can't expand the EEL self-check X-macro prototype
@@ -91,6 +94,7 @@ cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=missingInclude --suppress=assertWithSideEffect \
 	--suppress=unknownMacro \
 	--suppress=nullPointerOutOfMemory \
+	--suppress=normalCheckLevelMaxBranches \
 	--suppress=invalidPrintfArgType_uint:*nemo-dnd.c \
 	--suppress=nullPointerRedundantCheck:*nemo-dnd.c \
 	--suppress=CastAddressToIntegerAtReturn:*nemo-mime-actions.c \
@@ -105,5 +109,7 @@ cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=nullPointerRedundantCheck:*nemo-icon-view-container.c \
 	--suppress=nullPointer:*nemo-tree-sidebar.c \
 	--suppress=ctunullpointer:*nemo-tree-sidebar.c \
+	--suppress=invalidPrintfArgType_sint:*nemo-icon-canvas-item.c \
+	--suppress=invalidPrintfArgType_sint:*nemo-properties-window.c \
 	--quiet --error-exitcode=2 "${files[@]}"
 fEcho "OK: C lint: no findings"
