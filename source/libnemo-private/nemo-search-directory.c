@@ -147,7 +147,7 @@ start_or_stop_search_engine (NemoSearchDirectory *search, gboolean adding)
 		ensure_search_engine (search);
 
         nemo_query_set_show_hidden (search->details->query,
-                                    g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
+                                    nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
 
 		nemo_search_engine_set_query (search->details->engine, search->details->query);
 
@@ -613,7 +613,7 @@ search_force_reload (NemoDirectory *directory)
 		nemo_search_engine_stop (search->details->engine);
 
         nemo_query_set_show_hidden (search->details->query,
-                                    g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
+                                    nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
 
 		nemo_search_engine_set_query (search->details->engine, search->details->query);
 		nemo_search_engine_start (search->details->engine);

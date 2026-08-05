@@ -193,7 +193,7 @@ nemo_icon_view_container_get_icon_description (NemoIconContainer *container,
 }
 
 static void
-update_auto_strv_as_quarks (GSettings   *settings,
+update_auto_strv_as_quarks (NemoConfigGroup   *settings,
 			    const gchar *key,
 			    gpointer     user_data)
 {
@@ -201,7 +201,7 @@ update_auto_strv_as_quarks (GSettings   *settings,
 	int i = 0;
 	char **value;
 
-	value = g_settings_get_strv (settings, key);
+	value = nemo_config_get_strv (settings, key);
 
 	g_free (*storage);
 	*storage = g_new (GQuark, g_strv_length (value) + 1);
@@ -1911,7 +1911,7 @@ text_ellipsis_limit_changed_callback (gpointer callback_data)
     unsigned int i;
     int one_limit;
 
-    pref = g_settings_get_strv (nemo_icon_view_preferences,
+    pref = nemo_config_get_strv (nemo_icon_view_preferences,
                     NEMO_PREFERENCES_ICON_VIEW_TEXT_ELLIPSIS_LIMIT);
 
     /* set default */
@@ -1937,7 +1937,7 @@ desktop_text_ellipsis_limit_changed_callback (gpointer callback_data)
 {
     int pref;
 
-    pref = g_settings_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
+    pref = nemo_config_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
     desktop_text_ellipsis_limit = pref;
 }
 

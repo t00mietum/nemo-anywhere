@@ -115,7 +115,7 @@ nemo_directory_init (NemoDirectory *directory)
 	directory->details->high_priority_queue = nemo_file_queue_new ();
 	directory->details->low_priority_queue = nemo_file_queue_new ();
 	directory->details->extension_queue = nemo_file_queue_new ();
-    directory->details->max_deferred_file_count = g_settings_get_int (nemo_preferences,
+    directory->details->max_deferred_file_count = nemo_config_get_int (nemo_preferences,
                                                                       NEMO_PREFERENCES_DEFERRED_ATTR_PRELOAD_LIMIT);
 }
 

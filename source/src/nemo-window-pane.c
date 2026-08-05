@@ -237,7 +237,7 @@ navigation_bar_location_changed_callback (GtkWidget *widget,
     restore_focus_widget (pane);
     current_location = nemo_window_slot_get_location (pane->active_slot);
 
-    if (g_file_equal (location, current_location) && !g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY)) {
+    if (g_file_equal (location, current_location) && !nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY)) {
         GtkAction *action = gtk_action_group_get_action (pane->action_group, NEMO_ACTION_TOGGLE_LOCATION);
         gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), FALSE);
     } else {
@@ -867,14 +867,14 @@ nemo_window_pane_dispose (GObject *object)
 }
 
 gboolean
-only_show_active_pane_toolbar_mapping (GValue *value,
-                                       GVariant *variant,
-                                       gpointer user_data)
+only_show_active_pane_toolbar_mapping (GValue                *value,
+                                       const NemoConfigValue *config_value,
+                                       gpointer               user_data)
 {
     NemoWindowPane *pane = user_data;
 
     if (nemo_window_disable_chrome_mapping (value,
-                                            variant,
+                                            config_value,
                                             pane->window)) {
         gboolean chrome_allowed = g_value_get_boolean (value);
         gboolean self_is_active = (pane == nemo_window_get_active_pane (pane->window));
@@ -941,11 +941,11 @@ nemo_window_pane_constructed (GObject *obj)
 	/* start as non-active */
 	nemo_window_pane_set_active (pane, FALSE);
 
-	g_settings_bind_with_mapping (nemo_window_state,
+	nemo_config_bind_with_mapping (nemo_window_state,
 				      NEMO_WINDOW_STATE_START_WITH_TOOLBAR,
 				      pane->tool_bar,
 				      "visible",
-				      G_SETTINGS_BIND_GET,
+				      NEMO_CONFIG_BIND_GET,
 				      only_show_active_pane_toolbar_mapping, NULL,
 				      pane, NULL);
 
@@ -1166,7 +1166,7 @@ nemo_window_pane_sync_location_widgets (NemoWindowPane *pane)
 
         action = gtk_action_group_get_action (pane->action_group, NEMO_ACTION_TOGGLE_LOCATION);
         gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
-                                      g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY));
+                                      nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY));
 	}
 
 	/* Update window global UI if this is the active pane */
@@ -1291,7 +1291,7 @@ nemo_window_pane_ensure_location_bar (NemoWindowPane *pane)
 {
     gboolean show_location, use_temp_toolbars;
 
-    use_temp_toolbars = !g_settings_get_boolean (nemo_window_state,
+    use_temp_toolbars = !nemo_config_get_boolean (nemo_window_state,
                      NEMO_WINDOW_STATE_START_WITH_TOOLBAR);
     show_location = nemo_toolbar_get_show_location_entry (NEMO_TOOLBAR (pane->tool_bar));
 

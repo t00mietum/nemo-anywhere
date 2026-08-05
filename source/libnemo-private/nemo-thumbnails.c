@@ -128,7 +128,7 @@ get_max_threads (void) {
     gint max_threads = 1;
     gint num_processors = g_get_num_processors ();
 
-    gint pref = g_settings_get_int (nemo_preferences, NEMO_PREFERENCES_MAX_THUMBNAIL_THREADS);
+    gint pref = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_MAX_THUMBNAIL_THREADS);
 
     if (pref == -1) {
         if (num_processors >= 8) {

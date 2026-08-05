@@ -706,11 +706,11 @@ toolbar_radio_entry_changed_cb (GtkAction *action,
     current_value = gtk_radio_action_get_current_value (current);
     switch (current_value) {
         case TOOLBAR_PATHBAR:
-            g_settings_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY, FALSE);
+            nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY, FALSE);
             gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (toggle_action), FALSE);
             break;
         case TOOLBAR_ENTRY:
-            g_settings_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY, TRUE);
+            nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY, TRUE);
             gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (toggle_action), TRUE);
             break;
         default:
@@ -719,7 +719,7 @@ toolbar_radio_entry_changed_cb (GtkAction *action,
     }
 }
 
-/* TODO: bind all of this with g_settings_bind and GBinding */
+/* TODO: bind all of this with nemo_config_bind and GBinding */
 static guint
 sidebar_id_to_value (const gchar *sidebar_id)
 {
@@ -890,7 +890,7 @@ toggle_location_entry (NemoWindow     *window,
 
     current_view = nemo_toolbar_get_show_location_entry (NEMO_TOOLBAR (pane->tool_bar));
     temp_toolbar_visible = pane->temporary_navigation_bar;
-    default_toolbar_visible = g_settings_get_boolean (nemo_window_state,
+    default_toolbar_visible = nemo_config_get_boolean (nemo_window_state,
                                                       NEMO_WINDOW_STATE_START_WITH_TOOLBAR);
     already_has_focus = nemo_location_bar_has_focus (NEMO_LOCATION_BAR (pane->location_bar));
 
@@ -1280,8 +1280,7 @@ open_in_terminal_other (const gchar *path)
     gchar **argv;
     gint i;
 
-    gsetting_terminal = g_settings_get_string (gnome_terminal_preferences,
-                                               GNOME_DESKTOP_TERMINAL_EXEC);
+    gsetting_terminal = nemo_desktop_settings_get_terminal_exec ();
 
     token = g_strsplit (gsetting_terminal, " ", 0);
     argv = g_new (gchar *, g_strv_length (token) + 1);
@@ -1671,7 +1670,7 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
                                                 _("Toggle Location Entry"),
                                                 NULL));
     gtk_action_group_add_action (action_group, GTK_ACTION (action));
-    show_location_entry_initially = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY);
+    show_location_entry_initially = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY);
     gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), show_location_entry_initially);
     g_signal_connect (action, "activate",
                       G_CALLBACK (action_toggle_location_entry_callback), window);
@@ -1786,29 +1785,29 @@ window_menus_set_bindings (NemoWindow *window)
 	action = gtk_action_group_get_action (action_group,
 					      NEMO_ACTION_SHOW_HIDE_TOOLBAR);
 
-	g_settings_bind (nemo_window_state,
+	nemo_config_bind (nemo_window_state,
 			 NEMO_WINDOW_STATE_START_WITH_TOOLBAR,
 			 action,
 			 "active",
-			 G_SETTINGS_BIND_DEFAULT);
+			 NEMO_CONFIG_BIND_DEFAULT);
 
 	action = gtk_action_group_get_action (action_group,
 					      NEMO_ACTION_SHOW_HIDE_STATUSBAR);
 
-	g_settings_bind (nemo_window_state,
+	nemo_config_bind (nemo_window_state,
 			 NEMO_WINDOW_STATE_START_WITH_STATUS_BAR,
 			 action,
 			 "active",
-			 G_SETTINGS_BIND_DEFAULT);
+			 NEMO_CONFIG_BIND_DEFAULT);
 
     action = gtk_action_group_get_action (action_group,
                           NEMO_ACTION_SHOW_HIDE_MENUBAR);
 
-    g_settings_bind (nemo_window_state,
+    nemo_config_bind (nemo_window_state,
              NEMO_WINDOW_STATE_START_WITH_MENU_BAR,
              action,
              "active",
-             G_SETTINGS_BIND_DEFAULT);
+             NEMO_CONFIG_BIND_DEFAULT);
 
 	action = gtk_action_group_get_action (action_group,
 					      NEMO_ACTION_SHOW_HIDE_SIDEBAR);
@@ -1895,7 +1894,7 @@ nemo_window_initialize_menus (NemoWindow *window)
                         0, G_CALLBACK (view_radio_entry_changed_cb),
                         window);
 
-    gboolean use_entry = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY);
+    gboolean use_entry = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY);
     gtk_action_group_add_radio_actions (action_group,
                                         toolbar_radio_entries, G_N_ELEMENTS (toolbar_radio_entries),
                                         use_entry ? TOOLBAR_ENTRY : TOOLBAR_PATHBAR,
@@ -1915,7 +1914,7 @@ nemo_window_initialize_menus (NemoWindow *window)
 
     g_signal_handlers_block_by_func (action, action_show_hidden_files_callback, window);
     gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
-                                  g_settings_get_boolean (nemo_preferences,
+                                  nemo_config_get_boolean (nemo_preferences,
                                   NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
     g_signal_handlers_unblock_by_func (action, action_show_hidden_files_callback, window);
 

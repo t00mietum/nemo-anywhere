@@ -271,7 +271,7 @@ initialize_search_helpers (NemoSearchEngineAdvanced *engine)
             continue;
         }
 
-        disabled_helpers = g_settings_get_strv (nemo_search_preferences,
+        disabled_helpers = nemo_config_get_strv (nemo_search_preferences,
                                                 NEMO_PLUGIN_PREFERENCES_DISABLED_SEARCH_HELPERS);
 
         while ((filename = g_dir_read_name (dir)) != NULL) {
@@ -340,12 +340,12 @@ nemo_search_engine_advanced_create_filename_regex (NemoQuery  *query,
 
     flags = G_REGEX_OPTIMIZE;
 
-    format = g_settings_get_string (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_REGEX_FORMAT);
+    format = nemo_config_get_string (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_REGEX_FORMAT);
     if (g_strcmp0 (format, "javascript") == 0) {
         flags |= G_REGEX_JAVASCRIPT_COMPAT;
     }
 
-    if (g_settings_get_boolean (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_USE_RAW)) {
+    if (nemo_config_get_boolean (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_USE_RAW)) {
         flags |= G_REGEX_RAW;
     }
 
@@ -381,13 +381,13 @@ nemo_search_engine_advanced_create_content_regex (NemoQuery  *query,
     flags = G_REGEX_MULTILINE |
             G_REGEX_OPTIMIZE;
 
-    format = g_settings_get_string (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_REGEX_FORMAT);
+    format = nemo_config_get_string (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_REGEX_FORMAT);
 
     if (g_strcmp0 (format, "javascript") == 0) {
         flags |= G_REGEX_JAVASCRIPT_COMPAT;
     }
 
-    if (g_settings_get_boolean (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_USE_RAW)) {
+    if (nemo_config_get_boolean (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_USE_RAW)) {
         flags |= G_REGEX_RAW;
     }
 
@@ -494,7 +494,7 @@ search_thread_data_new (NemoSearchEngineAdvanced *engine,
     }
 
     data->skip_folders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-    gchar **folders_array = g_settings_get_strv (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_SKIP_FOLDERS);
+    gchar **folders_array = nemo_config_get_strv (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_SKIP_FOLDERS);
     for (i = 0; i < g_strv_length (folders_array); i++) {
         /* Don't add an ancestor of the current location if it's in the skip list */
         if (g_str_has_prefix (g_file_peek_path (location), folders_array[i])) {
@@ -509,7 +509,7 @@ search_thread_data_new (NemoSearchEngineAdvanced *engine,
 
     data->count_hits = FALSE;
 
-    gchar **saved_search_columns = g_settings_get_strv (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS);
+    gchar **saved_search_columns = nemo_config_get_strv (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS);
     if (g_strv_contains ((const gchar * const *) saved_search_columns, "search_result_count")) {
         data->count_hits = TRUE;
         DEBUG ("Counting search hits");

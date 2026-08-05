@@ -28,6 +28,9 @@
 
 #include <gio/gio.h>
 
+#include <libnemo-private/nemo-config.h>
+#include <libnemo-private/nemo-desktop-settings.h>
+
 G_BEGIN_DECLS
 
 /* Trash options */
@@ -291,23 +294,17 @@ gint nemo_global_preferences_get_tooltip_flags (void);
 gboolean nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key);
 gchar **nemo_global_preferences_get_fileroller_mimetypes (void);
 
-extern GSettings *nemo_preferences;
-extern GSettings *nemo_icon_view_preferences;
-extern GSettings *nemo_list_view_preferences;
-extern GSettings *nemo_compact_view_preferences;
-extern GSettings *nemo_desktop_preferences;
-extern GSettings *nemo_tree_sidebar_preferences;
-extern GSettings *nemo_window_state;
-extern GSettings *gtk_filechooser_preferences;
-extern GSettings *nemo_plugin_preferences;
-extern GSettings *nemo_menu_config_preferences;
-extern GSettings *nemo_search_preferences;
-extern GSettings *gnome_lockdown_preferences;
-extern GSettings *gnome_background_preferences;
-extern GSettings *gnome_media_handling_preferences;
-extern GSettings *gnome_terminal_preferences;
-extern GSettings *cinnamon_privacy_preferences;
-extern GSettings *cinnamon_interface_preferences;
+extern NemoConfigGroup *nemo_preferences;
+extern NemoConfigGroup *nemo_icon_view_preferences;
+extern NemoConfigGroup *nemo_list_view_preferences;
+extern NemoConfigGroup *nemo_compact_view_preferences;
+extern NemoConfigGroup *nemo_desktop_preferences;
+extern NemoConfigGroup *nemo_tree_sidebar_preferences;
+extern NemoConfigGroup *nemo_window_state;
+extern NemoConfigGroup *nemo_plugin_preferences;
+extern NemoConfigGroup *nemo_menu_config_preferences;
+extern NemoConfigGroup *nemo_search_preferences;
+extern NemoConfigGroup *nemo_media_handling_preferences;
 
 /* Cached for fast access and used in nemo-file.c for constructing date/time strings */
 extern GTimeZone      *prefs_current_timezone;

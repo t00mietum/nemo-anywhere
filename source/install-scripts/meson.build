@@ -11,9 +11,6 @@
 # will be run directly, to install the program onto the system.
 
 
-# Re-compile gsettings
-meson.add_install_script('meson_install_schemas.py')
-
 # Update mime info
 meson.add_install_script('meson_update_mime_database.py')
 

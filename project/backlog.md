@@ -62,7 +62,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- Fixed the leftover console window on launch: the exes were linked with the console subsystem (mingw default), so Windows opened a terminal before the GUI. Main + connect-server + open-with now build with the GUI subsystem; extensions-list stays console on purpose. `--version` output still works when piped, so the cicd smokes are unchanged.
 	- ✅ One binary only - Windows now builds just `nemo-anywhere.exe`. The connect-server and open-with dialogs already run in-process (nothing spawned the standalone launchers), and the extensions lister is gone with no plugins to enumerate; the three helper `executable()`s are Unix-only in meson.
 		- Extension library folded in too: with no external plugins on Windows, the exe was its only consumer, so it's now a static lib on Windows (still shared on Linux for third-party extensions). No more sibling `libnemo-anywhere-extension-1.dll` - the exe loads and smokes standalone.
-	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
+	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry. (No longer blocked - the config engine is in.)
 	- ✅ No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
 		- `nemo_module_setup` skips the plugin dir on Windows, so a stray DLL can never load and hang the app. The Settings plugins tab still shows, listing nothing ("No extensions found").
 
@@ -75,9 +75,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- 🔘 Custom theming: nemo-anywhere theme search folders at system (prefix) and user level, so themes can be dropped in.
 	- 🛠️ Theme + light/dark selection stored in config; auto-follow the Windows light/dark setting with a manual override.
 		- ✅ Auto-follow: reads Windows AppsUseLightTheme at startup and live (registry watch), toggles GTK prefer-dark. One icon theme serves both modes.
-		- 🔘 Manual override + theme choice persisted in the `.shcl` config (waits on the SHCL config item).
+		- 🔘 Manual override + theme choice persisted in the config file (no longer blocked - the config engine is in).
 
-- 🔘 Config engine: move settings + persistence to SHCL (jim-collier/shcl) in a user-level `.shcl` file; decouple from gconf/dconf and the Windows registry. File-assoc overrides and theme/mode selection live here. (Already the intended engine in design.md.)
+- ✅ Config engine: settings + persistence moved to SHCL in a user-level `settings.shcl`; gconf/dconf and the Windows registry are out of the picture.
+	- Done: GSettings replaced outright rather than kept over a SHCL backend, so no compiled schema is installed or shipped. All 168 settings, ~300 call sites, 84 change handlers and 16 property binds moved over.
+	- Done: the file holds only non-default values, carries each key's description as a comment, and is re-read while running so a hand-edit applies immediately.
+	- Done: a schema file ships beside the app so `shcl check --schema` validates a hand-edited config (catches typos and bad values).
+	- Done: the `compat.*` fallback schemas are gone; desktop-owned settings (terminal, recent files, 12/24h clock) are read from the desktop where it publishes them, ours otherwise.
+	- Note: settings do not carry over from a pre-1.0 install - nothing left can read the old store. Fresh defaults on first run after upgrading.
+	- Note: nemo actions can still name any GSettings schema in a condition; that reads other programs' settings and is unaffected.
 
 - 🔘 Windows: "Open in terminal" should refer to an ordered list of shells and terminals in settings (if there's not a standard Windows way). At install time - and at launch in a background thread once the UI renders and settles:
 	- Check for a hardcoded list of terminals. For each that exist, add them to config. (Add nonexistent ones too, commented out.) For each, prefer to launch in what's installed, in this order of preference: SilkTerm, Windows Terminal, conhost. User can override which terminal is opened, for each shell.

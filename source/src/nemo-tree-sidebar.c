@@ -714,7 +714,7 @@ update_menu_states (FMTreeView *view,
     gboolean can_write;
     gint is_toplevel;
 
-    using_browser = g_settings_get_boolean (nemo_preferences,
+    using_browser = nemo_config_get_boolean (nemo_preferences,
                                             NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
     gboolean show_unmount = FALSE;
@@ -765,7 +765,7 @@ update_menu_states (FMTreeView *view,
     can_move_file_to_trash = nemo_file_can_trash (file);
     set_action_sensitive (view->details->tv_action_group, NEMO_ACTION_TRASH, can_move_file_to_trash);
 
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE)) {
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE)) {
     	parent_file_is_writable = is_parent_writable (file);
     	file_is_home_or_desktop = nemo_file_is_home (file)
     		|| nemo_file_is_desktop_directory (file);
@@ -815,7 +815,7 @@ button_pressed_callback (GtkTreeView *treeview,
         gboolean using_browser;
         NemoWindowOpenFlags flags = 0;
 
-        using_browser = g_settings_get_boolean (nemo_preferences,
+        using_browser = nemo_config_get_boolean (nemo_preferences,
                             NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
         if (!gtk_tree_view_get_path_at_pos (treeview, event->x, event->y,
@@ -1105,7 +1105,7 @@ fm_tree_view_delete_cb (GtkAction *action,
 {
 	GList *location_list;
 		
-	if (!g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE)) {
+	if (!nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE)) {
 		return;
 	}
 	
@@ -1606,7 +1606,7 @@ update_filtering_from_preferences (FMTreeView *view)
                                          mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE);
 
     fm_tree_model_set_show_only_directories (view->details->child_model,
-                                             g_settings_get_boolean (nemo_tree_sidebar_preferences,
+                                             nemo_config_get_boolean (nemo_tree_sidebar_preferences,
                                                                      NEMO_PREFERENCES_TREE_SHOW_ONLY_DIRECTORIES));
 }
 
@@ -1650,7 +1650,7 @@ sort_directories_first_changed_callback (gpointer callback_data)
 
     view = FM_TREE_VIEW (callback_data);
 
-    preference_value = g_settings_get_boolean (nemo_preferences,
+    preference_value = nemo_config_get_boolean (nemo_preferences,
                                                NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
 
     if (preference_value != view->details->sort_directories_first) {
@@ -1671,7 +1671,7 @@ sort_favorites_first_changed_callback (gpointer callback_data)
 
     view = FM_TREE_VIEW (callback_data);
 
-    preference_value = g_settings_get_boolean (nemo_preferences,
+    preference_value = nemo_config_get_boolean (nemo_preferences,
                                                NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
 
     if (preference_value != view->details->sort_favorites_first) {
@@ -1726,9 +1726,9 @@ fm_tree_view_init (FMTreeView *view)
                   "changed::" NEMO_PREFERENCES_SORT_FAVORITES_FIRST,
                   G_CALLBACK (sort_favorites_first_changed_callback), view);
 
-    view->details->sort_directories_first = g_settings_get_boolean (nemo_preferences,
+    view->details->sort_directories_first = nemo_config_get_boolean (nemo_preferences,
                                                                     NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
-    view->details->sort_favorites_first = g_settings_get_boolean (nemo_preferences,
+    view->details->sort_favorites_first = nemo_config_get_boolean (nemo_preferences,
                                                                     NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
 
 	view->details->popup_file = NULL;

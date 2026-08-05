@@ -733,7 +733,7 @@ in_single_click_mode (void)
 {
 	int click_policy;
 
-	click_policy = g_settings_get_enum (nemo_preferences,
+	click_policy = nemo_config_get_enum (nemo_preferences,
 					    NEMO_PREFERENCES_CLICK_POLICY);
 
 	return click_policy == NEMO_CLICK_POLICY_SINGLE;

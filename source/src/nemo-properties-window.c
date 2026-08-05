@@ -4581,7 +4581,7 @@ create_permissions_page (NemoPropertiesWindow *window)
 				    GTK_WIDGET (page_grid),
 				    TRUE, TRUE, 0);
 
-		if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS)) {
+		if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS)) {
 			create_advanced_permissions (window, page_grid);
 		} else {
 			create_simple_permissions (window, page_grid);

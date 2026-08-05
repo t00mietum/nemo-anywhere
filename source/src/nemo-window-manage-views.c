@@ -461,7 +461,7 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 	g_free (old_uri);
 	g_free (new_uri);
 
-	use_same |= g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
+	use_same |= nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
 	g_assert (!((flags & NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW) != 0 &&
 		    (flags & NEMO_WINDOW_OPEN_FLAG_NEW_TAB) != 0));
@@ -492,7 +492,7 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 
 		slot_flags = 0;
 
-		new_slot_position = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_NEW_TAB_POSITION);
+		new_slot_position = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_NEW_TAB_POSITION);
 		if (new_slot_position == NEMO_NEW_TAB_POSITION_END) {
 			slot_flags = NEMO_WINDOW_OPEN_SLOT_APPEND;
 		}
@@ -1422,7 +1422,7 @@ found_mount_cb (GObject *source_object,
 	if (mount != NULL) {
 		data->mount = mount;
 		
-		if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_MEDIA_HANDLING_DETECT_CONTENT)) {
+		if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_MEDIA_HANDLING_DETECT_CONTENT)) {
 			nemo_get_x_content_types_for_mount_async (mount,
 											found_content_type_cb,
 											data->cancellable,
@@ -1992,7 +1992,7 @@ void
 nemo_window_slot_check_bad_cache_bar (NemoWindowSlot *slot)
 {
     int show_image_thumbs;
-    show_image_thumbs = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS);
+    show_image_thumbs = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS);
     if (show_image_thumbs != NEMO_SPEED_TRADEOFF_NEVER &&
         nemo_application_get_cache_bad (nemo_application_get_singleton ()) &&
         !nemo_application_get_cache_problem_ignored (nemo_application_get_singleton ())) {
