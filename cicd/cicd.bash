@@ -24,6 +24,7 @@
 ##	  per-project (config.bash). A stage self-skips when its config vars are empty,
 ##	  so stages nemo-anywhere can't do yet are simply left unset (see config.bash).
 ##	- Stages (fail-fast, any error aborts before the next stage):
+##	   0. remote sync (fast-forward from upstream before anything is built)
 ##	   1. format (source formatter)
 ##	   2. debug build (this is what the tests + profiler run against)
 ##	   3. regression tests + lints (+ any headless harness)
@@ -39,6 +40,7 @@
 ##	   -q, --quiet         quiet + unattended (implies -y); the publish step runs quiet too
 ##	   -m, --message MSG   publish hands-off with this commit message (no editor)
 ##	       --msg MSG       alias for --message
+##	   --no-sync           skip the remote sync stage
 ##	   --no-fmt            skip the formatter stage
 ##	   --no-cross          skip cross-target release builds
 ##	   --no-arm            skip the ARM64 release builds + packages (x86_64 only)
@@ -71,18 +73,18 @@ export PATH="${HOME}/.local/bin:${PATH}"
 ## rustup toolchain won the PATH. nemo-anywhere is C/GTK built in the nemo-build
 ## container (meson/ninja), so there is no host toolchain to front-load. Kept as a
 ## note in case a host-side helper (e.g. a formatter/linter) ever needs its own bin dir.
-source "${here}/config.bash"
-source "${here}/utility/include/gfs-rotate.bash"                  ## gfs_rotate() for the profiler artifacts
-declare -p FMT_CMD &>/dev/null || FMT_CMD=()                      ## tolerate a config without the fmt stage
-
 ## Cap build parallelism to at most half the cores so a pipeline run doesn't peg
-## every CPU and leaves the machine usable. CICD_MAX_JOBS is exported so the build
-## command in config.bash can pass it through (e.g. ninja -j "${CICD_MAX_JOBS}").
-## A project can override CICD_MAX_JOBS in config.bash.
+## every CPU and leaves the machine usable. Computed BEFORE config.bash is read,
+## so the build commands there can interpolate it (ninja -j "${CICD_MAX_JOBS}");
+## ninja on its own would take cores+2. Override by exporting it beforehand.
 cores="$(nproc 2>/dev/null || echo 2)"
 : "${CICD_MAX_JOBS:=$(( cores / 2 ))}"
 (( CICD_MAX_JOBS >= 1 )) || CICD_MAX_JOBS=1
 export CICD_MAX_JOBS
+
+source "${here}/config.bash"
+source "${here}/utility/include/gfs-rotate.bash"                  ## gfs_rotate() for the profiler artifacts
+declare -p FMT_CMD &>/dev/null || FMT_CMD=()                      ## tolerate a config without the fmt stage
 ## NOT-READY (Rust origin): the source pipeline also exported CARGO_BUILD_JOBS and
 ## RUST_TEST_THREADS here to bound cargo's jobserver and the test run. No cargo in a
 ## meson/ninja build - parallelism is bounded inside the build command instead.
@@ -93,11 +95,12 @@ cd "${root}"
 stamp="$(date +%Y%m%d-%H%M%S)"
 
 ## Parse options.
-assume_yes=0; quiet=0; quick=0; gate=0; no_arm=0; cli_message=""
+assume_yes=0; quiet=0; quick=0; gate=0; no_arm=0; no_sync=0; cli_message=""
 while (($#)); do case "$1" in
 	-y|--yes)                 assume_yes=1; shift ;;
 	-q|--quiet)               quiet=1; assume_yes=1; shift ;;   ## quiet + unattended; publish runs quiet too
 	--gate)                   gate=1; shift ;;                  ## merge gate only, then exit
+	--no-sync)                no_sync=1; shift ;;
 	--no-fmt)                 FMT_CMD=(); shift ;;
 	--no-cross)               BUILD_CROSS=0; shift ;;
 	--no-arm)                 no_arm=1; shift ;;                ## drop ARM64 builds + packages
@@ -156,15 +159,77 @@ in_use(){
 	done
 	return 1
 }
+## The project version, from whichever manifest the project uses. Cargo's
+##   version = "1.2.3"
+## and meson's
+##   version: '1.2.3'
+## are both accepted, so the engine does not care which build system fills the
+## stages below it.
+## The lookbehind matters: meson.build carries meson_version and several
+## dependency versions on the same line as the project's own, and a pattern
+## without it happily returns '>=0.56.0'.
+read_version(){
+	local file="${root}/${VERSION_MANIFEST}" v
+	[[ -f "$file" ]] || return 0
+	v="$(sed -n 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | head -1)"
+	[[ -n "$v" ]] || v="$(grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "$file" | head -1)"
+	printf '%s' "$v"
+}
+
 ## (Re)write the sha256sums file over every artifact in the release dir except the
 ## sums file itself. Run after stage 5 (binaries) and again after stage 6 (packages),
 ## so the checksums cover the packages too. Uses the script-scope art_dir/ver/sums.
 write_sums(){
 	[[ -n "${art_dir:-}" && -d "${art_dir:-/nonexist}" ]] || return 0
 	( cd "${art_dir}"
+	  shopt -s nullglob
 	  files=(); for x in "${EXE_NAME}-${ver}-"*; do [[ "$x" == "$sums" || ! -f "$x" ]] && continue; files+=("$x"); done
-	  ((${#files[@]})) && sha256sum "${files[@]}" > "${sums}" )
+	  ((${#files[@]})) && sha256sum "${files[@]}" > "${sums}"
+	  true )
 }
+## Refresh from upstream BEFORE the build, so what publish pushes is what was
+## actually built and tested - the publish stage pulls too, but by then the
+## testing is already behind us. Behind-only fast-forwards (wrapping any dirty
+## tree in a stash); diverged aborts here rather than at the end; offline just
+## warns. Never runs in gate mode: the gate is a pre-push hook, and a hook that
+## pulls would rewrite the tree out from under the push that invoked it.
+remote_sync(){
+	local ahead behind stashed=0
+
+	if ! git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+		fEcho_Clean "no upstream for $(git rev-parse --abbrev-ref HEAD); nothing to sync"
+		return 0
+	fi
+	if ! git fetch --quiet 2>/dev/null; then
+		fEcho "WARNING: git fetch failed (offline?); continuing with the local tree"
+		return 0
+	fi
+
+	ahead="$(git rev-list --count '@{u}..HEAD')"
+	behind="$(git rev-list --count 'HEAD..@{u}')"
+
+	if ((behind == 0)); then
+		if ((ahead)); then fEcho "OK: up to date with upstream (${ahead} ahead)"
+		else               fEcho "OK: up to date with upstream"; fi
+		return 0
+	fi
+	((ahead == 0)) || fDie "diverged from upstream (${ahead} ahead, ${behind} behind) - reconcile first, or rerun with --no-sync"
+
+	## --include-untracked, so the guard has to consider untracked files too or
+	## the pull can still abort on one that upstream just added.
+	if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+		fEcho_Clean "git stash push --include-untracked ..."
+		git stash push --include-untracked -m "auto-stash" >/dev/null && stashed=1
+	fi
+	fEcho_Clean "git pull --ff-only ..."
+	git pull --ff-only
+	if ((stashed)); then
+		fEcho_Clean "git stash pop ..."
+		git stash pop >/dev/null
+	fi
+	fEcho "OK: fast-forwarded ${behind} commit(s) from upstream"
+}
+
 trap 'rc=$?; printf "\n[ CICD ABORTED (exit %s) at line %s: %s ]\n" "$rc" "$LINENO" "$BASH_COMMAND" >&2; exit $rc' ERR
 
 ## Gate mode: the local merge gate (what a bare-bones hosted CI would run).
@@ -208,6 +273,17 @@ if declare -p TOOL_PINS &>/dev/null; then
 	done
 fi
 
+## Release identity, resolved up front rather than inside the release stage: the
+## packaging and checksum steps need it even when the binaries themselves come
+## from a per-platform lane outside this engine (see config.bash).
+ver="$(read_version)"
+art_dir=""; sums=""
+if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then
+	[[ -n "$ver" ]] || fDie "no version found in ${VERSION_MANIFEST}"
+	art_dir="${root}/${RELEASE_ARTIFACT_DIR}"
+	sums="${EXE_NAME}-${ver}-sha256sums.txt"
+fi
+
 ## Preflight: show the plan with resolved paths, then confirm.
 abs_script="${root}/${PROFILE_WORKLOAD_SCRIPT}"
 profile_dir="$(cd "${root}" && mkdir -p "${PROFILE_OUT_DIR}" 2>/dev/null; cd "${PROFILE_OUT_DIR}" 2>/dev/null && pwd || echo "${root}/${PROFILE_OUT_DIR}")"
@@ -219,6 +295,8 @@ fEcho_Clean
 fEcho_Clean "${APP_NAME} local CI/CD"
 fEcho_Clean
 fEcho_Clean "Repo root ...........: ${root}"
+fEcho_Clean "Remote sync .........: $( ((no_sync)) && echo '(skipped --no-sync)' || echo 'fetch + fast-forward before building' )"
+fEcho_Clean "Build jobs ..........: ${CICD_MAX_JOBS} (half of ${cores} cores)"
 fEcho_Clean "Format ..............: ${FMT_CMD[*]:-(skipped)}"
 fEcho_Clean "Debug build .........: ${DEBUG_BUILD_CMD[*]}"
 fEcho_Clean "Tests ...............: ${TEST_CMD[*]}"
@@ -237,8 +315,9 @@ else
 	fEcho_Clean "Release (cross) .....: (skipped)"
 fi
 if ((PACKAGE_ENABLE)) && ((! quick)); then
-	fEcho_Clean "Packages ............: .deb/.rpm (Linux) + NSIS installer .exe (Windows), per built arch"
-	fEcho_Clean "  deferred ..........: macOS (.dmg), BSD - no cross toolchain on this box"
+	fEcho_Clean "Packages ............:"
+	for entry in "${PACKAGE_CMDS[@]:-}"; do [[ -n "$entry" ]] && fEcho_Clean "    - ${entry%%|*}"; done
+	fEcho_Clean "  deferred ..........: BSD, macOS, AppImage, Flatpak - no toolchain on this box"
 else
 	fEcho_Clean "Packages ............: $( ((quick)) && echo '(skipped --quick)' || echo '(disabled)')"
 fi
@@ -280,6 +359,14 @@ fi
 if [[ -n "${LINT_LOG_DIR:-}" ]] && mkdir -p "${root}/${LINT_LOG_DIR}" 2>/dev/null; then
 	gfs_rotate "${root}/${LINT_LOG_DIR}" run log >/dev/null 2>&1 || true
 	exec > >(tee "${root}/${LINT_LOG_DIR}/run_${stamp}.log") 2>&1
+fi
+
+## Stage 0: remote sync.
+fSection "0/8  Remote sync"
+if ((no_sync)); then
+	fEcho_Clean "remote sync skipped (--no-sync)"
+else
+	remote_sync
 fi
 
 ## Stage 1: format.
@@ -420,13 +507,9 @@ if ((BUILD_CROSS)) && ((${#CROSS_TARGETS[@]})); then
 fi
 
 ## Collect the built binaries under versioned names + a sha256 checksums file,
-## ready to attach to a release as plain uploads. Version = Cargo.toml alone.
+## ready to attach to a release as plain uploads.
 if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then
-	ver="$(sed -n 's/^version *= *"\(.*\)".*/\1/p' "${root}/${VERSION_MANIFEST}" | head -1)"
-	[[ -n "$ver" ]] || fDie "no version found in ${VERSION_MANIFEST}"
-	art_dir="${root}/${RELEASE_ARTIFACT_DIR}"
 	rm -rf "${art_dir}"; mkdir -p "${art_dir}"
-	sums="${EXE_NAME}-${ver}-sha256sums.txt"
 	for pair in "${built_arts[@]}"; do
 		osarch="${pair%%|*}"; src="${pair#*|}"
 		ext=""; [[ "$src" == *.exe ]] && ext=".exe"
@@ -440,63 +523,30 @@ else
 	fEcho_Clean "release build disabled (RELEASE_ENABLE=0)"
 fi
 
-## Stage 6: packages. Build distributables from the stage-5 binaries (never rebuilt).
-## Linux -> .deb + .rpm per built arch (cargo-deb / cargo-generate-rpm, metadata in
-## source/Cargo.toml); Windows -> one self-contained NSIS installer .exe per arch
-## (upgrades in place). macOS (.dmg) + BSD are deferred - no cross toolchain here.
-## Skipped under --quick; a missing tool warns (non-gating) rather than aborting.
+## Stage 6: packages. Distributables built from what stage 5 produced, never
+## rebuilt from source. Which formats, and how, is entirely the project's business
+## (PACKAGE_CMDS in config.bash) - the engine only decides when it happens and that
+## a failing packager warns rather than aborting the run. Skipped under --quick.
 build_packages(){
 	((PACKAGE_ENABLE)) || { fEcho_Clean "packages disabled"; return 0; }
-	[[ -n "${art_dir:-}" ]] || { fEcho "WARNING: packages skipped (no RELEASE_ARTIFACT_DIR)"; return 0; }
-	local pair osarch bin triple out nsi rc made=0
-	local rpmver="${ver//-/\~}"   ## RPM versions forbid '-' (it splits version-release); 1.0.0-beta1 -> 1.0.0~beta1
-	for pair in "${built_arts[@]}"; do
-		osarch="${pair%%|*}"; bin="${pair#*|}"
-		case "$osarch" in
-			linux-x86_64) triple="" ;;
-			linux-arm64)  triple="aarch64-unknown-linux-gnu" ;;
-			windows-*)    triple="" ;;   ## handled below
-			*) continue ;;
-		esac
+	if ! declare -p PACKAGE_CMDS &>/dev/null || ((${#PACKAGE_CMDS[@]} == 0)); then
+		fEcho "WARNING: packages enabled but no PACKAGE_CMDS configured"
+		return 0
+	fi
 
-		## Linux: .deb then .rpm. Both package the existing binary (no rebuild).
-		if [[ "$osarch" == linux-* ]]; then
-			if command -v cargo-deb >/dev/null 2>&1; then
-				local -a da=(deb --no-build --no-strip --manifest-path source/Cargo.toml
-					--output "${art_dir}/${EXE_NAME}-${ver}-${osarch}.deb")
-				[[ -n "$triple" ]] && da+=(--target "$triple")
-				if cargo "${da[@]}" >/dev/null; then fEcho "OK: .deb (${osarch})"; made=$((made+1))
-				else fEcho "WARNING: .deb build failed (${osarch})"; fi
-			else fEcho "WARNING: cargo-deb missing; .deb skipped (${osarch})"; fi
-
-			if command -v cargo-generate-rpm >/dev/null 2>&1; then
-				## -p is the crate DIR (source/), assets resolve from CWD (repo root),
-				## so target/release/nemo-anywhere is found; -s overrides the RPM-illegal version.
-				local -a ra=(generate-rpm -p source -s "version = \"${rpmver}\""
-					--output "${art_dir}/${EXE_NAME}-${ver}-${osarch}.rpm")
-				[[ -n "$triple" ]] && ra+=(--target "$triple" --arch aarch64)
-				if cargo "${ra[@]}" >/dev/null; then fEcho "OK: .rpm (${osarch})"; made=$((made+1))
-				else fEcho "WARNING: .rpm build failed (${osarch})"; fi
-			else fEcho "WARNING: cargo-generate-rpm missing; .rpm skipped (${osarch})"; fi
-		fi
-
-		## Windows: one self-contained NSIS installer .exe per arch.
-		if [[ "$osarch" == windows-* ]]; then
-			if command -v makensis >/dev/null 2>&1 && [[ -f "${root}/${NSIS_TEMPLATE}" ]]; then
-				out="${art_dir}/${EXE_NAME}-${ver}-${osarch}-setup.exe"
-				nsi="$(mktemp --suffix=.nsi)"
-				sed -e "s|@VERSION@|${ver}|g" -e "s|@ARCH@|${osarch}|g" \
-					-e "s|@SRCEXE@|${root}/${bin}|g" -e "s|@OUTFILE@|${out}|g" \
-					"${root}/${NSIS_TEMPLATE}" > "${nsi}"
-				rc=0; makensis -V2 "${nsi}" >/dev/null || rc=$?
-				rm -f "${nsi}"
-				if ((rc == 0)) && [[ -f "$out" ]]; then fEcho "OK: installer (${osarch})"; made=$((made+1))
-				else fEcho "WARNING: NSIS installer failed (${osarch})"; fi
-			else fEcho "WARNING: makensis/template missing; installer skipped (${osarch})"; fi
+	local entry label cmd made=0
+	for entry in "${PACKAGE_CMDS[@]}"; do
+		label="${entry%%|*}"; cmd="${entry#*|}"
+		fEcho_Clean "packaging: ${label} ..."
+		if eval "${cmd}"; then
+			made=$((made + 1))
+		else
+			## One format failing is not worth losing the others, or the run.
+			fEcho "WARNING: ${label} failed"
 		fi
 	done
 	write_sums
-	fEcho "OK: ${made} package(s) -> ${RELEASE_ARTIFACT_DIR}/ (macOS/BSD deferred)"
+	fEcho "OK: ${made}/${#PACKAGE_CMDS[@]} packaging step(s) -> ${RELEASE_ARTIFACT_DIR}/"
 }
 fSection "6/8  Packages"
 if ((quick)); then

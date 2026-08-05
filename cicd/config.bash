@@ -79,10 +79,12 @@ FMT_CHECK_CMD=()
 ## The wrapper starts the container (and skips gracefully if docker is down) so a
 ## stopped box or dead daemon doesn't fail the stage. This is what the smoke runs
 ## against.
-DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" '
+## -j is not optional: left alone ninja takes cores+2, and the engine's whole
+## point in computing CICD_MAX_JOBS is that a pipeline run leaves the box usable.
+DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" "
 	if [ -f /build/build.ninja ]; then meson setup --reconfigure /build /src/source
-	else meson setup /build /src/source; fi && ninja -C /build
-')
+	else meson setup /build /src/source; fi && ninja -C /build -j ${CICD_MAX_JOBS:-2}
+")
 
 ## Stage 3: regression tests - PARTIAL. There is no real test suite yet, so "tests"
 ## is a headless launch + --version smoke check inside the container (proves the
@@ -157,16 +159,22 @@ VERSION_MANIFEST="source/meson.build"
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 6: distributable packages. NOT READY - disabled (PACKAGE_ENABLE=0).
-## NEEDS: Linux packaging for a C/meson project - .deb/.rpm built from an installed
-## tree (meson install DESTDIR + dpkg-deb/rpmbuild, or fpm), plus the Windows
-## installer once that toolchain exists. AppImage/Flatpak are candidates too. None
-## of the cargo packagers below apply.
-PACKAGE_ENABLE=0
-NSIS_TEMPLATE=""
-#	Rust-era original (reference only):
-#	PACKAGE_ENABLE=1
-#	NSIS_TEMPLATE="cicd/packaging/windows/installer.nsi.in"
+## Stage 6: distributable packages - READY.
+## Each entry is "label|shell command"; a failure warns and the rest still run.
+## Both steps work from what the per-platform release lanes already produced, so
+## nothing is rebuilt here:
+##   - .deb and .rpm are made from the Linux release tarball, and install the same
+##     relocatable prefix under /opt plus a launcher, menu entry and icons. The
+##     .deb's dependency versions are read in the Ubuntu release container so the
+##     package claims the same floor the binary was built against.
+##   - The Windows .zip is flattened out of the cross-build - exe at the folder
+##     root beside its DLLs, which is the layout install.ps1 expects.
+## Deferred: BSD .pkg, macOS .pkg, AppImage, Flatpak - no toolchain here yet.
+PACKAGE_ENABLE=1
+PACKAGE_CMDS=(
+	"Linux .deb + .rpm|bash cicd/linux/package.bash"
+	"Windows .zip|bash cicd/win/pack-zip.bash"
+)
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••

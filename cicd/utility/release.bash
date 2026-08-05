@@ -49,7 +49,7 @@ git diff --quiet && git diff --cached --quiet || die "working tree not clean"
 
 ## meson.build form: project('nemo-anywhere', 'c', version : '6.6.4', ...). Grab the
 ## first `version : '...'` (the project version; dep version checks use `>=`, not this).
-ver="$(grep -oP "version\s*:\s*'\K[^']+" "${VERSION_MANIFEST}" | head -1)"
+ver="$(grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "${VERSION_MANIFEST}" | head -1)"
 [[ -n "$ver" ]] || die "no version in ${VERSION_MANIFEST}"
 tag="v${ver}"
 git rev-parse -q --verify "refs/tags/${tag}" >/dev/null && die "tag ${tag} already exists - bump the version on dev first"
