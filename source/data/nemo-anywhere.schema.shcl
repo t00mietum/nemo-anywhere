@@ -21,35 +21,27 @@ field: compact-view.default-zoom-level
 	default: standard
 	desc: Default compact view zoom level
 
-field: compat.background.show-desktop-icons
-	type: bool
-	default: false
-
-field: compat.cinnamon-interface.clock-use-24h
+field: interface.clock-use-24h
 	type: bool
 	default: true
 
-field: compat.lockdown.disable-command-line
-	type: bool
-	default: false
-
-field: compat.media-handling.automount
+field: media-handling.automount
 	type: bool
 	default: true
 
-field: compat.media-handling.automount-open
+field: media-handling.automount-open
 	type: bool
 	default: true
 
-field: compat.privacy.remember-recent-files
+field: privacy.remember-recent-files
 	type: bool
 	default: true
 
-field: compat.terminal.exec
+field: terminal.exec
 	type: string
 	default: ""
 
-field: compat.terminal.exec-arg
+field: terminal.exec-arg
 	type: string
 	default: -e
 

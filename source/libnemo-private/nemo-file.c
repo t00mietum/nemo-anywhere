@@ -5430,7 +5430,7 @@ static NemoSpeedTradeoffValue show_directory_item_count;
 static void
 show_directory_item_count_changed_callback (gpointer callback_data)
 {
-	show_directory_item_count = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS);
+	show_directory_item_count = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS);
 }
 
 static gboolean
@@ -8978,9 +8978,8 @@ nemo_file_list_cancel_call_when_ready (NemoFileListHandle *handle)
 static void
 thumbnail_limit_changed_callback (gpointer user_data)
 {
-	g_settings_get (nemo_preferences,
-			NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT,
-			"t", &cached_thumbnail_limit);
+	cached_thumbnail_limit = nemo_config_get_int (nemo_preferences,
+						      NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT);
 
 	/* Tell the world that icons might have changed. We could invent a narrower-scope
 	 * signal to mean only "thumbnails might have changed" if this ends up being slow
@@ -8992,7 +8991,7 @@ thumbnail_limit_changed_callback (gpointer user_data)
 static void
 thumbnail_size_changed_callback (gpointer user_data)
 {
-	cached_thumbnail_size = g_settings_get_int (nemo_icon_view_preferences,
+	cached_thumbnail_size = nemo_config_get_int (nemo_icon_view_preferences,
 						    NEMO_PREFERENCES_ICON_VIEW_THUMBNAIL_SIZE);
 
     scaled_cached_thumbnail_size = (double) cached_thumbnail_size / (double) NEMO_ICON_SIZE_STANDARD;
@@ -9006,7 +9005,7 @@ thumbnail_size_changed_callback (gpointer user_data)
 static void
 show_thumbnails_changed_callback (gpointer user_data)
 {
-	show_image_thumbs = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS);
+	show_image_thumbs = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS);
 
 	/* Tell the world that icons might have changed. We could invent a narrower-scope
 	 * signal to mean only "thumbnails might have changed" if this ends up being slow

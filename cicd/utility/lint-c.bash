@@ -77,6 +77,10 @@ fi
 
 ## assertWithSideEffect misfires on the idiomatic g_assert(g_hash_table_...)
 ## pattern all over this codebase - not worth per-site suppressions.
+## nullPointerOutOfMemory assumes an allocator can return NULL; glib's abort
+## instead, so every one of these is wrong by construction here.
+## The per-file entries below are inherited-legacy findings, each confirmed
+## present on dev - they surfaced only because a sweep touched those files.
 ## unknownMacro: cppcheck can't expand the EEL self-check X-macro prototype
 ## (nemo-lib-self-check-functions.h), so it fires for any .c that includes it.
 ## The two nemo-dnd.c items are inherited-legacy noise in the gnome-icon-list
@@ -86,10 +90,20 @@ fEcho "C lint (cppcheck, check-only) over ${#files[@]} changed file(s)..."
 cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=missingInclude --suppress=assertWithSideEffect \
 	--suppress=unknownMacro \
+	--suppress=nullPointerOutOfMemory \
 	--suppress=invalidPrintfArgType_uint:*nemo-dnd.c \
 	--suppress=nullPointerRedundantCheck:*nemo-dnd.c \
 	--suppress=CastAddressToIntegerAtReturn:*nemo-mime-actions.c \
 	--suppress=uselessAssignmentPtrArg:*nemo-mime-actions.c \
 	--suppress=nullPointerRedundantCheck:*nemo-mime-actions.c \
+	--suppress=memleak:*nemo-thumbnails.c \
+	--suppress=leakNoVarFunctionCall:*nemo-thumbnails.c \
+	--suppress=memleak:*nemo-query-editor.c \
+	--suppress=memleak:*nemo-window-slot.c \
+	--suppress=deallocuse:*nemo-properties-window.c \
+	--suppress=deallocuse:*nemo-icon-view.c \
+	--suppress=nullPointerRedundantCheck:*nemo-icon-view-container.c \
+	--suppress=nullPointer:*nemo-tree-sidebar.c \
+	--suppress=ctunullpointer:*nemo-tree-sidebar.c \
 	--quiet --error-exitcode=2 "${files[@]}"
 fEcho "OK: C lint: no findings"

@@ -747,8 +747,8 @@ connect_dialog_setup_for_type (NemoConnectServerDialog *dialog)
 	g_assert (index < (int)G_N_ELEMENTS (methods) && index >= 0);
 	meth = &(methods[index]);
 
-    if (g_settings_get_int (nemo_preferences, NEMO_PREFERENCES_LAST_SERVER_CONNECT_METHOD) != index) {
-        g_settings_set_int (nemo_preferences, NEMO_PREFERENCES_LAST_SERVER_CONNECT_METHOD, index);
+    if (nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_LAST_SERVER_CONNECT_METHOD) != index) {
+        nemo_config_set_int (nemo_preferences, NEMO_PREFERENCES_LAST_SERVER_CONNECT_METHOD, index);
     }
 
 	g_object_set (dialog->details->share_entry,
@@ -917,7 +917,7 @@ nemo_connect_server_dialog_init (NemoConnectServerDialog *dialog)
 	gtk_size_group_add_widget (dialog->details->contents_size_group, dialog->details->type_combo);
 	gtk_label_set_mnemonic_widget (GTK_LABEL (label), dialog->details->type_combo);
 
-    gint last = g_settings_get_int (nemo_preferences, NEMO_PREFERENCES_LAST_SERVER_CONNECT_METHOD);
+    gint last = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_LAST_SERVER_CONNECT_METHOD);
 
 	/* each row contains: method index, textual description */
 	store = gtk_list_store_new (2, G_TYPE_INT, G_TYPE_STRING);

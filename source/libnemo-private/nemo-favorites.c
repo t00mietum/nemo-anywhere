@@ -1,4 +1,4 @@
-/* nemo-favorites.c - favorite-files store, backed by GSettings.
+/* nemo-favorites.c - favorite-files store, backed by the config store.
  *
  * Adapted from libxapp 2.8.8 (xapp-favorites.c, LGPL-2.1-or-later,
  * © Linux Mint team), relicensed under GPL-2.0 per LGPL-2.1 section 3.
@@ -6,6 +6,8 @@
  */
 
 #include <config.h>
+
+#include "nemo-config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +18,8 @@
 #include "nemo-favorites.h"
 #include "nemo-favorite-vfs-file.h"
 
-#define FAVORITES_SCHEMA "org.nemo-anywhere"
+/* Favorites live at the config file root, not in a section. */
+#define FAVORITES_SCHEMA ""
 #define FAVORITES_KEY "favorites"
 #define SETTINGS_DELIMITER "::"
 #define MAX_DISPLAY_URI_LENGTH 20
@@ -73,7 +76,7 @@ typedef struct
 {
     GHashTable *infos;
 
-    GSettings *settings;
+    NemoConfigGroup *settings;
 
     gulong settings_listener_id;
     guint changed_timer_id;
@@ -242,7 +245,7 @@ store_favorites (NemoFavorites *favorites)
     new_settings = (gchar **) g_ptr_array_free (array, FALSE);
 
     g_signal_handler_block (priv->settings, priv->settings_listener_id);
-    g_settings_set_strv (priv->settings, FAVORITES_KEY, (const gchar* const*) new_settings);
+    nemo_config_set_strv (priv->settings, FAVORITES_KEY, (const gchar* const*) new_settings);
     g_signal_handler_unblock (priv->settings, priv->settings_listener_id);
 
     g_debug ("NemoFavorites: store_favorites: favorites saved");
@@ -266,7 +269,7 @@ load_favorites (NemoFavorites *favorites,
     priv->infos = g_hash_table_new_full (g_str_hash, g_str_equal,
                                          g_free, (GDestroyNotify) nemo_favorite_info_free);
 
-    raw_list = g_settings_get_strv (priv->settings, FAVORITES_KEY);
+    raw_list = nemo_config_get_strv (priv->settings, FAVORITES_KEY);
 
     if (!raw_list)
     {
@@ -741,7 +744,7 @@ add_favorite (NemoFavorites *favorites,
 }
 
 static void
-on_settings_list_changed (GSettings *settings,
+on_settings_list_changed (NemoConfigGroup *settings,
                           gchar     *key,
                           gpointer   user_data)
 {
@@ -757,7 +760,7 @@ nemo_favorites_init (NemoFavorites *favorites)
 
     g_debug ("NemoFavorites: init:");
 
-    priv->settings = g_settings_new (FAVORITES_SCHEMA);
+    priv->settings = nemo_config_get_group (FAVORITES_SCHEMA);
     priv->settings_listener_id = g_signal_connect (priv->settings,
                                                    "changed::" FAVORITES_KEY,
                                                    G_CALLBACK (on_settings_list_changed),

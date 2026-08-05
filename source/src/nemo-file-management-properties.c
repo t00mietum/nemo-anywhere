@@ -266,10 +266,10 @@ columns_changed_callback (NemoColumnChooser *chooser,
 					      &visible_columns,
 					      &column_order);
 
-	g_settings_set_strv (nemo_list_view_preferences,
+	nemo_config_set_strv (nemo_list_view_preferences,
 			     NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS,
 			     (const char * const *)visible_columns);
-	g_settings_set_strv (nemo_list_view_preferences,
+	nemo_config_set_strv (nemo_list_view_preferences,
 			     NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER,
 			     (const char * const *)column_order);
 
@@ -355,7 +355,7 @@ icon_captions_changed_callback (GtkComboBox *combo_box,
 	}
 	g_ptr_array_add (captions, NULL);
 
-	g_settings_set_strv (nemo_icon_view_preferences,
+	nemo_config_set_strv (nemo_icon_view_preferences,
 			     NEMO_PREFERENCES_ICON_VIEW_CAPTIONS,
 			     (const char **)captions->pdata);
 	g_ptr_array_free (captions, TRUE);
@@ -399,7 +399,7 @@ update_icon_captions_from_settings (GtkBuilder *builder)
 	char **captions;
 	int i, j;
 
-	captions = g_settings_get_strv (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_CAPTIONS);
+	captions = nemo_config_get_strv (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_CAPTIONS);
 	if (captions == NULL)
 		return;
 
@@ -428,10 +428,7 @@ nemo_file_management_properties_dialog_setup_icon_caption_page (GtkBuilder *buil
 {
 	GList *columns;
 	int i;
-	gboolean writable;
-
-	writable = g_settings_is_writable (nemo_icon_view_preferences,
-					   NEMO_PREFERENCES_ICON_VIEW_CAPTIONS);
+	gboolean writable = TRUE;   /* our config is a plain file we own */
 
 	columns = nemo_get_common_columns ();
 
@@ -510,9 +507,9 @@ set_columns_from_settings (NemoColumnChooser *chooser)
 	char **visible_columns;
 	char **column_order;
 
-	visible_columns = g_settings_get_strv (nemo_list_view_preferences,
+	visible_columns = nemo_config_get_strv (nemo_list_view_preferences,
 					       NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS);
-	column_order = g_settings_get_strv (nemo_list_view_preferences,
+	column_order = nemo_config_get_strv (nemo_list_view_preferences,
 					    NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER);
 
 	nemo_column_chooser_set_settings (NEMO_COLUMN_CHOOSER (chooser),
@@ -527,9 +524,9 @@ static void
 use_default_callback (NemoColumnChooser *chooser,
 		      gpointer user_data)
 {
-	g_settings_reset (nemo_list_view_preferences,
+	nemo_config_reset (nemo_list_view_preferences,
 			  NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS);
-	g_settings_reset (nemo_list_view_preferences,
+	nemo_config_reset (nemo_list_view_preferences,
 			  NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER);
 	set_columns_from_settings (chooser);
 }
@@ -557,47 +554,47 @@ nemo_file_management_properties_dialog_setup_list_column_page (GtkBuilder *build
 
 static void
 bind_builder_bool (GtkBuilder *builder,
-		   GSettings *settings,
+		   NemoConfigGroup *settings,
 		   const char *widget_name,
 		   const char *prefs)
 {
-	g_settings_bind (settings, prefs,
+	nemo_config_bind (settings, prefs,
 			 gtk_builder_get_object (builder, widget_name),
-			 "active", G_SETTINGS_BIND_DEFAULT);
+			 "active", NEMO_CONFIG_BIND_DEFAULT);
 }
 
 static void
 bind_builder_bool_inverted (GtkBuilder *builder,
-			    GSettings *settings,
+			    NemoConfigGroup *settings,
 			    const char *widget_name,
 			    const char *prefs)
 {
-	g_settings_bind (settings, prefs,
+	nemo_config_bind (settings, prefs,
 			 gtk_builder_get_object (builder, widget_name),
-			 "active", G_SETTINGS_BIND_INVERT_BOOLEAN);
+			 "active", NEMO_CONFIG_BIND_INVERT_BOOLEAN);
 }
 
 static void
 bind_builder_string_entry (GtkBuilder *builder,
-                            GSettings *settings,
+                            NemoConfigGroup *settings,
                            const char *widget_name,
                            const char *prefs)
 {
-    g_settings_bind (settings, prefs,
+    nemo_config_bind (settings, prefs,
                      gtk_builder_get_object (builder, widget_name),
-                     "text", G_SETTINGS_BIND_DEFAULT);
+                     "text", NEMO_CONFIG_BIND_DEFAULT);
 }
 
 static gboolean
-enum_get_mapping (GValue             *value,
-		  GVariant           *variant,
-		  gpointer            user_data)
+enum_get_mapping (GValue                *value,
+		  const NemoConfigValue *config_value,
+		  gpointer               user_data)
 {
 	const char **enum_values = user_data;
 	const char *str;
 	int i;
 
-	str = g_variant_get_string (variant, NULL);
+	str = config_value->s;
 	for (i = 0; enum_values[i] != NULL; i++) {
 		if (strcmp (enum_values[i], str) == 0) {
 			g_value_set_int (value, i);
@@ -608,26 +605,27 @@ enum_get_mapping (GValue             *value,
 	return FALSE;
 }
 
-static GVariant *
-enum_set_mapping (const GValue       *value,
-		  const GVariantType *expected_type,
-		  gpointer            user_data)
+static gboolean
+enum_set_mapping (const GValue    *value,
+		  NemoConfigValue *config_value,
+		  gpointer         user_data)
 {
 	const char **enum_values = user_data;
 
-	return g_variant_new_string (enum_values[g_value_get_int (value)]);
+	config_value->s = g_strdup (enum_values[g_value_get_int (value)]);
+	return TRUE;
 }
 
 static void
 bind_builder_enum (GtkBuilder *builder,
-		   GSettings *settings,
+		   NemoConfigGroup *settings,
 		   const char *widget_name,
 		   const char *prefs,
 		   const char **enum_values)
 {
-	g_settings_bind_with_mapping (settings, prefs,
+	nemo_config_bind_with_mapping (settings, prefs,
 				      gtk_builder_get_object (builder, widget_name),
-				      "active", G_SETTINGS_BIND_DEFAULT,
+				      "active", NEMO_CONFIG_BIND_DEFAULT,
 				      enum_get_mapping,
 				      enum_set_mapping,
 				      enum_values, NULL);
@@ -640,15 +638,15 @@ typedef struct {
 } UIntEnumBinding;
 
 static gboolean
-uint_enum_get_mapping (GValue             *value,
-		       GVariant           *variant,
-		       gpointer            user_data)
+uint_enum_get_mapping (GValue                *value,
+		       const NemoConfigValue *config_value,
+		       gpointer               user_data)
 {
 	UIntEnumBinding *binding = user_data;
 	guint64 v;
 	int i;
 
-	v = g_variant_get_uint64 (variant);
+	v = (guint64) config_value->i;
 	for (i = 0; i < binding->n_values; i++) {
 		if (binding->values[i] >= v) {
 			g_value_set_int (value, i);
@@ -659,19 +657,20 @@ uint_enum_get_mapping (GValue             *value,
 	return FALSE;
 }
 
-static GVariant *
-uint_enum_set_mapping (const GValue       *value,
-		       const GVariantType *expected_type,
-		       gpointer            user_data)
+static gboolean
+uint_enum_set_mapping (const GValue    *value,
+		       NemoConfigValue *config_value,
+		       gpointer         user_data)
 {
 	UIntEnumBinding *binding = user_data;
 
-	return g_variant_new_uint64 (binding->values[g_value_get_int (value)]);
+	config_value->i = (gint64) binding->values[g_value_get_int (value)];
+	return TRUE;
 }
 
 static void
 bind_builder_uint_enum (GtkBuilder *builder,
-			GSettings *settings,
+			NemoConfigGroup *settings,
 			const char *widget_name,
 			const char *prefs,
 			const guint64 *values,
@@ -683,38 +682,38 @@ bind_builder_uint_enum (GtkBuilder *builder,
 	binding->values = values;
 	binding->n_values = n_values;
 
-	g_settings_bind_with_mapping (settings, prefs,
+	nemo_config_bind_with_mapping (settings, prefs,
 				      gtk_builder_get_object (builder, widget_name),
-				      "active", G_SETTINGS_BIND_DEFAULT,
+				      "active", NEMO_CONFIG_BIND_DEFAULT,
 				      uint_enum_get_mapping,
 				      uint_enum_set_mapping,
 				      binding, g_free);
 }
 
-static GVariant *
-radio_mapping_set (const GValue *gvalue,
-		   const GVariantType *expected_type,
-		   gpointer user_data)
+/* One radio button per value: only the button being switched ON writes. */
+static gboolean
+radio_mapping_set (const GValue    *gvalue,
+		   NemoConfigValue *config_value,
+		   gpointer         user_data)
 {
 	const gchar *widget_value = user_data;
-	GVariant *retval = NULL;
 
-	if (g_value_get_boolean (gvalue)) {
-		retval = g_variant_new_string (widget_value);
-	}
+	if (!g_value_get_boolean (gvalue))
+		return FALSE;
 
-	return retval;
+	config_value->s = g_strdup (widget_value);
+	return TRUE;
 }
 
 static gboolean
-radio_mapping_get (GValue *gvalue,
-		   GVariant *variant,
-		   gpointer user_data)
+radio_mapping_get (GValue                *gvalue,
+		   const NemoConfigValue *config_value,
+		   gpointer               user_data)
 {
 	const gchar *widget_value = user_data;
 	const gchar *value;
 
-	value = g_variant_get_string (variant, NULL);
+	value = config_value->s;
 
 	if (g_strcmp0 (value, widget_value) == 0) {
 		g_value_set_boolean (gvalue, TRUE);
@@ -727,7 +726,7 @@ radio_mapping_get (GValue *gvalue,
 
 static void
 bind_builder_radio (GtkBuilder *builder,
-		    GSettings *settings,
+		    NemoConfigGroup *settings,
 		    const char **widget_names,
 		    const char *prefs,
 		    const char **values)
@@ -738,9 +737,9 @@ bind_builder_radio (GtkBuilder *builder,
 	for (i = 0; widget_names[i] != NULL; i++) {
 		button = GTK_WIDGET (gtk_builder_get_object (builder, widget_names[i]));
 
-		g_settings_bind_with_mapping (settings, prefs,
+		nemo_config_bind_with_mapping (settings, prefs,
 					      button, "active",
-					      G_SETTINGS_BIND_DEFAULT,
+					      NEMO_CONFIG_BIND_DEFAULT,
 					      radio_mapping_get, radio_mapping_set,
 					      (gpointer) values[i], NULL);
 	}
@@ -831,9 +830,8 @@ static void
 set_gtk_filechooser_sort_first (GObject *object,
 				GParamSpec *pspec)
 {
-	g_settings_set_boolean (gtk_filechooser_preferences,
-				NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST,
-				gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (object)));
+	nemo_desktop_settings_set_filechooser_bool (NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST,
+						   gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (object)));
 }
 
 static  void
@@ -1003,11 +1001,11 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 				thumbnail_limit_values,
 				G_N_ELEMENTS (thumbnail_limit_values));
 
-    bind_builder_bool (builder, gnome_media_handling_preferences,
+    bind_builder_bool (builder, nemo_media_handling_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOMOUNT_MEDIA_WIDGET,
                GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT);
 
-    bind_builder_bool (builder, gnome_media_handling_preferences,
+    bind_builder_bool (builder, nemo_media_handling_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOOPEN_MEDIA_WIDGET,
                GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT_OPEN);
 

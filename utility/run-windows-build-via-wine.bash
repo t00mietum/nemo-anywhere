@@ -74,10 +74,8 @@ fi
 # fresh build -> fresh exe, every run the container is up
 if container_up; then
 	docker exec "$CONTAINER" sh -c '
-		cp /build-win/src/nemo-anywhere.exe /src/cicd/artifacts/win-run/app/
-		cp /src/source/libnemo-private/org.nemo-anywhere.gschema.xml /src/cicd/artifacts/win-run/mingw64/share/glib-2.0/schemas/'
-	docker exec "$CONTAINER" chown -R "$(id -u):$(id -g)" /src/cicd/artifacts/win-run/app /src/cicd/artifacts/win-run/mingw64/share/glib-2.0/schemas
-	glib-compile-schemas "${DEST}/mingw64/share/glib-2.0/schemas"
+		cp /build-win/src/nemo-anywhere.exe /src/cicd/artifacts/win-run/app/'
+	docker exec "$CONTAINER" chown -R "$(id -u):$(id -g)" /src/cicd/artifacts/win-run/app
 else
 	fEcho "WARNING: container '$CONTAINER' not running - using the staged snapshot as-is"
 	[[ -f "${DEST}/mingw64/share/glib-2.0/schemas/gschemas.compiled" ]] || glib-compile-schemas "${DEST}/mingw64/share/glib-2.0/schemas"

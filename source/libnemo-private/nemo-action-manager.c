@@ -79,7 +79,7 @@ actions_changed (GFileMonitor      *monitor,
 }
 
 static void
-plugin_prefs_changed (GSettings *settings, gchar *key, gpointer user_data)
+plugin_prefs_changed (NemoConfigGroup *settings, gchar *key, gpointer user_data)
 {
     g_return_if_fail (NEMO_IS_ACTION_MANAGER (user_data));
 
@@ -119,7 +119,7 @@ process_directory_actions (NemoActionManager *action_manager,
 
     DEBUG ("Processing directory: %s", directory);
 
-    disabled_actions = g_settings_get_strv (nemo_plugin_preferences, NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS);
+    disabled_actions = nemo_config_get_strv (nemo_plugin_preferences, NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS);
 
     dir = g_dir_open (directory, 0, NULL);
 

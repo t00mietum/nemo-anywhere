@@ -1512,7 +1512,7 @@ should_confirm_move_to_trash (void)
 {
 	gboolean confirm_move_to_trash;
 
-	confirm_move_to_trash = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_CONFIRM_MOVE_TO_TRASH);
+	confirm_move_to_trash = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_CONFIRM_MOVE_TO_TRASH);
 
 	return confirm_move_to_trash;
 }
@@ -1561,7 +1561,7 @@ should_confirm_trash (void)
 {
 	gboolean confirm_trash;
 
-	confirm_trash = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_CONFIRM_TRASH);
+	confirm_trash = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_CONFIRM_TRASH);
 
 	return confirm_trash;
 }

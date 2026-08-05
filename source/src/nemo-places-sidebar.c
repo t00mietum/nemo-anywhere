@@ -274,7 +274,7 @@ G_DEFINE_TYPE (NemoPlacesSidebar, nemo_places_sidebar, GTK_TYPE_SCROLLED_WINDOW)
 static void
 breakpoint_changed_cb (NemoPlacesSidebar *sidebar)
 {
-    sidebar->bookmark_breakpoint = g_settings_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT);
+    sidebar->bookmark_breakpoint = nemo_config_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT);
     update_places (sidebar);
 }
 
@@ -284,7 +284,7 @@ increment_bookmark_breakpoint (NemoPlacesSidebar *sidebar)
     g_signal_handlers_block_by_func (nemo_window_state, breakpoint_changed_cb, sidebar);
 
     sidebar->bookmark_breakpoint ++;
-    g_settings_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, sidebar->bookmark_breakpoint);
+    nemo_config_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, sidebar->bookmark_breakpoint);
 
     g_signal_handlers_unblock_by_func (nemo_window_state, breakpoint_changed_cb, sidebar);
 }
@@ -295,7 +295,7 @@ decrement_bookmark_breakpoint (NemoPlacesSidebar *sidebar)
     g_signal_handlers_block_by_func (nemo_window_state, breakpoint_changed_cb, sidebar);
 
     sidebar->bookmark_breakpoint --;
-    g_settings_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, sidebar->bookmark_breakpoint);
+    nemo_config_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, sidebar->bookmark_breakpoint);
 
     g_signal_handlers_unblock_by_func (nemo_window_state, breakpoint_changed_cb, sidebar);
 }
@@ -303,8 +303,8 @@ decrement_bookmark_breakpoint (NemoPlacesSidebar *sidebar)
 static gboolean
 should_show_desktop (void)
 {
-	return g_settings_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_SHOW_DESKTOP) &&
-	       !g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR);
+	return nemo_config_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_SHOW_DESKTOP) &&
+	       !nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR);
 }
 
 static gboolean
@@ -889,8 +889,7 @@ update_places (NemoPlacesSidebar *sidebar)
     }
 
     gboolean recent_enabled;
-    recent_enabled = g_settings_get_boolean (cinnamon_privacy_preferences,
-                                             NEMO_PREFERENCES_RECENT_ENABLED);
+    recent_enabled = nemo_desktop_settings_get_recent_enabled ();
 
     if (recent_enabled && eel_vfs_supports_uri_scheme ("recent")) {
         mount_uri = (char *)"recent:///"; /* No need to strdup */
@@ -3773,7 +3772,7 @@ bookmarks_button_press_event_cb (GtkWidget             *widget,
 	} else if (event->button == 2) {
 		NemoWindowOpenFlags flags = 0;
 
-		if (g_settings_get_boolean (nemo_preferences,
+		if (nemo_config_get_boolean (nemo_preferences,
 					    NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
 			flags = (event->state & GDK_CONTROL_MASK) ?
 				NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW :
@@ -3980,16 +3979,16 @@ update_expanded_state (GtkTreeView *tree_view,
                     -1);
     if (type == SECTION_COMPUTER) {
         sidebar->my_computer_expanded = expanded;
-        g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_MY_COMPUTER_EXPANDED, expanded);
+        nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_MY_COMPUTER_EXPANDED, expanded);
     } else if (type == SECTION_BOOKMARKS) {
         sidebar->bookmarks_expanded = expanded;
-        g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_BOOKMARKS_EXPANDED, expanded);
+        nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_BOOKMARKS_EXPANDED, expanded);
     } else if (type == SECTION_DEVICES) {
         sidebar->devices_expanded = expanded;
-        g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_DEVICES_EXPANDED, expanded);
+        nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_DEVICES_EXPANDED, expanded);
     } else if (type == SECTION_NETWORK) {
         sidebar->network_expanded = expanded;
-        g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_NETWORK_EXPANDED, expanded);
+        nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_NETWORK_EXPANDED, expanded);
     }
 }
 
@@ -4258,13 +4257,13 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 
     sidebar->update_places_on_idle_id = 0;
 
-    sidebar->my_computer_expanded = g_settings_get_boolean (nemo_window_state,
+    sidebar->my_computer_expanded = nemo_config_get_boolean (nemo_window_state,
                                                             NEMO_WINDOW_STATE_MY_COMPUTER_EXPANDED);
-    sidebar->bookmarks_expanded = g_settings_get_boolean (nemo_window_state,
+    sidebar->bookmarks_expanded = nemo_config_get_boolean (nemo_window_state,
                                                              NEMO_WINDOW_STATE_BOOKMARKS_EXPANDED);
-    sidebar->devices_expanded = g_settings_get_boolean (nemo_window_state,
+    sidebar->devices_expanded = nemo_config_get_boolean (nemo_window_state,
                                                         NEMO_WINDOW_STATE_DEVICES_EXPANDED);
-    sidebar->network_expanded = g_settings_get_boolean (nemo_window_state,
+    sidebar->network_expanded = nemo_config_get_boolean (nemo_window_state,
                                                         NEMO_WINDOW_STATE_NETWORK_EXPANDED);
 
     gtk_widget_set_size_request (GTK_WIDGET (sidebar), 140, -1);
@@ -4499,9 +4498,9 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 				  G_CALLBACK(desktop_setting_changed_callback),
 				  sidebar);
 
-    g_signal_connect_swapped (cinnamon_privacy_preferences, "changed::" NEMO_PREFERENCES_RECENT_ENABLED,
-                  G_CALLBACK(desktop_setting_changed_callback),
-                  sidebar);
+    nemo_desktop_settings_watch (NEMO_PREFERENCES_RECENT_ENABLED,
+                                 G_CALLBACK (desktop_setting_changed_callback),
+                                 sidebar);
 
 	g_signal_connect_object (nemo_trash_monitor_get (),
 				 "trash_state_changed",
@@ -4569,13 +4568,7 @@ nemo_places_sidebar_dispose (GObject *object)
 					      desktop_setting_changed_callback,
 					      sidebar);
 
-	g_signal_handlers_disconnect_by_func (gnome_background_preferences,
-					      desktop_setting_changed_callback,
-					      sidebar);
-
-    g_signal_handlers_disconnect_by_func (cinnamon_privacy_preferences,
-                          desktop_setting_changed_callback,
-                          sidebar);
+    nemo_desktop_settings_unwatch (sidebar);
 
     g_signal_handlers_disconnect_by_func (nemo_favorites_get_default (),
                                           favorites_changed_cb,
@@ -4661,11 +4654,11 @@ nemo_places_sidebar_set_parent_window (NemoPlacesSidebar *sidebar,
 	sidebar->bookmarks = nemo_bookmark_list_get_default ();
 	sidebar->uri = nemo_window_slot_get_current_uri (slot);
 
-    breakpoint = g_settings_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT);
+    breakpoint = nemo_config_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT);
 
     if (breakpoint < 0) {     // Default gsettings value is -1 (which translates to 'not previously set')
         breakpoint = nemo_bookmark_list_length (sidebar->bookmarks);
-        g_settings_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, breakpoint);
+        nemo_config_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, breakpoint);
     }
 
     sidebar->bookmark_breakpoint = breakpoint;

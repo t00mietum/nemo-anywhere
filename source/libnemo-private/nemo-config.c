@@ -64,8 +64,7 @@ static gboolean    config_ready;
 static void schedule_save (void);
 static void emit_changed  (const char *group, const char *key);
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Key table                                                                  */
+/* ---- Key table ---- */
 
 static const NemoConfigKey *
 find_key (const char *group, const char *key)
@@ -85,11 +84,19 @@ find_key (const char *group, const char *key)
 static const NemoConfigKey *
 require_key (NemoConfigGroup *group, const char *key, NemoConfigType type)
 {
-	const NemoConfigKey *k = find_key (group ? group->name : "", key);
+	const NemoConfigKey *k;
 
+	/* Almost always means nemo_global_preferences_init() has not run, so
+	 * say that rather than blaming the key. */
+	if (group == NULL) {
+		g_critical ("nemo-config: '%s' read before the config store was opened", key);
+		return NULL;
+	}
+
+	k = find_key (group->name, key);
 	if (k == NULL) {
 		g_critical ("nemo-config: no such key '%s' in group '%s'",
-		            key, group ? group->name : "");
+		            key, group->name);
 		return NULL;
 	}
 	/* An enum is stored as its nick, so reading one as a string is fine. */
@@ -110,8 +117,7 @@ key_path (const NemoConfigKey *k)
 	return g_strdup_printf ("%s.%s", k->group, k->key);
 }
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Load / save                                                                */
+/* ---- Load / save ---- */
 
 static char *
 build_config_path (void)
@@ -204,8 +210,7 @@ schedule_save (void)
 	save_timeout_id = g_timeout_add_seconds (SAVE_DEBOUNCE_SECONDS, save_now, NULL);
 }
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Reload on external edit                                                    */
+/* ---- Reload on external edit ---- */
 
 /* Snapshot every declared key as text, so an external edit can be turned
  * into the same per-key change signals a set() would have produced. */
@@ -278,8 +283,7 @@ config_file_changed (GFileMonitor      *monitor,
 	g_hash_table_destroy (after);
 }
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Lifecycle                                                                  */
+/* ---- Lifecycle ---- */
 
 void
 nemo_config_init (void)
@@ -395,8 +399,7 @@ nemo_config_group_init (NemoConfigGroup *self)
 {
 }
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Reads                                                                      */
+/* ---- Reads ---- */
 
 /* A missing key falls back to the declared default. An empty one does not:
  * "set to nothing" is a real value, and conflating the two would make an
@@ -559,8 +562,7 @@ nemo_config_get_enum (NemoConfigGroup *group, const char *key)
 	return out;
 }
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Writes                                                                     */
+/* ---- Writes ---- */
 
 /* Storing a value that equals the default would pin the key: a later change
  * to that default could no longer reach the user. Drop it instead, which
@@ -770,12 +772,18 @@ nemo_config_set_enum (NemoConfigGroup *group, const char *key, gint value)
 void
 nemo_config_reset (NemoConfigGroup *group, const char *key)
 {
-	const NemoConfigKey *k = find_key (group ? group->name : "", key);
+	const NemoConfigKey *k;
 	char                *path;
 
+	if (group == NULL) {
+		g_critical ("nemo-config: '%s' reset before the config store was opened", key);
+		return;
+	}
+
+	k = find_key (group->name, key);
 	if (k == NULL) {
 		g_critical ("nemo-config: no such key '%s' in group '%s'",
-		            key, group ? group->name : "");
+		            key, group->name);
 		return;
 	}
 
@@ -804,8 +812,7 @@ nemo_config_list_keys (NemoConfigGroup *group)
 	return (char **) g_ptr_array_free (out, FALSE);
 }
 
-/*••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Property binding                                                           */
+/* ---- Property binding ---- */
 
 typedef struct {
 	NemoConfigGroup      *group;

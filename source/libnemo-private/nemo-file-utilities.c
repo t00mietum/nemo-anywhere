@@ -82,7 +82,7 @@ nemo_compute_title_for_location (GFile *location)
 		builder = g_file_get_basename (location);
 	}
 
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES)) {
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES)) {
         gchar *uri, *path;
         file = nemo_file_get (location);
 
@@ -505,7 +505,7 @@ nemo_get_xdg_dir (const char *type)
 static char *
 get_desktop_path (void)
 {
-	if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR)) {
+	if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR)) {
 		return g_strdup (g_get_home_dir());
 	} else {
 		return nemo_get_xdg_dir ("DESKTOP");
@@ -527,7 +527,7 @@ nemo_get_desktop_directory (void)
 	desktop_directory = get_desktop_path ();
 
 	/* Don't try to create a home directory */
-	if (!g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR)) {
+	if (!nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR)) {
 		if (!g_file_test (desktop_directory, G_FILE_TEST_EXISTS)) {
 			g_mkdir (desktop_directory, DEFAULT_DESKTOP_DIRECTORY_MODE);
 			/* FIXME bugzilla.gnome.org 41286:
@@ -1722,10 +1722,8 @@ nemo_treating_root_as_normal (void)
     // We only need to set this at startup then cache the result, as we check
     // quite a bit in various parts of the code.
     if (g_once_init_enter (&once_init)) {
-        GSettings *prefs = g_settings_new("org.nemo-anywhere.preferences");
-
-        root_is_normal = g_settings_get_boolean (prefs, "treat-root-as-normal");
-        g_object_unref (prefs);
+        root_is_normal = nemo_config_get_boolean (nemo_config_get_group ("preferences"),
+                                                  "treat-root-as-normal");
 
         g_once_init_leave (&once_init, 1);
     }

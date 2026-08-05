@@ -576,7 +576,7 @@ nemo_application_startup (GApplication *app)
 	/* create an undo manager */
 	self->undo_manager = nemo_undo_manager_new ();
 
-	/* initialize preferences and create the global GSettings objects */
+	/* initialize preferences and open the config store */
 	nemo_global_preferences_init ();
 
 	/* register the favorites:/// scheme before anything queries for it

@@ -66,7 +66,7 @@ on_check_toggled(GtkWidget *button, ActionProxy *proxy)
 {
     gboolean enabled = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button));
 
-    gchar **blacklist = g_settings_get_strv (nemo_plugin_preferences, NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS);
+    gchar **blacklist = nemo_config_get_strv (nemo_plugin_preferences, NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS);
 
     GPtrArray *new_list = g_ptr_array_new ();
 
@@ -91,7 +91,7 @@ on_check_toggled(GtkWidget *button, ActionProxy *proxy)
     gchar **new_list_ptr = (char **) g_ptr_array_free (new_list, FALSE);
 
     g_signal_handler_block (nemo_plugin_preferences, proxy->widget->bl_handler);
-    g_settings_set_strv (nemo_plugin_preferences,
+    nemo_config_set_strv (nemo_plugin_preferences,
     		             NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS,
 						 (const gchar * const *) new_list_ptr);
     g_signal_handler_unblock (nemo_plugin_preferences, proxy->widget->bl_handler);
@@ -258,7 +258,7 @@ refresh_widget (NemoActionConfigWidget *widget)
         gtk_widget_set_sensitive (GTK_WIDGET (NEMO_CONFIG_BASE_WIDGET (widget)->listbox), FALSE);
     } else {
         GList *l;
-        gchar **blacklist = g_settings_get_strv (nemo_plugin_preferences,
+        gchar **blacklist = nemo_config_get_strv (nemo_plugin_preferences,
         		                                 NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS);
 
         widget->actions = g_list_sort (widget->actions, (GCompareFunc) sort_actions);
@@ -320,7 +320,7 @@ refresh_widget (NemoActionConfigWidget *widget)
 }
 
 static void
-on_settings_changed (GSettings *settings, gchar *key, gpointer user_data)
+on_settings_changed (NemoConfigGroup *settings, gchar *key, gpointer user_data)
 {
     NemoActionConfigWidget *w = NEMO_ACTION_CONFIG_WIDGET (user_data);
 
@@ -330,7 +330,7 @@ on_settings_changed (GSettings *settings, gchar *key, gpointer user_data)
 static void
 on_enable_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
 {
-    g_settings_set_strv (nemo_plugin_preferences,
+    nemo_config_set_strv (nemo_plugin_preferences,
     		             NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS,
 						 NULL);
 }
@@ -348,7 +348,7 @@ on_disable_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
     g_ptr_array_add (new_list, NULL);
 
     gchar **new_list_ptr = (char **) g_ptr_array_free (new_list, FALSE);
-    g_settings_set_strv (nemo_plugin_preferences,
+    nemo_config_set_strv (nemo_plugin_preferences,
     		             NEMO_PLUGIN_PREFERENCES_DISABLED_ACTIONS,
 						 (const gchar * const *) new_list_ptr);
 

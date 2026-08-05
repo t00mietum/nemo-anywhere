@@ -1,4 +1,4 @@
-/* nemo-favorites.h - favorite-files store, backed by GSettings.
+/* nemo-favorites.h - favorite-files store, backed by the config store.
  *
  * Adapted from libxapp 2.8.8 (xapp-favorites.h, LGPL-2.1-or-later,
  * © Linux Mint team), relicensed under GPL-2.0 per LGPL-2.1 section 3.

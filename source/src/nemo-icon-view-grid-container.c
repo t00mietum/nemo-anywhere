@@ -170,7 +170,7 @@ nemo_icon_view_grid_container_get_icon_description (NemoIconContainer *container
 }
 
 static void
-update_auto_strv_as_quarks (GSettings   *settings,
+update_auto_strv_as_quarks (NemoConfigGroup   *settings,
 			    const gchar *key,
 			    gpointer     user_data)
 {
@@ -178,7 +178,7 @@ update_auto_strv_as_quarks (GSettings   *settings,
 	int i = 0;
 	char **value;
 
-	value = g_settings_get_strv (settings, key);
+	value = nemo_config_get_strv (settings, key);
 
 	g_free (*storage);
 	*storage = g_new (GQuark, g_strv_length (value) + 1);
@@ -1341,7 +1341,7 @@ get_vertical_adjustment (NemoIconContainer *container,
     gint ellipsis_limit;
     gint height;
 
-    ellipsis_limit = g_settings_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
+    ellipsis_limit = nemo_config_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
 
     layout = gtk_widget_create_pango_layout (GTK_WIDGET (container), "Test");
 
@@ -1386,7 +1386,7 @@ update_layout_constants (NemoIconContainer *container)
                                 NEMO_PREFERENCES_ICON_VIEW_CAPTIONS,
                                 &(NEMO_ICON_VIEW_GRID_CONTAINER (container)->attributes));
 
-    ellipsis_pref = g_settings_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
+    ellipsis_pref = nemo_config_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
     NEMO_ICON_VIEW_GRID_CONTAINER (container)->text_ellipsis_limit = ellipsis_pref;
 
     icon_size = nemo_get_desktop_icon_size_for_zoom_level (container->details->zoom_level);

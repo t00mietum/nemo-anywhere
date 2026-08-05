@@ -49,6 +49,7 @@ nemo_private_sources = [
   'nemo-link.c',
   'nemo-merged-directory.c',
   'nemo-config.c',
+  'nemo-desktop-settings.c',
   'nemo-metadata.c',
   'nemo-metadata-store.c',
   'nemo-network-win32.c',
@@ -116,6 +117,8 @@ nemo_private = declare_dependency(
   dependencies: nemo_private_deps,
 )
 
-install_data('org.nemo-anywhere.gschema.xml',
-    install_dir: join_paths(get_option('datadir'), 'glib-2.0', 'schemas')
+# Settings live in a plain SHCL file at runtime; the schema below is shipped
+# only so `shcl check --schema` can validate a hand-edited config.
+install_data('../data/nemo-anywhere.schema.shcl',
+    install_dir: join_paths(get_option('datadir'), appSlug)
 )

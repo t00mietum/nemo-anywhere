@@ -515,7 +515,7 @@ nemo_view_reset_to_defaults (NemoView *view)
 
     NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->reset_to_defaults (view);
 
-    gboolean show_hidden = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
+    gboolean show_hidden = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
 
     window = view->details->window;
     if (show_hidden) {
@@ -2278,9 +2278,9 @@ click_to_rename_changed_callback (gpointer callback_data)
 static void
 nemo_to_menu_preferences_changed_callback (NemoView *view)
 {
-    view->details->showing_bookmarks_in_to_menus = g_settings_get_boolean (nemo_preferences,
+    view->details->showing_bookmarks_in_to_menus = nemo_config_get_boolean (nemo_preferences,
                                                                            NEMO_PREFERENCES_SHOW_BOOKMARKS_IN_TO_MENUS);
-    view->details->showing_places_in_to_menus = g_settings_get_boolean (nemo_preferences,
+    view->details->showing_places_in_to_menus = nemo_config_get_boolean (nemo_preferences,
                                                                         NEMO_PREFERENCES_SHOW_PLACES_IN_TO_MENUS);
 }
 
@@ -2305,7 +2305,7 @@ sort_directories_first_changed_callback (gpointer callback_data)
 	view = NEMO_VIEW (callback_data);
 
 	preference_value =
-		g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
+		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
 
 	if (preference_value != view->details->sort_directories_first) {
 		view->details->sort_directories_first = preference_value;
@@ -2322,7 +2322,7 @@ sort_favorites_first_changed_callback (gpointer callback_data)
 	view = NEMO_VIEW (callback_data);
 
 	preference_value =
-		g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
+		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
 
 	if (preference_value != view->details->sort_favorites_first) {
 		view->details->sort_favorites_first = preference_value;
@@ -2335,7 +2335,7 @@ swap_delete_keybinding_changed_callback (gpointer callback_data)
 {
     GtkBindingSet *binding_set = gtk_binding_set_find ("NemoView");
 
-    gboolean swap_keys = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SWAP_TRASH_DELETE);
+    gboolean swap_keys = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SWAP_TRASH_DELETE);
 
     gtk_binding_entry_remove (binding_set, GDK_KEY_Delete, 0);
     gtk_binding_entry_remove (binding_set, GDK_KEY_KP_Delete, 0);
@@ -2550,7 +2550,7 @@ static void slot_changed_pane (NemoWindowSlot *slot,
 }
 
 static void
-plugin_prefs_changed (GSettings *settings, gchar *key, gpointer user_data)
+plugin_prefs_changed (NemoConfigGroup *settings, gchar *key, gpointer user_data)
 {
     scripts_added_or_changed_callback (NULL, NULL, user_data);
 }
@@ -2697,7 +2697,7 @@ static char *
 get_bulk_rename_tool (void)
 {
 	char *bulk_rename_tool;
-	g_settings_get (nemo_preferences, NEMO_PREFERENCES_BULK_RENAME_TOOL, "^ay", &bulk_rename_tool);
+	bulk_rename_tool = nemo_config_get_string (nemo_preferences, NEMO_PREFERENCES_BULK_RENAME_TOOL);
 	/* cppcheck-suppress returnDanglingLifetime ; g_strstrip strips in place and returns its heap arg */
 	return g_strstrip (bulk_rename_tool);
 }
@@ -2768,10 +2768,10 @@ nemo_view_init (NemoView *view)
 				 view, G_CONNECT_SWAPPED);
 
 	view->details->sort_directories_first =
-		g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
+		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
 
 	view->details->sort_favorites_first =
-		g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
+		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
 
 	g_signal_connect_object (nemo_trash_monitor_get (), "trash_state_changed",
 				 G_CALLBACK (nemo_view_trash_state_changed_callback), view, 0);
@@ -2809,10 +2809,6 @@ nemo_view_init (NemoView *view)
 	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_SORT_FAVORITES_FIRST,
 				  G_CALLBACK(sort_favorites_first_changed_callback), view);
-	g_signal_connect_swapped (gnome_lockdown_preferences,
-				  "changed::" NEMO_PREFERENCES_LOCKDOWN_COMMAND_LINE,
-				  G_CALLBACK (schedule_update_menus), view);
-
 	g_signal_connect_swapped (nemo_window_state,
 				  "changed::" NEMO_WINDOW_STATE_START_WITH_STATUS_BAR,
 				  G_CALLBACK (nemo_view_display_selection_info), view);
@@ -3010,9 +3006,6 @@ nemo_view_finalize (GObject *object)
 					      nemo_view_display_selection_info, view);
     g_signal_handlers_disconnect_by_func (nemo_menu_config_preferences,
                           schedule_update_menus_callback, view);
-
-	g_signal_handlers_disconnect_by_func (gnome_lockdown_preferences,
-					      schedule_update_menus, view);
 
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                           nemo_to_menu_preferences_changed_callback, view);
@@ -7127,8 +7120,7 @@ open_in_terminal (const gchar *path)
     gchar **argv;
     gint i;
 
-    gsetting_terminal = g_settings_get_string (gnome_terminal_preferences,
-                                               GNOME_DESKTOP_TERMINAL_EXEC);
+    gsetting_terminal = nemo_desktop_settings_get_terminal_exec ();
 
     token = g_strsplit (gsetting_terminal, " ", 0);
     argv = g_new (gchar *, g_strv_length (token) + 1);
@@ -9525,8 +9517,8 @@ real_update_location_menu (NemoView *view)
 	char *label;
 	char *tip;
 
-	show_open_in_new_tab = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
-	show_open_alternate = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
+	show_open_in_new_tab = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
+	show_open_alternate = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_LOCATION_OPEN_ALTERNATE);
@@ -9635,7 +9627,7 @@ real_update_location_menu (NemoView *view)
 	} else {
 		label = _("Mo_ve to Trash");
 		tip = _("Move the open folder to the Trash");
-		show_separate_delete_command = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE);
+		show_separate_delete_command = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE);
 	}
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
@@ -9744,7 +9736,7 @@ update_configurable_context_menu_items (NemoView *view)
             continue;
         }
 
-        gboolean pref_visible = g_settings_get_boolean (nemo_menu_config_preferences,
+        gboolean pref_visible = nemo_config_get_boolean (nemo_menu_config_preferences,
                                                         CONFIGURABLE_MENU_ITEM_INFO[i].settings_key);
 
         gtk_widget_set_visible (item, gtk_action_get_visible (action) && pref_visible);
@@ -9919,7 +9911,7 @@ real_update_menus (NemoView *view)
 
 	show_open_alternate = file_list_all_are_folders (selection) &&
 		selection_count > 0 &&
-		g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER) &&
+		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER) &&
 		!is_desktop_view;
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
@@ -9973,7 +9965,7 @@ real_update_menus (NemoView *view)
 	} else {
 		label = _("Mo_ve to Trash");
 		tip = _("Move each selected item to the Trash");
-		show_separate_delete_command = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE);
+		show_separate_delete_command = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ENABLE_DELETE);
 	}
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
@@ -10114,8 +10106,8 @@ real_update_menus (NemoView *view)
                             !selection_contains_favorites);
 
 	show_desktop_target =
-		g_settings_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_SHOW_DESKTOP) &&
-		!g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR);
+		nemo_config_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_SHOW_DESKTOP) &&
+		!nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR);
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_COPY_TO_HOME);
@@ -11393,7 +11385,7 @@ nemo_view_class_init (NemoViewClass *klass)
 
 	binding_set = gtk_binding_set_by_class (klass);
 
-    gboolean swap_keys = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SWAP_TRASH_DELETE);
+    gboolean swap_keys = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SWAP_TRASH_DELETE);
 
     if (swap_keys) {
         gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, 0,

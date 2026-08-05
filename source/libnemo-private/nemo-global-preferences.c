@@ -41,23 +41,17 @@
 #define DEBUG_FLAG NEMO_DEBUG_PREFERENCES
 #include <libnemo-private/nemo-debug.h>
 
-GSettings *nemo_preferences;
-GSettings *nemo_icon_view_preferences;
-GSettings *nemo_list_view_preferences;
-GSettings *nemo_compact_view_preferences;
-GSettings *nemo_desktop_preferences;
-GSettings *nemo_tree_sidebar_preferences;
-GSettings *nemo_window_state;
-GSettings *gtk_filechooser_preferences;
-GSettings *nemo_plugin_preferences;
-GSettings *nemo_menu_config_preferences;
-GSettings *nemo_search_preferences;
-GSettings *gnome_lockdown_preferences;
-GSettings *gnome_background_preferences;
-GSettings *gnome_media_handling_preferences;
-GSettings *gnome_terminal_preferences;
-GSettings *cinnamon_privacy_preferences;
-GSettings *cinnamon_interface_preferences;
+NemoConfigGroup *nemo_preferences;
+NemoConfigGroup *nemo_icon_view_preferences;
+NemoConfigGroup *nemo_list_view_preferences;
+NemoConfigGroup *nemo_compact_view_preferences;
+NemoConfigGroup *nemo_desktop_preferences;
+NemoConfigGroup *nemo_tree_sidebar_preferences;
+NemoConfigGroup *nemo_window_state;
+NemoConfigGroup *nemo_plugin_preferences;
+NemoConfigGroup *nemo_menu_config_preferences;
+NemoConfigGroup *nemo_search_preferences;
+NemoConfigGroup *nemo_media_handling_preferences;
 
 GTimeZone      *prefs_current_timezone;
 gboolean        prefs_current_24h_time_format;
@@ -85,7 +79,7 @@ nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void)
 	const char *viewer_iid;
 
 	preference_value =
-		g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER);
+		nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER);
 
 	if (preference_value == NEMO_DEFAULT_FOLDER_VIEWER_LIST_VIEW) {
 		viewer_iid = NEMO_LIST_VIEW_IID;
@@ -139,7 +133,7 @@ nemo_global_preferences_get_desktop_iid (void)
     gboolean use_grid;
     const char *viewer_iid;
 
-    use_grid = g_settings_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_USE_DESKTOP_GRID);
+    use_grid = nemo_config_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_USE_DESKTOP_GRID);
 
     if (use_grid) {
         viewer_iid = NEMO_DESKTOP_ICON_GRID_VIEW_IID;
@@ -155,15 +149,15 @@ nemo_global_preferences_get_tooltip_flags (void)
 {
     NemoFileTooltipFlags flags = NEMO_FILE_TOOLTIP_FLAGS_NONE;
 
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_FILE_TYPE))
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_FILE_TYPE))
         flags |= NEMO_FILE_TOOLTIP_FLAGS_FILE_TYPE;
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_MOD_DATE))
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_MOD_DATE))
         flags |= NEMO_FILE_TOOLTIP_FLAGS_MOD_DATE;
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_ACCESS_DATE))
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_ACCESS_DATE))
         flags |= NEMO_FILE_TOOLTIP_FLAGS_ACCESS_DATE;
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_FULL_PATH))
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_FULL_PATH))
         flags |= NEMO_FILE_TOOLTIP_FLAGS_PATH;
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_CREATED_DATE))
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_CREATED_DATE))
         flags |= NEMO_FILE_TOOLTIP_FLAGS_CREATED_DATE;
     return flags;
 }
@@ -171,7 +165,7 @@ nemo_global_preferences_get_tooltip_flags (void)
 gboolean
 nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key)
 {
-    gchar **disabled_list = g_settings_get_strv (nemo_plugin_preferences, key);
+    gchar **disabled_list = nemo_config_get_strv (nemo_plugin_preferences, key);
 
     gboolean ret = TRUE;
     guint i = 0;
@@ -186,19 +180,19 @@ nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key)
 }
 
 static void
-boolean_changed_cb (GSettings *settings,
+boolean_changed_cb (NemoConfigGroup *settings,
                     gchar     *key,
                     gboolean  *user_data)
 {
-    *user_data = g_settings_get_boolean (settings, key);
+    *user_data = nemo_config_get_boolean (settings, key);
 }
 
 static void
-enum_changed_cb (GSettings *settings,
+enum_changed_cb (NemoConfigGroup *settings,
                  gchar     *key,
                  int       *user_data)
 {
-    *user_data = g_settings_get_enum (settings, key);
+    *user_data = nemo_config_get_enum (settings, key);
 }
 
 static void
@@ -284,8 +278,8 @@ nemo_global_preferences_get_fileroller_mimetypes (void)
 static void
 on_time_data_changed (gpointer user_data)
 {
-    prefs_current_date_format = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FORMAT);
-    prefs_current_24h_time_format = g_settings_get_boolean (cinnamon_interface_preferences, "clock-use-24h");
+    prefs_current_date_format = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FORMAT);
+    prefs_current_24h_time_format = nemo_desktop_settings_get_clock_use_24h ();
 
     if (prefs_current_timezone != NULL) {
         g_time_zone_unref (prefs_current_timezone);
@@ -305,9 +299,8 @@ setup_cached_time_data (void)
                               "changed::" NEMO_PREFERENCES_DATE_FORMAT,
                               G_CALLBACK (on_time_data_changed), NULL);
 
-    g_signal_connect_swapped (cinnamon_interface_preferences,
-                              "changed::clock-use-24h",
-                              G_CALLBACK (on_time_data_changed), NULL);
+    nemo_desktop_settings_watch ("clock-use-24h",
+                                 G_CALLBACK (on_time_data_changed), NULL);
 
 
     tz = g_file_new_for_path ("/etc/localtime");
@@ -322,21 +315,6 @@ setup_cached_time_data (void)
     on_time_data_changed (NULL);
 }
 
-/* Use the real desktop schema when the session provides it (Cinnamon), else our
-   bundled compat copy. Keeps DE integration where present without depending on it. */
-static GSettings *
-settings_new_or_compat (const char *schema_id, const char *compat_id)
-{
-	GSettingsSchemaSource *source = g_settings_schema_source_get_default ();
-	GSettingsSchema *schema = source ? g_settings_schema_source_lookup (source, schema_id, TRUE) : NULL;
-
-	if (schema != NULL) {
-		g_settings_schema_unref (schema);
-		return g_settings_new (schema_id);
-	}
-	return g_settings_new (compat_id);
-}
-
 void
 nemo_global_preferences_init (void)
 {
@@ -348,25 +326,21 @@ nemo_global_preferences_init (void)
 
 	initialized = TRUE;
 
-	nemo_preferences = g_settings_new("org.nemo-anywhere.preferences");
-	nemo_window_state = g_settings_new("org.nemo-anywhere.window-state");
-	nemo_icon_view_preferences = g_settings_new("org.nemo-anywhere.icon-view");
-	nemo_list_view_preferences = g_settings_new("org.nemo-anywhere.list-view");
-	nemo_compact_view_preferences = g_settings_new("org.nemo-anywhere.compact-view");
-	nemo_desktop_preferences = g_settings_new("org.nemo-anywhere.desktop");
-    /* Some settings such as show hidden files are shared between Nautilus and GTK file chooser */
-    gtk_filechooser_preferences = g_settings_new_with_path ("org.gtk.Settings.FileChooser",
-                                                            "/org/gtk/settings/file-chooser/");
-	nemo_tree_sidebar_preferences = g_settings_new("org.nemo-anywhere.sidebar-panels.tree");
-    nemo_plugin_preferences = g_settings_new("org.nemo-anywhere.plugins");
-    nemo_menu_config_preferences = g_settings_new("org.nemo-anywhere.preferences.menu-config");
-    nemo_search_preferences = g_settings_new("org.nemo-anywhere.search");
-	gnome_lockdown_preferences = settings_new_or_compat("org.cinnamon.desktop.lockdown", "org.nemo-anywhere.compat.lockdown");
-	gnome_background_preferences = settings_new_or_compat("org.cinnamon.desktop.background", "org.nemo-anywhere.compat.background");
-	gnome_media_handling_preferences = settings_new_or_compat("org.cinnamon.desktop.media-handling", "org.nemo-anywhere.compat.media-handling");
-	gnome_terminal_preferences = settings_new_or_compat("org.cinnamon.desktop.default-applications.terminal", "org.nemo-anywhere.compat.terminal");
-    cinnamon_privacy_preferences = settings_new_or_compat("org.cinnamon.desktop.privacy", "org.nemo-anywhere.compat.privacy");
-	cinnamon_interface_preferences = settings_new_or_compat("org.cinnamon.desktop.interface", "org.nemo-anywhere.compat.cinnamon-interface");
+	nemo_config_init ();
+	nemo_desktop_settings_init ();
+
+	/* Groups are owned by the config store, not by us - no refs to drop. */
+	nemo_preferences                = nemo_config_get_group ("preferences");
+	nemo_window_state               = nemo_config_get_group ("window-state");
+	nemo_icon_view_preferences      = nemo_config_get_group ("icon-view");
+	nemo_list_view_preferences      = nemo_config_get_group ("list-view");
+	nemo_compact_view_preferences   = nemo_config_get_group ("compact-view");
+	nemo_desktop_preferences        = nemo_config_get_group ("desktop");
+	nemo_tree_sidebar_preferences   = nemo_config_get_group ("sidebar-panels.tree");
+	nemo_plugin_preferences         = nemo_config_get_group ("plugins");
+	nemo_menu_config_preferences    = nemo_config_get_group ("preferences.menu-config");
+	nemo_search_preferences         = nemo_config_get_group ("search");
+	nemo_media_handling_preferences = nemo_config_get_group ("media-handling");
 
     setup_cached_pref_keys ();
     setup_cached_time_data ();
@@ -381,20 +355,6 @@ nemo_global_preferences_finalize (void)
 
     g_object_unref (tz_mon);
 
-    g_object_unref (nemo_preferences);
-    g_object_unref (nemo_window_state);
-    g_object_unref (nemo_icon_view_preferences);
-    g_object_unref (nemo_list_view_preferences);
-    g_object_unref (nemo_compact_view_preferences);
-    g_object_unref (nemo_desktop_preferences);
-    g_object_unref (nemo_tree_sidebar_preferences);
-    g_object_unref (nemo_plugin_preferences);
-    g_object_unref (nemo_menu_config_preferences);
-    g_object_unref (nemo_search_preferences);
-    g_object_unref (gnome_lockdown_preferences);
-    g_object_unref (gnome_background_preferences);
-    g_object_unref (gnome_media_handling_preferences);
-    g_object_unref (gnome_terminal_preferences);
-    g_object_unref (cinnamon_privacy_preferences);
-    g_object_unref (cinnamon_interface_preferences);
+    nemo_desktop_settings_finalize ();
+    nemo_config_shutdown ();
 }

@@ -706,7 +706,7 @@ get_executable_text_file_action (GtkWindow *parent_window, NemoFile *file)
 
 	g_assert (nemo_file_contains_text (file));
 
-	preferences_value = g_settings_get_enum	(nemo_preferences,
+	preferences_value = nemo_config_get_enum	(nemo_preferences,
 						 NEMO_PREFERENCES_EXECUTABLE_TEXT_ACTIVATION);
 	switch (preferences_value) {
 	case NEMO_EXECUTABLE_TEXT_LAUNCH:
@@ -763,7 +763,7 @@ get_default_executable_text_file_action (void)
 {
 	int preferences_value;
 
-	preferences_value = g_settings_get_enum	(nemo_preferences,
+	preferences_value = nemo_config_get_enum	(nemo_preferences,
 						 NEMO_PREFERENCES_EXECUTABLE_TEXT_ACTIVATION);
 	switch (preferences_value) {
 	case NEMO_EXECUTABLE_TEXT_LAUNCH:
@@ -1235,7 +1235,7 @@ application_unhandled_uri (ActivateParameters *parameters, char *uri)
     }
     parameters_special->file = nemo_file_ref (file);
 
-    enable_exec_button = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_MIME_MAKE_EXECUTABLE);
+    enable_exec_button = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_MIME_MAKE_EXECUTABLE);
 
     dialog = gtk_message_dialog_new (parameters->parent_window,
                      0,
@@ -1503,7 +1503,7 @@ launch_application (GAppInfo *application,
                        g_strstr_len (g_app_info_get_commandline (application), -1, "%U");
 
 	if (uris != NULL && uris->next == NULL && accepts_uri_list) {
-		sortable_image_viewers = g_settings_get_strv (nemo_preferences,
+		sortable_image_viewers = nemo_config_get_strv (nemo_preferences,
 													  NEMO_PREFERENCES_IMAGE_VIEWERS_WITH_EXTERNAL_SORT);
 
 		if (sortable_image_viewers != NULL &&
@@ -1669,7 +1669,7 @@ activate_files (ActivateParameters *parameters)
 	flags = parameters->flags;
 	if (count > 1) {
 		if ((parameters->flags & NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW) == 0 &&
-            g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
+            nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
 			flags |= NEMO_WINDOW_OPEN_FLAG_NEW_TAB;
 		} else {
 			flags |= NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW;
@@ -1682,7 +1682,7 @@ activate_files (ActivateParameters *parameters)
 				       (flags & NEMO_WINDOW_OPEN_FLAG_NEW_TAB) != 0))) {
 
 		if ((flags & NEMO_WINDOW_OPEN_FLAG_NEW_TAB) != 0 &&
-		    g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_NEW_TAB_POSITION) ==
+		    nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_NEW_TAB_POSITION) ==
 		    NEMO_NEW_TAB_POSITION_AFTER_CURRENT_TAB) {
 			/* When inserting N tabs after the current one,
 			 * we first open tab N, then tab N-1, ..., then tab 0.
