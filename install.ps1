@@ -31,6 +31,56 @@
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
 
+<#
+.SYNOPSIS
+	Installs Nemo Anywhere from a published release.
+
+.DESCRIPTION
+	Downloads the right build for this machine, verifies its checksum, and
+	installs it as a self-contained folder plus a launcher and a name on PATH.
+	Reinstalling replaces an existing copy in place. Nothing is changed until the
+	plan has been printed and accepted.
+
+	Covers Windows, Linux, BSD, WSL and macOS. install.bash is the same installer
+	for anyone who would rather not need PowerShell.
+
+.PARAMETER Release
+	Which release to take: stable (the latest full release) or dev (the newest
+	release including prereleases). Defaults to stable.
+
+.PARAMETER Target
+	user installs for the current account only and needs no elevation. system
+	installs for everyone and does need it. Defaults to user.
+
+.PARAMETER Arch
+	Override the detected architecture. x64, amd64 and x86_64 mean the same
+	thing; so do arm64 and aarch64.
+
+.PARAMETER From
+	Install this archive - a path or a URL - instead of fetching a release.
+
+.PARAMETER Uninstall
+	Remove an existing install, including its launcher and PATH entry. Settings
+	are left alone.
+
+.PARAMETER Yes
+	Proceed without asking. Required when nothing is there to answer the prompt.
+
+.EXAMPLE
+	& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))
+
+	The one-liner: installs the latest stable release for the current user.
+
+.EXAMPLE
+	./install.ps1 -Release dev -Target system -Yes
+
+	Installs the newest prerelease for every user, without prompting.
+
+.EXAMPLE
+	./install.ps1 -Uninstall
+
+	Removes the user install this script made.
+#>
 [CmdletBinding()]
 param(
 	[ValidateSet("dev", "stable")][string]$Release = "stable",
@@ -567,7 +617,15 @@ if ($os -eq "windows") {
 	}
 	if (Test-Path -LiteralPath $prefix) { Remove-Item -LiteralPath $prefix -Recurse -Force }
 	New-Item -ItemType Directory -Path (Split-Path -Parent $prefix) -Force | Out-Null
-	Move-Item -LiteralPath $tree -Destination $prefix
+	## Move-Item is Directory.Move underneath and throws across volumes, which
+	## would leave nothing installed - the old copy is already gone by here. Fall
+	## back to a copy when the temp folder and the install prefix are on different
+	## drives, which is normal when TEMP is redirected.
+	try {
+		Move-Item -LiteralPath $tree -Destination $prefix -ErrorAction Stop
+	} catch {
+		Copy-Item -LiteralPath $tree -Destination $prefix -Recurse -Force -ErrorAction Stop
+	}
 	fEcho_Clean "folder installed at ${prefix}"
 
 	New-Item -ItemType Directory -Path $menuDir -Force | Out-Null

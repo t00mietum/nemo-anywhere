@@ -48,7 +48,7 @@ docker_up(){ timeout 10 docker info >/dev/null 2>&1; }
 
 if ! docker_up; then
 	## Nudge only what's startable without sudo (rootless service); harmless no-op
-	## if it isn't that kind of setup. A rootful daemon stays the human's call.
+	## if it isn't that kind of setup. Starting a rootful daemon stays a manual step.
 	if command -v systemctl >/dev/null 2>&1; then
 		systemctl --user start docker.socket >/dev/null 2>&1 || true
 		systemctl --user start docker        >/dev/null 2>&1 || true

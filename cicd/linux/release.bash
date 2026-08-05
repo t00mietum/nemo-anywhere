@@ -29,9 +29,8 @@ OUT="${ROOT}/cicd/artifacts/release"
 BUILD=/build-release
 STAGE=/build-prefix
 
-fEcho(){ echo "[ $* ]"; }
-fEcho_Clean(){ echo "$*"; }
-fDie(){ echo "FAILED: $*" >&2; exit 1; }
+# shellcheck source=../utility/include/echo.bash
+source "${ROOT}/cicd/utility/include/echo.bash"
 
 clean=0
 case "${1:-}" in
@@ -41,8 +40,14 @@ case "${1:-}" in
 	*) fDie "unknown option: $1 (try --help)" ;;
 esac
 
-ver="$(grep -oP "version\s*:\s*'\K[^']+" "${ROOT}/source/meson.build" | head -1)"
+ver="$(grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "${ROOT}/source/meson.build" | head -1)"
 [[ -n "$ver" ]] || fDie "no version in source/meson.build"
+
+## At most half the cores, matching the pipeline engine - a release build should
+## not make the box unusable either. Inherited from cicd.bash when called from it.
+cores="$(nproc 2>/dev/null || echo 2)"
+jobs="${CICD_MAX_JOBS:-$(( cores / 2 ))}"
+(( jobs >= 1 )) || jobs=1
 
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -78,7 +83,7 @@ docker exec "$CONTAINER" sh -c "
 	set -e
 	if [ -d ${BUILD} ]; then reconf=--reconfigure; else reconf=; fi
 	meson setup \$reconf --buildtype=release -Dstrip=true -Dprefix=/opt/${SLUG} ${BUILD} /src/source >/dev/null
-	ninja -C ${BUILD}" | tail -1
+	ninja -C ${BUILD} -j ${jobs}" | tail -1
 
 fEcho_Clean ""
 fEcho "Smoke test"
@@ -101,8 +106,12 @@ mkdir -p "$OUT"
 rm -rf "${OUT:?}/${name}" "${OUT}/${name}.tar.gz"
 ## /build* is not host-mounted, so docker cp is the only way out of the container.
 docker cp "${CONTAINER}:${STAGE}" "${OUT}/${name}" >/dev/null
+## Fixed owner and timestamp so the same source produces the same archive on any
+## box. The stamp is the last commit date; outside a checkout, fall back to the
+## epoch rather than emitting a bare "@" that makes tar fail partway through.
+stamp="$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || true)"
 tar -czf "${OUT}/${name}.tar.gz" -C "$OUT" \
-	--owner=0 --group=0 --numeric-owner --mtime="@$(git -C "$ROOT" log -1 --format=%ct)" \
+	--owner=0 --group=0 --numeric-owner --mtime="@${stamp:-0}" \
 	"${name}"
 rm -rf "${OUT:?}/${name}"
 
@@ -111,7 +120,10 @@ rm -rf "${OUT:?}/${name}"
 sums="${SLUG}-${ver}-sha256sums.txt"
 tmpsums="$(mktemp)"
 rm -f "${OUT:?}/${sums}"
-( cd "$OUT" && find . -maxdepth 1 -type f -printf '%P\n' | sort | xargs sha256sum ) > "$tmpsums"
+## -0/-r: without them an empty dir still runs sha256sum, which then reads stdin
+## and writes a bogus "-" line into the file the installers verify against, and a
+## name with a space would be split into two arguments.
+( cd "$OUT" && find . -maxdepth 1 -type f -printf '%P\0' | sort -z | xargs -0 -r sha256sum ) > "$tmpsums"
 mv "$tmpsums" "${OUT}/${sums}"
 chmod 644 "${OUT}/${sums}"	# mktemp makes it 0600
 

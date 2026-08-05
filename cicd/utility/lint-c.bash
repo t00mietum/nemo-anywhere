@@ -79,7 +79,7 @@ fi
 ## pattern all over this codebase - not worth per-site suppressions.
 ## nullPointerOutOfMemory assumes an allocator can return NULL; glib's abort
 ## instead, so every one of these is wrong by construction here.
-## normalCheckLevelMaxBranches just says a big file was analysed shallowly.
+## normalCheckLevelMaxBranches just says a big file was analyzed shallowly.
 ## It is not a finding, but --error-exitcode counts it, so any change touching
 ## a large file would fail the gate on it alone.
 ## The per-file entries below are inherited-legacy findings, each confirmed

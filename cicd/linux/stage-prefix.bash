@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-##	- Purpose: Turn a finished Linux build into the relocatable prefix that ships
+##	- Purpose: Turn a finished Linux build into the relocatable prefix released
 ##	  as the release tarball - the unix half of the asset contract in design.md
 ##	  (one top-level folder, entry point bin/nemo-anywhere).
 ##	- Thin prefix by design: the GTK3 runtime is NOT bundled on Linux, it comes
@@ -9,7 +9,7 @@
 ##	  gtk-update-icon-cache all have to be the ones the build used).
 ##	- The real binary moves to libexec/ so bin/nemo-anywhere can be the wrapper
 ##	  that wires the environment. Everything the app looks up through XDG_DATA_DIRS
-##	  (actions, search helpers, icons, mime) then resolves wherever the folder lands.
+##	  (actions, search helpers, icons, mime) then resolves wherever the folder ends up.
 ##	- Syntax: stage-prefix.bash <build-dir> <dest-dir>   (dest is wiped and rebuilt)
 
 ##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
