@@ -2,7 +2,7 @@
 
 ##	- Purpose: Turn a finished Linux release tarball into distro packages - a .deb
 ##	  and a .rpm - alongside it in cicd/artifacts/release.
-##	- Both packages install the same relocatable prefix the tarball ships, under
+##	- Both packages install the same relocatable prefix the tarball contains, under
 ##	  /opt/<slug>, plus the three things a system install owes the desktop: a name
 ##	  on PATH, a menu entry, and the app icon in the shared icon theme.
 ##	- Shared-library dependencies for the .deb are read off the built binaries with
@@ -117,7 +117,7 @@ build_tree(){
 ## Runtime dependencies, read off the real binaries at the glibc floor they were
 ## built against. Falls back to a conservative list with a warning when the
 ## release container is not up, so a package still gets built.
-## Only the dependency line reaches stdout - anything this says to the human goes
+## Only the dependency line reaches stdout - anything it says to the console goes
 ## to stderr, or it would end up inside the control file's Depends field.
 deb_depends(){
 	local line=""
