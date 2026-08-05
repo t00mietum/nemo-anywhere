@@ -223,7 +223,10 @@ snapshot_locked (void)
 
 	for (k = nemo_config_keys; k->key != NULL; k++) {
 		char          *path = key_path (k);
-		shcl_read_str  r    = shcl_read_raw (config_doc, path, strlen (path));
+		/* read_string, not read_raw: raw only answers for fenced blocks and
+		 * reports every ordinary value as empty, which made the whole diff
+		 * blind to a changed value and only able to see a key appear or go. */
+		shcl_read_str  r    = shcl_read_string (config_doc, path, strlen (path));
 
 		if (r.status == SHCL_NOT_FOUND) {
 			g_free (path);
@@ -577,10 +580,13 @@ drop_if_default (const NemoConfigKey *k, const char *as_text, char *path)
 	return TRUE;
 }
 
+/* Only for a key that wasn't in the file yet: set_comment pushes another
+ * leading line each time it's called, so re-commenting on every write would
+ * grow the same line forever. An existing key already carries its comment. */
 static void
-apply_comment (const NemoConfigKey *k, const char *path)
+apply_comment_if_new (const NemoConfigKey *k, const char *path, gboolean existed)
 {
-	if (k->summary == NULL)
+	if (k->summary == NULL || existed)
 		return;
 	shcl_set_comment (config_doc, path, strlen (path),
 	                  k->summary, strlen (k->summary));
@@ -591,15 +597,17 @@ nemo_config_set_boolean (NemoConfigGroup *group, const char *key, gboolean value
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_BOOL);
 	char                *path;
+	gboolean             existed;
 
 	if (k == NULL)
 		return;
 
 	path = key_path (k);
 	g_mutex_lock (&config_lock);
+	existed = shcl_exists (config_doc, path, strlen (path)) != 0;
 	if (!drop_if_default (k, value ? "true" : "false", path)) {
 		shcl_set_bool (config_doc, path, strlen (path), value ? 1 : 0);
-		apply_comment (k, path);
+		apply_comment_if_new (k, path, existed);
 	}
 	schedule_save ();
 	g_mutex_unlock (&config_lock);
@@ -613,6 +621,7 @@ nemo_config_set_int (NemoConfigGroup *group, const char *key, gint value)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_INT);
 	char                *path, *text;
+	gboolean             existed;
 
 	if (k == NULL)
 		return;
@@ -620,9 +629,10 @@ nemo_config_set_int (NemoConfigGroup *group, const char *key, gint value)
 	path = key_path (k);
 	text = g_strdup_printf ("%d", value);
 	g_mutex_lock (&config_lock);
+	existed = shcl_exists (config_doc, path, strlen (path)) != 0;
 	if (!drop_if_default (k, text, path)) {
 		shcl_set_int (config_doc, path, strlen (path), value);
-		apply_comment (k, path);
+		apply_comment_if_new (k, path, existed);
 	}
 	schedule_save ();
 	g_mutex_unlock (&config_lock);
@@ -637,14 +647,16 @@ nemo_config_set_double (NemoConfigGroup *group, const char *key, gdouble value)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_FLOAT);
 	char                *path;
+	gboolean             existed;
 
 	if (k == NULL)
 		return;
 
 	path = key_path (k);
 	g_mutex_lock (&config_lock);
+	existed = shcl_exists (config_doc, path, strlen (path)) != 0;
 	shcl_set_float (config_doc, path, strlen (path), value);
-	apply_comment (k, path);
+	apply_comment_if_new (k, path, existed);
 	schedule_save ();
 	g_mutex_unlock (&config_lock);
 	g_free (path);
@@ -657,6 +669,7 @@ nemo_config_set_string (NemoConfigGroup *group, const char *key, const char *val
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_STRING);
 	char                *path;
+	gboolean             existed;
 
 	if (k == NULL)
 		return;
@@ -665,9 +678,10 @@ nemo_config_set_string (NemoConfigGroup *group, const char *key, const char *val
 
 	path = key_path (k);
 	g_mutex_lock (&config_lock);
+	existed = shcl_exists (config_doc, path, strlen (path)) != 0;
 	if (!drop_if_default (k, value, path)) {
 		shcl_set_string (config_doc, path, strlen (path), value, strlen (value));
-		apply_comment (k, path);
+		apply_comment_if_new (k, path, existed);
 	}
 	schedule_save ();
 	g_mutex_unlock (&config_lock);
@@ -683,6 +697,7 @@ nemo_config_set_strv (NemoConfigGroup *group, const char *key, const char *const
 	char                *path;
 	gsize                n = 0, i;
 	size_t              *lens;
+	gboolean             existed;
 
 	if (k == NULL)
 		return;
@@ -722,9 +737,10 @@ nemo_config_set_strv (NemoConfigGroup *group, const char *key, const char *const
 
 	path = key_path (k);
 	g_mutex_lock (&config_lock);
+	existed = shcl_exists (config_doc, path, strlen (path)) != 0;
 	shcl_set_string_array (config_doc, path, strlen (path),
 	                       (const char *const *) value, lens, n);
-	apply_comment (k, path);
+	apply_comment_if_new (k, path, existed);
 	schedule_save ();
 	g_mutex_unlock (&config_lock);
 	g_free (lens);
@@ -733,40 +749,66 @@ nemo_config_set_strv (NemoConfigGroup *group, const char *key, const char *const
 	emit_changed (k->group, k->key);
 }
 
-void
-nemo_config_set_enum (NemoConfigGroup *group, const char *key, gint value)
+/* The file stores the nick, so both entry points below end up here. */
+static void
+store_enum_nick (const NemoConfigKey *k, const char *nick)
 {
-	const NemoConfigKey       *k = require_key (group, key, NEMO_CONFIG_ENUM);
-	const NemoConfigEnumValue *v;
-	const char                *nick = NULL;
-	char                      *path;
+	char     *path = key_path (k);
+	gboolean  existed;
 
-	if (k == NULL)
-		return;
-
-	for (v = k->enum_values; v != NULL && v->nick != NULL; v++) {
-		if (v->value == value) {
-			nick = v->nick;
-			break;
-		}
-	}
-	if (nick == NULL) {
-		g_critical ("nemo-config: %d is not a valid value for '%s.%s'",
-		            value, k->group, k->key);
-		return;
-	}
-
-	path = key_path (k);
 	g_mutex_lock (&config_lock);
+	existed = shcl_exists (config_doc, path, strlen (path)) != 0;
 	if (!drop_if_default (k, nick, path)) {
 		shcl_set_string (config_doc, path, strlen (path), nick, strlen (nick));
-		apply_comment (k, path);
+		apply_comment_if_new (k, path, existed);
 	}
 	schedule_save ();
 	g_mutex_unlock (&config_lock);
 	g_free (path);
 
 	emit_changed (k->group, k->key);
+}
+
+/* Set by nick rather than by number, for callers that already have the nick
+ * (the bind set-mappings all do). Unknown nicks are refused, not stored. */
+static void
+set_enum_by_nick (NemoConfigGroup *group, const char *key, const char *nick)
+{
+	const NemoConfigKey       *k = require_key (group, key, NEMO_CONFIG_ENUM);
+	const NemoConfigEnumValue *v;
+
+	if (k == NULL)
+		return;
+
+	for (v = k->enum_values; v != NULL && v->nick != NULL; v++) {
+		if (g_strcmp0 (v->nick, nick) == 0) {
+			store_enum_nick (k, v->nick);
+			return;
+		}
+	}
+
+	g_critical ("nemo-config: '%s' is not a valid value for '%s.%s'",
+	            nick != NULL ? nick : "(null)", k->group, k->key);
+}
+
+void
+nemo_config_set_enum (NemoConfigGroup *group, const char *key, gint value)
+{
+	const NemoConfigKey       *k = require_key (group, key, NEMO_CONFIG_ENUM);
+	const NemoConfigEnumValue *v;
+
+	if (k == NULL)
+		return;
+
+	for (v = k->enum_values; v != NULL && v->nick != NULL; v++) {
+		if (v->value == value) {
+			store_enum_nick (k, v->nick);
+			return;
+		}
+	}
+
+	g_critical ("nemo-config: %d is not a valid value for '%s.%s'",
+	            value, k->group, k->key);
 }
 
 void
@@ -889,7 +931,13 @@ write_config_value (ConfigBinding *b, const NemoConfigValue *cv)
 		nemo_config_set_strv (b->group, b->key, (const char *const *) cv->sv);
 		break;
 	case NEMO_CONFIG_ENUM:
-		nemo_config_set_enum (b->group, b->key, (gint) cv->i);
+		/* A set-mapping hands us the nick and leaves the number at 0, so
+		 * taking the number here wrote the zero-valued nick whatever the
+		 * user picked. Only the unmapped path fills the number. */
+		if (cv->s != NULL)
+			set_enum_by_nick (b->group, b->key, cv->s);
+		else
+			nemo_config_set_enum (b->group, b->key, (gint) cv->i);
 		break;
 	}
 }
