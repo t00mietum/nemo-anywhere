@@ -180,6 +180,71 @@ test_bind (NemoConfigGroup *prefs)
 	nemo_config_set_boolean (prefs, "show-hidden-files", FALSE);
 }
 
+/* The preferences dialog binds every combo and radio through a mapping that
+ * fills in the nick and leaves the number alone. Taking the number wrote the
+ * zero-valued nick whatever was picked - for the executable-text setting that
+ * meant "run it" no matter what the dialog showed. */
+static gboolean
+viewer_get_mapping (GValue *value, const NemoConfigValue *config_value, gpointer data)
+{
+	g_value_set_boolean (value, g_strcmp0 (config_value->s, "compact-view") == 0);
+	return TRUE;
+}
+
+static gboolean
+viewer_set_mapping (const GValue *value, NemoConfigValue *config_value, gpointer data)
+{
+	config_value->s = g_strdup (g_value_get_boolean (value) ? "compact-view"
+	                                                        : "list-view");
+	return TRUE;
+}
+
+static void
+test_enum_bind_by_nick (NemoConfigGroup *prefs)
+{
+	GtkWidget *toggle = gtk_check_button_new ();
+	char      *text;
+
+	g_object_ref_sink (toggle);
+	nemo_config_bind_with_mapping (prefs, "default-folder-viewer",
+	                               toggle, "active", NEMO_CONFIG_BIND_DEFAULT,
+	                               viewer_get_mapping, viewer_set_mapping,
+	                               NULL, NULL);
+
+	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (toggle), TRUE);
+	nemo_config_flush ();
+
+	text = read_file ();
+	check (strstr (text, "default-folder-viewer: compact-view") != NULL);
+	/* icon-view is the zero-valued nick, i.e. what the bug stored */
+	check (strstr (text, "icon-view") == NULL);
+	g_free (text);
+
+	g_object_unref (toggle);
+	nemo_config_reset (prefs, "default-folder-viewer");
+}
+
+/* Setting a comment appends a line rather than replacing one, so re-applying
+ * it on every write grew the same comment without bound. */
+static void
+test_comment_written_once (NemoConfigGroup *window_state)
+{
+	const char *summary = "# Width of the side pane";
+	char       *text, *at;
+	int         seen = 0;
+
+	nemo_config_set_int (window_state, "sidebar-width", 201);
+	nemo_config_set_int (window_state, "sidebar-width", 202);
+	nemo_config_set_int (window_state, "sidebar-width", 203);
+	nemo_config_flush ();
+
+	text = read_file ();
+	for (at = text; (at = strstr (at, summary)) != NULL; at++)
+		seen++;
+	check (seen == 1);
+	g_free (text);
+}
+
 static void
 test_persistence (void)
 {
@@ -223,6 +288,21 @@ test_external_edit (NemoConfigGroup *prefs)
 	check (changed_count >= 1);
 	check (nemo_config_get_boolean (prefs, "show-hidden-files") == TRUE);
 
+	/* A key that was already in the file, edited to a different value. The
+	 * diff has to compare the values, not just notice a key appear or go. */
+	changed_count = 0;
+	spins = 0;
+	g_file_set_contents (path,
+	                     "preferences:\n\tshow-hidden-files: false\n", -1, NULL);
+
+	while (changed_count == 0 && spins++ < 200) {
+		g_main_context_iteration (NULL, FALSE);
+		g_usleep (10000);
+	}
+
+	check (changed_count >= 1);
+	check (nemo_config_get_boolean (prefs, "show-hidden-files") == FALSE);
+
 	g_free (path);
 }
 
@@ -250,6 +330,8 @@ main (int argc, char *argv[])
 	test_default_not_stored (prefs);
 	test_changed_signal (prefs);
 	test_bind (prefs);
+	test_enum_bind_by_nick (prefs);
+	test_comment_written_once (window_state);
 	test_persistence ();
 	test_external_edit (prefs);
 
