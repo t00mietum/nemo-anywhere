@@ -76,7 +76,7 @@ Staged, lowest-risk-first:
 
 1. Carve out the hard Cinnamon/Linux couplings behind clean boundaries (desktop management, xapp/cinnamon-desktop, gvfs, dbus) so they can be stubbed or swapped per platform.
 
-1. Decouple from gconf/dconf, and existing config-file engine[s]. Use config file engine [SHCL](https://github.com/jim-collier/shcl) for settings and persistence.
+1. Decouple from gconf/dconf and the Windows registry. Settings and persistence move to the [SHCL](https://github.com/jim-collier/shcl) config engine (done).
 
 1. Stand up the first cross-platform toolchain (Windows) and get it to compile.
 
@@ -119,7 +119,6 @@ Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable 
 - Install the toolchain and dev libraries:
 	- `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`
 	- `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`
-	- `libcinnamon-desktop-dev libxapp-dev` (still required; removing these is the point of Phase 2)
 	- `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`
 	- `libx11-dev libxext-dev libxrender-dev`
 - Configure and build:
@@ -170,6 +169,12 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 - Desktop management is removed, not made optional. Nemo Anywhere is a file manager, not a desktop shell - drawing/owning the root desktop is inherently a Linux/Cinnamon-session concern and pulls in the deepest coupling (the `nemo-desktop` binary, the `org.Cinnamon` proxy, the per-monitor `x-nemo-desktop://` directory model). Cutting it outright is the cleanest de-Cinnamon step and benefits every target. Kept: the `.desktop` launcher-file properties editor and the multi-monitor geometry helper, both of which are ordinary file-manager features despite their "desktop" names.
 
+- Settings moved off GSettings entirely, onto SHCL, rather than keeping the GSettings API over a SHCL-backed store. Both were on the table: a storage backend would have been a fraction of the work and left every call site untouched, but it would have kept a compiled schema to install and ship on every platform. Among these options it was decided to take the full replacement, so that configuration is one plain file the user can open, with no build-time or install-time artifact behind it. The costs are real and were accepted: roughly three hundred call sites moved, and change notification, property binding and enum mapping are now ours to maintain. Notification and binding kept the shapes they had (a detailed `changed::key` signal, a `bind` with optional mappings), so the call sites read as they did before.
+
+	- Defaults stayed central, in one table, instead of being restated at each call site as SHCL's own guidance suggests. With a hundred and sixty-eight settings, many read from several places, a restated default is a bug waiting to happen - two call sites disagreeing about what a setting means when it is absent.
+	- The `compat.*` fallback schemas introduced for non-Cinnamon sessions are gone. What they stood in for is now simply our own settings, which a desktop may override where it publishes its own answer.
+	- Two of them turned out to be dead and were removed rather than carried across: the desktop background setting (nothing has read it since desktop management was removed) and the command-line lockdown setting (watched, but its value never read).
+
 - The remaining Cinnamon libraries (xapp, cinnamon-desktop) are reimplemented with portable equivalents rather than compiled out behind flags, so the standalone build keeps favorites, thumbnails, tray/progress feedback, and the icon chooser instead of silently losing them. This is now done - the build links neither library.
 
 	- Favorites and the thumbnailer were adapted from their upstream implementations into libnemo-private (provenance and licenses noted per file), with settings moved under our own schema so nothing is shared with a co-installed Mint stack.
@@ -208,11 +213,30 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 ### Configuration model
 
+Settings are ours, in a file we own, in a format a person can read. There is no
+settings daemon, no compiled schema, and no per-platform store to keep in step.
+
+- One file, `settings.shcl`, in the user's config directory, in the same place
+  and format on Linux, Windows and anywhere else the app builds.
+- The declared shape of every setting - type, default, allowed values,
+  description - lives in a table in the code, and is mirrored by a schema file
+  shipped with the app for validating a hand-edited config.
+- Values the desktop owns rather than us are read from the desktop where it
+  publishes them, and fall back to ours where it does not.
+
+The trade accepted here: reading and writing settings is now our code rather
+than a well-worn library's, and settings do not migrate from a pre-1.0 install
+because nothing remains that can read the old store.
+
 ### Saves and persistence
 
 Three separate stores, each with its own lifetime.
 
-- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) go to the platform's settings store. On Linux that is the desktop's usual settings database; on Windows it is the registry. Nothing extra had to be written for Windows - the underlying library already picks the right one, and the schema is the same on both.
+- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) live in one plain-text SHCL file, `settings.shcl`, in the user's config directory - the same file and the same format on every platform. Neither the Linux desktop settings database nor the Windows registry is involved any more.
+	- The file is meant to be read and edited by hand. It holds only what was actually chosen: a value equal to its default is dropped, the way per-folder view state already worked, so the file stays short and a later change to a default still reaches the user. Each key carries its one-line description as a comment.
+	- Edits made while the app is running are picked up straight away, so hand-editing behaves like changing the setting in the UI.
+	- Types, defaults and allowed values live in a table in the code, and a matching schema ships beside the app so `shcl check --schema` can validate a hand-edited file and catch typos.
+	- A handful of settings are the desktop's to decide rather than ours - which terminal to open, whether the session remembers recent files, 12h or 24h clocks. Where a desktop publishes them we read its answer; everywhere else our own value stands in. That is the only remaining use of the desktop settings database, it is read-only, and it never touches a schema of ours.
 
 - Per-folder view state - view mode, zoom, sort column, column layout - is app-owned and portable, in a single file under the user's config directory. This replaced the Linux-only metadata service so the behaviour is identical everywhere.
 	- Only a real per-folder choice is stored. A value that merely matches the current default is left out, so the folder keeps following the default if it later changes. Upstream stored it either way, which quietly pinned every folder you had ever opened.
@@ -220,7 +244,7 @@ Three separate stores, each with its own lifetime.
 
 - Window size, position, and maximized state are shared by all windows and live with the application settings. They are written shortly after a move or resize settles, rather than only when a window closes, so an abnormal exit doesn't discard them.
 
-Settings are deliberately isolated from an upstream Nemo installed alongside: separate schema, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
+Settings are deliberately isolated from an upstream Nemo installed alongside: our own config file, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
 
 ### UI
 
@@ -228,13 +252,23 @@ Settings are deliberately isolated from an upstream Nemo installed alongside: se
 
 ## Delivery (CI/CD, branches, releases)
 
-Guiding constraint: GitHub is dumb git hosting plus optional release storage, nothing more. No hosted CI, no Actions, as few third-party tools as possible; the whole pipeline runs locally (`cicd/cicd.bash`). This is the same delivery model proven on a sibling project, brought over as high-level concepts and actions - the branch flow, the merge gate, the release cut, the git backup+publish - not the language tooling. That sibling is a Rust/cargo project; nemo-anywhere is C/GTK built with meson/ninja in the `nemo-build` container, so each stage is wired to its meson/container equivalent (or left disabled until it exists).
+Guiding constraint: GitHub is dumb git hosting plus optional release storage, and as few third-party tools as possible; the whole pipeline runs locally (`cicd/cicd.bash`). The one deliberate exception is a release-only GitHub Actions workflow (`.github/workflows/release-win.yml`) that builds and signs the Windows release exe: SignPath Foundation (free OSS code signing) signs only CI-built artifacts, so the released binary has to come from a verifiable public build. Everything else stays local. This is the same delivery model proven on a sibling project, brought over as high-level concepts and actions - the branch flow, the merge gate, the release cut, the git backup+publish - not the language tooling. That sibling is a Rust/cargo project; nemo-anywhere is C/GTK built with meson/ninja in the `nemo-build` container, so each stage is wired to its meson/container equivalent (or left disabled until it exists).
 
 - Branch flow: feature branches merge `--no-ff` into `dev` (the integration target). `main` is release-only: merging dev into main cuts a release. Nothing is ever committed directly on main. Feature-branch pushes are not gated.
 - Merge gate: `cicd/cicd.bash --gate` runs as the `pre-push` hook for pushes to main or dev - the local stand-in for a hosted CI workflow. For nemo-anywhere today the gate is format-check (none yet) + lints (none yet) + tests, and "tests" is a container build followed by a headless `--version` smoke launch. Install the hook per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
 - Version-bump guard: the same pre-push hook blocks a push to main unless `source/meson.build` is a strict version increase over what's on main, and (once one exists) the README `Release-<ver>` badge matches. Skips the first main push and branch deletes.
-- Pipeline stages (the enduring shape; a stage self-skips when unconfigured): format -> debug build -> tests+lints -> profiler -> release build (native + cross) -> packages -> dogfood -> git backup+publish. Ready now: debug build, smoke test, backup+publish. The rest are present but disabled in `cicd/config.bash`, each carrying a `NEEDS:` note on what a meson/C equivalent would take (a C formatter/linter gate, a host-side release binary out of the container's `/build`, meson cross-compilation for Windows/ARM, Linux/Windows packaging). Nothing was speculatively ported.
-- Releases: `cicd/utility/release.bash` cuts from a clean main - tag `v<version>` (version read from `source/meson.build` alone) and optional push + GitHub Release upload. Tag+push work today; artifact attach is gated until the release-build stage produces host-side artifacts, and the first release needs a `Release-<ver>` README badge added on dev.
+- Version line: nemo-anywhere numbers its own releases from 1.0.0, independent of the inherited upstream code baseline (6.6.4). The project version in `source/meson.build` was reset to `1.0.0-beta1` for the first release; since 6.6.4 was never tagged or released, that reset is a clean one-time step, and the strict-increase guard governs 1.x onward.
+- Pipeline stages (the enduring shape; a stage self-skips when unconfigured): remote sync -> format -> debug build -> tests+lints -> profiler -> release build (native + cross) -> packages -> dogfood -> git backup+publish. Ready now: remote sync, debug build, tests, lints, profiler, packages, backup+publish. Still disabled in `cicd/config.bash`: the format stage (no in-place C formatter, on purpose) and the engine's own release-build collector, because the per-platform release lanes produce the artifacts instead.
+	- Remote sync runs first for a reason: the publish stage pulls at the end, so without it a change merged remotely during a run would be pushed having never been built or tested. It fast-forwards when the branch is only behind, wrapping any dirty tree in a stash, and stops the run outright when the branch has diverged. Skipped in gate mode, since a pre-push hook must not rewrite the tree underneath the push that called it.
+	- No stage is allowed all the cores. Build parallelism is capped at half of them, so a full run leaves the machine usable.
+- Profiling: `cicd/utility/profile-run.bash` browses a generated folder tree on a private headless display while sampling every thread, then renders a flamegraph into `cicd/artifacts/profiling` (GFS-rotated), and `cicd/utility/flame-report.py` prints the hot spots into the run log.
+	- It samples by attaching a debugger rather than using perf. perf needs a privileged sysctl on this machine, and a profiler that cannot run without root is a profiler nobody runs. The cost is that samples are wall-clock rather than CPU time, so a blocked thread reads as work; the report keeps waiting in its own bucket and gives every other figure as a share of busy time as well as of total.
+	- It profiles the debug build. The release binaries are stripped, and a flamegraph with no function names says nothing.
+- Packaging: built from what the release lanes already produced, never rebuilt. `cicd/linux/package.bash` turns the Linux tarball into a `.deb` and an `.rpm`, both installing the same relocatable prefix under `/opt` plus a launcher, a menu entry and icons in the shared theme. `cicd/win/pack-zip.bash` flattens the cross-build into the Windows zip layout. BSD, macOS, AppImage and Flatpak are deferred for want of a toolchain here.
+	- The `.deb`'s dependency versions are read off the built binaries inside the Ubuntu release container, not on the development box, so the package claims the same floor the binary was actually built against. `rpmbuild` derives its own requirements from the ELF, so the `.rpm` needs no such help.
+- Releases: `cicd/utility/release.bash` cuts from a clean main - tag `v<version>` (version read from `source/meson.build` alone) and optional push + GitHub Release upload. Tag+push work today; artifact attach is gated until the release-build stage produces host-side artifacts. The README release badge reads the current release off GitHub, so nothing has to be bumped by hand for it; a project that used a hand-written badge instead would have that checked against the version.
+	- Release notes are the hand-written changelog section for the version, never a generated commit list: `cicd/utility/changelog-notes.bash <version>` prints it, and both the local release helper and the Windows release workflow publish with it. A version with no changelog section falls back to generated notes rather than an empty body, so a release is never published blank.
+	- A version carrying a pre-release part (`1.0.0-beta2`) is published as a prerelease from both sides. That matters to the installers: their `stable` channel resolves to the latest non-prerelease, so a beta is only reachable with `--release dev`.
 - Backup+publish: `cicd/utility/n8git_backup-and-publish` rar-backs the project tree into `../versions/` (GFS-rotated) and then syncs/commits/pushes the current branch. It is the pipeline's last stage and can be run on its own.
 	- What the archive keeps: source, project docs, the pipeline itself, the repo's own assets, and anything under `cicd/artifacts/release` - release builds and the packages cut from them. What it drops: anything a command regenerates on demand, chiefly the staged Windows runtime snapshot (~67MB of library copies, rebuilt with one `--restage`), tool logs, and crash dumps. The decision was that a version backup should hold what would be painful to lose, not what a rebuild reproduces; the practical trigger was the snapshot alone taking each archive from about 1.6MB to 36MB.
 - Install: `install.bash` (Linux, BSD, WSL, macOS) and `install.ps1` (all of those plus Windows) at the repo root, run as one-liners straight from a shell. They read the releases page, so they depend on a fixed naming contract for release assets - the packaging stage has to produce exactly these names:
@@ -244,4 +278,8 @@ Guiding constraint: GitHub is dumb git hosting plus optional release storage, no
 - Windows single-exe: alongside the zip, the pipeline packs the whole runtime (dlls, schemas, icons, themes) into one self-contained `nemo-anywhere.exe` with Enigma Virtual Box - an in-memory virtual file system, nothing extracted at run time. We decided this is the flagship Windows artifact: no library folder, no launcher, just an exe to copy anywhere.
 	- The pack source is the same flat prefix layout the zip contract uses (exe + dlls at the root, `lib/` `share/` `etc/` beside them); GLib-stack libraries resolve their data relative to their own dll, so that tree also runs unpacked with a bare double-click.
 	- Known trade-off: virtualizer-packed exes are occasionally false-flagged by antivirus; the plain zip stays available as the fallback artifact.
+- Linux release artifact: `cicd/linux/release.bash` builds it, and deliberately not in the day-to-day build container. A binary's glibc floor is whatever it was built against, so a release built on Debian 13 would refuse to start on anything older than 2025. The release box is therefore Ubuntu 22.04 (`cicd/linux/Dockerfile`, container `nemo-build-jammy`): glibc 2.35 and GTK 3.24.33 as the floor, which reaches Ubuntu 22.04, Debian 12, Mint 21 and Fedora 36 onward. Newer runtimes stay compatible; older ones cannot be.
+	- Thin prefix, not a bundle: the GTK3 runtime comes from the distro rather than riding along. It keeps the download at a couple of MB, and on Linux a bundled GTK is the thing that goes stale and mismatches the desktop's theme, portals and input methods - the opposite of the Windows situation, where nothing is installed to begin with. That difference in the two platforms' artifacts is intentional.
+	- What makes it relocatable: `bin/nemo-anywhere` is a wrapper that resolves its own location (through the symlink the installer puts on PATH) and points `LD_LIBRARY_PATH` and `XDG_DATA_DIRS` at the folder it sits in; the real binary moves to `libexec/`. Everything the app finds through the XDG data dirs - actions, search helpers, icons, mime info - then resolves wherever the folder was installed.
+	- Still baked in at build time: the paths behind `NEMO_DATADIR` and `LIBEXECDIR`. They point at the system prefix (`/opt/nemo-anywhere`), so a per-user install loses two info-bar documents and the plugin tab's extension listing. Deriving them from the executable's own location is the open item that also fixes the same gap on Windows.
 - Build matrix: Linux x86_64 today (container). Windows (MSYS2/MinGW-w64) is the first cross target and is Phase 2; ARM and others follow. macOS/BSD deferred.

@@ -26,6 +26,8 @@
  */
 
 #include <config.h>
+
+#include "nemo-config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -57,7 +59,7 @@ struct _NemoDesktopThumbnailFactoryPrivate {
   GHashTable *mime_types_map;
   GList *monitors;
 
-  GSettings *settings;
+  NemoConfigGroup *settings;
   gboolean loaded : 1;
   gboolean disabled : 1;
   gchar **disabled_types;
@@ -756,7 +758,7 @@ nemo_desktop_thumbnail_factory_load_thumbnailers (NemoDesktopThumbnailFactory *f
 }
 
 static void
-external_thumbnailers_disabled_all_changed_cb (GSettings                    *settings,
+external_thumbnailers_disabled_all_changed_cb (NemoConfigGroup              *settings,
                                                const gchar                  *key,
                                                NemoDesktopThumbnailFactory *factory)
 {
@@ -764,7 +766,7 @@ external_thumbnailers_disabled_all_changed_cb (GSettings                    *set
 
   g_mutex_lock (&priv->lock);
 
-  priv->disabled = g_settings_get_boolean (priv->settings, "disable-all");
+  priv->disabled = nemo_config_get_boolean (priv->settings, "disable-all");
   if (priv->disabled)
     {
       g_strfreev (priv->disabled_types);
@@ -772,7 +774,7 @@ external_thumbnailers_disabled_all_changed_cb (GSettings                    *set
     }
   else
     {
-      priv->disabled_types = g_settings_get_strv (priv->settings, "disable");
+      priv->disabled_types = nemo_config_get_strv (priv->settings, "disable");
       nemo_desktop_thumbnail_factory_load_thumbnailers (factory);
     }
 
@@ -780,7 +782,7 @@ external_thumbnailers_disabled_all_changed_cb (GSettings                    *set
 }
 
 static void
-external_thumbnailers_disabled_changed_cb (GSettings                    *settings,
+external_thumbnailers_disabled_changed_cb (NemoConfigGroup              *settings,
                                            const gchar                  *key,
                                            NemoDesktopThumbnailFactory *factory)
 {
@@ -791,7 +793,7 @@ external_thumbnailers_disabled_changed_cb (GSettings                    *setting
   if (!priv->disabled)
     {
       g_strfreev (priv->disabled_types);
-      priv->disabled_types = g_settings_get_strv (priv->settings, "disable");
+      priv->disabled_types = nemo_config_get_strv (priv->settings, "disable");
     }
 
   g_mutex_unlock (&priv->lock);
@@ -869,10 +871,10 @@ nemo_desktop_thumbnail_factory_init (NemoDesktopThumbnailFactory *factory)
 
   g_mutex_init (&priv->lock);
 
-  priv->settings = g_settings_new ("org.nemo-anywhere.thumbnailers");
-  priv->disabled = g_settings_get_boolean (priv->settings, "disable-all");
+  priv->settings = nemo_config_get_group ("thumbnailers");
+  priv->disabled = nemo_config_get_boolean (priv->settings, "disable-all");
   if (!priv->disabled)
-    priv->disabled_types = g_settings_get_strv (priv->settings, "disable");
+    priv->disabled_types = nemo_config_get_strv (priv->settings, "disable");
   g_signal_connect (priv->settings, "changed::disable-all",
                     G_CALLBACK (external_thumbnailers_disabled_all_changed_cb),
                     factory);

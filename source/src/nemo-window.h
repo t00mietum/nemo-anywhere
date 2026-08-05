@@ -31,6 +31,7 @@
 
 #include <gtk/gtk.h>
 #include <eel/eel-glib-extensions.h>
+#include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-bookmark.h>
 #include <libnemo-private/nemo-search-directory.h>
 
@@ -157,9 +158,9 @@ void     nemo_window_split_view_on        (NemoWindow *window);
 void     nemo_window_split_view_off       (NemoWindow *window);
 gboolean nemo_window_split_view_showing   (NemoWindow *window);
 
-gboolean nemo_window_disable_chrome_mapping (GValue *value,
-                                                 GVariant *variant,
-                                                 gpointer user_data);
+gboolean nemo_window_disable_chrome_mapping (GValue                *value,
+                                             const NemoConfigValue *config_value,
+                                             gpointer               user_data);
 
 void     nemo_window_set_sidebar_id (NemoWindow *window,
                                     const gchar *id);

@@ -221,7 +221,7 @@ entry_activate_cb (GtkWidget *entry, NemoQueryEditor *editor)
 static void
 content_case_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 {
-    g_settings_set_boolean (nemo_search_preferences,
+    nemo_config_set_boolean (nemo_search_preferences,
                             NEMO_PREFERENCES_SEARCH_CONTENT_CASE,
                             gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->content_case_toggle)));
 }
@@ -229,7 +229,7 @@ content_case_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 static void
 file_case_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 {
-    g_settings_set_boolean (nemo_search_preferences,
+    nemo_config_set_boolean (nemo_search_preferences,
                             NEMO_PREFERENCES_SEARCH_FILE_CASE,
                             gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->file_case_toggle)));
 }
@@ -237,7 +237,7 @@ file_case_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 static void
 file_regex_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 {
-    g_settings_set_boolean (nemo_search_preferences,
+    nemo_config_set_boolean (nemo_search_preferences,
                             NEMO_PREFERENCES_SEARCH_FILES_REGEX,
                             gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->file_regex_toggle)));
     entry_text_changed (editor->priv->file_entry, editor);
@@ -246,7 +246,7 @@ file_regex_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 static void
 content_regex_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 {
-    g_settings_set_boolean (nemo_search_preferences,
+    nemo_config_set_boolean (nemo_search_preferences,
                             NEMO_PREFERENCES_SEARCH_CONTENT_REGEX,
                             gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->content_regex_toggle)));
     entry_text_changed (editor->priv->content_entry, editor);
@@ -255,7 +255,7 @@ content_regex_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 static void
 file_recurse_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
 {
-    g_settings_set_boolean (nemo_search_preferences,
+    nemo_config_set_boolean (nemo_search_preferences,
                             NEMO_PREFERENCES_SEARCH_FILES_RECURSIVELY,
                             gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->file_recurse_toggle)));
 }
@@ -379,7 +379,7 @@ nemo_query_editor_init (NemoQueryEditor *editor)
 
     priv->file_case_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "file_search_case_toggle"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->file_case_toggle),
-                                  g_settings_get_boolean (nemo_search_preferences,
+                                  nemo_config_get_boolean (nemo_search_preferences,
                                                           NEMO_PREFERENCES_SEARCH_FILE_CASE));
 
     g_signal_connect (priv->file_case_toggle,
@@ -389,7 +389,7 @@ nemo_query_editor_init (NemoQueryEditor *editor)
 
     priv->file_recurse_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "file_search_recurse_toggle"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->file_recurse_toggle),
-                                  g_settings_get_boolean (nemo_search_preferences,
+                                  nemo_config_get_boolean (nemo_search_preferences,
                                                           NEMO_PREFERENCES_SEARCH_FILES_RECURSIVELY));
 
     g_signal_connect (priv->file_recurse_toggle,
@@ -399,7 +399,7 @@ nemo_query_editor_init (NemoQueryEditor *editor)
 
     priv->file_regex_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "file_search_regex_toggle"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->file_regex_toggle),
-                                  g_settings_get_boolean (nemo_search_preferences,
+                                  nemo_config_get_boolean (nemo_search_preferences,
                                                           NEMO_PREFERENCES_SEARCH_FILES_REGEX));
 
     g_signal_connect (priv->file_regex_toggle,
@@ -427,7 +427,7 @@ nemo_query_editor_init (NemoQueryEditor *editor)
 
     priv->content_case_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "content_search_case_toggle"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->content_case_toggle),
-                                  g_settings_get_boolean (nemo_search_preferences,
+                                  nemo_config_get_boolean (nemo_search_preferences,
                                                           NEMO_PREFERENCES_SEARCH_CONTENT_CASE));
 
     g_signal_connect (priv->content_case_toggle,
@@ -437,7 +437,7 @@ nemo_query_editor_init (NemoQueryEditor *editor)
 
     priv->content_regex_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "content_search_regex_toggle"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->content_regex_toggle),
-                                  g_settings_get_boolean (nemo_search_preferences,
+                                  nemo_config_get_boolean (nemo_search_preferences,
                                                           NEMO_PREFERENCES_SEARCH_CONTENT_REGEX));
 
     g_signal_connect (priv->content_regex_toggle,

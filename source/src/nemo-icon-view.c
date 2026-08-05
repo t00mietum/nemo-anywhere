@@ -627,9 +627,9 @@ get_default_sort_order (NemoFile *file, gboolean *reversed)
 	NemoFileSortType retval, default_sort_order;
 	gboolean default_sort_in_reverse_order;
 
-	default_sort_order = g_settings_get_enum (nemo_preferences,
+	default_sort_order = nemo_config_get_enum (nemo_preferences,
 						  NEMO_PREFERENCES_DEFAULT_SORT_ORDER);
-	default_sort_in_reverse_order = g_settings_get_boolean (nemo_preferences,
+	default_sort_in_reverse_order = nemo_config_get_boolean (nemo_preferences,
 								NEMO_PREFERENCES_DEFAULT_SORT_IN_REVERSE_ORDER);
 
 	retval = nemo_file_get_default_sort_type (file, reversed);
@@ -906,9 +906,9 @@ get_default_zoom_level (NemoIconView *icon_view)
 {
 	NemoZoomLevel default_zoom_level, default_compact_zoom_level;
 
-	default_zoom_level = g_settings_get_enum (nemo_icon_view_preferences,
+	default_zoom_level = nemo_config_get_enum (nemo_icon_view_preferences,
 						  NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL);
-	default_compact_zoom_level = g_settings_get_enum (nemo_compact_view_preferences,
+	default_compact_zoom_level = nemo_config_get_enum (nemo_compact_view_preferences,
 							  NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ZOOM_LEVEL);
 
     if (NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container) {
@@ -925,7 +925,7 @@ set_labels_beside_icons (NemoIconView *icon_view)
 
 	if (nemo_icon_view_supports_labels_beside_icons (icon_view)) {
 		labels_beside = nemo_icon_view_is_compact (icon_view) ||
-			g_settings_get_boolean (nemo_icon_view_preferences,
+			nemo_config_get_boolean (nemo_icon_view_preferences,
 						NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
 
 		if (labels_beside) {
@@ -946,7 +946,7 @@ set_columns_same_width (NemoIconView *icon_view)
 	gboolean all_columns_same_width;
 
 	if (nemo_icon_view_is_compact (icon_view)) {
-		all_columns_same_width = g_settings_get_boolean (nemo_compact_view_preferences,
+		all_columns_same_width = nemo_config_get_boolean (nemo_compact_view_preferences,
 								 NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH);
 		nemo_icon_container_set_all_columns_same_width (get_icon_container (icon_view), all_columns_same_width);
 	}
@@ -1679,7 +1679,7 @@ icon_container_activate_alternate_callback (NemoIconContainer *container,
 	open_in_window = FALSE;
 	close_behind = FALSE;
 
-	if (g_settings_get_boolean (nemo_preferences,
+	if (nemo_config_get_boolean (nemo_preferences,
 				    NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
 		if (event->type == GDK_BUTTON_PRESS ||
 		    event->type == GDK_BUTTON_RELEASE ||
@@ -2215,7 +2215,7 @@ nemo_icon_view_update_click_mode (NemoIconView *icon_view)
 	icon_container = get_icon_container (icon_view);
 	g_assert (icon_container != NULL);
 
-	click_mode = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_CLICK_POLICY);
+	click_mode = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_CLICK_POLICY);
 
 	nemo_icon_container_set_single_click_mode (icon_container,
 						       click_mode == NEMO_CLICK_POLICY_SINGLE);
@@ -2230,7 +2230,7 @@ nemo_icon_view_update_click_to_rename_mode (NemoIconView *icon_view)
     icon_container = get_icon_container (icon_view);
     g_assert (icon_container != NULL);
 
-    enabled = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLICK_TO_RENAME);
+    enabled = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLICK_TO_RENAME);
 
     nemo_icon_container_set_click_to_rename_enabled (icon_container,
                                                      enabled);
@@ -2328,7 +2328,7 @@ button_press_callback (GtkWidget *widget, GdkEventFocus *event, gpointer user_da
     }
 
     /* double left click on blank will go to parent folder */
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLICK_DOUBLE_PARENT_FOLDER) &&
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLICK_DOUBLE_PARENT_FOLDER) &&
         (event_button->button == 1) && (event_button->type == GDK_2BUTTON_PRESS)) {
         if (selection_count == 0) {
             NemoWindowSlot *slot = nemo_view_get_nemo_window_slot (view);

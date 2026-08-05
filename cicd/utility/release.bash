@@ -49,15 +49,18 @@ git diff --quiet && git diff --cached --quiet || die "working tree not clean"
 
 ## meson.build form: project('nemo-anywhere', 'c', version : '6.6.4', ...). Grab the
 ## first `version : '...'` (the project version; dep version checks use `>=`, not this).
-ver="$(grep -oP "version\s*:\s*'\K[^']+" "${VERSION_MANIFEST}" | head -1)"
+ver="$(grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "${VERSION_MANIFEST}" | head -1)"
 [[ -n "$ver" ]] || die "no version in ${VERSION_MANIFEST}"
 tag="v${ver}"
 git rev-parse -q --verify "refs/tags/${tag}" >/dev/null && die "tag ${tag} already exists - bump the version on dev first"
 
-## The README release badge is static; it must be bumped on dev with the version
-## (shields.io escapes '-' as '--'), never patched here on main.
-badge_ver="${ver//-/--}"
-grep -q "Release-${badge_ver}-" README.md || die "README release badge does not say ${ver} - update it on dev before the release merge"
+## Only a hand-written release badge needs checking, and it must be bumped on dev
+## with the version (shields.io escapes '-' as '--'), never patched here on main.
+## A badge that reads the release off GitHub keeps itself in step, so it is skipped.
+if grep -q 'shields.io/badge/Release-' README.md; then
+	badge_ver="${ver//-/--}"
+	grep -q "Release-${badge_ver}-" README.md || die "README release badge does not say ${ver} - update it on dev before the release merge"
+fi
 
 ## 2. Release artifacts must exist and carry this version (full cicd run makes them).
 ## NOT READY: nemo-anywhere has no host-side release-artifact stage yet (see
@@ -97,12 +100,25 @@ else
 fi
 if ((do_publish)); then
 	command -v gh >/dev/null 2>&1 || die "gh CLI not found"
+	## Notes are the hand-written changelog section when there is one.
+	notes_file="$(mktemp)"
+	trap 'rm -f "${notes_file}"' EXIT
+	if "${here}/changelog-notes.bash" "${ver}" >"${notes_file}"; then
+		notes_arg=(--notes-file "${notes_file}")
+	else
+		echo "no changelog section for ${ver} - publishing with a placeholder body" >&2
+		notes_arg=(--notes "See the changelog for details.")
+	fi
+	## A prerelease is anything with a pre-release part, matching the tag rule the
+	## release workflow applies from its side.
+	pre_arg=()
+	if [[ "$ver" == *-* ]]; then pre_arg=(--prerelease); fi
 	if ((have_artifacts)); then
-		gh release create "${tag}" --title "${APP_NAME} ${ver}" --notes "See the README for details." \
+		gh release create "${tag}" --title "${APP_NAME} ${ver}" "${notes_arg[@]}" "${pre_arg[@]}" \
 			"${art_dir}/${EXE_NAME}-${ver}-"*
 		echo "GitHub Release ${tag} created with artifacts"
 	else
-		gh release create "${tag}" --title "${APP_NAME} ${ver}" --notes "See the README for details."
+		gh release create "${tag}" --title "${APP_NAME} ${ver}" "${notes_arg[@]}" "${pre_arg[@]}"
 		echo "GitHub Release ${tag} created (no artifacts attached - stage not wired yet)"
 	fi
 elif ((do_push)) && ((have_artifacts)); then

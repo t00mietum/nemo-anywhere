@@ -226,9 +226,11 @@ function fVersion {
 ## Native build: meson setup (first time with -Dxmp=false, else --reconfigure) then
 ## ninja, in the mingw64 shell. Aborts on a real build error.
 function fBuild {
+	## -j caps at half the cores, same as the Linux engine; ninja alone takes cores+2.
+	$jobs = [Math]::Max(1, [Environment]::ProcessorCount / 2 -as [int])
 	$sh = @"
 if [ -f $BuildRel/build.ninja ]; then meson setup --reconfigure $BuildRel source; else meson setup -Dxmp=false $BuildRel source; fi
-ninja -C $BuildRel
+ninja -C $BuildRel -j $jobs
 "@
 	fMingw $sh
 	if ($script:MingwRc -ne 0) { fDie "native build failed (exit $($script:MingwRc))" }

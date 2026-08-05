@@ -5,6 +5,8 @@
  */
 
 #include <config.h>
+
+#include "nemo-config.h"
 #include <glib/gi18n.h>
 
 #include "nemo-favorite-vfs-file.h"
@@ -12,10 +14,11 @@
 #include "nemo-favorite-vfs-file-monitor.h"
 
 
-#define FAVORITES_SCHEMA "org.nemo-anywhere"
+/* Favorites live at the config file root, not in a section. */
+#define FAVORITES_SCHEMA ""
 #define FAVORITE_DCONF_METADATA_KEY "favorites-root-metadata"
 
-static GSettings *settings = NULL;
+static NemoConfigGroup *settings = NULL;
 G_LOCK_DEFINE_STATIC (settings);
 
 typedef struct
@@ -498,7 +501,7 @@ file_query_info (GFile               *file,
         {
             G_LOCK (settings);
 
-            gchar **entries = g_settings_get_strv (settings, FAVORITE_DCONF_METADATA_KEY);
+            gchar **entries = nemo_config_get_strv (settings, FAVORITE_DCONF_METADATA_KEY);
 
             if (entries != NULL)
             {
@@ -698,7 +701,7 @@ remove_root_metadata (const gchar *attr_name)
 
     G_LOCK (settings);
 
-    old_metadata = g_settings_get_strv (settings, FAVORITE_DCONF_METADATA_KEY);
+    old_metadata = nemo_config_get_strv (settings, FAVORITE_DCONF_METADATA_KEY);
 
     if (old_metadata == NULL)
     {
@@ -726,7 +729,7 @@ remove_root_metadata (const gchar *attr_name)
 
     new_metadata = (gchar **) g_ptr_array_free (new_array, FALSE);
 
-    g_settings_set_strv (settings, FAVORITE_DCONF_METADATA_KEY, (const gchar * const *) new_metadata);
+    nemo_config_set_strv (settings, FAVORITE_DCONF_METADATA_KEY, (const gchar * const *) new_metadata);
     g_strfreev (new_metadata);
 
     G_UNLOCK (settings);
@@ -745,7 +748,7 @@ set_or_update_root_metadata (const gchar        *attr_name,
 
     G_LOCK (settings);
 
-    old_metadata = g_settings_get_strv (settings, FAVORITE_DCONF_METADATA_KEY);
+    old_metadata = nemo_config_get_strv (settings, FAVORITE_DCONF_METADATA_KEY);
 
     if (old_metadata == NULL)
     {
@@ -804,7 +807,7 @@ set_or_update_root_metadata (const gchar        *attr_name,
 
     new_metadata = (gchar **) g_ptr_array_free (new_array, FALSE);
 
-    g_settings_set_strv (settings, FAVORITE_DCONF_METADATA_KEY, (const gchar * const *) new_metadata);
+    nemo_config_set_strv (settings, FAVORITE_DCONF_METADATA_KEY, (const gchar * const *) new_metadata);
     g_strfreev (new_metadata);
 
     G_UNLOCK (settings);
@@ -1345,7 +1348,7 @@ ensure_metadata_store (NemoFavoriteVfsFile *file)
     {
         if (settings == NULL)
         {
-            settings = g_settings_new (FAVORITES_SCHEMA);
+            settings = g_object_ref (nemo_config_get_group (FAVORITES_SCHEMA));
             g_object_add_weak_pointer (G_OBJECT (settings), (gpointer) &settings);
         }
         else

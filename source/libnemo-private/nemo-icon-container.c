@@ -207,9 +207,9 @@ static guint signals[LAST_SIGNAL] = { 0 };
 static void
 tooltip_prefs_changed_callback (NemoIconContainer *container)
 {
-    container->details->show_desktop_tooltips = g_settings_get_boolean (nemo_preferences,
+    container->details->show_desktop_tooltips = nemo_config_get_boolean (nemo_preferences,
                                                                         NEMO_PREFERENCES_TOOLTIPS_DESKTOP);
-    container->details->show_icon_view_tooltips = g_settings_get_boolean (nemo_preferences,
+    container->details->show_icon_view_tooltips = nemo_config_get_boolean (nemo_preferences,
                                                                           NEMO_PREFERENCES_TOOLTIPS_ICON_VIEW);
 
     container->details->tooltip_flags = nemo_global_preferences_get_tooltip_flags ();
@@ -4959,9 +4959,9 @@ nemo_icon_container_init (NemoIconContainer *container)
                               G_CALLBACK (tooltip_prefs_changed_callback),
                               container);
 
-    container->details->show_desktop_tooltips = g_settings_get_boolean (nemo_preferences,
+    container->details->show_desktop_tooltips = nemo_config_get_boolean (nemo_preferences,
                                                                         NEMO_PREFERENCES_TOOLTIPS_DESKTOP);
-    container->details->show_icon_view_tooltips = g_settings_get_boolean (nemo_preferences,
+    container->details->show_icon_view_tooltips = nemo_config_get_boolean (nemo_preferences,
                                                                           NEMO_PREFERENCES_TOOLTIPS_ICON_VIEW);
     container->details->tooltip_flags = nemo_global_preferences_get_tooltip_flags ();
 

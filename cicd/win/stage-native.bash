@@ -80,9 +80,6 @@ fi
 ## Schemas: nemo's own merged with the GTK ones, compiled (the app hard-aborts on a
 ## missing schema). glib-compile-schemas output is arch-independent.
 mkdir -p "${DEST}/mingw64/share/glib-2.0/schemas"
-cp "${BUILD}/../../../source/libnemo-private/org.nemo-anywhere.gschema.xml" \
-	"${DEST}/mingw64/share/glib-2.0/schemas/" 2>/dev/null || \
-	cp /src/source/libnemo-private/org.nemo-anywhere.gschema.xml "${DEST}/mingw64/share/glib-2.0/schemas/" 2>/dev/null || true
 cp "${MINGW}/share/glib-2.0/schemas/"*.gschema.xml "${DEST}/mingw64/share/glib-2.0/schemas/" 2>/dev/null || true
 cp "${MINGW}/share/glib-2.0/schemas/gschema.dtd"   "${DEST}/mingw64/share/glib-2.0/schemas/" 2>/dev/null || true
 glib-compile-schemas "${DEST}/mingw64/share/glib-2.0/schemas" >/dev/null 2>&1 || true

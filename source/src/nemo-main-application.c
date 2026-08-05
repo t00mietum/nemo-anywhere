@@ -205,7 +205,7 @@ nemo_main_application_create_window (NemoApplication *application,
 
     window = nemo_window_new (GTK_APPLICATION (application), screen);
 
-	maximized = g_settings_get_boolean
+	maximized = nemo_config_get_boolean
 		(nemo_window_state, NEMO_WINDOW_STATE_MAXIMIZED);
 	if (maximized) {
 		gtk_window_maximize (GTK_WINDOW (window));
@@ -213,7 +213,7 @@ nemo_main_application_create_window (NemoApplication *application,
 		gtk_window_unmaximize (GTK_WINDOW (window));
 	}
 
-    geometry_string = g_settings_get_string (nemo_window_state, NEMO_WINDOW_STATE_GEOMETRY);
+    geometry_string = nemo_config_get_string (nemo_window_state, NEMO_WINDOW_STATE_GEOMETRY);
 
     if (NEMO_MAIN_APPLICATION (application)->priv->geometry == NULL && 
         geometry_string != NULL &&
@@ -320,7 +320,7 @@ mount_removed_callback (GVolumeMonitor *monitor,
 		slot = node->data;
 
 		if (slot != force_no_close_slot) {
-            if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT))
+            if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT))
                 nemo_window_pane_close_slot (slot->pane, slot);
             else
                 nemo_window_slot_go_home (slot, FALSE);
@@ -865,8 +865,8 @@ post_registration:
 static void
 menu_state_changed_callback (NemoMainApplication *self)
 {
-    if (!g_settings_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR) &&
-        !g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_DISABLE_MENU_WARNING)) {
+    if (!nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR) &&
+        !nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DISABLE_MENU_WARNING)) {
 
         GtkWidget *dialog;
         GtkWidget *msg_area;
@@ -893,11 +893,11 @@ menu_state_changed_callback (NemoMainApplication *self)
         checkbox = gtk_check_button_new_with_label (_("Don't show this message again."));
         gtk_box_pack_start (GTK_BOX (msg_area), checkbox, TRUE, TRUE, 2);
 
-        g_settings_bind (nemo_preferences,
+        nemo_config_bind (nemo_preferences,
                          NEMO_PREFERENCES_DISABLE_MENU_WARNING,
                          checkbox,
                          "active",
-                         G_SETTINGS_BIND_DEFAULT);
+                         NEMO_CONFIG_BIND_DEFAULT);
 
         gtk_widget_show_all (dialog);
 

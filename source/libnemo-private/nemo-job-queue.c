@@ -90,7 +90,7 @@ nemo_job_queue_constructor (GType type,
 static void
 pref_changed_cb (NemoJobQueue *self)
 {
-    self->priv->skip_queue = g_settings_get_boolean (nemo_preferences,
+    self->priv->skip_queue = nemo_config_get_boolean (nemo_preferences,
                                                      NEMO_PREFERENCES_NEVER_QUEUE_FILE_OPS);
 }
 

@@ -120,7 +120,7 @@ module_object_weak_notify (gpointer user_data, GObject *object)
 static gboolean
 module_is_selected (GType type)
 {
-    gchar **disabled_list = g_settings_get_strv (nemo_plugin_preferences, NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS);
+    gchar **disabled_list = nemo_config_get_strv (nemo_plugin_preferences, NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS);
 
     gboolean ret = TRUE;
     guint i = 0;

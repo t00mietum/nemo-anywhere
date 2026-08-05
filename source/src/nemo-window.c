@@ -234,7 +234,7 @@ nemo_window_new_tab (NemoWindow *window)
 	if (location != NULL) {
 		flags = 0;
 
-		new_slot_position = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_NEW_TAB_POSITION);
+		new_slot_position = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_NEW_TAB_POSITION);
 		if (new_slot_position == NEMO_NEW_TAB_POSITION_END) {
 			flags = NEMO_WINDOW_OPEN_SLOT_APPEND;
 		}
@@ -384,7 +384,7 @@ save_sidebar_width_cb (gpointer user_data)
 
 	DEBUG ("Saving sidebar width: %d", window->details->side_pane_width);
 
-	g_settings_set_int (nemo_window_state,
+	nemo_config_set_int (nemo_window_state,
 			    NEMO_WINDOW_STATE_SIDEBAR_WIDTH,
 			    window->details->side_pane_width);
 
@@ -421,7 +421,7 @@ setup_side_pane_width (NemoWindow *window)
 	g_return_if_fail (window->details->sidebar != NULL);
 
 	window->details->side_pane_width =
-		g_settings_get_int (nemo_window_state,
+		nemo_config_get_int (nemo_window_state,
 				    NEMO_WINDOW_STATE_SIDEBAR_WIDTH);
 
 	gtk_paned_set_position (GTK_PANED (window->details->content_paned),
@@ -533,14 +533,14 @@ side_pane_id_changed (NemoWindow *window)
 }
 
 gboolean
-nemo_window_disable_chrome_mapping (GValue *value,
-					GVariant *variant,
-					gpointer user_data)
+nemo_window_disable_chrome_mapping (GValue                *value,
+				    const NemoConfigValue *config_value,
+				    gpointer               user_data)
 {
 	NemoWindow *window = user_data;
 
 	g_value_set_boolean (value,
-			     g_variant_get_boolean (variant) &&
+			     config_value->b &&
 			     !window->details->disable_chrome);
 
 	return TRUE;
@@ -665,17 +665,17 @@ nemo_window_constructed (GObject *self)
                              window,
                              0);
 
-	if (g_settings_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR)){
+	if (nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR)){
 		gtk_widget_show (menu);
 	} else {
 		gtk_widget_hide (menu);
 	}
 
-    g_settings_bind_with_mapping (nemo_window_state,
+    nemo_config_bind_with_mapping (nemo_window_state,
                       NEMO_WINDOW_STATE_START_WITH_MENU_BAR,
                       window->details->menubar,
                       "visible",
-                      G_SETTINGS_BIND_GET,
+                      NEMO_CONFIG_BIND_GET,
                       nemo_window_disable_chrome_mapping, NULL,
                       window, NULL);
 
@@ -741,11 +741,11 @@ nemo_window_constructed (GObject *self)
     g_signal_connect_object (GTK_WIDGET (eb), "button-press-event",
                              G_CALLBACK (on_button_press_callback), window, 0);
 
-    g_settings_bind_with_mapping (nemo_window_state,
+    nemo_config_bind_with_mapping (nemo_window_state,
                       NEMO_WINDOW_STATE_START_WITH_STATUS_BAR,
                       window->details->nemo_status_bar,
                       "visible",
-                      G_SETTINGS_BIND_DEFAULT,
+                      NEMO_CONFIG_BIND_DEFAULT,
                       nemo_window_disable_chrome_mapping, NULL,
                       window, NULL);
 
@@ -765,7 +765,7 @@ nemo_window_constructed (GObject *self)
 	slot = nemo_window_pane_open_slot (window->details->active_pane, 0);
 	nemo_window_set_active_slot (window, slot);
 
-    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_START_WITH_DUAL_PANE) &&
+    if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_START_WITH_DUAL_PANE) &&
         !window->details->disable_chrome)
         nemo_window_split_view_on (window);
 
@@ -983,13 +983,13 @@ nemo_window_save_geometry (NemoWindow *window)
 		is_maximized = state & GDK_WINDOW_STATE_MAXIMIZED;
 
 		if (!is_maximized) {
-			g_settings_set_string
+			nemo_config_set_string
 				(nemo_window_state, NEMO_WINDOW_STATE_GEOMETRY,
 				 geometry_string);
 		}
 		g_free (geometry_string);
 
-		g_settings_set_boolean
+		nemo_config_set_boolean
 			(nemo_window_state, NEMO_WINDOW_STATE_MAXIMIZED,
 			 is_maximized);
 	}
@@ -1168,7 +1168,7 @@ nemo_window_set_active_slot (NemoWindow *window, NemoWindowSlot *new_slot)
 
 		// Show active toolbar
 		gboolean show_toolbar;
-		show_toolbar = g_settings_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_TOOLBAR);
+		show_toolbar = nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_TOOLBAR);
 
 		if ( show_toolbar) {
 			gtk_widget_show (GTK_WIDGET (new_slot->pane->tool_bar));
@@ -1192,7 +1192,7 @@ toggle_menubar (NemoWindow *window, gint action)
     GtkWidget *menu;
     gboolean default_visible;
 
-    default_visible = g_settings_get_boolean (nemo_window_state,
+    default_visible = nemo_config_get_boolean (nemo_window_state,
                                               NEMO_WINDOW_STATE_START_WITH_MENU_BAR);
 
     if (default_visible || window->details->disable_chrome) {
@@ -1423,7 +1423,7 @@ nemo_window_sync_menu_bar (NemoWindow *window)
 {
     GtkWidget *menu = window->details->menubar;
 
-    if (g_settings_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR) &&
+    if (nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR) &&
                                 !window->details->disable_chrome) {
         gtk_widget_show (menu);
     } else {
@@ -1450,7 +1450,7 @@ nemo_window_sync_title (NemoWindow *window,
 		/* if spatial mode is default, we keep "File Browser" in the window title
 		 * to recognize browser windows. Otherwise, we default to the directory name.
 		 */
-		if (!g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
+		if (!nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
 			full_title = g_strdup_printf (_("%s - File Browser"), slot->title);
 			window_title = eel_str_middle_truncate (full_title, MAX_TITLE_LENGTH);
 			g_free (full_title);
@@ -1683,10 +1683,10 @@ nemo_window_show (GtkWidget *widget)
 
 	window = NEMO_WINDOW (widget);
 
-    window->details->sidebar_id = g_settings_get_string (nemo_window_state,
+    window->details->sidebar_id = nemo_config_get_string (nemo_window_state,
                                                          NEMO_WINDOW_STATE_SIDE_PANE_VIEW);
 
-	if (g_settings_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR)) {
+	if (nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR)) {
 		nemo_window_show_sidebar (window);
 	} else {
 		nemo_window_hide_sidebar (window);
@@ -1809,7 +1809,7 @@ nemo_window_set_hidden_files_mode (NemoWindow *window,
 				       NemoWindowShowHiddenFilesMode  mode)
 {
 	window->details->show_hidden_files_mode = mode;
-    g_settings_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES,
+    nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES,
                             mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE);
 	g_signal_emit_by_name (window, "hidden_files_mode_changed");
 }
@@ -1944,7 +1944,7 @@ nemo_window_state_event (GtkWidget *widget,
 			     GdkEventWindowState *event)
 {
 	if ((event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED) && !nemo_window_is_desktop (NEMO_WINDOW (widget))) {
-		g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_MAXIMIZED,
+		nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_MAXIMIZED,
 					event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED);
 	}
 
@@ -1991,7 +1991,7 @@ mouse_back_button_changed (gpointer callback_data)
 {
 	int new_back_button;
 
-	new_back_button = g_settings_get_int (nemo_preferences, NEMO_PREFERENCES_MOUSE_BACK_BUTTON);
+	new_back_button = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_MOUSE_BACK_BUTTON);
 
 	/* Bounds checking */
 	if (new_back_button < 6 || new_back_button > UPPER_MOUSE_LIMIT)
@@ -2005,7 +2005,7 @@ mouse_forward_button_changed (gpointer callback_data)
 {
 	int new_forward_button;
 
-	new_forward_button = g_settings_get_int (nemo_preferences, NEMO_PREFERENCES_MOUSE_FORWARD_BUTTON);
+	new_forward_button = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_MOUSE_FORWARD_BUTTON);
 
 	/* Bounds checking */
 	if (new_forward_button < 6 || new_forward_button > UPPER_MOUSE_LIMIT)
@@ -2017,7 +2017,7 @@ mouse_forward_button_changed (gpointer callback_data)
 static void
 use_extra_mouse_buttons_changed (gpointer callback_data)
 {
-	mouse_extra_buttons = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS);
+	mouse_extra_buttons = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS);
 }
 
 /* Open folders used to keep the view they were built with, so a new default only
@@ -2067,12 +2067,12 @@ nemo_window_init (NemoWindow *window)
 	window->details->panes = NULL;
 	window->details->active_pane = NULL;
 
-    gboolean show_hidden = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
+    gboolean show_hidden = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
 
     window->details->show_hidden_files_mode = show_hidden ? NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE :
                                                             NEMO_WINDOW_SHOW_HIDDEN_FILES_DISABLE;
 
-    window->details->show_sidebar = g_settings_get_boolean (nemo_window_state,
+    window->details->show_sidebar = nemo_config_get_boolean (nemo_window_state,
                                                             NEMO_WINDOW_STATE_START_WITH_SIDEBAR);
 
     window->details->menu_skip_release = FALSE;
@@ -2367,7 +2367,7 @@ nemo_window_set_sidebar_id (NemoWindow *window,
 {
     if (g_strcmp0 (id, window->details->sidebar_id) != 0) {
 
-        g_settings_set_string (nemo_window_state,
+        nemo_config_set_string (nemo_window_state,
                                NEMO_WINDOW_STATE_SIDE_PANE_VIEW,
                                id);
 
@@ -2391,7 +2391,7 @@ nemo_window_set_show_sidebar (NemoWindow *window,
 {
     window->details->show_sidebar = show;
 
-    g_settings_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
+    nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
 
     g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
 }

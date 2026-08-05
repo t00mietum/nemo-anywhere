@@ -826,7 +826,7 @@ static gboolean show_hidden_files = TRUE;
 static void
 show_hidden_files_changed_callback (gpointer callback_data)
 {
-	show_hidden_files = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
+	show_hidden_files = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
 }
 
 static gboolean

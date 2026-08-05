@@ -2,7 +2,6 @@
 <gresources>
   <gresource prefix="/org/nemo">
     <file>nemo-bookmarks-window.glade</file>
-    <file>nemo-desktop-preferences.glade</file>
     <file>nemo-file-management-properties.glade</file>
     <file>nemo-search-bar.glade</file>
 

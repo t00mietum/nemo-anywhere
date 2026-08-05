@@ -71,7 +71,7 @@ sync_search_directory (NemoWindowSlot *slot)
 
     if (query) {
         nemo_query_set_show_hidden (query,
-                                    g_settings_get_boolean (nemo_preferences,
+                                    nemo_config_get_boolean (nemo_preferences,
                                                             NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
     }
 
@@ -681,7 +681,7 @@ real_slot_set_short_status (NemoWindowSlot *slot,
 	nemo_floating_bar_set_show_spinner (NEMO_FLOATING_BAR (slot->floating_bar),
 						FALSE);
 
-	show_statusbar = g_settings_get_boolean (nemo_window_state,
+	show_statusbar = nemo_config_get_boolean (nemo_window_state,
 						 NEMO_WINDOW_STATE_START_WITH_STATUS_BAR);
 
 	g_object_get (nemo_window_slot_get_window (slot),

@@ -659,7 +659,7 @@ on_row_deleted (GtkListStore *store,
                     }
                 }
             } else {
-                g_settings_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, row);
+                nemo_config_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, row);
             }
 
             row++;
@@ -800,7 +800,7 @@ update_bookmark_from_text (void)
             return;
         }
 
-        if (selected_row > g_settings_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT)) {
+        if (selected_row > nemo_config_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT)) {
             selected_row--;
         }
 
@@ -966,11 +966,11 @@ repopulate_now (void)
 				  selection_changed_id);
 
     bookmarks_length = nemo_bookmark_list_length (bookmarks);
-    breakpoint = g_settings_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT);
+    breakpoint = nemo_config_get_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT);
 
     if (breakpoint < 0) {     // Default gsettings value is -1 (which translates to 'not previously set')
         breakpoint = bookmarks_length;
-        g_settings_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, breakpoint);
+        nemo_config_set_int (nemo_window_state, NEMO_PREFERENCES_SIDEBAR_BOOKMARK_BREAKPOINT, breakpoint);
     }
 
 	reference = NULL;

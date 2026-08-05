@@ -7,7 +7,7 @@
 
 ![Made with](https://img.shields.io/badge/Made%20with-C-1f425f.svg)
 ![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)
-![Release](https://img.shields.io/badge/Release-1.0.0--beta1-orange.svg)
+[![Release](https://img.shields.io/github/v/release/t00mietum/nemo-anywhere?include_prereleases&label=release)](https://github.com/t00mietum/nemo-anywhere/releases)
 ![Lifecycle](https://img.shields.io/badge/Lifecycle-Beta-yellow)
 ![Support](https://img.shields.io/badge/Support-Maintained-brightgreen)
 
@@ -44,8 +44,10 @@ Nemo, freed from its desktop. A great file manager should run anywhere. This one
 - [What this fork adds or enhances](#what-this-fork-adds-or-enhances)
 - [Status](#status)
 - [Installation](#installation)
-	- [Direct](#direct)
-- [Building from source](#building-from-source)
+	- [Packages and installers](#packages-and-installers)
+	- [Direct stable and dev install scripts](#direct-stable-and-dev-install-scripts)
+	- [DIY](#diy)
+- [Set up development environment](#set-up-development-environment)
 - [Longer-term roadmap](#longer-term-roadmap)
 - [Copyright and license](#copyright-and-license)
 
@@ -63,7 +65,7 @@ This project cuts the strings:
 
 - Removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
 
-- Removes the heavy desktop integration. Your existing manager is untounched - which can even be original Nemo, they don't conflict. (This is also a big step towards OS portability.)
+- Removes the heavy desktop integration. Your existing manager is untouched - which can even be original Nemo, they don't conflict. (This is also a big step towards OS portability.)
 
 - Shippable everywhere. (At least, desktop OSes.)
 
@@ -72,9 +74,7 @@ That means, in order:
 - **Linux**:
 	- Standalone on any desktop.
 
-	- No Cinnamon Desktop dependencies.
-
-	- No external dependencies whatsoever!
+	- No Cinnamon dependencies. No Cinnamon, no xapp, no desktop stack pulled in behind it.
 
 	- Doesn't try to compete with existing desktop managers for control of desktop rendering. (A real pain point with OG Nemo.)
 
@@ -116,14 +116,27 @@ Everything that makes Nemo worth porting:
 
 - Runs without Linux. Native Windows first, BSD and macOS after.
 
-- All dependencies are baked into a single executable. Even if author gets hit by a bus, it will resist dependency drift and bitrot for decades.
-	- Same concept as `.AppImage` or Flatpack, but just native code, with dependencies statically rather than dynamically compiled for maximum portability and compatibility.
+- On Windows it is one executable. The whole runtime is packed inside it, so there is nothing to install and nothing to keep in step. Copy it where you like and run it.
+	- Same idea as an AppImage or a Flatpak, without the runtime or the sandbox.
+	- On Linux it stays a small folder that uses the GTK3 your distro already has, because that is what a Linux user expects and it keeps the download tiny.
+
+- Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema.
 
 - Stays Nemo. Same code lineage, GPL intact.
 
 ## Status
 
-Early bring-up. The fork is established and the Linux baseline builds and runs. The decoupling work is next.
+Beta. It builds and runs on Linux and Windows, browses, copies, moves, trashes, searches and thumbnails. The Cinnamon decoupling is finished and the Windows port is feature-complete enough for daily use.
+
+Rough edges to know about before you rely on it:
+
+- The Windows build has been exercised mostly through a compatibility layer, not on real hardware. Expect papercuts.
+
+- Settings from a pre-1.0 install do not carry over.
+
+- macOS and BSD are not built yet.
+
+Details:
 
 - Plans and progress: [project/backlog.md](project/backlog.md)
 
@@ -131,13 +144,23 @@ Early bring-up. The fork is established and the Linux baseline builds and runs. 
 
 ## Installation
 
-The installer is the primary way to get Nemo Anywhere, on every platform. One command, and the release it fetches ships with the GTK runtime bundled - no hunting for dependencies. Building from source is for working on it, not for using it.
+Everything is on the [releases page](https://github.com/t00mietum/nemo-anywhere/releases). Pick whichever of the three below suits you. Building from source is for working on it, not for using it.
 
-No releases yet, so nothing to install today. The installers below are ready and waiting for the first one.
+Note that the current release is a prerelease, so the install scripts need `--release dev` to find it.
 
-### Direct
+### Packages and installers
 
-One command. It downloads the latest release, verifies its checksum, tells you exactly what it is about to do, and waits for a yes.
+- **Windows**: download `nemo-anywhere.exe` and run it. That is the whole program - the runtime is inside it. Nothing is installed and nothing is registered.
+
+- **Debian, Ubuntu, Mint**: `sudo apt install ./nemo-anywhere-<version>-linux-x86_64.deb`
+
+- **Fedora, openSUSE, RHEL**: `sudo dnf install ./nemo-anywhere-<version>-linux-x86_64.rpm`
+
+Both packages install to `/opt/nemo-anywhere` with a menu entry and `nemo-anywhere` on PATH, and use the GTK3 your distro already provides.
+
+### Direct stable and dev install scripts
+
+One command. It downloads the right build for the machine, verifies its checksum, tells you exactly what it is about to do, and waits for a yes.
 
 Linux, BSD, macOS, WSL:
 
@@ -153,7 +176,7 @@ Windows - or anywhere else with PowerShell 7, since it is a standalone installer
 
 Add `--uninstall` (or `-Uninstall`) to reverse it. Reinstalling over an existing copy is fine - it replaces it.
 
-Where it lands:
+Where it goes:
 
 | OS      | User install (default)              | ￩ Launcher                                                | (or) System install     | ￩ Launcher
 | :---    | :---                                | :---                                                      | :---                    | :---
@@ -164,9 +187,34 @@ Where it lands:
 
 Settings live in `~/.config/nemo-anywhere` (`%APPDATA%\nemo-anywhere` on Windows) and are left alone by an uninstall.
 
-## Building from source
+### DIY
 
-Right now this builds like upstream Nemo: meson and ninja on a Linux box with the GTK3 development stack. Stock Debian 13 packages are a known-good baseline. See [project/design.md](project/design.md) for the package list and steps.
+Unpack `nemo-anywhere-<version>-linux-x86_64.tar.gz` wherever you like and run `bin/nemo-anywhere` from inside it. It is relocatable, so no fixed path is required. Verify the download against the `sha256sums.txt` file published beside it.
+
+What a Linux build needs at runtime: GTK 3.24.33 or newer and glibc 2.35 or newer, which means Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or anything more recent.
+
+## Set up development environment
+
+The reference Linux build happens in a container, so no development packages land on your own machine and the dependency versions are pinned to something known good.
+
+You need Docker (or Podman with a Docker alias) and git. Everything else is fetched by the build.
+
+~~~bash
+git clone https://github.com/t00mietum/nemo-anywhere.git
+cd nemo-anywhere
+cicd/hooks/install.bash          # merge gate as a pre-push hook
+cicd/cicd.bash --gate            # build, test and lint
+~~~
+
+`--gate` is the quick check. A bare `cicd/cicd.bash` runs the whole pipeline, which ends by committing and pushing, so leave that one until you mean it.
+
+To build without the container, on a Linux box with the GTK3 development stack:
+
+~~~bash
+meson setup build source && ninja -C build
+~~~
+
+The full picture - the exact package list, the Windows cross-compile, the release lanes and the pipeline stages - is in [project/design.md](project/design.md). Conventions for contributors are in [contributing.md](contributing.md).
 
 ## Longer-term roadmap
 

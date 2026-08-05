@@ -1,0 +1,832 @@
+# Schema for the nemo-anywhere config file.
+# Declares every setting's type, default and (where closed) allowed values.
+# Plain SHCL - nothing compiles it. See vendor/shcl for the language.
+
+field: favorites
+	type: string-array
+	desc: Favorite files and folders
+
+field: favorites-root-metadata
+	type: string-array
+	desc: Metadata for the favorites root
+
+field: compact-view.all-columns-have-same-width
+	type: bool
+	default: false
+	desc: All columns have same width
+
+field: compact-view.default-zoom-level
+	type: string
+	allowed: smallest, smaller, small, standard, large, larger, largest
+	default: standard
+	desc: Default compact view zoom level
+
+field: interface.clock-use-24h
+	type: bool
+	default: true
+
+field: media-handling.automount
+	type: bool
+	default: true
+
+field: media-handling.automount-open
+	type: bool
+	default: true
+
+field: privacy.remember-recent-files
+	type: bool
+	default: true
+
+field: terminal.exec
+	type: string
+	default: ""
+
+field: terminal.exec-arg
+	type: string
+	default: -e
+
+field: desktop.background-fade
+	type: bool
+	default: true
+	desc: Fade the background on change
+
+field: desktop.computer-icon-visible
+	type: bool
+	default: false
+	desc: Computer icon visible on desktop
+
+field: desktop.desktop-layout
+	type: string
+	default: true::false
+	desc: Desktop layout
+
+field: desktop.font
+	type: string
+	default: Noto Sans 10
+	desc: Desktop font
+
+field: desktop.home-icon-visible
+	type: bool
+	default: false
+	desc: Home icon visible on desktop
+
+field: desktop.horizontal-grid-adjust
+	type: float
+	default: 1.0
+	desc: Horizontal desktop grid adjustment
+
+field: desktop.ignored-desktop-handlers
+	type: string-array
+	default: conky, csd-background
+	desc: List of desktop-handling to ignore when determining whether or not to manager the desktop.
+
+field: desktop.network-icon-visible
+	type: bool
+	default: false
+	desc: Network Servers icon visible on the desktop
+
+field: desktop.show-desktop-icons
+	type: bool
+	default: true
+	desc: Deprecated: Allow Nemo to manage the desktop
+
+field: desktop.show-orphaned-desktop-icons
+	type: bool
+	default: true
+	desc: Whether to show icons from inactive monitors on another monitor
+
+field: desktop.text-ellipsis-limit
+	type: int
+	default: 2
+	desc: Text Ellipsis Limit
+
+field: desktop.trash-icon-visible
+	type: bool
+	default: false
+	desc: Trash icon visible on desktop
+
+field: desktop.use-desktop-grid
+	type: bool
+	default: true
+	desc: Which desktop view type to use
+
+field: desktop.vertical-grid-adjust
+	type: float
+	default: 1.0
+	desc: Vertical desktop grid adjustment
+
+field: desktop.volumes-visible
+	type: bool
+	default: false
+	desc: Show mounted volumes on the desktop
+
+field: icon-view.captions
+	type: string-array
+	default: none, size, date_modified
+	desc: List of possible captions on icons
+
+field: icon-view.default-use-tighter-layout
+	type: bool
+	default: false
+	desc: deprecated - not used
+
+field: icon-view.default-zoom-level
+	type: string
+	allowed: smallest, smaller, small, standard, large, larger, largest
+	default: standard
+	desc: Default icon zoom level
+
+field: icon-view.labels-beside-icons
+	type: bool
+	default: false
+	desc: Put labels beside icons
+
+field: icon-view.text-ellipsis-limit
+	type: string-array
+	default: 3
+	desc: Text Ellipsis Limit
+
+field: icon-view.thumbnail-size
+	type: int
+	default: 64
+	desc: Default Thumbnail Icon Size
+
+field: list-view.default-column-order
+	type: string-array
+	default: name, size, type, date_modified, owner, group, permissions
+	desc: Default column order in the list view
+
+field: list-view.default-visible-columns
+	type: string-array
+	default: name, size, type, date_modified, owner, group, permissions
+	desc: Default list of columns visible in the list view
+
+field: list-view.default-zoom-level
+	type: string
+	allowed: smallest, smaller, small, standard, large, larger, largest
+	default: small
+	desc: Default list zoom level
+
+field: list-view.enable-folder-expansion
+	type: bool
+	default: false
+	desc: If true, allow folders with content to be expanded in the current view.
+
+field: plugins.disabled-actions
+	type: string-array
+	desc: List of NemoActions -not- to load.
+
+field: plugins.disabled-extensions
+	type: string-array
+	desc: List of extensions -not- to load.
+
+field: plugins.disabled-scripts
+	type: string-array
+	desc: List of scripts -not- to load.
+
+field: preferences.always-use-browser
+	type: bool
+	default: true
+	desc: Enables the classic Nemo behavior, where all windows are browsers
+
+field: preferences.bulk-rename-tool
+	type: string
+	default: ""
+	desc: Bulk rename utility
+
+field: preferences.click-double-parent-folder
+	type: bool
+	default: false
+	desc: If true, double click left on blank area will go to parent folder
+
+field: preferences.click-policy
+	type: string
+	allowed: single, double
+	default: double
+	desc: Type of click used to launch/open files
+
+field: preferences.close-device-view-on-device-eject
+	type: bool
+	default: false
+	desc: Whether to close a view of a removeable device instead of navigating Home
+
+field: preferences.confirm-move-to-trash
+	type: bool
+	default: true
+	desc: Whether to ask for confirmation when moving files to Trash
+
+field: preferences.confirm-trash
+	type: bool
+	default: true
+	desc: Whether to ask for confirmation when deleting files, or emptying Trash
+
+field: preferences.context-menus-show-all-actions
+	type: bool
+	default: false
+	desc: deprecated - no longer used
+
+field: preferences.date-format
+	type: string
+	allowed: locale, iso, informal
+	default: iso
+	desc: Date Format
+
+field: preferences.default-folder-viewer
+	type: string
+	allowed: icon-view, compact-view, list-view
+	default: list-view
+	desc: Default folder viewer
+
+field: preferences.default-sort-in-reverse-order
+	type: bool
+	default: false
+	desc: Reverse sort order in new windows
+
+field: preferences.default-sort-order
+	type: string
+	allowed: manually, name, size, type, detailed_type, mtime, atime, trash-time
+	default: name
+	desc: Default sort order
+
+field: preferences.deferred-attribute-preload-limit
+	type: int
+	default: 150
+	desc: Maximum number of files to preload deferred attributes for when opening a directory
+
+field: preferences.desktop-is-home-dir
+	type: bool
+	default: false
+	desc: Nemo uses the users home folder as the desktop
+
+field: preferences.detect-content
+	type: bool
+	default: true
+	desc: If true, enable detection of the type of content of a mounted media and display a suggested application to open the media.
+
+field: preferences.disable-menu-warning
+	type: bool
+	default: false
+	desc: Don't show the explainer message when turning off the main menu
+
+field: preferences.enable-delete
+	type: bool
+	default: true
+	desc: Whether to enable immediate deletion
+
+field: preferences.enable-mime-actions-make-executable
+	type: bool
+	default: false
+	desc: Display the 'Make executable and run' button in the mime-action dialog (open an unknown filetype)
+
+field: preferences.executable-text-activation
+	type: string
+	allowed: launch, display, ask
+	default: ask
+	desc: What to do with executable text files when activated
+
+field: preferences.expand-row-on-dnd-dwell
+	type: bool
+	default: true
+	desc: During drag-and-drop operations, automatically expand rows when hovering them briefly
+
+field: preferences.ignore-view-metadata
+	type: bool
+	default: false
+	desc: Whether to ignore folder metadata for view zoom levels and layouts
+
+field: preferences.image-viewers-with-external-sort
+	type: string-array
+	default: xviewer, feh, sxiv
+	desc: Image viewer executables to pass sort order to
+
+field: preferences.inherit-folder-viewer
+	type: bool
+	default: false
+	desc: Inherit the view type (icon, compact, list) from parent to children
+
+field: preferences.inherit-show-thumbnails
+	type: bool
+	default: false
+	desc: Inherit thumbnail visibility from parent
+
+field: preferences.last-server-connect-method
+	type: int
+	default: 2
+	desc: Last server connect method used
+
+field: preferences.mouse-back-button
+	type: int
+	default: 8
+	desc: Mouse button to activate the "Back" command in browser window
+
+field: preferences.mouse-forward-button
+	type: int
+	default: 9
+	desc: Mouse button to activate the "Forward" command in browser window
+
+field: preferences.mouse-use-extra-buttons
+	type: bool
+	default: true
+	desc: Use extra mouse button events in Nemo' browser window
+
+field: preferences.never-queue-file-ops
+	type: bool
+	default: false
+	desc: If true, all file operations will start immediately
+
+field: preferences.quick-renames-with-pause-in-between
+	type: bool
+	default: false
+	desc: Enables renaming of icons by two times clicking with pause between clicks
+
+field: preferences.show-advanced-permissions
+	type: bool
+	default: false
+	desc: Show advanced permissions in the file property dialog
+
+field: preferences.show-bookmarks-in-to-menus
+	type: bool
+	default: true
+	desc: Whether to list bookmarks in the Move To/Copy To menus
+
+field: preferences.show-compact-view-icon-toolbar
+	type: bool
+	default: true
+	desc: Show Compact View button in nemo toolbar
+
+field: preferences.show-computer-icon-toolbar
+	type: bool
+	default: false
+	desc: Show Computer button in nemo toolbar
+
+field: preferences.show-directory-item-counts
+	type: string
+	allowed: always, local-only, never
+	default: local-only
+	desc: When to show number of items in a folder
+
+field: preferences.show-edit-icon-toolbar
+	type: bool
+	default: true
+	desc: Show toggle button location entry/pathbar
+
+field: preferences.show-full-path-titles
+	type: bool
+	default: false
+	desc: Whether to show the full path of the current view in the title bar and tab bars
+
+field: preferences.show-hidden-files
+	type: bool
+	default: false
+	desc: Whether to show hidden files
+
+field: preferences.show-home-icon-toolbar
+	type: bool
+	default: false
+	desc: Show Home button in nemo toolbar
+
+field: preferences.show-icon-view-icon-toolbar
+	type: bool
+	default: true
+	desc: Show Icon View button in nemo toolbar
+
+field: preferences.show-image-thumbnails
+	type: string
+	allowed: always, local-only, never
+	default: local-only
+	desc: When to show thumbnails of image files
+
+field: preferences.show-list-view-icon-toolbar
+	type: bool
+	default: true
+	desc: Show List View button in nemo toolbar
+
+field: preferences.show-location-entry
+	type: bool
+	default: false
+	desc: Show the location entry by default
+
+field: preferences.show-new-folder-icon-toolbar
+	type: bool
+	default: false
+	desc: Show new folder button in nemo toolbar
+
+field: preferences.show-next-icon-toolbar
+	type: bool
+	default: true
+	desc: Show Next button in nemo toolbar
+
+field: preferences.show-open-in-terminal-toolbar
+	type: bool
+	default: false
+	desc: Show open in terminal in the nemo toolbar
+
+field: preferences.show-places-in-to-menus
+	type: bool
+	default: true
+	desc: Whether to list places in the Move To/Copy To menus
+
+field: preferences.show-previous-icon-toolbar
+	type: bool
+	default: true
+	desc: Show Previous button in nemo toolbar
+
+field: preferences.show-reload-icon-toolbar
+	type: bool
+	default: false
+	desc: Show refresh button in nemo toolbar
+
+field: preferences.show-root-warning
+	type: bool
+	default: true
+	desc: Show warning when opening as root
+
+field: preferences.show-search-icon-toolbar
+	type: bool
+	default: true
+	desc: Show Search button in nemo toolbar
+
+field: preferences.show-show-thumbnails-toolbar
+	type: bool
+	default: false
+	desc: Show Thumbnails button in nemo toolbar
+
+field: preferences.show-toggle-extra-pane-toolbar
+	type: bool
+	default: false
+	desc: Show Extra Pane button in nemo toolbar
+
+field: preferences.show-up-icon-toolbar
+	type: bool
+	default: true
+	desc: Show Up button in nemo toolbar
+
+field: preferences.size-prefixes
+	type: string
+	allowed: base-10, base-10-full, base-2, base-2-full
+	default: base-10
+	desc: Prefixes used for file sizes
+
+field: preferences.sort-directories-first
+	type: bool
+	default: true
+	desc: Show folders first in windows
+
+field: preferences.sort-favorites-first
+	type: bool
+	default: true
+	desc: Show favorites first in windows
+
+field: preferences.start-with-dual-pane
+	type: bool
+	default: false
+	desc: Whether to default to showing dual-pane view when a new window is opened
+
+field: preferences.swap-trash-delete
+	type: bool
+	default: false
+	desc: Whether to swap the hotkeys for Trash and Delete
+
+field: preferences.tabs-open-position
+	type: string
+	allowed: after-current-tab, end
+	default: after-current-tab
+	desc: Where to position newly open tabs in browser windows.
+
+field: preferences.thumbnail-limit
+	type: int
+	default: 1048576
+	desc: Maximum image size for thumbnailing
+
+field: preferences.thumbnail-threads
+	type: int
+	default: -1
+	desc: Number of threads to dedicate to thumbnailing. -1 to let the program decide. The maximum allowed threads is half the number of logical processors, regardless of what is set here. If you change this setting you must restart Nemo for it to take effect.
+
+field: preferences.tooltips-in-icon-view
+	type: bool
+	default: false
+	desc: Show tooltips when hovering on items in an icon or compact view
+
+field: preferences.tooltips-in-list-view
+	type: bool
+	default: false
+	desc: Show tooltips when hovering on items in a list view
+
+field: preferences.tooltips-on-desktop
+	type: bool
+	default: false
+	desc: Show tooltips for desktop items
+
+field: preferences.tooltips-show-access-date
+	type: bool
+	default: false
+	desc: Show file accessed date in tooltip
+
+field: preferences.tooltips-show-birth-date
+	type: bool
+	default: false
+	desc: Show file creation (birth) date in tooltip
+
+field: preferences.tooltips-show-file-type
+	type: bool
+	default: false
+	desc: Show detailed file type in tooltip
+
+field: preferences.tooltips-show-mod-date
+	type: bool
+	default: false
+	desc: Show file modified date in tooltip
+
+field: preferences.tooltips-show-path
+	type: bool
+	default: false
+	desc: Show full path in tooltip
+
+field: preferences.treat-root-as-normal
+	type: bool
+	default: false
+	desc: Suppress any safeguards when running nemo/nemo-desktop as the root user. For some systems there is only a root user.
+
+field: preferences.menu-config.background-menu-create-new-folder
+	type: bool
+	default: true
+	desc: Show the background context menu's Create New Folder item.
+
+field: preferences.menu-config.background-menu-open-as-root
+	type: bool
+	default: true
+	desc: Show the background context menu's Open as Root item.
+
+field: preferences.menu-config.background-menu-open-in-terminal
+	type: bool
+	default: true
+	desc: Show the background context menu's Open in Terminal item.
+
+field: preferences.menu-config.background-menu-paste
+	type: bool
+	default: true
+	desc: Show the background context menu's Paste item.
+
+field: preferences.menu-config.background-menu-properties
+	type: bool
+	default: true
+	desc: Show the background context menu's Properties item.
+
+field: preferences.menu-config.background-menu-scripts
+	type: bool
+	default: true
+	desc: Show the background context menu's Scripts submenu.
+
+field: preferences.menu-config.background-menu-show-hidden-files
+	type: bool
+	default: true
+	desc: Show the background context menu's Show Hidden Files item.
+
+field: preferences.menu-config.desktop-menu-customize
+	type: bool
+	default: true
+	desc: Show the background context menu's Customize item (new-style desktop only).
+
+field: preferences.menu-config.iconview-menu-arrange-items
+	type: bool
+	default: true
+	desc: Show the background context menu's Arrange Items submenu (icon view only).
+
+field: preferences.menu-config.iconview-menu-organize-by-name
+	type: bool
+	default: true
+	desc: Show the background context menu's Organize by Name item (icon view only).
+
+field: preferences.menu-config.selection-menu-copy
+	type: bool
+	default: true
+	desc: Show the selection context menu's Copy item.
+
+field: preferences.menu-config.selection-menu-copy-to
+	type: bool
+	default: false
+	desc: Show the selection context menu's Copy To submenu.
+
+field: preferences.menu-config.selection-menu-cut
+	type: bool
+	default: true
+	desc: Show the selection context menu's Cut item.
+
+field: preferences.menu-config.selection-menu-duplicate
+	type: bool
+	default: false
+	desc: Show the selection context menu's Duplicate item.
+
+field: preferences.menu-config.selection-menu-favorite
+	type: bool
+	default: true
+	desc: Show the selection context menu's Favorite/Unfavorite item.
+
+field: preferences.menu-config.selection-menu-make-link
+	type: bool
+	default: false
+	desc: Show the selection context menu's Create Link item.
+
+field: preferences.menu-config.selection-menu-move-to
+	type: bool
+	default: false
+	desc: Show the selection context menu's Move To submenu.
+
+field: preferences.menu-config.selection-menu-move-to-trash
+	type: bool
+	default: true
+	desc: Show the selection context menu's Move to Trash item.
+
+field: preferences.menu-config.selection-menu-open
+	type: bool
+	default: true
+	desc: Show the selection context menu's Open item.
+
+field: preferences.menu-config.selection-menu-open-as-root
+	type: bool
+	default: true
+	desc: Show the selection context menu's Open As Root item.
+
+field: preferences.menu-config.selection-menu-open-in-new-tab
+	type: bool
+	default: true
+	desc: Show the selection context menu's Open in New Tab item.
+
+field: preferences.menu-config.selection-menu-open-in-new-window
+	type: bool
+	default: true
+	desc: Show the selection context menu's Open in New Window item.
+
+field: preferences.menu-config.selection-menu-open-in-terminal
+	type: bool
+	default: true
+	desc: Show the selection context menu's Open in Terminal item.
+
+field: preferences.menu-config.selection-menu-paste
+	type: bool
+	default: true
+	desc: Show the selection context menu's Paste item.
+
+field: preferences.menu-config.selection-menu-pin
+	type: bool
+	default: true
+	desc: Show the selection context menu's Pin/Unpin item.
+
+field: preferences.menu-config.selection-menu-properties
+	type: bool
+	default: true
+	desc: Show the selection context menu's Properties item.
+
+field: preferences.menu-config.selection-menu-rename
+	type: bool
+	default: true
+	desc: Show the selection context menu's Rename item.
+
+field: preferences.menu-config.selection-menu-scripts
+	type: bool
+	default: true
+	desc: Show the selection context menu's Scripts submenu.
+
+field: search.disabled-search-helpers
+	type: string-array
+	desc: List of search helper filenames to skip when using content search.
+
+field: search.search-content-case-sensitive
+	type: bool
+	default: false
+	desc: Stores the most recent state of the content search case toggle
+
+field: search.search-content-use-raw
+	type: bool
+	default: false
+	desc: Treat patterns as raw bytes, not utf-8
+
+field: search.search-content-use-regex
+	type: bool
+	default: false
+	desc: Stores the most recent state of the content search regex toggle
+
+field: search.search-file-case-sensitive
+	type: bool
+	default: false
+	desc: Stores the most recent state of the file search case toggle
+
+field: search.search-files-recursively
+	type: bool
+	default: true
+	desc: Recurse into subfolders when performing a search
+
+field: search.search-files-use-regex
+	type: bool
+	default: false
+	desc: Stores the most recent state of the file search regex toggle
+
+field: search.search-regex-format
+	type: string
+	default: pcre
+	desc: valid formats: pcre, javascript
+
+field: search.search-reverse-sort
+	type: bool
+	default: false
+	desc: Reverse the direction of the sort when viewing search results
+
+field: search.search-skip-folders
+	type: string-array
+	default: /dev, /proc, /sys, dosdevices, .git
+	desc: Paths or folder names to never recurse into when searching
+
+field: search.search-sort-column
+	type: string
+	default: ""
+	desc: Column to sort on when viewing search results
+
+field: search.search-visible-columns
+	type: string-array
+	desc: Saved list of columns visible in the search view.
+
+field: sidebar-panels.tree.show-only-directories
+	type: bool
+	default: true
+	desc: Only show folders in the tree side pane
+
+field: thumbnailers.disable
+	type: string-array
+	desc: Disable external thumbnailers for these mime types
+
+field: thumbnailers.disable-all
+	type: bool
+	default: false
+	desc: Disable all external thumbnailers
+
+field: window-state.bookmarks-expanded
+	type: bool
+	default: true
+	desc: Expand Bookmark section in places sidebar
+
+field: window-state.devices-expanded
+	type: bool
+	default: true
+	desc: Expand Devices section in places sidebar
+
+field: window-state.geometry
+	type: string
+	default: ""
+	desc: The geometry string for a navigation window.
+
+field: window-state.maximized
+	type: bool
+	default: false
+	desc: Whether the navigation window should be maximized.
+
+field: window-state.my-computer-expanded
+	type: bool
+	default: true
+	desc: Expand My Computer section in places sidebar
+
+field: window-state.network-expanded
+	type: bool
+	default: true
+	desc: Expand Network section in places sidebar
+
+field: window-state.side-pane-view
+	type: string
+	default: places
+	desc: Side pane view
+
+field: window-state.sidebar-bookmark-breakpoint
+	type: int
+	default: -1
+	desc: Index of the bookmark list to jump to the dedicated sidebar bookmark section
+
+field: window-state.sidebar-width
+	type: int
+	default: 170
+	desc: Width of the side pane
+
+field: window-state.start-with-location-bar
+	type: bool
+	default: true
+	desc: Show location bar in new windows
+
+field: window-state.start-with-menu-bar
+	type: bool
+	default: true
+	desc: Show menu bar in new windows
+
+field: window-state.start-with-sidebar
+	type: bool
+	default: true
+	desc: Show side pane in new windows
+
+field: window-state.start-with-status-bar
+	type: bool
+	default: true
+	desc: Show status bar in new windows
+
+field: window-state.start-with-toolbar
+	type: bool
+	default: true
+	desc: Show toolbar in new windows
+

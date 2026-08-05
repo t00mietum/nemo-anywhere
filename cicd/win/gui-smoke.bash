@@ -29,7 +29,6 @@ fEcho(){ echo "[ $* ]"; }
 
 fEcho "Compiling schemas"
 mkdir -p "$SCHEMAS"
-cp /src/source/libnemo-private/org.nemo-anywhere.gschema.xml "$SCHEMAS/"
 cp "$SYSROOT"/mingw64/share/glib-2.0/schemas/*.gschema.xml "$SCHEMAS/" 2>/dev/null || true
 cp "$SYSROOT"/mingw64/share/glib-2.0/schemas/gschema.dtd "$SCHEMAS/" 2>/dev/null || true
 glib-compile-schemas "$SCHEMAS"

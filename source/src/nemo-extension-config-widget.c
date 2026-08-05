@@ -37,7 +37,7 @@ static void
 update_restart_visiblity (NemoExtensionConfigWidget *widget)
 {
     GList *tmp = g_list_copy (widget->initial_extension_ids);
-    gchar **new_settings = g_settings_get_strv (nemo_plugin_preferences,
+    gchar **new_settings = nemo_config_get_strv (nemo_plugin_preferences,
     		                                    NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS);
 
     gboolean needs_restart = FALSE;
@@ -91,7 +91,7 @@ on_check_toggled(GtkWidget *button, ExtensionProxy *proxy)
 {
     gboolean enabled = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button));
 
-    gchar **blacklist = g_settings_get_strv (nemo_plugin_preferences,
+    gchar **blacklist = nemo_config_get_strv (nemo_plugin_preferences,
     		                                 NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS);
 
     GPtrArray *new_list = g_ptr_array_new ();
@@ -117,7 +117,7 @@ on_check_toggled(GtkWidget *button, ExtensionProxy *proxy)
     gchar **new_list_ptr = (char **) g_ptr_array_free (new_list, FALSE);
 
     g_signal_handler_block (nemo_plugin_preferences, proxy->widget->bl_handler);
-    g_settings_set_strv (nemo_plugin_preferences,
+    nemo_config_set_strv (nemo_plugin_preferences,
     		             NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS,
 						 (const gchar * const *)new_list_ptr);
     g_signal_handler_unblock (nemo_plugin_preferences, proxy->widget->bl_handler);
@@ -231,7 +231,7 @@ refresh_widget (NemoExtensionConfigWidget *widget)
     } else {
         GtkSizeGroup *row_group, *name_group;
         GList *l;
-        gchar **blacklist = g_settings_get_strv (nemo_plugin_preferences,
+        gchar **blacklist = nemo_config_get_strv (nemo_plugin_preferences,
         		                                 NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS);
 
         row_group = gtk_size_group_new (GTK_SIZE_GROUP_VERTICAL);
@@ -319,7 +319,7 @@ refresh_widget (NemoExtensionConfigWidget *widget)
 }
 
 static void
-on_settings_changed (GSettings *settings, gchar *key, gpointer user_data)
+on_settings_changed (NemoConfigGroup *settings, gchar *key, gpointer user_data)
 {
     NemoExtensionConfigWidget *w = NEMO_EXTENSION_CONFIG_WIDGET (user_data);
 
@@ -330,7 +330,7 @@ on_settings_changed (GSettings *settings, gchar *key, gpointer user_data)
 static void
 on_enable_clicked (GtkWidget *button, NemoExtensionConfigWidget *widget)
 {
-    g_settings_set_strv (nemo_plugin_preferences,
+    nemo_config_set_strv (nemo_plugin_preferences,
     		             NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS,
 						 NULL);
 }
@@ -348,7 +348,7 @@ on_disable_clicked (GtkWidget *button, NemoExtensionConfigWidget *widget)
     g_ptr_array_add (new_list, NULL);
 
     gchar **new_list_ptr = (char **) g_ptr_array_free (new_list, FALSE);
-    g_settings_set_strv (nemo_plugin_preferences,
+    nemo_config_set_strv (nemo_plugin_preferences,
     		             NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS,
 						 (const gchar * const *) new_list_ptr);
 
@@ -431,7 +431,7 @@ nemo_extension_config_widget_init (NemoExtensionConfigWidget *self)
 
     g_signal_connect (NEMO_CONFIG_BASE_WIDGET (self)->listbox, "row-activated", G_CALLBACK (on_row_activated), self);
 
-    gchar **init_settings = g_settings_get_strv (nemo_plugin_preferences,
+    gchar **init_settings = nemo_config_get_strv (nemo_plugin_preferences,
     		                                     NEMO_PLUGIN_PREFERENCES_DISABLED_EXTENSIONS);
     guint i;
     for (i = 0; i < g_strv_length (init_settings); i++) {

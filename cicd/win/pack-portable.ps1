@@ -176,8 +176,29 @@ function fMain {
 	fWriteProject -ProjPath $projEvb -InExe $inExe -OutExe $outExe
 
 	fEcho "Packing (this can take a few minutes)..."
-	& $evb $projEvb
-	if ($LASTEXITCODE -ne 0) { fDie "enigmavbconsole failed (exit $LASTEXITCODE)" }
+	## enigmavbconsole writes the output exe at the very end, but on some headless
+	## runners it then never returns - a plain `& $evb` blocks forever after the
+	## pack already succeeded. So wait on the OUTPUT, not the process: once the exe
+	## appears, give it a short grace to finish flushing, then reap a console that
+	## didn't self-exit. A hard cap still bounds a genuinely stuck pack.
+	$proc     = Start-Process -FilePath $evb -ArgumentList $projEvb -PassThru -NoNewWindow
+	$capSec   = 900
+	$graceSec = 15
+	$waited   = 0
+	$savedAt  = -1
+	while (-not $proc.HasExited) {
+		Start-Sleep -Seconds 3; $waited += 3
+		if ($savedAt -lt 0 -and (Test-Path -LiteralPath $outExe)) { $savedAt = $waited }
+		if ($savedAt -ge 0 -and ($waited - $savedAt) -ge $graceSec) {
+			fEcho "output present; reaping enigmavbconsole (did not self-exit)"
+			try { $proc.Kill() } catch { }
+			break
+		}
+		if ($waited -ge $capSec) { try { $proc.Kill() } catch { }; fDie "enigmavbconsole timed out after ${capSec}s" }
+	}
+	if ($proc.HasExited -and $proc.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $outExe)) {
+		fDie "enigmavbconsole failed (exit $($proc.ExitCode))"
+	}
 	if (-not (Test-Path -LiteralPath $outExe)) { fDie "packer reported success but no output at $outExe" }
 
 	## Smoke with a bare PATH: if anything leaks outside the virtual FS, it fails here.

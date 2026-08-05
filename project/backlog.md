@@ -20,10 +20,12 @@ This is a product backlog just for pre-v1.0.0 release. After that, bugs, feature
 - [Backlog](#backlog)
 	- [Misc to-do](#misc-to-do)
 	- [Bugs](#bugs)
+	- [Code review 20260804](#code-review-20260804)
 	- [Features and enhancements](#features-and-enhancements)
 	- [Done](#done)
 		- [Done - Bugs](#done---bugs)
 		- [Done - Features and enhancements](#done---features-and-enhancements)
+		- [Done - Code reviews](#done---code-reviews)
 		- [Done - Milestones](#done---milestones)
 			- [Done; Milestone 6 - CI/CD](#done-milestone-6---cicd)
 		- [Done; Milestone 4 - Feature port iterative, per target](#done-milestone-4---feature-port-iterative-per-target)
@@ -62,7 +64,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- Fixed the leftover console window on launch: the exes were linked with the console subsystem (mingw default), so Windows opened a terminal before the GUI. Main + connect-server + open-with now build with the GUI subsystem; extensions-list stays console on purpose. `--version` output still works when piped, so the cicd smokes are unchanged.
 	- ✅ One binary only - Windows now builds just `nemo-anywhere.exe`. The connect-server and open-with dialogs already run in-process (nothing spawned the standalone launchers), and the extensions lister is gone with no plugins to enumerate; the three helper `executable()`s are Unix-only in meson.
 		- Extension library folded in too: with no external plugins on Windows, the exe was its only consumer, so it's now a static lib on Windows (still shared on Linux for third-party extensions). No more sibling `libnemo-anywhere-extension-1.dll` - the exe loads and smokes standalone.
-	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry.
+	- 🔘 No shell/Explorer coupling - read file associations from the registry (system defaults only), layered under a nemo-anywhere override map. Overrides launch directly. All nemo config + overrides live in the `.shcl` file, never written to the registry. (No longer blocked - the config engine is in.)
 	- ✅ No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
 		- `nemo_module_setup` skips the plugin dir on Windows, so a stray DLL can never load and hang the app. The Settings plugins tab still shows, listing nothing ("No extensions found").
 
@@ -75,9 +77,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- 🔘 Custom theming: nemo-anywhere theme search folders at system (prefix) and user level, so themes can be dropped in.
 	- 🛠️ Theme + light/dark selection stored in config; auto-follow the Windows light/dark setting with a manual override.
 		- ✅ Auto-follow: reads Windows AppsUseLightTheme at startup and live (registry watch), toggles GTK prefer-dark. One icon theme serves both modes.
-		- 🔘 Manual override + theme choice persisted in the `.shcl` config (waits on the SHCL config item).
+		- 🔘 Manual override + theme choice persisted in the config file (no longer blocked - the config engine is in).
 
-- 🔘 Config engine: move settings + persistence to SHCL (jim-collier/shcl) in a user-level `.shcl` file; decouple from gconf/dconf and the Windows registry. File-assoc overrides and theme/mode selection live here. (Already the intended engine in design.md.)
+- ✅ Config engine: settings + persistence moved to SHCL in a user-level `settings.shcl`; gconf/dconf and the Windows registry are out of the picture.
+	- Done: GSettings replaced outright rather than kept over a SHCL backend, so no compiled schema is installed or shipped. All 168 settings, ~300 call sites, 84 change handlers and 16 property binds moved over.
+	- Done: the file holds only non-default values, carries each key's description as a comment, and is re-read while running so a hand-edit applies immediately.
+	- Done: a schema file ships beside the app so `shcl check --schema` validates a hand-edited config (catches typos and bad values).
+	- Done: the `compat.*` fallback schemas are gone; desktop-owned settings (terminal, recent files, 12/24h clock) are read from the desktop where it publishes them, ours otherwise.
+	- Note: settings do not carry over from a pre-1.0 install - nothing left can read the old store. Fresh defaults on first run after upgrading.
+	- Note: nemo actions can still name any GSettings schema in a condition; that reads other programs' settings and is unaffected.
 
 - 🔘 Windows: "Open in terminal" should refer to an ordered list of shells and terminals in settings (if there's not a standard Windows way). At install time - and at launch in a background thread once the UI renders and settles:
 	- Check for a hardcoded list of terminals. For each that exist, add them to config. (Add nonexistent ones too, commented out.) For each, prefer to launch in what's installed, in this order of preference: SilkTerm, Windows Terminal, conhost. User can override which terminal is opened, for each shell.
@@ -111,8 +119,18 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🛠️ Get release binaries onto the host, plus an optimized buildtype, then turn on artifact collection.
 	- ✅ Done: host dogfood path proven. Release build staged in the container, copied out to a self-contained folder, launched via a small wrapper.
-	- 🔘 Wire into the pipeline: optimized-size-and-speed buildtype, automatic artifact collection.
-	- 🔘 Artifacts must come out under the names the installers look for (see design.md, Delivery).
+	- ✅ Done: Linux release lane at `cicd/linux/release.bash` - optimized stripped build on an Ubuntu 22.04 box (the glibc floor is what the binary is built against), staged into a relocatable prefix, packed as the tarball plus the sums file.
+	- ✅ Done: artifacts come out under the names the installers look for, and the artifact dir is wired in `config.bash` so `utility/release.bash` verifies and attaches them.
+	- 🔘 Wire the lane into the pipeline engine itself - its collector still assumes a bare binary and Cargo-shaped versions, so `RELEASE_ENABLE` stays 0.
+
+- 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
+
+- 🔘 Recorded demo of the app in use, generated by the pipeline and skippable on a quick run.
+	- A short video showing the main features, ten to twenty seconds, rendered without a visible display.
+	- A smaller looping animation of the same thing for the top of the README, at its own native size.
+	- Everything anonymized - no real user name, no distinctive paths.
+	- Re-recorded after a noticeable change to the interface or to the demo script.
+	- Note: sister projects already have most of the recording machinery to copy from.
 
 ### Milestone 7 - Packaging
 
@@ -122,9 +140,12 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 - 🛠️ Windows code signing + AV false-positive reduction.
 	- ✅ Embedded VERSIONINFO in the exe (real publisher/version metadata; a blank-metadata binary scores worse with AV heuristics and looks unfinished in Properties).
 	- ✅ Local `signtool` signing scaffold in cicd-win stage 5 - env-driven, no-op until a cert is configured (fits a token/store cert: Certum OSS, Azure Trusted Signing, or a commercial EV).
-	- 🛠️ SignPath Foundation (free OSS signing) for the released exe: release-only CI at `.github/workflows/release-win.yml` builds + packs + submits to SignPath. Blocked on cutting a first release (they need an already-released project) plus the Foundation application and repo secrets. Signed publisher shows as "SignPath Foundation". Setup steps in `cicd/win/signing.md`.
+	- 🛠️ SignPath Foundation (free OSS signing) for the released exe: release-only CI at `.github/workflows/release-win.yml` builds + packs + submits to SignPath. First prerelease `v1.0.0-beta1` is cut (unsigned exe attached), so the "already-released" gate is met, and the CI is proven green (build + pack + upload validated). Remaining: the Foundation application and the repo secrets - the signed tag path then runs on its own. Signed publisher shows as "SignPath Foundation". Setup steps in `cicd/win/signing.md`.
 	- 🔘 Also sign the release `.zip` contents and, once it exists, the installer (the workflow signs only the single exe today).
 	- 🔘 Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
+
+- ✅ Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer had nothing to fetch even though the release carried a working exe.
+	- Done: `cicd/win/pack-zip.bash` builds it from the cross build, and it ships from `v1.0.0-beta2` on.
 
 ## Backlog
 
@@ -134,8 +155,144 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
 
+- 🔘 The action layout editor never opens: the app spawns it as `nemo-action-layout-editor`, but the binary installs under the app slug as `nemo-anywhere-action-layout-editor`. One missed rename from the rebrand.
+
+- 🔘 Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
+
 - 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
 	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
+
+### Code review 20260804
+
+Full adversarial review of everything written or changed since the fork point. Ordered roughly most serious first. Technical detail is kept out of this file.
+
+- 🔘 Code Review 20260804 item 4. "Make Link" on Windows can destroy an existing file, and can crash.
+	- Cause: the shortcut is saved over whatever is already there instead of reporting the clash, so the usual "another link to..." renaming never happens.
+	- Cause: dropping a link onto a location that is not a real folder returns a failure with no message attached, and reading that message crashes.
+
+- 🔘 Code Review 20260804 item 5. Repairing the thumbnail cache as an administrator can change ownership of unrelated files.
+	- Cause: the repair walks symbolic links instead of skipping them, and changes ownership of whatever they point at.
+	- Note: the app itself suggests running this with administrator rights, so an unprivileged process could aim it at system files.
+
+- 🔘 Code Review 20260804 item 6. Favorites can hang the app or read freed memory.
+	- Cause: listing favorites can stop advancing and spin on one entry forever, leaking as it goes.
+	- Cause: the favorites list is rebuilt without locking while background threads are reading it.
+	- Cause: entries are stored with a separator that occurs in ordinary file names, so a file with two colons in its name silently repoints somewhere else.
+	- Cause: a blank entry, or one whose target no longer exists, crashes rather than being skipped.
+	- Cause: the "is this folder inside that one" test has its two sides swapped, and reads one byte past the end of the text.
+
+- 🔘 Code Review 20260804 item 7. Favorites and thumbnails keep working after the object they belong to is gone.
+	- Cause: both release a shared settings object they never owned.
+	- Cause: change handlers and a queued callback are left connected at teardown.
+
+- 🔘 Code Review 20260804 item 8. A stuck thumbnail helper is never given up on.
+	- Cause: there is no time limit on an external thumbnail program, so one hung file permanently costs a worker slot until restart.
+	- Cause: a failed reload of the thumbnail helper list reads the entry it just freed.
+	- Cause: a very long, very thin image produces no thumbnail and a warning instead of a graceful fallback.
+
+- 🔘 Code Review 20260804 item 9. Emptying the Windows trash fails whenever it holds a folder.
+	- Cause: trashed folders are reported as folders but refuse to list their contents, and the delete path needs to list them.
+	- Note: this affects both "Empty Trash" and permanently deleting a single item.
+
+- 🔘 Code Review 20260804 item 10. Windows trash items can go missing, and restore can aim at the wrong place.
+	- Cause: items the shell describes in a form the code does not expect are skipped silently, while the item count still includes them.
+	- Cause: a long original location is cut short, and the shortened path is what a restore would use.
+	- Note: only reproducible on real Windows. Belongs with the real-Windows validation pass.
+
+- 🔘 Code Review 20260804 item 11. The Windows trash monitor can freeze the app.
+	- Cause: it announces changes while still holding its own lock, so a listener that closes or opens a trash view deadlocks.
+
+- 🔘 Code Review 20260804 item 12. Windows network browsing builds wrong addresses and cannot report a failure.
+	- Cause: a share's address is joined to its server without a separator, so shares get malformed addresses and two servers can collide.
+	- Cause: no network, or access denied, looks exactly like an empty network - no message either way.
+	- Cause: any typed network address is presented as a valid empty folder rather than "not found".
+	- Cause: nothing limits how deep the enumeration recurses.
+
+- 🔘 Code Review 20260804 item 13. Windows context-menu actions break on ordinary paths.
+	- Cause: "Open as Administrator" passes the folder unquoted, so anything with a space arrives as two separate locations.
+	- Cause: "Open in Terminal" at a drive root passes a trailing backslash that swallows the closing quote.
+
+- 🔘 Code Review 20260804 item 14. Opening a Windows shortcut can truncate its target or hang the app.
+	- Cause: targets past the old length limit are silently cut short and then opened, wrongly.
+	- Cause: a shortcut pointing at itself, or at a loop of shortcuts, recurses until the app runs out of stack.
+
+- 🔘 Code Review 20260804 item 15. A duplicated line in the settings file empties a list instead of falling back.
+	- Cause: an unreadable list is treated as a deliberately empty one. Only lists behave this way; single values fall back correctly.
+	- Note: a duplicated column list opens the list view with no columns at all. Hand-editing is a supported way to use this file, so this is easy to hit.
+
+- 🔘 Code Review 20260804 item 16. An external edit arriving mid-change throws the change away.
+	- Cause: settings are written a couple of seconds after they are changed, and a file reload in that window replaces the pending change with no warning.
+
+- 🔘 Code Review 20260804 item 17. Settings changes can be announced from a background thread.
+	- Cause: deleting files updates favorites from a worker thread, and the change is announced on that same thread.
+	- Note: the previous settings system always announced on the main thread, which is what every listener assumes. Nothing fires today, so this is a trap for the next listener added.
+
+- 🔘 Code Review 20260804 item 18. A damaged per-folder settings file is discarded without a word, then overwritten.
+	- Cause: a parse failure leaves an empty store, and the next change writes that empty store over the file.
+	- Note: costs every folder's saved view, zoom, sort and layout. A failed save is likewise ignored.
+
+- 🔘 Code Review 20260804 item 19. Setting the thumbnail size limit above two gigabytes breaks thumbnails.
+	- Cause: the limit is stored in a smaller number than the dialog offers, so the large choices wrap. Eight gigabytes turns every thumbnail off; two and four turn the limit off entirely.
+
+- 🔘 Code Review 20260804 item 20. Opening a folder on an unresponsive drive freezes the whole window.
+	- Cause: the fallback added for unreadable folders asks for the listing in a way that blocks until the system gives up.
+	- Cause: it also treats any general failure as that same case, so a passing glitch is remembered as a made-up folder with no way to tell.
+	- Cause: a folder with many unreadable entries stops partway and shows an error over a half-listed folder.
+
+- 🔘 Code Review 20260804 item 21. Right-clicking a path segment can offer actions the folder will not allow.
+	- Cause: the menu is now built before the folder's details have loaded, and the unknown state reads as "everything is permitted", so Delete and New Folder appear on read-only places.
+
+- 🔘 Code Review 20260804 item 22. Changing the default zoom discards a zoom deliberately set in another tab.
+	- Cause: every open view reacts, not just the visible one, so background tabs lose their own setting.
+
+- 🔘 Code Review 20260804 item 23. The "treat root as a normal user" preference is read before settings are open.
+	- Cause: it is consulted while handling the command line, which happens first, so it is answered wrongly and then remembered.
+
+- 🔘 Code Review 20260804 item 24. Folder listing and file moves do more per-file work than they used to.
+	- Cause: every file now builds an address and takes a shared lock to check the per-folder store, where before there was a cheap early exit.
+	- Cause: every moved file scans the whole store, so a large move gets slower the more is stored.
+	- Cause: on Windows the per-type icon is rebuilt for every file on every update, not just when the type changes.
+	- Cause: the store is rewritten whole on every save and never pruned.
+
+- 🔘 Code Review 20260804 item 25. Reading a setting costs more than it should, and text settings grow memory.
+	- Cause: every read searches the whole settings table from the start.
+	- Cause: reads of text, list and choice settings allocate inside the settings document and never give it back, and one of them runs on every icon the mouse passes over.
+
+- 🔘 Code Review 20260804 item 26. The Windows recycle bin is rescanned far more than needed.
+	- Cause: a full scan runs every few seconds for the life of the app, twice more on every look at the trash folder, and once more for every item not already known.
+
+- ✅ Code Review 20260804 item 27. The release checksums file can be written wrong.
+	- Cause: an empty release folder still writes a bogus line, and any artifact name with a space would be split in two.
+	- Note: this is the file both installers verify a download against.
+	- Fixed: null-separated, and it no longer runs the checksum tool at all when there is nothing to check.
+
+- 🛠️ Code Review 20260804 item 28. Assorted unsafe or non-portable paths in the pipeline and installer scripts.
+	- Fixed: the Windows installer no longer moves the new copy into place in a way that fails across drives after the old one is already gone.
+	- Fixed: the installer's own `--help` now prints when run the documented way.
+	- Fixed: a prerelease version in an archive name is no longer reported as the plain release number.
+	- Fixed: the release archive no longer fails outside a checkout over its timestamp.
+	- Remaining below.
+	- Cause: refreshing the bundled themes rewrites a notes file that now also records the vendored settings parser and its license.
+	- Cause: the Windows installer removes the old copy and then moves the new one into place, which fails outright across drives - leaving nothing installed.
+	- Cause: the Windows pipeline's publish step merges instead of fast-forwarding, against the rule the rest of the project follows.
+	- Cause: the publish step does not stash untracked files, so a pull can abort after the backup has already run.
+	- Cause: a failed image-loader cache build leaves an empty cache, which is worse than none at all.
+	- Cause: the Windows pipeline can sail past its own message prompt when nothing is typing, and get stuck later.
+	- Cause: the launcher written into the Linux package hardcodes the Intel library folder, so the planned arm64 build would ship without its extension library.
+	- Cause: the publish helper runs an environment variable as script.
+	- Cause: two delete-and-replace paths have no guard on where they are pointing.
+	- Cause: the installer's own `--help` prints nothing when run the documented way.
+
+- 🛠️ Code Review 20260804 item 29. Script style and speed debt.
+	- Cause: several loops start external programs once per item where a builtin would do, the worst being the backup rotation and the dogfood pruning.
+	- Cause: one unused function would fail immediately if anything ever called it.
+	- Fixed: the output helpers now live in one file that the helper scripts share, instead of each carrying its own lesser copy.
+	- Fixed: the Windows installer gained proper built-in help, so `Get-Help` and `-?` work.
+	- Note: the review said three scripts had diverged output helpers; only one actually had. The others define a single matching helper, which is fine.
+
+- 🔘 Code Review 20260804 item 30. A Windows-only test reports a pass when it did not run.
+	- Cause: the trash test exits successfully unless it detects the compatibility layer used for development, so on real Windows it silently skips.
+	- Note: that is exactly where items 9 and 10 would have been caught.
 
 ### Features and enhancements
 
@@ -267,6 +424,22 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Done: README gained an Installation section. The release-asset naming the installers depend on is in design.md under Delivery.
 	- Verified: end to end on the unix side against a stand-in releases service - channel and asset resolution, checksum pass and tamper-fail, install, reinstall, uninstall, prompt accept and decline, and both installers leaving identical results.
 	- Note: the Windows half still needs the real-Windows validation pass.
+
+#### Done - Code reviews
+
+- ✅ Code Review 20260804 item 1. Every dropdown and radio choice in Settings saved the wrong value.
+	- Cause: the settings layer stored the choice by number, but the dialog only ever supplied the name, leaving the number at zero. Whatever was picked, the first option was saved.
+	- Note: worst case was "Executable text files", where the first option is "run it" - so any visit to that setting quietly armed scripts to run on double click.
+	- Fixed: choices are now saved by name. Regression test added, and confirmed to fail before the fix.
+
+- ✅ Code Review 20260804 item 2. The settings file grew a duplicate comment line on every write.
+	- Cause: setting a comment appends a line rather than replacing one, and the comment was re-applied on every save.
+	- Note: the window size is saved shortly after every move or resize, so a session of dragging the window added dozens of identical lines, and they survived restarts.
+	- Fixed: the comment is written only when a setting first appears in the file.
+
+- ✅ Code Review 20260804 item 3. Hand-editing a setting that was already in the file did nothing until restart.
+	- Cause: the live-reload comparison could only see a setting appear or disappear, never change, so nothing was announced to the app.
+	- Fixed: the comparison now reads the values themselves.
 
 #### Done - Milestones
 

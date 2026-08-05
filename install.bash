@@ -51,6 +51,36 @@ fDie(){  { fEcho_Clean ""; fEcho_Clean "FAILED: $*"; fEcho_Clean ""; } >&2; exit
 fAbort(){ printf "\nINSTALL ABORTED (exit %s) at line %s: %s\n\n" "$1" "$2" "$3" >&2; exit "$1"; }
 trap 'fAbort $? $LINENO "$BASH_COMMAND"' ERR
 
+## Spelled out rather than read back out of this file: run the documented way,
+## as `bash <(curl ...)`, the script is a pipe that has already been consumed,
+## so anything that re-reads its own source prints nothing.
+fHelp(){
+	cat <<-EOF
+
+		${APP_NAME} installer.
+
+		  bash <(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.bash) [options]
+
+		    --release dev|stable    which release to take (default: stable)
+		    --target  user|system   where to install (default: user)
+		    --arch    x64|amd64|arm64
+		                            override the detected architecture
+		    --from    PATH|URL      install this archive instead of a release
+		    --uninstall             remove an existing install
+		    -y, --yes               don't ask before making changes
+		    -h, --help              this text
+
+		  User install goes to \${XDG_DATA_HOME:-~/.local/share}/${EXE_NAME}, with a
+		  launcher in ~/.local/share/applications and ${EXE_NAME} on PATH via
+		  ~/.local/bin. A system install goes to /opt/${EXE_NAME} (/usr/local on BSD)
+		  and needs sudo; the plan says so before anything happens.
+
+		  Covers Linux, BSD, WSL and macOS. install.ps1 is the same installer for
+		  PowerShell, and adds Windows.
+
+	EOF
+}
+
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Arguments
@@ -63,7 +93,7 @@ while (($#)); do case "$1" in
 	--from)    from="${2:-}";    shift 2 ;;
 	--uninstall) do_uninstall=1; shift ;;
 	-y|--yes)  assume_yes=1; shift ;;
-	-h|--help) sed -n '/^##	- Purpose:/,/^##	History:/p' "${BASH_SOURCE[0]}" | sed '$d; s/^##	\{0,1\}//'; exit 0 ;;
+	-h|--help) fHelp; exit 0 ;;
 	*) fDie "unknown option: $1 (try --help)" ;;
 esac; done
 
@@ -267,7 +297,9 @@ if [[ -n "$from" ]]; then
 	download_url="$from"
 	source_desc="$from"
 	## Display only: a conventionally named archive still tells us its version.
-	version="$(printf '%s' "${from##*/}" | sed -n "s/^${EXE_NAME}-\([0-9][^-]*\).*/\1/p")"
+	## Stop at the platform, not at the first dash: a prerelease version has its
+	## own dashes (1.0.0-beta1) and cutting there reported it as plain 1.0.0.
+	version="$(printf '%s' "${from##*/}" | sed -n "s/^${EXE_NAME}-\([0-9].*\)-\(linux\|windows\|macos\|freebsd\)-.*/\1/p")"
 	release_desc="local archive"
 	verify="no checksum (--from)"
 else

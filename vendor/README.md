@@ -1,4 +1,14 @@
-# Vendored themes
+# Vendored
+
+## Code
+
+SHCL config engine, single-header C binding, **MIT** - compiled into nemo, so unlike
+the themes below this one is linked. Keeps its `LICENSE.md`. MIT sits fine under our
+GPL-2.0-only. Update by copying `source/c/shcl.h` from a newer tag and re-pinning here.
+
+- `shcl/shcl.h` <- https://github.com/jim-collier/shcl @ `192d206e7eeb196598d4bfc385dd9527e698ed8a` (tag `v1.2.0`)
+
+## Themes
 
 Regenerate with `cicd/win/vendor-themes.bash` - do not hand-edit.
 

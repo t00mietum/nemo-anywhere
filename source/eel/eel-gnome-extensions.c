@@ -60,7 +60,9 @@ static const struct {
     { "xterm", "-e", TRUE },
 };
 
-/* Real DE terminal schema if the session has it, else our bundled compat copy. */
+/* The desktop's terminal choice, where a desktop publishes one. NULL
+   otherwise - the known-terminals scan below is the answer everywhere else.
+   (eel sits under libnemo-private, so it cannot ask the config store.) */
 static GSettings *
 terminal_settings_new (void)
 {
@@ -71,7 +73,7 @@ terminal_settings_new (void)
         g_settings_schema_unref (schema);
         return g_settings_new ("org.cinnamon.desktop.default-applications.terminal");
     }
-    return g_settings_new ("org.nemo-anywhere.compat.terminal");
+    return NULL;
 }
 
 static char *
@@ -87,7 +89,7 @@ prepend_terminal_to_command_line (const char *command_line)
     g_return_val_if_fail (command_line != NULL, g_strdup (command_line));
 
     settings = terminal_settings_new ();
-    terminal = g_settings_get_string (settings, "exec");
+    terminal = settings ? g_settings_get_string (settings, "exec") : NULL;
 
     if (terminal != NULL) {
         for (i = 0; i < G_N_ELEMENTS (known_terminals); i++) {
@@ -131,7 +133,7 @@ prepend_terminal_to_command_line (const char *command_line)
         escaped_command_line = g_string_new (command_line);
     }
 
-    g_object_unref (settings);
+    g_clear_object (&settings);
 
     ret = g_strdup_printf ("%s %s", prefix->str, escaped_command_line->str);
     g_string_free (prefix, TRUE);

@@ -1,7 +1,7 @@
 # Meson build file
 
 # https://github.com/linuxmint/nemo
-project('nemo-anywhere', 'c', version : '1.0.0-beta1', meson_version : '>=0.56.0')
+project('nemo-anywhere', 'c', version : '1.0.0-beta2', meson_version : '>=0.56.0')
 
 # Install slug: co-install alongside upstream Nemo without file/bus/schema clashes.
 appSlug = 'nemo-anywhere'
@@ -178,6 +178,7 @@ configure_file(
 ################################################################################
 
 rootInclude = include_directories('.')
+shclInclude = include_directories('../vendor/shcl')
 nemoDataPath      = join_paths(get_option('prefix'), get_option('datadir'), appSlug)
 libExecPath       = join_paths(get_option('prefix'), get_option('libexecdir'))
 nemoExtensionPath = join_paths(get_option('prefix'), get_option('libdir'), appSlug, 'extensions-3.0')

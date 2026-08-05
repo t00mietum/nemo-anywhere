@@ -79,10 +79,12 @@ FMT_CHECK_CMD=()
 ## The wrapper starts the container (and skips gracefully if docker is down) so a
 ## stopped box or dead daemon doesn't fail the stage. This is what the smoke runs
 ## against.
-DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" '
+## -j is not optional: left alone ninja takes cores+2, and the engine's whole
+## point in computing CICD_MAX_JOBS is that a pipeline run leaves the box usable.
+DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" "
 	if [ -f /build/build.ninja ]; then meson setup --reconfigure /build /src/source
-	else meson setup /build /src/source; fi && ninja -C /build
-')
+	else meson setup /build /src/source; fi && ninja -C /build -j ${CICD_MAX_JOBS:-2}
+")
 
 ## Stage 3: regression tests - PARTIAL. There is no real test suite yet, so "tests"
 ## is a headless launch + --version smoke check inside the container (proves the
@@ -141,13 +143,15 @@ CROSS_TARGETS=()
 #		"Windows ARM64 (zig)|windows-arm64|target/aarch64-pc-windows-gnullvm/release/${EXE_NAME}.exe|cargo zigbuild --release --target aarch64-pc-windows-gnullvm"
 #	)
 
-## Stage 5 (after builds): collect versioned artifacts + sha256sums. NOT READY -
-## disabled (empty RELEASE_ARTIFACT_DIR -> collection self-skips).
-## Note the version source differs: meson.build carries `version : '6.6.4'`, NOT the
-## Cargo `version = "..."` the engine's default collector greps for. release.bash
-## parses the meson form; wire the same here when artifacts go live.
-## NEEDS: a host-side release binary first (see RELEASE_ENABLE note above).
-RELEASE_ARTIFACT_DIR=""
+## Stage 5 (after builds): collect versioned artifacts + sha256sums.
+## The artifacts themselves come from the per-platform release lanes, not from this
+## engine stage: cicd/linux/release.bash writes the Linux tarball + the sums file
+## here, and the Windows exe is built and signed by the release-win workflow. Setting
+## the dir is what lets utility/release.bash verify and attach them.
+## NEEDS (before RELEASE_ENABLE can flip to 1): the engine's own collector wipes this
+## dir and copies bare RELEASE_NATIVE_BIN binaries under Cargo-shaped version parsing
+## - it has to learn the meson version form and the archive contract first.
+RELEASE_ARTIFACT_DIR="cicd/artifacts/release"
 VERSION_MANIFEST="source/meson.build"
 #	Rust-era original (reference only):
 #	RELEASE_ARTIFACT_DIR="cicd/artifacts/release"
@@ -155,37 +159,42 @@ VERSION_MANIFEST="source/meson.build"
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 6: distributable packages. NOT READY - disabled (PACKAGE_ENABLE=0).
-## NEEDS: Linux packaging for a C/meson project - .deb/.rpm built from an installed
-## tree (meson install DESTDIR + dpkg-deb/rpmbuild, or fpm), plus the Windows
-## installer once that toolchain exists. AppImage/Flatpak are candidates too. None
-## of the cargo packagers below apply.
-PACKAGE_ENABLE=0
-NSIS_TEMPLATE=""
-#	Rust-era original (reference only):
-#	PACKAGE_ENABLE=1
-#	NSIS_TEMPLATE="cicd/packaging/windows/installer.nsi.in"
+## Stage 6: distributable packages - READY.
+## Each entry is "label|shell command"; a failure warns and the rest still run.
+## Both steps work from what the per-platform release lanes already produced, so
+## nothing is rebuilt here:
+##   - .deb and .rpm are made from the Linux release tarball, and install the same
+##     relocatable prefix under /opt plus a launcher, menu entry and icons. The
+##     .deb's dependency versions are read in the Ubuntu release container so the
+##     package claims the same floor the binary was built against.
+##   - The Windows .zip is flattened out of the cross-build - exe at the folder
+##     root beside its DLLs, which is the layout install.ps1 expects.
+## Deferred: BSD .pkg, macOS .pkg, AppImage, Flatpak - no toolchain here yet.
+PACKAGE_ENABLE=1
+PACKAGE_CMDS=(
+	"Linux .deb + .rpm|bash cicd/linux/package.bash"
+	"Windows .zip|bash cicd/win/pack-zip.bash"
+)
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 4: profiler (non-gating flamegraph artifact). NOT READY - disabled.
-## NEEDS: a profiling build + a representative workload for a GTK file manager, and
-## a sampler (perf + flamegraph, or similar) run headless. The cargo profile/feature
-## mechanism below doesn't apply. Vars are defined (empty/0) so the engine preflight
-## doesn't trip on them.
-PROFILE_ENABLE=0
-PROFILE_SECS=8
-PROFILE_FEATURE=""
-PROFILE_PROFILE=""
-PROFILE_BIN=""
-PROFILE_WORKLOAD_SCRIPT=""
-PROFILE_WORKLOAD_ARGS=""
+## Stage 4: profiler (non-gating flamegraph artifact) - READY.
+## profile-run.bash browses a generated folder tree on a private headless display
+## while sampling every thread, and renders a flamegraph. It samples by attaching
+## a debugger rather than with perf, because perf needs a privileged sysctl on this
+## box - the trade is wall-clock samples, so a blocked thread reads as waiting.
+## flame-report.py knows that and reports busy time separately.
+## It profiles the DEBUG build (stage 2): the release binaries are stripped, and a
+## flamegraph with no function names is worthless.
+PROFILE_ENABLE=1
+PROFILE_SECS=15
+PROFILE_CMD=(bash cicd/utility/profile-run.bash)
+PROFILE_PROBE=(gdb --version)
 PROFILE_OUT_DIR="cicd/artifacts/profiling"
 PROFILE_STRICT=0
-#	Rust-era original (reference only):
-#	PROFILE_FEATURE="profiling"; PROFILE_PROFILE="profiling"
-#	PROFILE_BIN="target/profiling/${EXE_NAME}"
-#	PROFILE_WORKLOAD_SCRIPT="cicd/utility/n8output-random-unicode.py"; PROFILE_WORKLOAD_ARGS="600 0"
+## Unused by the current profiler; the engine's preflight still prints them.
+PROFILE_WORKLOAD_SCRIPT=""
+PROFILE_WORKLOAD_ARGS=""
 
 ## Pre-publish README screenshot refresh + demo video: NOT READY - off.
 ## NEEDS: headless screenshot/record hooks for the file-manager UI if wanted later.
