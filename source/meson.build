@@ -178,6 +178,7 @@ configure_file(
 ################################################################################
 
 rootInclude = include_directories('.')
+shclInclude = include_directories('../vendor/shcl')
 nemoDataPath      = join_paths(get_option('prefix'), get_option('datadir'), appSlug)
 libExecPath       = join_paths(get_option('prefix'), get_option('libexecdir'))
 nemoExtensionPath = join_paths(get_option('prefix'), get_option('libdir'), appSlug, 'extensions-3.0')

@@ -61,10 +61,12 @@ candidates+="$("${GIT[@]}" diff --name-only --diff-filter=d HEAD)"$'\n'
 candidates+="$("${GIT[@]}" diff --cached --name-only --diff-filter=d)"$'\n'
 candidates+="$("${GIT[@]}" ls-files --others --exclude-standard)"
 
-## Keep C sources that still exist, dedup.
+## Keep C sources that still exist, dedup. Vendored code is upstream's to
+## fix, so bumping it must not light up our gate.
 files=()
 while IFS= read -r f; do
 	[[ "$f" == *.c || "$f" == *.h ]] || continue
+	[[ "$f" == vendor/* ]] && continue
 	[[ -f "$f" ]] && files+=("$f")
 done < <(printf '%s\n' "$candidates" | LC_ALL=C sort -u)
 

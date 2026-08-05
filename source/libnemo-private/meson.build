@@ -48,6 +48,7 @@ nemo_private_sources = [
   'nemo-lib-self-check-functions.c',
   'nemo-link.c',
   'nemo-merged-directory.c',
+  'nemo-config.c',
   'nemo-metadata.c',
   'nemo-metadata-store.c',
   'nemo-network-win32.c',
@@ -105,7 +106,7 @@ endif
 nemo_private_lib = static_library('nemo-private',
   nemo_private_sources,
   dependencies: nemo_private_deps,
-  include_directories: [ rootInclude, ],
+  include_directories: [ rootInclude, shclInclude, ],
   c_args: nemo_definitions,
 )
 
