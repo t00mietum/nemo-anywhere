@@ -301,9 +301,9 @@ fEcho_Clean "Format ..............: ${FMT_CMD[*]:-(skipped)}"
 fEcho_Clean "Debug build .........: ${DEBUG_BUILD_CMD[*]}"
 fEcho_Clean "Tests ...............: ${TEST_CMD[*]}"
 if ((PROFILE_ENABLE)); then
-	fEcho_Clean "Profiler ............: ${PROFILE_SECS}s run -> flamegraph SVG (on headless ${RPD_HEADLESS_DISPLAY:-:98})"
+	fEcho_Clean "Profiler ............: ${PROFILE_SECS}s run -> flamegraph SVG (headless)"
 	fEcho_Clean "  output dir ........: ${profile_dir}"
-	fEcho_Clean "  workload ..........: python3 ${PROFILE_WORKLOAD_SCRIPT} ${PROFILE_WORKLOAD_ARGS}"
+	fEcho_Clean "  sampler ...........: ${PROFILE_CMD[*]:-(none)}"
 else
 	fEcho_Clean "Profiler ............: (disabled)"
 fi
@@ -429,49 +429,37 @@ fEcho "OK: tests passed"
 ## Stage 4: profiler (non-gating artifact; failures classified below).
 run_profiler(){
 	((PROFILE_ENABLE)) || { fEcho_Clean "profiler disabled"; return 0; }
+	if ! declare -p PROFILE_CMD &>/dev/null || ((${#PROFILE_CMD[@]} == 0)); then
+		fEcho "WARNING: profiler enabled but no PROFILE_CMD configured"; return 0
+	fi
 
-	## Mundane/environmental reasons -> skip with a warning (not the app's fault),
-	## unless PROFILE_STRICT. Genuine run failures below still abort. The app runs
-	## on a private Xvfb (gui-headless.bash), so no visible DISPLAY is needed - only
-	## Xvfb + python3 + the workload.
+	## An environmental miss is the box's fault, not the app's, so warn and carry
+	## on (unless PROFILE_STRICT). A failure of the run itself still aborts.
 	local skip=""
 	command -v python3 >/dev/null 2>&1 || skip="python3 not found"
-	[[ -z "$skip" ]] && [[ ! -f "$abs_script" ]] && skip="workload missing: ${abs_script}"
-	[[ -z "$skip" ]] && ! command -v Xvfb >/dev/null 2>&1 && skip="Xvfb not found (headless display unavailable)"
+	if [[ -z "$skip" ]] && declare -p PROFILE_PROBE &>/dev/null && ((${#PROFILE_PROBE[@]})); then
+		"${PROFILE_PROBE[@]}" >/dev/null 2>&1 || skip="${PROFILE_PROBE[*]} failed (profiling tools missing?)"
+	fi
 	if [[ -n "$skip" ]]; then
 		((PROFILE_STRICT)) && fDie "profiler: ${skip}"
 		fEcho "WARNING: profiler skipped: ${skip}"; return 0
 	fi
 
-	## From here, a failure means the app is at fault -> abort.
-	fEcho_Clean "building ${PROFILE_BIN} (cargo --profile ${PROFILE_PROFILE} --features ${PROFILE_FEATURE})"
-	cargo build --profile "${PROFILE_PROFILE}" --features "${PROFILE_FEATURE}" || fDie "profiler build failed (app problem)"
 	mkdir -p "${profile_dir}"
-
-	## Bring up a private in-memory display so the profiler window never touches the
-	## user's visible session (renders via software GL / llvmpipe on Xvfb).
-	local headless="${here}/utility/gui-headless.bash"
-	## Not :99 - rapid-photo-downloader-pro uses that display for its own testing.
-	export CICD_HEADLESS_DISPLAY="${CICD_HEADLESS_DISPLAY:-${RPD_HEADLESS_DISPLAY:-:98}}"
-	local hdisp="${CICD_HEADLESS_DISPLAY}"
-	if ! "${headless}" start >/dev/null 2>&1; then
-		((PROFILE_STRICT)) && fDie "profiler: headless display failed to start"
-		fEcho "WARNING: profiler skipped: headless display failed to start"; return 0
-	fi
 
 	## Born canonical (role "frequent"); the rotation retags the newest as "latest".
 	local out="${profile_dir}/flame_${stamp}_frequent.svg"
-	fEcho_Clean "running app ${PROFILE_SECS}s under sampler on headless ${hdisp} ..."
 	local prc=0
-	NEMO_PROFILE_OUT="${out}" NEMO_PROFILE_SECS="${PROFILE_SECS}" DISPLAY="${hdisp}" \
-		"${root}/${PROFILE_BIN}" --shell "python3 ${abs_script} ${PROFILE_WORKLOAD_ARGS}" || prc=$?
-	"${headless}" stop >/dev/null 2>&1 || true
-	((prc == 0)) || fDie "profiler run failed (non-zero exit - app problem)"
-	[[ -s "$out" ]] || fDie "profiler produced no SVG (app problem): ${out}"
+	fEcho_Clean "profiling ${PROFILE_SECS}s ..."
+	"${PROFILE_CMD[@]}" "${out}" --secs "${PROFILE_SECS}" || prc=$?
+	((prc == 0)) || fDie "profiler run failed (exit ${prc})"
+	[[ -s "$out" ]] || fDie "profiler produced no SVG: ${out}"
 	gfs_rotate "${profile_dir}" flame svg
-	## Rotation renamed this run's file (newest) to the "latest" role.
-	local latest="${profile_dir}/flame_${stamp}_latest.svg"
-	[[ -e "$latest" ]] || latest="$out"
+	## Rotation retags this run's file with whatever role it earned, so find it by
+	## its timestamp rather than assuming which one that was.
+	local latest
+	latest="$(ls "${profile_dir}/flame_${stamp}_"*.svg 2>/dev/null | head -1)"
+	[[ -n "$latest" ]] || latest="$out"
 	fEcho "OK: flamegraph: ${latest}"
 	fEcho_Clean "open: ${latest}  (in a browser)"
 

@@ -178,24 +178,23 @@ PACKAGE_CMDS=(
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 4: profiler (non-gating flamegraph artifact). NOT READY - disabled.
-## NEEDS: a profiling build + a representative workload for a GTK file manager, and
-## a sampler (perf + flamegraph, or similar) run headless. The cargo profile/feature
-## mechanism below doesn't apply. Vars are defined (empty/0) so the engine preflight
-## doesn't trip on them.
-PROFILE_ENABLE=0
-PROFILE_SECS=8
-PROFILE_FEATURE=""
-PROFILE_PROFILE=""
-PROFILE_BIN=""
-PROFILE_WORKLOAD_SCRIPT=""
-PROFILE_WORKLOAD_ARGS=""
+## Stage 4: profiler (non-gating flamegraph artifact) - READY.
+## profile-run.bash browses a generated folder tree on a private headless display
+## while sampling every thread, and renders a flamegraph. It samples by attaching
+## a debugger rather than with perf, because perf needs a privileged sysctl on this
+## box - the trade is wall-clock samples, so a blocked thread reads as waiting.
+## flame-report.py knows that and reports busy time separately.
+## It profiles the DEBUG build (stage 2): the release binaries are stripped, and a
+## flamegraph with no function names is worthless.
+PROFILE_ENABLE=1
+PROFILE_SECS=15
+PROFILE_CMD=(bash cicd/utility/profile-run.bash)
+PROFILE_PROBE=(gdb --version)
 PROFILE_OUT_DIR="cicd/artifacts/profiling"
 PROFILE_STRICT=0
-#	Rust-era original (reference only):
-#	PROFILE_FEATURE="profiling"; PROFILE_PROFILE="profiling"
-#	PROFILE_BIN="target/profiling/${EXE_NAME}"
-#	PROFILE_WORKLOAD_SCRIPT="cicd/utility/n8output-random-unicode.py"; PROFILE_WORKLOAD_ARGS="600 0"
+## Unused by the current profiler; the engine's preflight still prints them.
+PROFILE_WORKLOAD_SCRIPT=""
+PROFILE_WORKLOAD_ARGS=""
 
 ## Pre-publish README screenshot refresh + demo video: NOT READY - off.
 ## NEEDS: headless screenshot/record hooks for the file-manager UI if wanted later.
