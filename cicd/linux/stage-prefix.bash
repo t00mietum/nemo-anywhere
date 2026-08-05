@@ -50,8 +50,12 @@ mv "${prefix}" "${DEST}"
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Post-install steps meson skips under DESTDIR
 
+## Settings moved off GSettings, so there is usually nothing to compile - but keep
+## handling a schema if one ever ships again.
 fEcho "Compiling schemas and icon cache"
-glib-compile-schemas "${DEST}/share/glib-2.0/schemas"
+if [[ -d "${DEST}/share/glib-2.0/schemas" ]]; then
+	glib-compile-schemas "${DEST}/share/glib-2.0/schemas"
+fi
 gtk-update-icon-cache -qtf "${DEST}/share/icons/hicolor" 2>/dev/null || true
 
 ## Nothing here is meant to be built against - the SDK headers, pkg-config files and
@@ -73,8 +77,8 @@ cat > "${DEST}/bin/${SLUG}" <<-'WRAPPER'
 	#!/bin/sh
 	# Entry point for a relocatable nemo-anywhere prefix. Resolves its own location
 	# (following the symlink the installer puts on PATH) and points the runtime at
-	# this folder: the extension lib, the compiled schema, and the data dirs that
-	# carry nemo's actions, search helpers, icons and mime info.
+	# this folder: the extension lib and the data dirs that carry nemo's actions,
+	# search helpers, icons and mime info.
 
 	self="$0"
 	while [ -L "$self" ]; do
@@ -87,10 +91,15 @@ cat > "${DEST}/bin/${SLUG}" <<-'WRAPPER'
 	prefix="$(cd "$(dirname "$self")/.." && pwd)"
 
 	LD_LIBRARY_PATH="${prefix}/lib/x86_64-linux-gnu:${prefix}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-	GSETTINGS_SCHEMA_DIR="${prefix}/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:${GSETTINGS_SCHEMA_DIR}}"
 	XDG_DATA_DIRS="${prefix}/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 	PATH="${prefix}/bin:${PATH}"
-	export LD_LIBRARY_PATH GSETTINGS_SCHEMA_DIR XDG_DATA_DIRS PATH
+	export LD_LIBRARY_PATH XDG_DATA_DIRS PATH
+
+	# Settings no longer use GSettings, so there is normally no schema here.
+	if [ -d "${prefix}/share/glib-2.0/schemas" ]; then
+		GSETTINGS_SCHEMA_DIR="${prefix}/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:${GSETTINGS_SCHEMA_DIR}}"
+		export GSETTINGS_SCHEMA_DIR
+	fi
 
 	exec "${prefix}/libexec/nemo-anywhere" "$@"
 WRAPPER
