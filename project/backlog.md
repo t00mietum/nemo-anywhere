@@ -449,6 +449,10 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Done: keeps date-stamped copies of the latest build in a local pool, prunes aged-out copies not in use, launches the newest with args passed through.
 	- Done: one cross-platform PowerShell script for Linux and Windows. Working copy deployed to the common util dir.
 	- Done: launches detached and returns immediately. App output goes to a log in the target dir, so it never holds the calling console open.
+	- Done: a source on a network share is written off after a moment rather than blocking the launch while the network gives up in its own time.
+	- Done: a launch with nothing to copy went from nine seconds to one. Working out which programs are running was the whole cost on Windows, and it was being done twice.
+	- Fixed: the newest copy could age out and be re-fetched on every run whenever the source build was itself older than the pruning cutoff.
+	- Fixed: copies left by the pre-single-exe layout were invisible to the pruning and sat there for good.
 
 - ✅ Adopt the local-only delivery model: dev = integration target, main = release-only (dev to main = release cut). Feature branches merge --no-ff into dev.
 	- Note: copied as high-level concepts (not language tooling) from the sibling project.
