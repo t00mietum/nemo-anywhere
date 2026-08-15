@@ -59,7 +59,10 @@ struct _NemoDesktopThumbnailFactoryPrivate {
   GHashTable *mime_types_map;
   GList *monitors;
 
+  /* Borrowed from the config store, which outlives us - do not unref. */
   NemoConfigGroup *settings;
+  gulong disable_all_handler;
+  gulong disable_handler;
   gboolean loaded : 1;
   gboolean disabled : 1;
   gchar **disabled_types;
@@ -532,7 +535,16 @@ nemo_desktop_thumbnail_factory_finalize (GObject *object)
   g_mutex_clear (&priv->lock);
 
   g_clear_pointer (&priv->disabled_types, g_strfreev);
-  g_clear_object (&priv->settings);
+
+  /* The group belongs to the config store, so only the handlers are ours to
+   * clean up - dropping a ref here took one we never held, and leaving them
+   * connected let a later settings change call back into a dead factory. */
+  if (priv->settings != NULL)
+    {
+      g_clear_signal_handler (&priv->disable_all_handler, priv->settings);
+      g_clear_signal_handler (&priv->disable_handler, priv->settings);
+      priv->settings = NULL;
+    }
 
   if (G_OBJECT_CLASS (parent_class)->finalize)
     (* G_OBJECT_CLASS (parent_class)->finalize) (object);
@@ -875,12 +887,12 @@ nemo_desktop_thumbnail_factory_init (NemoDesktopThumbnailFactory *factory)
   priv->disabled = nemo_config_get_boolean (priv->settings, "disable-all");
   if (!priv->disabled)
     priv->disabled_types = nemo_config_get_strv (priv->settings, "disable");
-  g_signal_connect (priv->settings, "changed::disable-all",
-                    G_CALLBACK (external_thumbnailers_disabled_all_changed_cb),
-                    factory);
-  g_signal_connect (priv->settings, "changed::disable",
-                    G_CALLBACK (external_thumbnailers_disabled_changed_cb),
-                    factory);
+  priv->disable_all_handler = g_signal_connect (priv->settings, "changed::disable-all",
+                                                G_CALLBACK (external_thumbnailers_disabled_all_changed_cb),
+                                                factory);
+  priv->disable_handler = g_signal_connect (priv->settings, "changed::disable",
+                                            G_CALLBACK (external_thumbnailers_disabled_changed_cb),
+                                            factory);
 
   if (!priv->disabled)
     nemo_desktop_thumbnail_factory_load_thumbnailers (factory);

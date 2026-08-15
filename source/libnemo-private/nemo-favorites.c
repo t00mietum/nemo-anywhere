@@ -885,7 +885,21 @@ nemo_favorites_dispose (GObject *object)
 
     g_debug ("NemoFavorites dispose (%p)", object);
 
-    g_clear_object (&priv->settings);
+    /* The queued idle and the settings handler both call back in here, so they
+     * have to go before the list does. */
+    if (priv->changed_timer_id > 0)
+    {
+        g_source_remove (priv->changed_timer_id);
+        priv->changed_timer_id = 0;
+    }
+
+    /* Borrowed from the config store, which outlives us - only the handler is
+     * ours to drop. */
+    if (priv->settings != NULL)
+    {
+        g_clear_signal_handler (&priv->settings_listener_id, priv->settings);
+        priv->settings = NULL;
+    }
 
     g_rec_mutex_lock (&infos_lock);
     g_clear_pointer (&priv->infos, g_hash_table_destroy);
