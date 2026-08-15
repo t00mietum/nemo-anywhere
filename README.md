@@ -214,6 +214,13 @@ To build without the container, on a Linux box with the GTK3 development stack:
 meson setup build source && ninja -C build
 ~~~
 
+On Windows the build is native, not cross-compiled. You need [MSYS2](https://www.msys2.org/) with the mingw64 GTK3 toolchain, and [Enigma Virtual Box](https://enigmaprotector.com/en/aboutvb.html) if you want the single-exe artifact - without it the pipeline still builds and tests, it just skips packing.
+
+~~~powershell
+pacman -S --needed mingw-w64-x86_64-{gcc,meson,ninja,pkgconf,gtk3,json-glib,libexif,libgsf,cppcheck,gettext} intltool git
+pwsh cicd/cicd-win.ps1 -Gate     # lint, build and smoke
+~~~
+
 The full picture - the exact package list, the Windows cross-compile, the release lanes and the pipeline stages - is in [project/design.md](project/design.md). Conventions for contributors are in [contributing.md](contributing.md).
 
 ## Longer-term roadmap
