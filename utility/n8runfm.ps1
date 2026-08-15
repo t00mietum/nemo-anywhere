@@ -106,6 +106,9 @@ $AppLog = Join-Path $TargetDir "n8runfm-app.log"
 ## Stamp format shared by the copy name and every date comparison below.
 $StampFormat = "yyyyMMdd-HHmmss"
 
+## Running-process image paths, filled in on first use (see fRunningExePaths).
+$RunningPaths = $null
+
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Functions
@@ -269,15 +272,22 @@ function fCopyIfNewer {
 ## with a running process inside (a delete that throws is also treated as in
 ## use). Only ever touches dirs matching THIS launcher's own name spec - never
 ## a foreign entry that merely shares the dir.
+##
+## The newest copy is exempt whatever its age: it is the one about to launch, and
+## a source that has itself gone quiet for longer than the cutoff would otherwise
+## have us delete and re-copy the very same build on every single run.
 function fDeleteOldBuilds {
 	## Any tag ages out here (incl. one-off hand-dropped tags).
 	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?$([regex]::Escape($CopyExt))$"
 	$cutoff  = (Get-Date).AddDays(-$MaxAgeDays)
 	$running = @(fRunningExePaths)
+	$newest  = fNewestCopy
+	$keep    = if ($newest) { $newest.File.FullName } else { "" }
 	$deleted = 0
 
 	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
 		Where-Object { $_.Name -match $rx } |
+		Where-Object { $_.FullName -ne $keep } |
 		Where-Object { (fBuildTime $_) -lt $cutoff } |
 		ForEach-Object {
 			if (fRemoveIfIdle -DirInfo $_ -Running $running) { $deleted++ }
@@ -401,11 +411,30 @@ function fRemoveIfIdle {
 
 
 ## Full image paths of all currently running processes (best-effort). Paths we
-## can't read are skipped.
+## can't read are skipped. Worked out once per run - every sweep asks the same
+## question, and the answer is not cheap.
+##
+## On Windows the Path property throws for each of the few hundred protected
+## system processes, and swallowing those exceptions costs whole seconds; one CIM
+## query answers the same thing in a fraction of the time. Elsewhere the property
+## is the cheap way round.
 function fRunningExePaths {
-	Get-Process -ErrorAction SilentlyContinue |
-		ForEach-Object { try { $_.Path } catch { $null } } |
-		Where-Object { $_ }
+	if ($null -ne $script:RunningPaths) { return $script:RunningPaths }
+
+	if ($IsWindows) {
+		$script:RunningPaths = @(
+			Get-CimInstance -ClassName Win32_Process -Property ExecutablePath -ErrorAction SilentlyContinue |
+				ForEach-Object { $_.ExecutablePath } |
+				Where-Object { $_ }
+		)
+	} else {
+		$script:RunningPaths = @(
+			Get-Process -ErrorAction SilentlyContinue |
+				ForEach-Object { try { $_.Path } catch { $null } } |
+				Where-Object { $_ }
+		)
+	}
+	return $script:RunningPaths
 }
 
 
@@ -603,7 +632,9 @@ exit 0
 ##		- 2026-08-15: A source on a network share is given 1.5s to answer and then
 ##		  written off, instead of blocking the launch for the SMB timeout. Windows
 ##		  also retires copies left by the old app\+mingw64\ layout, which the
-##		  file-shaped sweeps can't see.
+##		  file-shaped sweeps can't see. Reading every process image path cost ~4s a
+##		  sweep on Windows - one CIM query now, cached for the run. The newest copy
+##		  no longer ages out, so an older source can't force a re-copy every run.
 ##		- 2026-08-04: Windows copies are now a single packed exe (a file), not the
 ##		  app\+mingw64\ bundle - source is the packed win-portable exe, the pool holds
 ##		  '.exe' copies, and launch needs no env wiring. Linux stays a prefix dir.
