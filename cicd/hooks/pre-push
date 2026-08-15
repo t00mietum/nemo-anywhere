@@ -3,8 +3,10 @@
 ##	- Purpose: Local merge gate. The stand-in for a hosted CI: nothing reaches an
 ##	  integration branch (main/dev) unverified, even without a full cicd run.
 ##	- Behavior (per push ref):
-##	   - push to main or dev  -> run `cicd/cicd.bash --gate` (format-check + lints +
-##	     tests, fail-fast, nothing mutated). A failure blocks the push.
+##	   - push to main or dev  -> run the gate (format-check + lints + tests,
+##	     fail-fast, nothing mutated). A failure blocks the push. Which gate depends
+##	     on the box: `cicd/cicd.bash --gate` on unix, `cicd-win.ps1 -Gate` on a
+##	     Windows checkout, where cicd.bash has no docker to build in.
 ##	   - push to main         -> also a version-bump guard: source/meson.build must
 ##	     be a strict version increase over what's already on main, and (once one
 ##	     exists) the README "Release-<ver>" badge must match. So a release merge
@@ -24,8 +26,6 @@ set -Eeuo pipefail
 
 [[ "${SKIP_GATE:-0}" == "1" ]] && exit 0
 
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-## From .git/hooks/ the repo root is two up; from cicd/hooks/ (running in-tree) also two up.
 root="$(git rev-parse --show-toplevel)"
 z="0000000000000000000000000000000000000000"
 
@@ -34,8 +34,18 @@ _ver_from(){ grep -oP "version\s*:\s*'\K[^']+" "$1" 2>/dev/null | head -1; }
 
 gate_ran=0
 run_gate(){ ((gate_ran)) && return 0; gate_ran=1
-	echo "[ pre-push gate: cicd.bash --gate ]"
-	"${root}/cicd/cicd.bash" --gate
+	## cicd.bash builds in a container, so on Windows it would find no docker,
+	## skip, and pass without having built anything. Use the native pipeline there.
+	case "$(uname -s)" in
+		MINGW*|MSYS*|CYGWIN*)
+			echo "[ pre-push gate: cicd-win.ps1 -Gate ]"
+			pwsh -NoProfile -File "${root}/cicd/cicd-win.ps1" -Gate -Yes
+			;;
+		*)
+			echo "[ pre-push gate: cicd.bash --gate ]"
+			"${root}/cicd/cicd.bash" --gate
+			;;
+	esac
 }
 
 ## git feeds "<localref> <localsha> <remoteref> <remotesha>" lines on stdin.
