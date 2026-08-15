@@ -35,6 +35,16 @@ test('Favorites test',
   args: []
 )
 
+test('Thumbnail factory test',
+  executable('test-nemo-thumbnail',
+    [ 'test-nemo-thumbnail.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: [],
+  timeout: 180        # the hung-helper case waits out the thumbnailer timeout
+)
+
 test('Metadata store test',
   executable('test-nemo-metadata-store',
     [ 'test-nemo-metadata-store.c' ],

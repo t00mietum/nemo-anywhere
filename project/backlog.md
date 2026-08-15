@@ -112,6 +112,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🔘 Real-Windows validation pass. Everything so far is verified under wine only.
 	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
+	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Worth deciding whether ours should stand down there. The test that hit it now skips that step unless asked for it, since nothing can answer the dialog unattended.
 
 ### Milestone 6 - CI/CD
 
@@ -200,10 +201,14 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Fixed: the favorites file also stopped taking a hold on the settings it never gave back, and three error paths no longer walk away still holding a lock.
 	- Verified: with the fixes backed out, the shared settings object really is destroyed while still in use, and a change after teardown lands on a freed object.
 
-- 🔘 Code Review 20260804 item 8. A stuck thumbnail helper is never given up on.
+- ✅ Code Review 20260804 item 8. A stuck thumbnail helper is never given up on.
 	- Cause: there is no time limit on an external thumbnail program, so one hung file permanently costs a worker slot until restart.
 	- Cause: a failed reload of the thumbnail helper list reads the entry it just freed.
 	- Cause: a very long, very thin image produces no thumbnail and a warning instead of a graceful fallback.
+	- Fixed: a helper that has not finished in 30 seconds is stopped, logged and moved on from, so the slot comes back. Thumbnailing on a one-thread machine no longer ends for the session.
+	- Fixed: the reload walk stops at the entry it removed instead of stepping off it.
+	- Fixed: a thumbnail is never asked for at zero pixels wide or tall, so a 5000x1 image thumbnails instead of failing.
+	- Verified: new test. With the fixes backed out the hung helper is still blocking after 75 seconds and the thin image produces nothing. The freed-entry read is fixed by inspection - it is invisible at runtime - with the test covering the path it happens on.
 
 - 🔘 Code Review 20260804 item 9. Emptying the Windows trash fails whenever it holds a folder.
 	- Cause: trashed folders are reported as folders but refuse to list their contents, and the delete path needs to list them.
