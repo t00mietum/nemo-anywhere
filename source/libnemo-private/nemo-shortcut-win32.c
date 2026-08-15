@@ -60,6 +60,17 @@ nemo_shortcut_win32_create (const char  *target_path,
 	g_return_val_if_fail (target_path != NULL, FALSE);
 	g_return_val_if_fail (lnk_path != NULL, FALSE);
 
+	/* IPersistFile::Save has no create-new mode, so without this it silently
+	 * writes over whatever is already there. Report the clash and let the caller
+	 * uniquify ("another link to ...") the way the symlink path does. The check
+	 * is racy - the shell offers nothing atomic - but the race is a rare loss
+	 * against an unconditional one. */
+	if (g_file_test (lnk_path, G_FILE_TEST_EXISTS)) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_EXISTS,
+				     _("A file with that name already exists."));
+		goto out;
+	}
+
 	w_target = to_utf16 (target_path);
 	w_lnk    = to_utf16 (lnk_path);
 	if (w_target == NULL || w_lnk == NULL) {

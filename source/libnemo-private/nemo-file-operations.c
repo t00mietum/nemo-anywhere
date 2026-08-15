@@ -5756,8 +5756,16 @@ win_create_lnk (GFile **dest, const char *target_path, GError **error)
 	g_free (lnk_base);
 
 	lnk_path = g_file_get_path (lnk);
-	ok = (lnk_path != NULL) &&
-	     nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+	if (lnk_path == NULL) {
+		/* Not a native location, so there is no file to write the shortcut
+		 * to. Say so: the caller's failure branch reads error->message, and
+		 * short-circuiting here used to leave it NULL. */
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("Shortcuts can only be created in a local folder."));
+		ok = FALSE;
+	} else {
+		ok = nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+	}
 	g_free (lnk_path);
 
 	if (ok) {
