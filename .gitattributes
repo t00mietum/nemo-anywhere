@@ -6,6 +6,13 @@
 # Git hooks are shell too, just without an extension to match on.
 cicd/hooks/* text eol=lf
 
+# The cross-platform pwsh scripts carry a shebang and run on unix as well, where
+# CRLF would send the kernel looking for an interpreter named 'pwsh\r'.
+*.ps1 text eol=lf
+
+# Batch is the other way round - CRLF is what cmd.exe expects.
+*.cmd text eol=crlf
+
 # Vendored theme art - keep bytes stable, no EOL conversion.
 *.svg -text
 *.png -text

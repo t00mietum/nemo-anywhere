@@ -12,7 +12,8 @@
 ##		- Each run, in order: delete idle copies over 7 days old (in use = a running
 ##		  process that IS the copy exe, or on Linux whose image lives inside the copy
 ##		  dir); refresh from the source if its build is newer than what we hold;
-##		  launch the newest.
+##		  launch the newest. A source on a network share only gets a moment to
+##		  answer - an unreachable one must not hold up a launch a held copy can serve.
 ##		- Sources per OS (tag in the copy name):
 ##			lin  the synced dogfood prefix nemo-anywhere.app (Linux)
 ##			win  the packed single exe from the native build (Windows)
@@ -67,13 +68,14 @@ if ($IsWindows) {
 	$CopyExt       = ""
 	$TargetDir     = Join-Path $HOME ".local/share/nemo-anywhere-dogfood"
 }
-## First candidate that exists (its main binary on Linux, or the exe itself on
-## Windows where the source has no sub-path). Keep the first if none do, so the copy
-## step warn-skips it like any other unreachable source (held copies still run).
-$SourceDir = $SourceCandidates |
-	Where-Object { Test-Path -LiteralPath $(if ($SourceMainBin) { Join-Path $_ $SourceMainBin } else { $_ }) } |
-	Select-Object -First 1
-if (-not $SourceDir) { $SourceDir = $SourceCandidates[0] }
+## Resolved by fResolveSource at copy time - the probe it uses is defined further
+## down, and a function isn't callable before its definition runs.
+$SourceDir = $null
+
+## How long a candidate on a network share gets to answer the does-it-exist probe.
+## An unreachable share otherwise wedges Test-Path for the SMB stack's own timeout,
+## tens of seconds of nothing while a held copy sits ready to launch.
+$ProbeTimeoutMs = 1500
 
 ## Get-ChildItem item-type for the pool: files on Windows (single exe), dirs on Linux.
 $CopyGciType = if ($CopyIsFile) { @{ File = $true } } else { @{ Directory = $true } }
@@ -124,9 +126,11 @@ function fMain {
 	##    be policy-blocked.
 	if ($IsWindows) { fSelfHealMotw }
 
-	## 1. Sweep stale partial copies and stale idle copies.
+	## 1. Sweep stale partial copies, stale idle copies, and anything left by the
+	##    old layout.
 	fDeleteStaleTmp
 	fDeleteOldBuilds
+	fRetireLegacyCopies
 
 	## 2. Refresh from the source if it has a newer build than we hold.
 	fCopyIfNewer
@@ -147,16 +151,87 @@ function fMain {
 }
 
 
+## What to look at to decide a source candidate is really there: its main binary
+## on Linux, or the candidate itself on Windows, where the source IS the exe. Its
+## mtime is also the build stamp.
+function fSourceProbePath {
+	param([Parameter(Mandatory)][string]$Candidate)
+	if ($SourceMainBin) { return (Join-Path $Candidate $SourceMainBin) }
+	return $Candidate
+}
+
+
+## Pick the first candidate that's actually there. Keeps the first as a placeholder
+## and returns false if none are, so the copy step warn-skips like any other
+## unreachable source - held copies still run.
+function fResolveSource {
+	foreach ($cand in $SourceCandidates) {
+		if (fPathExists (fSourceProbePath $cand)) {
+			$script:SourceDir = $cand
+			return $true
+		}
+	}
+	$script:SourceDir = $SourceCandidates[0]
+	return $false
+}
+
+
+## Does a path exist? Local paths answer from the filesystem straight away, so
+## they go through Test-Path as-is. A path on a network share gets a short leash
+## instead: a share that is down wedges Test-Path until the SMB stack gives up on
+## its own schedule, and a launcher with a perfectly good local copy in hand has
+## no business making the user wait that long. Past the deadline the probe is
+## abandoned - its thread unwinds whenever SMB is done with it - and the candidate
+## is treated as absent.
+function fPathExists {
+	param([Parameter(Mandatory)][string]$Path)
+
+	if (-not (fIsRemotePath $Path)) { return [bool](Test-Path -LiteralPath $Path) }
+
+	$probe = [powershell]::Create()
+	$null  = $probe.AddScript('param($p) [bool](Test-Path -LiteralPath $p)').AddArgument($Path)
+	$async = $probe.BeginInvoke()
+
+	if ($async.AsyncWaitHandle.WaitOne($ProbeTimeoutMs)) {
+		$found = $false
+		try { $found = [bool]($probe.EndInvoke($async) | Select-Object -First 1) } catch { }
+		$probe.Dispose()
+		return $found
+	}
+
+	## Dispose would block on the wedged probe, so hand it off and walk away.
+	$null = $probe.BeginStop($null, $null)
+	fNote "gave up on network source after ${ProbeTimeoutMs}ms: $Path"
+	return $false
+}
+
+
+## True for a path served over the network - a UNC name, or a drive letter mapped
+## to a share. Everything else is local and needs no protection.
+function fIsRemotePath {
+	param([Parameter(Mandatory)][string]$Path)
+
+	if ($Path -match '^(\\\\|//)') { return $true }
+	if ($IsWindows -and $Path -match '^([A-Za-z]):') {
+		try {
+			$drive = [System.IO.DriveInfo]::new($Matches[1] + ":\")
+			return ($drive.DriveType -eq [System.IO.DriveType]::Network)
+		} catch { return $false }
+	}
+	return $false
+}
+
+
 ## Copy the source prefix in as '<prefix>_<stamp>_<tag>' when its build is newer
 ## than the newest copy we hold. Copies to a .tmp name then renames, so an
 ## interrupted copy can never pass for a complete one. No-op if the source is
 ## unreachable or we're already current.
 function fCopyIfNewer {
-	$srcBin = if ($SourceMainBin) { Join-Path $SourceDir $SourceMainBin } else { $SourceDir }
-	if (-not (Test-Path -LiteralPath $srcBin)) {
-		fWarn "source not reachable: $srcBin"
+	if (-not (fResolveSource)) {
+		fWarn "source not reachable: $(fSourceProbePath $SourceDir)"
 		return
 	}
+	$srcBin = fSourceProbePath $SourceDir
 
 	$stamp     = (Get-Item -LiteralPath $srcBin).LastWriteTime.ToString($StampFormat)
 	$stampTime = fParseStamp $stamp
@@ -223,6 +298,35 @@ function fDeleteStaleTmp {
 				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
 				fNote "deleted stale partial copy: $($_.Name)"
 			} catch { }
+		}
+}
+
+
+## Windows only: clear out copies left by the pre-single-exe layout, when a copy
+## was the whole app\+mingw64\ tree rather than one exe. The sweeps above look for
+## files now, so those dirs are invisible to them and would sit there for good at
+## a couple of hundred MB each. Same self-heal the cicd dogfood stage does to the
+## old bundle folder in the synced drop.
+function fRetireLegacyCopies {
+	if (-not $CopyIsFile) { return }
+
+	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?(\.tmp)?$"
+	$running = @(fRunningExePaths)
+
+	Get-ChildItem -LiteralPath $TargetDir -Directory -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
+		Where-Object { $_.Name -match $rx } |
+		ForEach-Object {
+			$prefix = $_.FullName + [System.IO.Path]::DirectorySeparatorChar
+			if ($running | Where-Object { $_.StartsWith($prefix) }) {
+				fNote "kept (running): $($_.Name)"
+				return
+			}
+			try {
+				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
+				fNote "retired pre-single-exe copy: $($_.Name)"
+			} catch {
+				fNote "kept (locked): $($_.Name)"
+			}
 		}
 }
 
@@ -496,6 +600,10 @@ exit 0
 
 
 ##	History:
+##		- 2026-08-15: A source on a network share is given 1.5s to answer and then
+##		  written off, instead of blocking the launch for the SMB timeout. Windows
+##		  also retires copies left by the old app\+mingw64\ layout, which the
+##		  file-shaped sweeps can't see.
 ##		- 2026-08-04: Windows copies are now a single packed exe (a file), not the
 ##		  app\+mingw64\ bundle - source is the packed win-portable exe, the pool holds
 ##		  '.exe' copies, and launch needs no env wiring. Linux stays a prefix dir.
