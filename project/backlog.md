@@ -210,9 +210,14 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Fixed: a thumbnail is never asked for at zero pixels wide or tall, so a 5000x1 image thumbnails instead of failing.
 	- Verified: new test. With the fixes backed out the hung helper is still blocking after 75 seconds and the thin image produces nothing. The freed-entry read is fixed by inspection - it is invisible at runtime - with the test covering the path it happens on.
 
-- 🔘 Code Review 20260804 item 9. Emptying the Windows trash fails whenever it holds a folder.
+- ✅ Code Review 20260804 item 9. Emptying the Windows trash fails whenever it holds a folder.
 	- Cause: trashed folders are reported as folders but refuse to list their contents, and the delete path needs to list them.
 	- Note: this affects both "Empty Trash" and permanently deleting a single item.
+	- Fixed: a trashed folder now goes with everything inside it, so emptying the trash gets through a bin holding folders.
+	- Fixed: a trashed folder lists its contents. Permanently deleting one counts what is in it first, and that count used to fail before the delete even started - a second, separate stopping point.
+	- Fixed: with that, a trashed folder can be opened and browsed rather than showing an error page. Its contents carry no original location or deletion date of their own, which is correct - only the folder was trashed.
+	- Verified: new case in the trash test that recycles a folder of its own for real, so it runs on Windows rather than only under wine. Pre-fix, listing says "not a directory" and the delete says "directory not empty".
+	- Note: a link or junction inside a trashed folder is deleted as the link it is, never followed out of the bin.
 
 - 🔘 Code Review 20260804 item 10. Windows trash items can go missing, and restore can aim at the wrong place.
 	- Cause: items the shell describes in a form the code does not expect are skipped silently, while the item count still includes them.
@@ -504,7 +509,7 @@ Full adversarial review of everything written or changed since the fork point. O
 		- Fixed: the sidebar Network entries are now gated on runtime support. The empty section disappears on Windows until the native backend is present.
 	- ✅ Windows trash: native Recycle Bin backend for in-app browse, restore, and empty (deleting to the bin already worked).
 		- Done: trash is served in-process from the Recycle Bin, so the existing sidebar row, restore/empty bar, monitor, and delete paths all work unchanged.
-		- Note: browsing into a trashed folder's contents shows an error page for now (flat item list only). Minor, revisit if it ever matters.
+		- Done: browsing into a trashed folder works. It was a flat item list at first; the code review turned up that the same gap also stopped a trashed folder being permanently deleted, and both were fixed together.
 	- ✅ Windows network: native network-neighborhood browsing + UNC paths in the location bar.
 		- Done: the network location is served in-process from native enumeration. Servers list their shares, and a share opens as an ordinary folder.
 		- Verified: graceful-empty in the dev rig (no real network there). Populated browsing is part of the real-Windows validation pass.

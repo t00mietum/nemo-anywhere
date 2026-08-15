@@ -383,6 +383,34 @@ uri_to_real_path (const char *uri)
 	return g_uri_unescape_string (uri + strlen (ROOT_URI), NULL);
 }
 
+/* TRUE when child names something strictly below parent */
+static gboolean
+path_has_prefix (const char *parent, const char *child)
+{
+	gsize len = strlen (parent);
+
+	return strncmp (child, parent, len) == 0 &&
+	       (child[len] == '\\' || child[len] == '/');
+}
+
+/* TRUE when real_path lives inside one of the bin's entries. The shell only
+ * tracks top-level items, so anything deeper has to be recognised this way.
+ * Caller holds items_mutex. */
+static gboolean
+is_inside_item_locked (const char *real_path)
+{
+	GHashTableIter iter;
+	gpointer key;
+
+	g_hash_table_iter_init (&iter, trash_items);
+	while (g_hash_table_iter_next (&iter, &key, NULL)) {
+		if (path_has_prefix ((const char *) key, real_path)) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 /* look an item up by uri, refreshing the snapshot if it's unknown;
  * returns a copy the caller frees with trash_item_free */
 static TrashItem *
@@ -408,11 +436,55 @@ lookup_item_copy (const char *uri)
 		copy->display_name = g_strdup (item->display_name);
 		copy->orig_path = g_strdup (item->orig_path);
 		copy->deletion_date = g_strdup (item->deletion_date);
+	} else if (is_inside_item_locked (real_path) &&
+		   g_file_test (real_path, G_FILE_TEST_EXISTS)) {
+		/* Something inside a trashed folder. It has no bin entry of its own,
+		 * so it gets no original location or deletion date - just enough to
+		 * be listed and read. */
+		copy = g_new0 (TrashItem, 1);
+		copy->real_path = g_strdup (real_path);
+		copy->display_name = g_path_get_basename (real_path);
 	}
 	g_mutex_unlock (&items_mutex);
 
 	g_free (real_path);
 	return copy;
+}
+
+/* TRUE when the uri names a bin entry rather than something inside one */
+static gboolean
+uri_is_top_level_item (const char *uri)
+{
+	char *real_path;
+	gboolean result;
+
+	real_path = uri_to_real_path (uri);
+	if (real_path == NULL) {
+		return FALSE;
+	}
+
+	g_mutex_lock (&items_mutex);
+	if (trash_items == NULL) {
+		refresh_items_locked ();
+	}
+	result = g_hash_table_lookup (trash_items, real_path) != NULL;
+	g_mutex_unlock (&items_mutex);
+
+	g_free (real_path);
+	return result;
+}
+
+/* item identity, and what get_child/resolve_relative_path take back */
+static char *
+uri_for_real_path (const char *real_path)
+{
+	char *escaped, *uri;
+
+	escaped = g_uri_escape_string (real_path, NULL, TRUE);
+	uri = g_strconcat (ROOT_URI, escaped, NULL);
+	g_free (escaped);
+
+	return uri;
 }
 
 static GFileInfo *
@@ -543,11 +615,29 @@ static GFile *
 trash_file_get_parent (GFile *file)
 {
 	NemoTrashWin32File *self = NEMO_TRASH_WIN32_FILE (file);
+	char *real_path, *parent_path, *uri;
+	GFile *parent;
 
 	if (uri_is_root (self->uri)) {
 		return NULL;
 	}
-	return trash_file_new_for_uri (ROOT_URI);
+
+	/* A bin entry hangs off the root; anything inside a trashed folder hangs
+	 * off the folder it is in. */
+	if (uri_is_top_level_item (self->uri)) {
+		return trash_file_new_for_uri (ROOT_URI);
+	}
+
+	real_path = uri_to_real_path (self->uri);
+	parent_path = g_path_get_dirname (real_path);
+	uri = uri_for_real_path (parent_path);
+	parent = trash_file_new_for_uri (uri);
+
+	g_free (uri);
+	g_free (parent_path);
+	g_free (real_path);
+
+	return parent;
 }
 
 static gboolean
@@ -555,17 +645,34 @@ trash_file_prefix_matches (GFile *parent, GFile *descendant)
 {
 	NemoTrashWin32File *p = NEMO_TRASH_WIN32_FILE (parent);
 	NemoTrashWin32File *d = NEMO_TRASH_WIN32_FILE (descendant);
+	char *parent_path, *descendant_path;
+	gboolean result;
 
-	return uri_is_root (p->uri) && !uri_is_root (d->uri);
+	if (uri_is_root (d->uri)) {
+		return FALSE;
+	}
+	if (uri_is_root (p->uri)) {
+		return TRUE;
+	}
+
+	parent_path = uri_to_real_path (p->uri);
+	descendant_path = uri_to_real_path (d->uri);
+	result = path_has_prefix (parent_path, descendant_path);
+
+	g_free (parent_path);
+	g_free (descendant_path);
+
+	return result;
 }
 
+/* An item's name is its escaped backing path at every level, so the way back
+ * from a relative path is the same wherever it came from. */
 static char *
 trash_file_get_relative_path (GFile *parent, GFile *descendant)
 {
-	NemoTrashWin32File *p = NEMO_TRASH_WIN32_FILE (parent);
 	NemoTrashWin32File *d = NEMO_TRASH_WIN32_FILE (descendant);
 
-	if (!uri_is_root (p->uri) || uri_is_root (d->uri)) {
+	if (!trash_file_prefix_matches (parent, descendant)) {
 		return NULL;
 	}
 	return g_strdup (d->uri + strlen (ROOT_URI));
@@ -574,7 +681,6 @@ trash_file_get_relative_path (GFile *parent, GFile *descendant)
 static GFile *
 trash_file_resolve_relative_path (GFile *file, const char *relative_path)
 {
-	NemoTrashWin32File *self = NEMO_TRASH_WIN32_FILE (file);
 	char *uri;
 	GFile *result;
 
@@ -583,8 +689,7 @@ trash_file_resolve_relative_path (GFile *file, const char *relative_path)
 		return trash_file_dup (file);
 	}
 
-	uri = g_strconcat (uri_is_root (self->uri) ? ROOT_URI : self->uri,
-			   relative_path, NULL);
+	uri = g_strconcat (ROOT_URI, relative_path, NULL);
 	result = trash_file_new_for_uri (uri);
 	g_free (uri);
 	return result;
@@ -733,10 +838,57 @@ trash_file_enumerate_children (GFile *file, const char *attributes,
 	GHashTableIter iter;
 	gpointer value;
 
+	/* Inside a trashed folder. Its contents are not bin entries of their own,
+	 * but they still have to list: the pre-delete count walks in here, and
+	 * without it a trashed folder can neither be opened nor permanently
+	 * deleted. A trashed file still answers NOT_DIRECTORY, from the enumerate
+	 * of its backing path. */
 	if (!uri_is_root (self->uri)) {
-		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_DIRECTORY,
-			     "Not a directory");
-		return NULL;
+		GFileEnumerator *children;
+		GFileInfo *child_info;
+		TrashItem *item;
+		GFile *real;
+		char *real_path;
+
+		item = lookup_item_copy (self->uri);
+		if (item == NULL) {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+				     "No such item in the recycle bin");
+			return NULL;
+		}
+		real_path = g_strdup (item->real_path);
+		trash_item_free (item);
+
+		real = g_file_new_for_path (real_path);
+		children = g_file_enumerate_children (real, G_FILE_ATTRIBUTE_STANDARD_NAME,
+						      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+						      cancellable, error);
+		g_object_unref (real);
+
+		if (children == NULL) {
+			g_free (real_path);
+			return NULL;
+		}
+
+		enumerator = g_object_new (NEMO_TYPE_TRASH_WIN32_ENUMERATOR,
+					   "container", file, NULL);
+
+		while ((child_info = g_file_enumerator_next_file (children, cancellable,
+								  NULL)) != NULL) {
+			TrashItem *copy = g_new0 (TrashItem, 1);
+
+			copy->display_name = g_strdup (g_file_info_get_name (child_info));
+			copy->real_path = g_build_filename (real_path, copy->display_name, NULL);
+			enumerator->items = g_list_prepend (enumerator->items, copy);
+			g_object_unref (child_info);
+		}
+
+		g_file_enumerator_close (children, cancellable, NULL);
+		g_object_unref (children);
+		g_free (real_path);
+
+		enumerator->position = enumerator->items;
+		return G_FILE_ENUMERATOR (enumerator);
 	}
 
 	enumerator = g_object_new (NEMO_TYPE_TRASH_WIN32_ENUMERATOR,
@@ -763,6 +915,67 @@ trash_file_enumerate_children (GFile *file, const char *attributes,
 
 /* ---- mutation: delete, restore (move), streams ---- */
 
+/* A trashed folder goes as a unit. nemo's empty-trash walk deliberately stops
+ * recursing at a trash:// item (delete_trash_file, nemo-file-operations.c) since
+ * the contents of a trashed folder are not themselves trashed items, so the whole
+ * tree has to come out here - otherwise a bin holding any folder can neither be
+ * emptied nor have that folder permanently deleted. */
+static gboolean
+delete_real_tree (GFile *real, GCancellable *cancellable, GError **error)
+{
+	GFileInfo *info;
+	GFileEnumerator *children;
+	gboolean ok = TRUE;
+
+	info = g_file_query_info (real, G_FILE_ATTRIBUTE_STANDARD_TYPE,
+				  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+				  cancellable, error);
+	if (info == NULL) {
+		return FALSE;
+	}
+
+	/* NOFOLLOW above, and only a real directory is walked into - a link or a
+	 * junction is deleted as the link it is, never followed out of the bin. */
+	if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
+		children = g_file_enumerate_children (real, G_FILE_ATTRIBUTE_STANDARD_NAME,
+						      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+						      cancellable, error);
+		if (children == NULL) {
+			g_object_unref (info);
+			return FALSE;
+		}
+
+		while (ok) {
+			GError *walk_error = NULL;
+			GFileInfo *child_info;
+			GFile *child;
+
+			/* next_file answers NULL for both the end of the list and a
+			 * failure, so the error has to be asked for separately. */
+			child_info = g_file_enumerator_next_file (children, cancellable, &walk_error);
+			if (child_info == NULL) {
+				if (walk_error != NULL) {
+					g_propagate_error (error, walk_error);
+					ok = FALSE;
+				}
+				break;
+			}
+
+			child = g_file_get_child (real, g_file_info_get_name (child_info));
+			ok = delete_real_tree (child, cancellable, error);
+			g_object_unref (child);
+			g_object_unref (child_info);
+		}
+
+		g_file_enumerator_close (children, cancellable, NULL);
+		g_object_unref (children);
+	}
+
+	g_object_unref (info);
+
+	return ok && g_file_delete (real, cancellable, error);
+}
+
 static gboolean
 trash_file_delete (GFile *file, GCancellable *cancellable, GError **error)
 {
@@ -779,7 +992,7 @@ trash_file_delete (GFile *file, GCancellable *cancellable, GError **error)
 
 	real_path = uri_to_real_path (self->uri);
 	real = g_file_new_for_path (real_path);
-	result = g_file_delete (real, cancellable, error);
+	result = delete_real_tree (real, cancellable, error);
 	g_object_unref (real);
 
 	if (result) {
