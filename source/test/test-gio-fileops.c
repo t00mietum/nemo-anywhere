@@ -238,15 +238,24 @@ main (int argc, char *argv[])
 	g_clear_error (&error);
 	error = NULL;
 
-	/* trash a file */
-	f = child (base, "trashme.txt");
-	check (write_file (f, "bye"), "create trash victim", NULL);
-	ok = g_file_trash (f, NULL, &error);
-	probe (ok, "g_file_trash", error);
-	error = NULL;
-	if (!ok)
-		g_file_delete (f, NULL, NULL);
-	g_object_unref (f);
+	/* trash a file. On real Windows the shell puts up a modal confirmation and
+	 * waits for a click, which no unattended run can give it - set
+	 * NEMO_PROBE_TRASH to take that path with someone at the screen. */
+#ifdef G_OS_WIN32
+	if (g_getenv ("NEMO_PROBE_TRASH") == NULL) {
+		g_print ("SKIP g_file_trash (prompts on Windows; set NEMO_PROBE_TRASH to run it)\n");
+	} else
+#endif
+	{
+		f = child (base, "trashme.txt");
+		check (write_file (f, "bye"), "create trash victim", NULL);
+		ok = g_file_trash (f, NULL, &error);
+		probe (ok, "g_file_trash", error);
+		error = NULL;
+		if (!ok)
+			g_file_delete (f, NULL, NULL);
+		g_object_unref (f);
+	}
 
 	/* directory monitoring (the directory-async change pipeline) */
 	{

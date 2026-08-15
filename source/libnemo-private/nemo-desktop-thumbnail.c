@@ -38,6 +38,7 @@
 #include <math.h>
 #include <string.h>
 #include <glib.h>
+#include <gio/gio.h>
 #include <stdio.h>
 #include <errno.h>
 
@@ -49,6 +50,9 @@
 #include <libnemo-private/nemo-posix-compat.h>
 
 #define SECONDS_BETWEEN_STATS 10
+
+/* Generous for a slow but working helper, bounded for one that has hung. */
+#define THUMBNAILER_TIMEOUT_SECONDS 30
 
 struct _NemoDesktopThumbnailFactoryPrivate {
   NemoDesktopThumbnailSize size;
@@ -309,6 +313,11 @@ size_prepared_cb (GdkPixbufLoader *loader,
       height = 0.5 + (double)height * (double)info->width / (double)width;
       width = info->width;
     }
+
+    /* A long thin image rounds its short side down to nothing - a 5000x1 png
+     * asks the loader for 128x0, which it cannot make. Keep the pixel. */
+    width = MAX (width, 1);
+    height = MAX (height, 1);
   } else {
     if (info->width > 0)
       width = info->width;
@@ -619,23 +628,27 @@ update_or_create_thumbnailer (NemoDesktopThumbnailFactory *factory,
 
   g_mutex_lock (&priv->lock);
 
-  for (l = priv->thumbnailers; l && !found; l = g_list_next (l))
+  for (l = priv->thumbnailers; l != NULL; l = g_list_next (l))
     {
       thumb = (Thumbnailer *)l->data;
 
-      if (strcmp (thumb->path, path) == 0)
-        {
-          found = TRUE;
+      if (strcmp (thumb->path, path) != 0)
+        continue;
 
-          /* First remove the mime_types associated to this thumbnailer */
-          g_hash_table_foreach_remove (priv->mime_types_map,
-                                       (GHRFunc)remove_thumbnailer_from_mime_type_map,
-                                       (gpointer)path);
-          if (!thumbnailer_reload (thumb))
-              priv->thumbnailers = g_list_delete_link (priv->thumbnailers, l);
-          else
-              nemo_desktop_thumbnail_factory_register_mime_types (factory, thumb);
-        }
+      found = TRUE;
+
+      /* First remove the mime_types associated to this thumbnailer */
+      g_hash_table_foreach_remove (priv->mime_types_map,
+                                   (GHRFunc)remove_thumbnailer_from_mime_type_map,
+                                   (gpointer)path);
+      if (!thumbnailer_reload (thumb))
+          priv->thumbnailers = g_list_delete_link (priv->thumbnailers, l);
+      else
+          nemo_desktop_thumbnail_factory_register_mime_types (factory, thumb);
+
+      /* Nothing may touch l past the delete above - the loop increment
+       * included, which is what the old !found condition let it do. */
+      break;
     }
 
   if (!found)
@@ -1240,6 +1253,95 @@ expand_thumbnailing_script (const char *script,
   return NULL;
 }
 
+typedef struct {
+  GSubprocess *proc;
+  GMainLoop   *loop;
+  gboolean     timed_out;
+  gboolean     ok;
+} ScriptRun;
+
+static gboolean
+script_timed_out (gpointer data)
+{
+  ScriptRun *run = data;
+
+  run->timed_out = TRUE;
+  g_subprocess_force_exit (run->proc);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+script_finished (GObject *source, GAsyncResult *result, gpointer data)
+{
+  ScriptRun *run = data;
+
+  run->ok = g_subprocess_wait_check_finish (G_SUBPROCESS (source), result, NULL);
+  g_main_loop_quit (run->loop);
+}
+
+/* Runs a thumbnailer command line, giving up on it after THUMBNAILER_TIMEOUT_SECONDS.
+ * There is no timeout on a plain spawn, and these are worker threads out of a pool
+ * of one to four - a single helper that never exits used to cost that slot for the
+ * rest of the session, and four of them stopped thumbnailing altogether. */
+static gboolean
+run_thumbnailer_script (const char *command_line)
+{
+  GMainContext *context;
+  GSource *timeout;
+  GSubprocess *proc;
+  ScriptRun run = { 0 };
+  gchar **argv = NULL;
+  gboolean ok;
+
+  if (!g_shell_parse_argv (command_line, NULL, &argv, NULL))
+    return FALSE;
+
+  /* Private context so the wait and the timeout land here rather than on
+   * whatever context this worker thread happens to be running under. */
+  context = g_main_context_new ();
+  g_main_context_push_thread_default (context);
+
+  proc = g_subprocess_newv ((const gchar * const *) argv,
+                            G_SUBPROCESS_FLAGS_NONE, NULL);
+  g_strfreev (argv);
+
+  if (proc == NULL)
+    {
+      g_main_context_pop_thread_default (context);
+      g_main_context_unref (context);
+      return FALSE;
+    }
+
+  run.proc = proc;
+  run.loop = g_main_loop_new (context, FALSE);
+
+  g_subprocess_wait_check_async (proc, NULL, script_finished, &run);
+
+  timeout = g_timeout_source_new_seconds (THUMBNAILER_TIMEOUT_SECONDS);
+  g_source_set_callback (timeout, script_timed_out, &run, NULL);
+  g_source_attach (timeout, context);
+
+  /* Killing the child completes the wait, so the loop still ends by itself
+   * and the process is reaped rather than left behind. */
+  g_main_loop_run (run.loop);
+
+  if (run.timed_out)
+    g_warning ("Thumbnailer took longer than %d seconds, gave up on it: %s",
+               THUMBNAILER_TIMEOUT_SECONDS, command_line);
+
+  ok = run.ok;
+
+  g_source_destroy (timeout);
+  g_source_unref (timeout);
+  g_main_loop_unref (run.loop);
+  g_object_unref (proc);
+  g_main_context_pop_thread_default (context);
+  g_main_context_unref (context);
+
+  return ok;
+}
+
 /**
  * nemo_desktop_thumbnail_factory_generate_thumbnail:
  * @factory: a #NemoDesktopThumbnailFactory
@@ -1267,7 +1369,6 @@ nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *
   int original_height = 0;
   char dimension[12];
   double scale;
-  int exit_status;
   char *tmpname;
   gboolean disabled = FALSE;
 
@@ -1309,10 +1410,7 @@ nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *
 	  close (fd);
 
 	  expanded_script = expand_thumbnailing_script (script, size, uri, tmpname);
-	  if (expanded_script != NULL &&
-	      g_spawn_command_line_sync (expanded_script,
-					 NULL, NULL, &exit_status, NULL) &&
-	      exit_status == 0)
+	  if (expanded_script != NULL && run_thumbnailer_script (expanded_script))
 	    {
 	      pixbuf = gdk_pixbuf_new_from_file (tmpname, NULL);
 	    }
@@ -1357,9 +1455,17 @@ nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *
       const gchar *orig_width, *orig_height;
       scale = (double)size / MAX (width, height);
 
+      /* Same rounding trap as the loader above, and scale_down_pixbuf answers
+       * a zero side with NULL, which used to go straight on being used. */
       scaled = nemo_desktop_thumbnail_scale_down_pixbuf (pixbuf,
-						  floor (width * scale + 0.5),
-						  floor (height * scale + 0.5));
+						  MAX ((int) floor (width * scale + 0.5), 1),
+						  MAX ((int) floor (height * scale + 0.5), 1));
+
+      if (scaled == NULL)
+        {
+          g_object_unref (pixbuf);
+          return NULL;
+        }
 
       orig_width = gdk_pixbuf_get_option (pixbuf, "tEXt::Thumb::Image::Width");
       orig_height = gdk_pixbuf_get_option (pixbuf, "tEXt::Thumb::Image::Height");
