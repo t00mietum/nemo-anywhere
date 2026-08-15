@@ -192,9 +192,13 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Verified: new test, every check proven against the old code. The listing spin runs until killed; the concurrent read segfaults; the missing target aborts on a critical; the rest fail their checks.
 	- Note: settings written by older versions keep working - only the write order changed, and both are read.
 
-- 🔘 Code Review 20260804 item 7. Favorites and thumbnails keep working after the object they belong to is gone.
+- ✅ Code Review 20260804 item 7. Favorites and thumbnails keep working after the object they belong to is gone.
 	- Cause: both release a shared settings object they never owned.
 	- Cause: change handlers and a queued callback are left connected at teardown.
+	- Fixed: neither releases the shared settings any more - it belongs to the settings store and outlives them both.
+	- Fixed: teardown now cancels the queued callback and disconnects the change handlers before anything else goes.
+	- Fixed: the favorites file also stopped taking a hold on the settings it never gave back, and three error paths no longer walk away still holding a lock.
+	- Verified: with the fixes backed out, the shared settings object really is destroyed while still in use, and a change after teardown lands on a freed object.
 
 - 🔘 Code Review 20260804 item 8. A stuck thumbnail helper is never given up on.
 	- Cause: there is no time limit on an external thumbnail program, so one hung file permanently costs a worker slot until restart.

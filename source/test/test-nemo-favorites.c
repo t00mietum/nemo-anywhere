@@ -16,6 +16,7 @@
 #include <libnemo-private/nemo-favorites.h>
 #include <libnemo-private/nemo-favorite-vfs-file.h>
 #include <libnemo-private/nemo-favorite-vfs-file-enumerator.h>
+#include <libnemo-private/nemo-desktop-thumbnail.h>
 
 static int failures = 0;
 
@@ -227,6 +228,75 @@ test_missing_target (NemoFavorites *favorites)
 	g_object_unref (file);
 }
 
+/* --- teardown ------------------------------------------------------------- */
+
+/* Both of these used to unref the config group on the way out, dropping a ref
+ * they never took - the store's own ref - so the group was freed while still in
+ * the store's table and every later user of it read freed memory. */
+static void
+test_borrowed_settings_group (void)
+{
+	NemoConfigGroup *favs_group = nemo_config_get_group ("");
+	NemoConfigGroup *thumb_group = nemo_config_get_group ("thumbnailers");
+	gpointer favs_alive = favs_group;
+	gpointer thumb_alive = thumb_group;
+	NemoFavorites *throwaway;
+	NemoDesktopThumbnailFactory *factory;
+
+	/* Weak pointers rather than ref counts: this has to answer "was the group
+	 * destroyed", and it has to answer it without reading freed memory. */
+	g_object_add_weak_pointer (G_OBJECT (favs_group), &favs_alive);
+	g_object_add_weak_pointer (G_OBJECT (thumb_group), &thumb_alive);
+
+	throwaway = g_object_new (NEMO_TYPE_FAVORITES, NULL);
+	g_object_unref (throwaway);
+
+	check (favs_alive != NULL);
+
+	factory = nemo_desktop_thumbnail_factory_new (NEMO_DESKTOP_THUMBNAIL_SIZE_NORMAL);
+	g_object_unref (factory);
+
+	check (thumb_alive != NULL);
+
+	/* And the store still hands out the same, usable, group afterwards. */
+	if (favs_alive != NULL) {
+		check (nemo_config_get_group ("") == favs_group);
+		g_object_remove_weak_pointer (G_OBJECT (favs_group), &favs_alive);
+	}
+
+	if (thumb_alive != NULL) {
+		check (nemo_config_get_group ("thumbnailers") == thumb_group);
+		g_object_remove_weak_pointer (G_OBJECT (thumb_group), &thumb_alive);
+	}
+}
+
+/* A settings change after teardown used to reach a freed object: the handler was
+ * never disconnected, and a queued idle was left behind. */
+static void
+test_no_callbacks_after_dispose (void)
+{
+	const char *const one[] = { "text/plain::file:///tmp/after-dispose.txt", NULL };
+	const char *const two[] = { "text/plain::file:///tmp/after-dispose-2.txt", NULL };
+	NemoFavorites *throwaway;
+
+	throwaway = g_object_new (NEMO_TYPE_FAVORITES, NULL);
+
+	/* Queues the idle that announces the change. */
+	seed (one);
+
+	g_object_unref (throwaway);
+
+	/* The idle would fire here, on the object just freed. */
+	while (g_main_context_iteration (NULL, FALSE))
+		;
+
+	/* And the settings handler would still be connected for this one. */
+	seed (two);
+
+	while (g_main_context_iteration (NULL, FALSE))
+		;
+}
+
 /* --- concurrent read ------------------------------------------------------ */
 
 static gint stress_stop;
@@ -339,6 +409,10 @@ main (int argc, char *argv[])
 		test_enumerate_children (favorites, tmp);
 	if (want ("missing-target", argc, argv))
 		test_missing_target (favorites);
+	if (want ("borrowed-group", argc, argv))
+		test_borrowed_settings_group ();
+	if (want ("after-dispose", argc, argv))
+		test_no_callbacks_after_dispose ();
 	if (want ("concurrent", argc, argv))
 		test_concurrent_reload (favorites);
 

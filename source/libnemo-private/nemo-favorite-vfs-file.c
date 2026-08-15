@@ -764,6 +764,7 @@ remove_root_metadata (const gchar *attr_name)
 
     if (old_metadata == NULL)
     {
+        G_UNLOCK (settings);
         return;
     }
 
@@ -811,6 +812,7 @@ set_or_update_root_metadata (const gchar        *attr_name,
 
     if (old_metadata == NULL)
     {
+        G_UNLOCK (settings);
         return;
     }
 
@@ -831,6 +833,7 @@ set_or_update_root_metadata (const gchar        *attr_name,
         default:
             g_warn_if_reached ();
             g_strfreev (old_metadata);
+            G_UNLOCK (settings);
             return;
     }
 
@@ -1400,21 +1403,27 @@ static void nemo_favorite_vfs_file_finalize (GObject *object)
     G_OBJECT_CLASS (nemo_favorite_vfs_file_parent_class)->finalize (object);
 }
 
+/* The group belongs to the config store, which outlives every file we hand out,
+ * so this only caches the pointer - the weak pointer clears it if the store is
+ * ever torn down. It used to take a ref for each root file and never give one
+ * back. */
 static void
 ensure_metadata_store (NemoFavoriteVfsFile *file)
 {
-    if (is_root_file (file))
+    if (!is_root_file (file))
     {
-        if (settings == NULL)
-        {
-            settings = g_object_ref (nemo_config_get_group (FAVORITES_SCHEMA));
-            g_object_add_weak_pointer (G_OBJECT (settings), (gpointer) &settings);
-        }
-        else
-        {
-            g_object_ref (settings);
-        }
+        return;
     }
+
+    G_LOCK (settings);
+
+    if (settings == NULL)
+    {
+        settings = nemo_config_get_group (FAVORITES_SCHEMA);
+        g_object_add_weak_pointer (G_OBJECT (settings), (gpointer) &settings);
+    }
+
+    G_UNLOCK (settings);
 }
 
 static void nemo_favorite_vfs_file_class_init (NemoFavoriteVfsFileClass *klass)
