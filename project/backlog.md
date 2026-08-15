@@ -166,9 +166,13 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 Full adversarial review of everything written or changed since the fork point. Ordered roughly most serious first. Technical detail is kept out of this file.
 
-- 🔘 Code Review 20260804 item 4. "Make Link" on Windows can destroy an existing file, and can crash.
+- ✅ Code Review 20260804 item 4. "Make Link" on Windows can destroy an existing file, and can crash.
 	- Cause: the shortcut is saved over whatever is already there instead of reporting the clash, so the usual "another link to..." renaming never happens.
 	- Cause: dropping a link onto a location that is not a real folder returns a failure with no message attached, and reading that message crashes.
+	- Fixed: creating a shortcut now refuses to write over anything already at that name and reports the clash, so the existing renaming retry takes over.
+	- Fixed: a link dropped somewhere with no real folder behind it now says so instead of failing silently into a crash.
+	- Verified: the destruction is reproducible. With the fix backed out, the test overwrites a file it was told not to touch; with it in, the file survives and the clash is reported.
+	- Note: the shortcut test was failing two checks before any of this, on a correct product - it compared a short-form temporary path against the long form the system reports. Fixed alongside.
 
 - 🔘 Code Review 20260804 item 5. Repairing the thumbnail cache as an administrator can change ownership of unrelated files.
 	- Cause: the repair walks symbolic links instead of skipping them, and changes ownership of whatever they point at.
