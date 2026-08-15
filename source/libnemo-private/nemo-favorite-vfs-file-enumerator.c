@@ -48,38 +48,41 @@ next_file (GFileEnumerator *enumerator,
 
     while (priv->current_pos != NULL && info == NULL)
     {
+        const gchar *display_name = (const gchar *) priv->current_pos->data;
         gchar *uri;
+        GFile *file;
 
-        uri = nemo_path_to_fav_uri ((const gchar *) priv->current_pos->data);
-        if (!nemo_favorites_find_by_display_name (nemo_favorites_get_default (), (gchar *) priv->current_pos->data))
-        {
-            if (error)
-            {
-                *error = g_error_new (G_IO_ERROR, G_IO_ERROR_NOT_FOUND, "File not found");
-            }
-
-            g_warn_if_reached ();
-        }
-        else
-        {
-            GFile *file;
-
-            file = g_file_new_for_uri (uri);
-            info = g_file_query_info (file,
-                                      priv->attributes,
-                                      priv->flags,
-                                      cancellable,
-                                      error);
-
-            g_object_unref (file);
-        }
-
-        g_free (uri);
-    }
-
-    if (priv->current_pos)
-    {
+        /* Advance before doing anything else: every way out of an iteration has
+         * to make progress, or an entry that yields nothing spins here forever,
+         * piling a fresh GError onto *error each pass. */
         priv->current_pos = priv->current_pos->next;
+
+        if (!_nemo_favorites_has_display_name (nemo_favorites_get_default (), display_name))
+        {
+            /* Went away between the listing being taken and us reaching it.
+             * Skip it - failing here would throw away the whole folder over one
+             * stale row. */
+            g_debug ("NemoFavorites: '%s' is gone, leaving it out of the listing", display_name);
+            continue;
+        }
+
+        uri = nemo_path_to_fav_uri (display_name);
+        file = g_file_new_for_uri (uri);
+
+        info = g_file_query_info (file,
+                                  priv->attributes,
+                                  priv->flags,
+                                  cancellable,
+                                  error);
+
+        g_object_unref (file);
+        g_free (uri);
+
+        if (info == NULL)
+        {
+            /* error carries the reason, if the caller asked for one. */
+            break;
+        }
     }
 
     return info;
@@ -137,6 +140,8 @@ next_files_async_thread (GTask        *task,
 
     if (error)
     {
+        /* The infos gathered before the failure go nowhere now. */
+        g_list_free_full (ret, g_object_unref);
         g_task_return_error (task, error);
     }
     else

@@ -34,7 +34,6 @@ struct _NemoFavoriteVfsFile
     NemoFavoriteVfsFilePrivate *priv;
 };
 
-GList       *_nemo_favorites_get_display_names      (NemoFavorites *favorites);
 static void  nemo_favorite_vfs_file_gfile_iface_init (GFileIface *iface);
 
 gchar *
@@ -209,25 +208,64 @@ file_get_parent (GFile *file)
     return NULL;
 }
 
+/* TRUE when duri names something strictly below puri, with the offset the
+ * remainder starts at. Both callers below used to search for the descendant
+ * inside the parent, which is backwards, and then index one past the NUL when
+ * the two were equal. */
+static gboolean
+uri_has_prefix (const gchar *puri,
+                const gchar *duri,
+                gsize       *rel_offset)
+{
+    gsize plen;
+
+    if (puri == NULL || duri == NULL)
+    {
+        return FALSE;
+    }
+
+    plen = strlen (puri);
+
+    if (plen == 0 || strncmp (duri, puri, plen) != 0)
+    {
+        return FALSE;
+    }
+
+    /* favorites:/// already ends in its separator; anything else needs one. */
+    if (puri[plen - 1] != '/')
+    {
+        if (duri[plen] != '/')
+        {
+            return FALSE;
+        }
+
+        plen++;
+    }
+
+    if (duri[plen] == '\0')
+    {
+        return FALSE;
+    }
+
+    if (rel_offset != NULL)
+    {
+        *rel_offset = plen;
+    }
+
+    return TRUE;
+}
+
 static gboolean
 file_prefix_matches (GFile *parent,
                      GFile *descendant)
 {
     g_autofree gchar *puri = NULL;
     g_autofree gchar *duri = NULL;
-    gchar *ptr = NULL;
 
     puri = g_file_get_uri (parent);
     duri = g_file_get_uri (descendant);
 
-    ptr = g_strstr_len (puri, -1, duri);
-
-    if ((ptr == puri) && ptr[strlen (duri) + 1] == '/')
-    {
-        return TRUE;
-    }
-
-    return FALSE;
+    return uri_has_prefix (puri, duri, NULL);
 }
 
 static gchar *
@@ -236,22 +274,17 @@ file_get_relative_path (GFile *parent,
 {
     g_autofree gchar *puri = NULL;
     g_autofree gchar *duri = NULL;
-    g_autofree gchar *rpath = NULL;
-    gchar *ptr = NULL;
+    gsize offset;
 
     puri = g_file_get_uri (parent);
     duri = g_file_get_uri (descendant);
 
-    ptr = g_strstr_len (puri, -1, duri);
-
-    if ((ptr == puri) && ptr[strlen (duri) + 1] == '/')
+    if (!uri_has_prefix (puri, duri, &offset))
     {
-        rpath = g_strdup (puri + strlen (duri) + 1);
-
-        return rpath;
+        return NULL;
     }
 
-    return NULL;
+    return g_strdup (duri + offset);
 }
 
 static GFile *
@@ -365,9 +398,20 @@ file_enumerate_children(GFile               *file,
                                                    flags,
                                                    uris);
 
-    g_list_free (uris);
+    g_list_free_full (uris, g_free);
 
     return enumerator;
+}
+
+static const gchar *
+mimetype_or_default (const gchar *mimetype)
+{
+    if (mimetype == NULL || *mimetype == '\0')
+    {
+        return "application/octet-stream";
+    }
+
+    return mimetype;
 }
 
 static GFileInfo *
@@ -443,17 +487,30 @@ file_query_info (GFile               *file,
             g_file_info_set_attribute_string (info, FAVORITE_METADATA_KEY, META_TRUE);
             g_file_info_set_attribute_string (info, FAVORITE_AVAILABLE_METADATA_KEY, META_FALSE);
 
-            content_type = g_content_type_from_mime_type (priv->info->cached_mimetype);
+            /* An entry stored without its mimetype half still has to draw
+             * something - a NULL here used to cascade into four criticals. */
+            content_type = g_content_type_from_mime_type (mimetype_or_default (priv->info->cached_mimetype));
 
-            icon = g_content_type_get_icon (content_type);
-            g_file_info_set_icon (info, icon);
-            g_object_unref (icon);
+            if (content_type != NULL)
+            {
+                icon = g_content_type_get_icon (content_type);
 
-            icon = g_content_type_get_symbolic_icon (content_type);
-            g_file_info_set_symbolic_icon (info, icon);
-            g_object_unref (icon);
+                if (icon != NULL)
+                {
+                    g_file_info_set_icon (info, icon);
+                    g_object_unref (icon);
+                }
 
-            g_free (content_type);
+                icon = g_content_type_get_symbolic_icon (content_type);
+
+                if (icon != NULL)
+                {
+                    g_file_info_set_symbolic_icon (info, icon);
+                    g_object_unref (icon);
+                }
+
+                g_free (content_type);
+            }
         }
 
         g_object_unref (real_file);
@@ -563,7 +620,6 @@ file_query_filesystem_info (GFile         *file,
 
     if (priv->info != NULL && priv->info->uri != NULL)
     {
-        GFileInfo *info;
         GFile *real_file;
         real_file = g_file_new_for_uri (priv->info->uri);
 
@@ -572,7 +628,10 @@ file_query_filesystem_info (GFile         *file,
                                              cancellable,
                                              error);
 
-        if (g_file_attribute_matcher_matches (matcher, G_FILE_ATTRIBUTE_FILESYSTEM_READONLY))
+        /* An unmounted or deleted target answers NULL, with the reason already
+         * in *error - there is nothing here to decorate. */
+        if (info != NULL &&
+            g_file_attribute_matcher_matches (matcher, G_FILE_ATTRIBUTE_FILESYSTEM_READONLY))
         {
             g_file_info_set_attribute_boolean (info,
                                                G_FILE_ATTRIBUTE_FILESYSTEM_READONLY, TRUE);
@@ -1420,12 +1479,14 @@ GFile *nemo_favorite_vfs_file_new_for_uri (const char *uri)
         gchar *display_name;
 
         display_name = nemo_fav_uri_to_display_name (uri);
-        NemoFavoriteInfo *info = nemo_favorites_find_by_display_name (nemo_favorites_get_default (),
+
+        /* Copied under the list's own lock - this runs on GIO worker threads. */
+        NemoFavoriteInfo *info = _nemo_favorites_dup_by_display_name (nemo_favorites_get_default (),
                                                                       display_name);
 
         if (info != NULL)
         {
-            priv->info = nemo_favorite_info_copy (info);
+            priv->info = info;
         }
         else
         {

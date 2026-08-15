@@ -178,12 +178,19 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Cause: the repair walks symbolic links instead of skipping them, and changes ownership of whatever they point at.
 	- Note: the app itself suggests running this with administrator rights, so an unprivileged process could aim it at system files.
 
-- 🔘 Code Review 20260804 item 6. Favorites can hang the app or read freed memory.
+- ✅ Code Review 20260804 item 6. Favorites can hang the app or read freed memory.
 	- Cause: listing favorites can stop advancing and spin on one entry forever, leaking as it goes.
 	- Cause: the favorites list is rebuilt without locking while background threads are reading it.
 	- Cause: entries are stored with a separator that occurs in ordinary file names, so a file with two colons in its name silently repoints somewhere else.
 	- Cause: a blank entry, or one whose target no longer exists, crashes rather than being skipped.
 	- Cause: the "is this folder inside that one" test has its two sides swapped, and reads one byte past the end of the text.
+	- Fixed: the listing always moves on, and an entry that has gone away is left out instead of ending the whole folder.
+	- Fixed: the list has a lock, and the two lookups the background threads use hand back copies rather than pointers into it.
+	- Fixed: entries are stored the other way round, mimetype first, which cannot be split in the wrong place. Entries in the old order are still read, and rewritten on the next change.
+	- Fixed: blank entries are dropped, and a favorite with no mimetype or an unreachable target still lists and draws.
+	- Fixed: the inside-that-one test compares the right way round and stops at the end of the text.
+	- Verified: new test, every check proven against the old code. The listing spin runs until killed; the concurrent read segfaults; the missing target aborts on a critical; the rest fail their checks.
+	- Note: settings written by older versions keep working - only the write order changed, and both are read.
 
 - 🔘 Code Review 20260804 item 7. Favorites and thumbnails keep working after the object they belong to is gone.
 	- Cause: both release a shared settings object they never owned.
