@@ -97,10 +97,81 @@ enum
 
 static guint signals[LAST_SIGNAL] = {0, };
 
+/* The favorites:/// vfs sets supports_thread_contexts, so GIO reads this list
+ * from worker threads while the main thread tears the whole table down and
+ * rebuilds it on every stored change. Recursive because the mutating paths call
+ * back into the lookups. */
+static GRecMutex infos_lock;
+
 static void finish_add_favorite (NemoFavorites *favorites,
                                  const gchar   *uri,
                                  const gchar   *mimetype,
                                  gboolean       from_saved);
+
+/* Stored entries are "mimetype::uri". The mimetype comes first because a mime
+ * type can never contain a colon, so the first "::" is always the separator;
+ * the other way round, a file named "notes::draft.txt" silently repointed its
+ * favorite at "file:///home/u/notes". Entries written in the old order are
+ * still read - their first half carries the uri scheme's colon, which tells
+ * them apart - and get rewritten the next time the list is stored. */
+static gboolean
+parse_favorite_entry (const gchar  *entry,
+                      gchar       **uri,
+                      gchar       **mimetype)
+{
+    const gchar *sep;
+
+    *uri = NULL;
+    *mimetype = NULL;
+
+    if (entry == NULL || *entry == '\0')
+    {
+        return FALSE;
+    }
+
+    sep = strstr (entry, SETTINGS_DELIMITER);
+
+    if (sep == NULL)
+    {
+        /* No mimetype half was ever written for this one. */
+        *uri = g_strdup (entry);
+    }
+    else if (memchr (entry, ':', sep - entry) != NULL)
+    {
+        *uri = g_strndup (entry, sep - entry);
+        *mimetype = g_strdup (sep + strlen (SETTINGS_DELIMITER));
+    }
+    else
+    {
+        *mimetype = g_strndup (entry, sep - entry);
+        *uri = g_strdup (sep + strlen (SETTINGS_DELIMITER));
+    }
+
+    if (*mimetype != NULL && **mimetype == '\0')
+    {
+        g_clear_pointer (mimetype, g_free);
+    }
+
+    if (**uri == '\0')
+    {
+        g_clear_pointer (uri, g_free);
+        g_clear_pointer (mimetype, g_free);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gchar *
+format_favorite_entry (const NemoFavoriteInfo *info)
+{
+    /* Always emit the separator, even with nothing to put in front of it -
+     * g_strjoin would stop at a NULL mimetype and write a bare uri. */
+    return g_strconcat (info->cached_mimetype != NULL ? info->cached_mimetype : "",
+                        SETTINGS_DELIMITER,
+                        info->uri,
+                        NULL);
+}
 
 static gboolean
 changed_callback (gpointer data)
@@ -223,24 +294,22 @@ store_favorites (NemoFavorites *favorites)
 
     array = g_ptr_array_new ();
 
+    g_rec_mutex_lock (&infos_lock);
+
     keys = g_hash_table_get_keys (priv->infos);
 
     for (iter = keys; iter != NULL; iter = iter->next)
     {
         NemoFavoriteInfo *info = (NemoFavoriteInfo *) g_hash_table_lookup (priv->infos, iter->data);
-        gchar *entry;
 
-        entry = g_strjoin (SETTINGS_DELIMITER,
-                           info->uri,
-                           info->cached_mimetype,
-                           NULL);
-
-        g_ptr_array_add (array, entry);
+        g_ptr_array_add (array, format_favorite_entry (info));
     }
 
     g_ptr_array_add (array, NULL);
 
     g_list_free (keys);
+
+    g_rec_mutex_unlock (&infos_lock);
 
     new_settings = (gchar **) g_ptr_array_free (array, FALSE);
 
@@ -259,7 +328,9 @@ load_favorites (NemoFavorites *favorites,
 {
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
     gchar **raw_list;
-    gint i;
+    guint i, count;
+
+    g_rec_mutex_lock (&infos_lock);
 
     if (priv->infos != NULL)
     {
@@ -270,28 +341,29 @@ load_favorites (NemoFavorites *favorites,
                                          g_free, (GDestroyNotify) nemo_favorite_info_free);
 
     raw_list = nemo_config_get_strv (priv->settings, FAVORITES_KEY);
+    count = raw_list != NULL ? g_strv_length (raw_list) : 0;
 
-    if (!raw_list)
+    for (i = 0; i < count; i++)
     {
-        // no favorites
-        return;
-    }
+        gchar *uri, *mimetype;
 
-    for (i = 0; i < g_strv_length (raw_list); i++)
-    {
-        gchar **entry = g_strsplit (raw_list[i], SETTINGS_DELIMITER, 2);
+        if (!parse_favorite_entry (raw_list[i], &uri, &mimetype))
+        {
+            g_debug ("NemoFavorites: dropping unreadable favorites entry '%s'", raw_list[i]);
+            continue;
+        }
 
-        finish_add_favorite (favorites,
-                             entry[0],  // uri
-                             entry[1],  // cached_mimetype
-                             TRUE);
+        finish_add_favorite (favorites, uri, mimetype, TRUE);
 
-        g_strfreev (entry);
+        g_free (uri);
+        g_free (mimetype);
     }
 
     g_strfreev (raw_list);
 
-    g_debug ("NemoFavorites: load_favorite: favorites loaded (%d)", i);
+    g_rec_mutex_unlock (&infos_lock);
+
+    g_debug ("NemoFavorites: load_favorite: favorites loaded (%u)", count);
 
     if (signal_changed)
     {
@@ -307,6 +379,8 @@ rename_favorite (NemoFavorites *favorites,
     NemoFavoriteInfo *info;
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
     gchar *final_new_uri = NULL;
+
+    g_rec_mutex_lock (&infos_lock);
 
     if (g_str_has_prefix (old_uri, ROOT_URI))
     {
@@ -364,6 +438,8 @@ rename_favorite (NemoFavorites *favorites,
         g_free (mimetype);
     }
 
+    g_rec_mutex_unlock (&infos_lock);
+
     g_free (final_new_uri);
 }
 
@@ -394,8 +470,12 @@ remove_favorite (NemoFavorites *favorites,
     // to remove the favorite attribute.
     sync_file_metadata (favorites, real_uri, FALSE);
 
+    g_rec_mutex_lock (&infos_lock);
+
     if (!g_hash_table_remove (priv->infos, real_uri))
     {
+        g_rec_mutex_unlock (&infos_lock);
+
         g_debug ("NemoFavorites: remove_favorite: could not find favorite for uri '%s'", real_uri);
         g_free (real_uri);
         return;
@@ -404,9 +484,14 @@ remove_favorite (NemoFavorites *favorites,
     g_free (real_uri);
 
     store_favorites (favorites);
+
+    g_rec_mutex_unlock (&infos_lock);
+
     queue_changed (favorites);
 }
 
+/* Callers hold infos_lock - this walks the table and rewrites display names in
+ * place. */
 static void
 deduplicate_display_names (NemoFavorites *favorites,
                            GHashTable    *infos)
@@ -602,8 +687,12 @@ on_display_name_received (GObject      *source,
 
     if (file_info)
     {
-        NemoFavoriteInfo *info = g_hash_table_lookup (priv->infos,  uri);
+        NemoFavoriteInfo *info;
         const gchar *real_display_name = g_file_info_get_display_name (file_info);
+
+        g_rec_mutex_lock (&infos_lock);
+
+        info = g_hash_table_lookup (priv->infos, uri);
 
         if (info != NULL && g_strcmp0 (info->display_name, real_display_name) != 0)
         {
@@ -612,7 +701,13 @@ on_display_name_received (GObject      *source,
             g_free (old_name);
 
             deduplicate_display_names (favorites, priv->infos);
+
+            g_rec_mutex_unlock (&infos_lock);
             queue_changed (favorites);
+        }
+        else
+        {
+            g_rec_mutex_unlock (&infos_lock);
         }
     }
 
@@ -630,9 +725,15 @@ finish_add_favorite (NemoFavorites *favorites,
     NemoFavoriteInfo *info;
     gchar *unescaped_uri;
 
+    g_return_if_fail (uri != NULL);
+
+    g_rec_mutex_lock (&infos_lock);
+
     // Check if it's there again, in case it was added while we were getting mimetype.
     if (g_hash_table_contains (priv->infos, uri))
     {
+        g_rec_mutex_unlock (&infos_lock);
+
         g_debug ("NemoFavorites: favorite for '%s' exists, ignoring", uri);
         return;
     }
@@ -651,6 +752,8 @@ finish_add_favorite (NemoFavorites *favorites,
     g_debug ("NemoFavorites: added favorite: %s", uri);
 
     deduplicate_display_names (favorites, priv->infos);
+
+    g_rec_mutex_unlock (&infos_lock);
 
     GFile *gfile = g_file_new_for_uri (uri);
     g_file_query_info_async (gfile,
@@ -725,8 +828,13 @@ add_favorite (NemoFavorites *favorites,
 {
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
     GFile *file;
+    gboolean known;
 
-    if (g_hash_table_contains (priv->infos, uri))
+    g_rec_mutex_lock (&infos_lock);
+    known = g_hash_table_contains (priv->infos, uri);
+    g_rec_mutex_unlock (&infos_lock);
+
+    if (known)
     {
         g_debug ("NemoFavorites: favorite for '%s' exists, ignoring", uri);
         return;
@@ -778,7 +886,10 @@ nemo_favorites_dispose (GObject *object)
     g_debug ("NemoFavorites dispose (%p)", object);
 
     g_clear_object (&priv->settings);
+
+    g_rec_mutex_lock (&infos_lock);
     g_clear_pointer (&priv->infos, g_hash_table_destroy);
+    g_rec_mutex_unlock (&infos_lock);
 
     G_OBJECT_CLASS (nemo_favorites_parent_class)->dispose (object);
 }
@@ -889,9 +1000,12 @@ nemo_favorites_get_favorites (NemoFavorites       *favorites,
 
     data.items = NULL;
     data.mimetypes = (const gchar **) mimetypes;
+
+    g_rec_mutex_lock (&infos_lock);
     g_hash_table_foreach (priv->infos,
                           (GHFunc) match_mimetypes,
                           &data);
+    g_rec_mutex_unlock (&infos_lock);
 
     ret = g_list_reverse (data.items);
 
@@ -918,7 +1032,9 @@ nemo_favorites_get_n_favorites (NemoFavorites *favorites)
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
     gint n;
 
+    g_rec_mutex_lock (&infos_lock);
     n = g_hash_table_size (priv->infos);
+    g_rec_mutex_unlock (&infos_lock);
 
     g_debug ("NemoFavorites: get_n_favorites returning number of items: %d.", n);
 
@@ -948,7 +1064,8 @@ lookup_display_name (gpointer key,
  * Looks for an NemoFavoriteInfo that corresponds to @display_name.
  *
  * Returns: (transfer none): an NemoFavoriteInfo or NULL if one was not found. This is owned
- *          by the favorites manager and should not be freed.
+ *          by the favorites manager and should not be freed. Only safe to hold on
+ *          the main thread - use _nemo_favorites_dup_by_display_name off it.
  *
  * Since: 2.0
  */
@@ -962,16 +1079,61 @@ nemo_favorites_find_by_display_name (NemoFavorites *favorites,
     NemoFavoriteInfo *info;
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
 
+    g_rec_mutex_lock (&infos_lock);
+
     info = g_hash_table_find (priv->infos,
                               (GHRFunc) lookup_display_name,
                               (gpointer) display_name);
 
-    if (info != NULL)
-    {
-        return info;
-    }
+    g_rec_mutex_unlock (&infos_lock);
 
-    return NULL;
+    return info;
+}
+
+/* The two below exist so the vfs, which runs on GIO worker threads, never holds
+ * a borrowed pointer into a table the main thread may replace. */
+gboolean
+_nemo_favorites_has_display_name (NemoFavorites *favorites,
+                                  const gchar   *display_name)
+{
+    g_return_val_if_fail (NEMO_IS_FAVORITES (favorites), FALSE);
+    g_return_val_if_fail (display_name != NULL, FALSE);
+
+    NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
+    gboolean found;
+
+    g_rec_mutex_lock (&infos_lock);
+
+    found = g_hash_table_find (priv->infos,
+                               (GHRFunc) lookup_display_name,
+                               (gpointer) display_name) != NULL;
+
+    g_rec_mutex_unlock (&infos_lock);
+
+    return found;
+}
+
+NemoFavoriteInfo *
+_nemo_favorites_dup_by_display_name (NemoFavorites *favorites,
+                                     const gchar   *display_name)
+{
+    g_return_val_if_fail (NEMO_IS_FAVORITES (favorites), NULL);
+    g_return_val_if_fail (display_name != NULL, NULL);
+
+    NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
+    NemoFavoriteInfo *info, *copy;
+
+    g_rec_mutex_lock (&infos_lock);
+
+    info = g_hash_table_find (priv->infos,
+                              (GHRFunc) lookup_display_name,
+                              (gpointer) display_name);
+
+    copy = info != NULL ? nemo_favorite_info_copy (info) : NULL;
+
+    g_rec_mutex_unlock (&infos_lock);
+
+    return copy;
 }
 
 /**
@@ -996,14 +1158,11 @@ nemo_favorites_find_by_uri (NemoFavorites *favorites,
     NemoFavoriteInfo *info;
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
 
+    g_rec_mutex_lock (&infos_lock);
     info = g_hash_table_lookup (priv->infos, uri);
+    g_rec_mutex_unlock (&infos_lock);
 
-    if (info != NULL)
-    {
-        return (NemoFavoriteInfo *) info;
-    }
-
-    return NULL;
+    return info;
 }
 
 /**
@@ -1067,7 +1226,8 @@ nemo_favorites_rename (NemoFavorites *favorites,
 }
 
 
-/* Used by nemo_favorite_vfs_file */
+/* Used by nemo_favorite_vfs_file. The names are copies - the caller reads them
+ * on a worker thread, where the table itself is not its to hold. */
 GList *
 _nemo_favorites_get_display_names (NemoFavorites *favorites)
 {
@@ -1078,13 +1238,18 @@ _nemo_favorites_get_display_names (NemoFavorites *favorites)
     gpointer key, value;
 
     ret = NULL;
+
+    g_rec_mutex_lock (&infos_lock);
+
     g_hash_table_iter_init (&iter, priv->infos);
 
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
         NemoFavoriteInfo *info = (NemoFavoriteInfo *) value;
-        ret = g_list_prepend (ret, info->display_name);
+        ret = g_list_prepend (ret, g_strdup (info->display_name));
     }
+
+    g_rec_mutex_unlock (&infos_lock);
 
     ret = g_list_reverse (ret);
     return ret;

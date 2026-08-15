@@ -36,6 +36,14 @@ void                  nemo_favorites_rename                 (NemoFavorites *favo
                                                              const gchar   *old_uri,
                                                              const gchar   *new_uri);
 
+/* For the favorites:/// vfs, which runs on GIO worker threads and so must not
+ * keep a pointer into the list itself. */
+GList                *_nemo_favorites_get_display_names      (NemoFavorites *favorites);
+gboolean              _nemo_favorites_has_display_name       (NemoFavorites *favorites,
+                                                              const gchar   *display_name);
+NemoFavoriteInfo     *_nemo_favorites_dup_by_display_name    (NemoFavorites *favorites,
+                                                              const gchar   *display_name);
+
 /**
  * NemoFavoriteInfo:
  * @uri: The uri to the favorite file.
