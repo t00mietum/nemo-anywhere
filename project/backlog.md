@@ -418,10 +418,12 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: heap-allocate the paste struct, free it in the receive callback.
 	- Cause: a stack struct is handed to an async clipboard callback that runs after the function returns.
 
-- 🔘 Item 25. install.bash deletes the existing install before the replacement is in place.
+- ✅ Item 25. install.bash deletes the existing install before the replacement is in place.
+	- Fix: stage beside the prefix (cp onto its own filesystem first), then swap with same-filesystem renames and roll back on failure; the old install is only dropped once the new one is in place.
 	- Cause: a cross-filesystem move that fails partway leaves nothing installed, and the temp copy is then wiped on abort.
 
-- 🔘 Item 26. install.ps1 can half-delete a running install.
+- ✅ Item 26. install.ps1 can half-delete a running install.
+	- Fix: same stage-beside-then-swap as bash, plus fInUse now reads paths via Win32_Process (covers protected/cross-session processes) with a separator boundary guard. Windows file-locking edge cases still want the real-Windows pass.
 	- Cause: a process whose path cannot be read is treated as not running, so the delete proceeds against a locked copy and throws partway.
 
 - ✅ Item 27. A partial extension crashes every location load.
@@ -508,7 +510,9 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 48. The Windows trash test writes past a buffer.
 	- Cause: a 64-bit size is written through a 32-bit pointer on Windows, so half the length is stack garbage that then sizes and indexes a buffer.
 
-- 🔘 Item 49. The dogfood launcher mangles pass-through arguments containing quotes or trailing backslashes.
+- ✅ Item 49. The dogfood launcher mangles pass-through arguments containing quotes or trailing backslashes.
+	- Fix: fQuoteArg now does full MSVCRT-style quoting and is applied to every Start-Process ArgumentList element (not just whitespace ones), and the sh round-trip uses a clean `exec "$0" "$@"` script. Verified end-to-end on Linux with space/quote/trailing-backslash args; the old form also split plain spaced args.
+	- Cause: Start-Process joins ArgumentList with a naive space join and the target re-splits it, so only-whitespace bare-quoting lost quotes, backslashes, and even split spaced args in the sh round trip.
 
 - 🔘 Item 50. Typing a UNC path blocks the whole window on a network probe.
 	- Cause: the backslash-to-slash retry does synchronous existence checks on the UI thread, so an unreachable host stalls for the full network timeout before the location even opens.

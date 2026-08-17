@@ -388,14 +388,29 @@ if [[ "$(printf '%s\n' "$entries" | wc -l | tr -d ' ')" == "1" && -d "${tree}/${
 fi
 [[ -x "${tree}/bin/${EXE_NAME}" ]] || fDie "archive has no bin/${EXE_NAME} - wrong or damaged package"
 
-$priv rm -rf "$prefix"
+## Stage beside the prefix, on its own filesystem, so the cross-device copy
+## out of TMPDIR happens before the existing install is touched. Then swap with
+## same-filesystem renames, which are atomic and cannot fail partway - a plain
+## cross-device "mv $tree $prefix" could die mid-copy and lose both installs.
 $priv mkdir -p "$(dirname "$prefix")"
-$priv mv "$tree" "$prefix"
+staging="$(dirname "$prefix")/.${EXE_NAME}-install.$$"
+backup="${prefix}.old.$$"
+$priv rm -rf "$staging" "$backup"
+$priv cp -a "$tree" "$staging" || { $priv rm -rf "$staging"; fDie "could not stage the new install"; }
 if [[ "$target" == "system" ]]; then
 	## Staged as the invoking user; a system prefix must not stay user-writable.
-	$priv chown -R 0:0 "$prefix" 2>/dev/null || true
-	$priv chmod -R a+rX "$prefix"
+	$priv chown -R 0:0 "$staging" 2>/dev/null || true
+	$priv chmod -R a+rX "$staging"
 fi
+if [[ -e "$prefix" ]]; then
+	$priv mv "$prefix" "$backup" || { $priv rm -rf "$staging"; fDie "could not move the existing install aside"; }
+fi
+if ! $priv mv "$staging" "$prefix"; then
+	[[ -e "$backup" ]] && $priv mv "$backup" "$prefix"
+	$priv rm -rf "$staging"
+	fDie "could not move the new install into place"
+fi
+$priv rm -rf "$backup"
 fEcho_Clean "prefix installed at ${prefix}"
 
 fInstallLauncher

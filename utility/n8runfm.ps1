@@ -525,7 +525,7 @@ function fStartApp {
 
 	if (-not $IsWindows) {
 		$env:N8RUNFM_APPLOG = $AppLog
-		$shArgs = @("-c", '"exec \"$0\" \"$@\" </dev/null >>\"$N8RUNFM_APPLOG\" 2>&1"', (fQuoteArg $Exe))
+		$shArgs = @("-c", 'exec "$0" "$@" </dev/null >>"$N8RUNFM_APPLOG" 2>&1', $Exe)
 		if ($ArgList -and $ArgList.Count) { $shArgs += $ArgList }
 
 		$setsid = fFindOnPath "setsid"
@@ -540,6 +540,14 @@ function fStartApp {
 		}
 	}
 
+	## Start-Process joins ArgumentList into one command line with a naive space
+	## join and no quoting, then the target re-splits it (.NET on unix, the MSVCRT
+	## parser on Windows). Quote every element so args with spaces, quotes or
+	## trailing backslashes survive that round trip.
+	if ($sp.ArgumentList) {
+		$sp.ArgumentList = @($sp.ArgumentList | ForEach-Object { fQuoteArg $_ })
+	}
+
 	try {
 		$proc = Start-Process @sp
 	} catch {
@@ -551,12 +559,31 @@ function fStartApp {
 }
 
 
-## Wrap an argument in double quotes if it contains whitespace, so Start-Process
-## passes it as a single argv entry.
+## Quote one argument so it survives Start-Process joining ArgumentList into a
+## single command line and the target re-splitting it. MSVCRT/CommandLineToArgvW
+## rules: only quote when needed; double the backslashes that precede a quote or
+## end the arg; escape embedded quotes.
 function fQuoteArg {
 	param([string]$Arg)
-	if ($Arg -match '\s') { return '"' + $Arg + '"' }
-	return $Arg
+	if ($Arg -ne '' -and $Arg -notmatch '[\s"]') { return $Arg }
+	$sb = [System.Text.StringBuilder]::new()
+	[void]$sb.Append('"')
+	$slashes = 0
+	foreach ($ch in $Arg.ToCharArray()) {
+		if ($ch -eq '\') {
+			$slashes++
+		} elseif ($ch -eq '"') {
+			[void]$sb.Append('\', ($slashes * 2) + 1)
+			[void]$sb.Append('"')
+			$slashes = 0
+		} else {
+			if ($slashes -gt 0) { [void]$sb.Append('\', $slashes); $slashes = 0 }
+			[void]$sb.Append($ch)
+		}
+	}
+	if ($slashes -gt 0) { [void]$sb.Append('\', $slashes * 2) }
+	[void]$sb.Append('"')
+	return $sb.ToString()
 }
 
 
