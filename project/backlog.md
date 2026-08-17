@@ -514,19 +514,22 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: fQuoteArg now does full MSVCRT-style quoting and is applied to every Start-Process ArgumentList element (not just whitespace ones), and the sh round-trip uses a clean `exec "$0" "$@"` script. Verified end-to-end on Linux with space/quote/trailing-backslash args; the old form also split plain spaced args.
 	- Cause: Start-Process joins ArgumentList with a naive space join and the target re-splits it, so only-whitespace bare-quoting lost quotes, backslashes, and even split spaced args in the sh round trip.
 
-- 🔘 Item 50. Typing a UNC path blocks the whole window on a network probe.
+- ✅ Item 50. Typing a UNC path blocks the whole window on a network probe.
+	- Fix: skip the sync existence probe for `\\host\share` input (structural backslashes, not a pasted local path) and hand it to the async load path.
 	- Cause: the backslash-to-slash retry does synchronous existence checks on the UI thread, so an unreachable host stalls for the full network timeout before the location even opens.
 
 - 🔘 Item 51. Failed thumbnails are re-decoded on every icon fetch.
 	- Cause: the app records failures under its own name, which the system's "failed" flag never reads, so every failed file re-hashes and re-decodes a PNG on each fetch. In list view that is per row per draw.
 
-- 🔘 Item 52. Content search buffers whole files into memory with no cap.
+- ✅ Item 52. Content search buffers whole files into memory with no cap.
+	- Fix: cap the per-file read at 16 MB (it is copied twice more downstream), so an unbounded stream can't exhaust the worker thread.
 	- Cause: each candidate text file is read entirely, then copied again to validate and strip, so a multi-gigabyte file can freeze or exhaust memory.
 
 - 🔘 Item 53. The list view rebuilds and rescales each icon on every row draw.
 	- Cause: the icon, emblems and a fresh surface are assembled with no caching, and thumbnails are rescaled every time, so any redraw re-does the work for every visible row.
 
-- 🔘 Item 54. The list view re-invalidates visible thumbnails on every scroll pause.
+- ✅ Item 54. The list view re-invalidates visible thumbnails on every scroll pause.
+	- Fix: drop the unused shown fetch and invalidate only on the first-in-view transition (deferred-attrs NO->YES), matching the icon-container twin.
 	- Cause: an already-loaded flag is fetched and then ignored, so every visible file's thumbnail and extension info are re-read at each scroll settle.
 
 #### Low

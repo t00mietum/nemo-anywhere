@@ -2347,7 +2347,6 @@ prioritize_visible_files (NemoListView *view)
                                            1, cy,
                                            &path, NULL, NULL, NULL)) {
             NemoFile *file;
-            gboolean shown;
 
             gtk_tree_model_get_iter (GTK_TREE_MODEL (view->details->model),
                                      &iter, path);
@@ -2355,23 +2354,22 @@ prioritize_visible_files (NemoListView *view)
             gtk_tree_path_free (path);
             gtk_tree_model_get (GTK_TREE_MODEL (view->details->model),
                                 &iter,
-                                NEMO_LIST_MODEL_ICON_SHOWN, &shown,
                                 NEMO_LIST_MODEL_FILE_COLUMN, &file, -1);
 
             /* We'll catch some files twice, so filter them out */
             if (file != NULL && file != last_file) {
                 last_file = file;
 
-                if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
-                    nemo_file_set_load_deferred_attrs (file, NEMO_FILE_LOAD_DEFERRED_ATTRS_YES);
-                }
-
                 if (nemo_file_is_thumbnailing (file)) {
                     gchar *uri = nemo_file_get_uri (file);
 
                     nemo_thumbnail_prioritize (uri);
                     g_free (uri);
-                } else {
+                } else if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
+                    /* First time in view: mark it and pull deferred attrs once,
+                     * rather than re-invalidating on every debounced scroll (the
+                     * icon-container twin guards the same way). */
+                    nemo_file_set_load_deferred_attrs (file, NEMO_FILE_LOAD_DEFERRED_ATTRS_YES);
                     nemo_file_invalidate_attributes (file, NEMO_FILE_DEFERRED_ATTRIBUTES);
                 }
             }

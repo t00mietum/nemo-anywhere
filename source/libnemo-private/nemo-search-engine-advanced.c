@@ -766,6 +766,9 @@ create_snippet (GMatchInfo  *match_info,
     return snippet;
 }
 
+/* Upper bound on how much of one file content search will read into memory. */
+#define MAX_CONTENT_SCAN_BYTES (16 * 1024 * 1024)
+
 static gchar *
 load_contents (SearchThreadData *data,
                GFile            *file,
@@ -801,8 +804,13 @@ load_contents (SearchThreadData *data,
             break;
         }
 
-        if (chunk != NULL) {
-            g_string_append_len (str, chunk, len);
+        g_string_append_len (str, chunk, len);
+
+        /* Cap how much of a single file we scan: it is copied twice more below
+         * (make_valid + newline strip), so an unbounded stream would otherwise
+         * exhaust the worker thread. */
+        if (str->len >= MAX_CONTENT_SCAN_BYTES) {
+            break;
         }
     } while (!g_cancellable_is_cancelled (data->cancellable));
 

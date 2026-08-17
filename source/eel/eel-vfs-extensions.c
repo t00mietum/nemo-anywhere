@@ -105,6 +105,14 @@ eel_g_file_new_for_user_input (const char *text)
 
 	location = g_file_parse_name (text);
 
+	/* A UNC path (\\host\share) is structural backslashes, not a pasted local
+	 * path needing conversion - and probing its existence here would block the
+	 * UI thread for the full SMB timeout on an unreachable-but-resolvable host.
+	 * Hand it off as-is; the async folder load deals with reachability. */
+	if (g_str_has_prefix (text, "\\\\")) {
+		return location;
+	}
+
 	if (strchr (text, '\\') != NULL &&
 	    g_file_is_native (location) &&
 	    !g_file_query_exists (location, NULL)) {
