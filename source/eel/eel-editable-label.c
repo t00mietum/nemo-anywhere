@@ -3977,6 +3977,7 @@ eel_editable_label_accessible_paste_received (GtkClipboard *clipboard,
        &(paste_struct->position));
 
   g_object_unref (paste_struct->label);
+  g_free (paste_struct);
 }
 
 static void
@@ -3985,7 +3986,7 @@ eel_editable_label_accessible_paste_text (AtkEditableText *text,
 {
   GtkWidget *widget;
   GtkEditable *editable;
-  EelEditableLabelAccessiblePaste paste_struct;
+  EelEditableLabelAccessiblePaste *paste_struct;
 
   widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (text));
   if (widget == NULL)
@@ -3995,12 +3996,17 @@ eel_editable_label_accessible_paste_text (AtkEditableText *text,
   editable = GTK_EDITABLE (widget);
   if (!gtk_editable_get_editable (editable))
     return;
-  paste_struct.label = EEL_EDITABLE_LABEL (widget);
-  paste_struct.position = position;
 
-  g_object_ref (paste_struct.label);
+  /* Heap, not stack: the reply can arrive after we return when the clipboard
+   * is owned by another process. Freed in the receive callback. */
+  paste_struct = g_new (EelEditableLabelAccessiblePaste, 1);
+  paste_struct->label = EEL_EDITABLE_LABEL (widget);
+  paste_struct->position = position;
+
+  g_object_ref (paste_struct->label);
   gtk_clipboard_request_text (gtk_clipboard_get (GDK_NONE),
-    eel_editable_label_accessible_paste_received, &paste_struct);
+    eel_editable_label_accessible_paste_received, paste_struct);
+  /* cppcheck-suppress memleak - paste_struct is owned by the async callback, freed there */
 }
 
 static void

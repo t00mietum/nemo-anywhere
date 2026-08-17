@@ -93,6 +93,38 @@ test_stored_order (NemoFavorites *favorites)
 	check (nemo_favorites_find_by_uri (favorites, "file:///tmp/two.txt") != NULL);
 }
 
+/* Two favorites sharing a basename AND a parent basename must still end up
+ * with distinct display names - the name is the favorites:/// identity, so a
+ * collision would make one unreachable. */
+static void
+test_dedup_display_names (NemoFavorites *favorites)
+{
+	const char *const entries[] = {
+		"text/plain::file:///aaa/docs/report.txt",
+		"text/plain::file:///bbb/docs/report.txt",
+		NULL
+	};
+	NemoFavoriteInfo *a, *b;
+
+	seed (entries);
+
+	check (nemo_favorites_get_n_favorites (favorites) == 2);
+
+	a = nemo_favorites_find_by_uri (favorites, "file:///aaa/docs/report.txt");
+	b = nemo_favorites_find_by_uri (favorites, "file:///bbb/docs/report.txt");
+	check (a != NULL && b != NULL);
+	check (a != NULL && b != NULL &&
+	       g_strcmp0 (a->display_name, b->display_name) != 0);
+
+	/* Each name resolves back to its own uri, not the first-hashed twin. */
+	if (a != NULL && b != NULL) {
+		NemoFavoriteInfo *ra = nemo_favorites_find_by_display_name (favorites, a->display_name);
+		NemoFavoriteInfo *rb = nemo_favorites_find_by_display_name (favorites, b->display_name);
+		check (ra != NULL && g_strcmp0 (ra->uri, "file:///aaa/docs/report.txt") == 0);
+		check (rb != NULL && g_strcmp0 (rb->uri, "file:///bbb/docs/report.txt") == 0);
+	}
+}
+
 /* --- vfs ------------------------------------------------------------------ */
 
 static void
@@ -401,6 +433,8 @@ main (int argc, char *argv[])
 		test_entry_parsing (favorites);
 	if (want ("stored-order", argc, argv))
 		test_stored_order (favorites);
+	if (want ("dedup", argc, argv))
+		test_dedup_display_names (favorites);
 	if (want ("prefix", argc, argv))
 		test_prefix_matches ();
 	if (want ("enumerator", argc, argv))

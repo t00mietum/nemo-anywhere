@@ -1516,8 +1516,14 @@ nemo_action_activate (NemoAction *action,
     exec = expand_action_string (action, selection, parent, exec, window);
 
     if (priv->use_parent_dir) {
-        exec = g_string_prepend (exec, G_DIR_SEPARATOR_S);
-        exec = g_string_prepend (exec, action->parent_dir);
+        /* Quote dir+separator as one token so a space (or the win32 backslash
+         * separator) survives g_shell_parse_argv; the program name follows
+         * unquoted and joins into a single word. */
+        gchar *prefix = g_strconcat (action->parent_dir, G_DIR_SEPARATOR_S, NULL);
+        gchar *quoted = g_shell_quote (prefix);
+        exec = g_string_prepend (exec, quoted);
+        g_free (quoted);
+        g_free (prefix);
     }
 
     DEBUG ("Action Spawning: %s", exec->str);
@@ -1707,8 +1713,11 @@ check_exec_condition (NemoAction  *action,
     exec = expand_action_string (action, selection, parent, exec, window);
 
     if (use_parent_dir) {
-        exec = g_string_prepend (exec, G_DIR_SEPARATOR_S);
-        exec = g_string_prepend (exec, action->parent_dir);
+        gchar *prefix = g_strconcat (action->parent_dir, G_DIR_SEPARATOR_S, NULL);
+        gchar *quoted = g_shell_quote (prefix);
+        exec = g_string_prepend (exec, quoted);
+        g_free (quoted);
+        g_free (prefix);
     }
 
     DEBUG ("Checking exec condition: %s", exec->str);

@@ -1047,11 +1047,14 @@ paste_into_clipboard_received_callback (GtkClipboard     *clipboard,
 
 	view = FM_TREE_VIEW (data);
 
-	directory_uri = nemo_file_get_uri (view->details->popup_file);
+	/* popup_file can be cleared in idle before this async reply lands. */
+	if (view->details->popup_file != NULL) {
+		directory_uri = nemo_file_get_uri (view->details->popup_file);
+		paste_clipboard_data (view, selection_data, directory_uri);
+		g_free (directory_uri);
+	}
 
-	paste_clipboard_data (view, selection_data, directory_uri);
-
-	g_free (directory_uri);
+	g_object_unref (view);
 }
 
 static void
@@ -1060,7 +1063,7 @@ fm_tree_view_paste_cb (GtkAction *action,
 {
 	gtk_clipboard_request_contents (nemo_clipboard_get (GTK_WIDGET (view->details->tree_widget)),
 					copied_files_atom,
-					paste_into_clipboard_received_callback, view);
+					paste_into_clipboard_received_callback, g_object_ref (view));
 }
 
 static GtkWindow *
