@@ -1432,6 +1432,13 @@ add_sorted_view_uris (GList *uris,
 	found_selected_uri = FALSE;
 	selected_uri = uris->data;
 
+	// slot is a weak pointer cleared when the tab closes mid-open; with no
+	// slot there is no view to sort against, so leave uris as-is (the single
+	// selected image still opens, just without the wrap-around loop).
+	if (parameters->slot == NULL || parameters->slot->content_view == NULL) {
+		return;
+	}
+
 	// Construct a list starting with selected_uri, that will form a correctly
 	// ordered loop in the image viewer, if the back of the list wraps around
 	// to the front and vice versa.

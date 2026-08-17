@@ -586,6 +586,9 @@ nemo_desktop_thumbnail_factory_add_thumbnailer (NemoDesktopThumbnailFactory *fac
   priv->thumbnailers = g_list_prepend (priv->thumbnailers, thumb);
 }
 
+/* Reads priv->disabled / priv->disabled_types, both mutated under priv->lock.
+ * Caller MUST hold priv->lock (both call sites do). Not locked here because
+ * the lock is non-recursive and one caller already holds it. */
 static gboolean
 nemo_desktop_thumbnail_factory_is_disabled (NemoDesktopThumbnailFactory *factory,
                                              const gchar                  *mime_type)
@@ -1162,12 +1165,17 @@ nemo_desktop_thumbnail_factory_can_thumbnail (NemoDesktopThumbnailFactory *facto
   if (!mime_type)
     return FALSE;
 
+  /* is_disabled reads priv->disabled and walks priv->disabled_types, both
+   * replaced under priv->lock by the settings callbacks - so hold the lock
+   * here too (generate_thumbnail already does). is_disabled stays lock-free
+   * because that other caller invokes it with the lock already held. */
+  g_mutex_lock (&factory->priv->lock);
+
   if (nemo_desktop_thumbnail_factory_is_disabled (factory, mime_type))
     {
+      g_mutex_unlock (&factory->priv->lock);
       return FALSE;
     }
-
-  g_mutex_lock (&factory->priv->lock);
 
   Thumbnailer *thumb;
   thumb = g_hash_table_lookup (factory->priv->mime_types_map, mime_type);

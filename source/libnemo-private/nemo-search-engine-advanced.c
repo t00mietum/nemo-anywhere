@@ -1029,9 +1029,13 @@ visit_directory (GFile *dir, SearchThreadData *data)
 		normalized = g_utf8_normalize (display_name, -1, G_NORMALIZE_NFD);
 
         if (data->file_use_regex) {
-            GMatchInfo *match_info;
-            hit = g_regex_match (data->filename_re, normalized, 0, &match_info);
-            g_match_info_unref (match_info);
+            GMatchInfo *match_info = NULL;
+
+            /* filename_re is NULL when the pattern failed to compile (warned
+             * at setup); match nothing rather than crash per file. */
+            hit = data->filename_re != NULL &&
+                  g_regex_match (data->filename_re, normalized, 0, &match_info);
+            g_clear_pointer (&match_info, g_match_info_unref);
         } else {
             gchar *cased;
 

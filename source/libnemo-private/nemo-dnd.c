@@ -189,16 +189,16 @@ nemo_drag_uri_list_from_array (const char **uris)
 	return g_list_reverse (uri_list);
 }
 
+/* Split out from the public entry so the parser can be exercised on raw
+   bytes; GtkSelectionData is opaque and cannot be built in a test. */
 GList *
-nemo_drag_build_selection_list (GtkSelectionData *data)
+nemo_drag_build_selection_list_from_raw (const guchar *raw, int size)
 {
 	GList *result;
 	const guchar *p, *oldp;
-	int size;
 
 	result = NULL;
-	oldp = gtk_selection_data_get_data (data);
-	size = gtk_selection_data_get_length (data);
+	oldp = raw;
 
 	while (size > 0) {
 		NemoDragSelectionItem *item;
@@ -226,13 +226,18 @@ nemo_drag_build_selection_list (GtkSelectionData *data)
 		item->uri[len] = 0;
 
 		p++;
+		/* p may now sit one past the payload, where GtkSelectionData
+		   guarantees a NUL. */
 		if (*p == '\n' || *p == '\0') {
 			result = g_list_prepend (result, item);
-			if (p == 0) {
+			if (*p == '\0') {
 				g_warning ("Invalid x-special/gnome-icon-list data received: "
 					   "missing newline character.");
 				break;
 			} else {
+				/* same bookkeeping as the geometry path, or the next
+				   memchr scans past the end of the data */
+				size -= (p + 1) - oldp;
 				oldp = p + 1;
 				continue;
 			}
@@ -269,6 +274,14 @@ nemo_drag_build_selection_list (GtkSelectionData *data)
 	}
 
 	return g_list_reverse (result);
+}
+
+GList *
+nemo_drag_build_selection_list (GtkSelectionData *data)
+{
+	return nemo_drag_build_selection_list_from_raw (
+		gtk_selection_data_get_data (data),
+		gtk_selection_data_get_length (data));
 }
 
 static gboolean

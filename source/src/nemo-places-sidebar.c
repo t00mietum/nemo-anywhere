@@ -4568,6 +4568,18 @@ nemo_places_sidebar_dispose (GObject *object)
 					      desktop_setting_changed_callback,
 					      sidebar);
 
+	/* init also connects this to nemo_desktop_preferences (show-desktop),
+	 * and set_parent_window connects reset_menu to nemo_preferences; both
+	 * config groups are process-global, so a later change would fire on the
+	 * freed sidebar (the fork's live settings reload makes this reachable). */
+	g_signal_handlers_disconnect_by_func (nemo_desktop_preferences,
+					      desktop_setting_changed_callback,
+					      sidebar);
+
+	g_signal_handlers_disconnect_by_func (nemo_preferences,
+					      reset_menu,
+					      sidebar);
+
     nemo_desktop_settings_unwatch (sidebar);
 
     g_signal_handlers_disconnect_by_func (nemo_favorites_get_default (),

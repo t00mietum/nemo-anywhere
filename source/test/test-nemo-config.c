@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gio/gio.h>
+#include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
 #include <libnemo-private/nemo-config.h>
@@ -306,6 +307,82 @@ test_external_edit (NemoConfigGroup *prefs)
 	g_free (path);
 }
 
+/* A file that exists but cannot be read (share lock, or the delete half of a
+ * non-atomic external save) must not swap defaults into memory - a queued
+ * save would then wipe the real file. Simulated by putting a directory at
+ * the config path, which fails the read on any platform and any uid. */
+static void
+test_unreadable_file_kept (NemoConfigGroup *prefs)
+{
+	char *path = nemo_config_get_path ();
+	int   spins = 0;
+
+	nemo_config_set_boolean (prefs, "show-hidden-files", TRUE);
+	nemo_config_flush ();
+
+	g_remove (path);
+	g_mkdir (path, 0700);
+
+	/* let the monitor's DELETED/CREATED events land */
+	while (spins++ < 100) {
+		g_main_context_iteration (NULL, FALSE);
+		g_usleep (10000);
+	}
+
+	check (nemo_config_get_boolean (prefs, "show-hidden-files") == TRUE);
+
+	g_rmdir (path);
+	nemo_config_set_boolean (prefs, "show-hidden-files", FALSE);
+	nemo_config_flush ();
+	g_free (path);
+}
+
+/* strstr and even g_strstr_len stop at an embedded NUL, which is the very
+ * byte under test - so search the raw buffer by hand. */
+static gboolean
+buf_contains (const char *buf, gsize len, const char *needle)
+{
+	gsize nlen = strlen (needle);
+	gsize i;
+
+	for (i = 0; nlen > 0 && i + nlen <= len; i++)
+		if (memcmp (buf + i, needle, nlen) == 0)
+			return TRUE;
+	return FALSE;
+}
+
+/* SHCL is NUL-transparent, so a NUL that came in from the file must survive
+ * the next save instead of truncating everything after it. */
+static void
+test_nul_survives_save (NemoConfigGroup *window_state)
+{
+	char        *path = nemo_config_get_path ();
+	const char   before[] = "window-state:\n\tgeometry: \"a\0b\"\n\tsidebar-width: 444\n";
+	char        *text = NULL;
+	gsize        len = 0;
+	int          spins = 0;
+
+	changed_count = 0;
+	g_signal_connect (window_state, "changed::sidebar-width",
+	                  G_CALLBACK (on_changed), NULL);
+
+	g_file_set_contents (path, before, sizeof (before) - 1, NULL);
+	while (changed_count == 0 && spins++ < 200) {
+		g_main_context_iteration (NULL, FALSE);
+		g_usleep (10000);
+	}
+	check (nemo_config_get_int (window_state, "sidebar-width") == 444);
+
+	nemo_config_set_int (window_state, "sidebar-width", 445);
+	nemo_config_flush ();
+
+	g_file_get_contents (path, &text, &len, NULL);
+	check (text != NULL && memchr (text, '\0', len) != NULL);
+	check (text != NULL && buf_contains (text, len, "sidebar-width"));
+	g_free (text);
+	g_free (path);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -334,6 +411,8 @@ main (int argc, char *argv[])
 	test_comment_written_once (window_state);
 	test_persistence ();
 	test_external_edit (prefs);
+	test_unreadable_file_kept (prefs);
+	test_nul_survives_save (window_state);
 
 	nemo_config_shutdown ();
 	g_free (tmp);

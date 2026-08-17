@@ -117,6 +117,14 @@ prepend_terminal_to_command_line (const char *command_line)
         g_free (term_path);
     }
 
+    /* No configured terminal and none of the known ones on PATH - a real
+       case off Cinnamon. Decline rather than crash on prefix below. */
+    if (prefix == NULL) {
+        g_clear_object (&settings);
+        g_free (terminal);
+        return NULL;
+    }
+
     // Escape space characters in the command line if needed
     if (prefix != NULL && known_terminals[i].escape_command) {
         escaped_command_line = g_string_new("");
@@ -156,6 +164,10 @@ eel_gnome_open_terminal_on_screen (const gchar *command,
     GdkDisplay *display;
 
     command_line = prepend_terminal_to_command_line (command);
+    if (command_line == NULL) {
+        g_message ("Could not find a terminal emulator");
+        return;
+    }
 
     app = g_app_info_create_from_commandline (command_line, NULL, 0, &error);
 

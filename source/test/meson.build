@@ -63,6 +63,51 @@ test('User input parse test',
   args: []
 )
 
+test('Symlink recurse premise test',
+  executable('test-nemo-symlink-recurse',
+    [ 'test-nemo-symlink-recurse.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('Search invalid regex test',
+  executable('test-nemo-search-regex',
+    [ 'test-nemo-search-regex.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('DnD selection parser test',
+  executable('test-nemo-dnd',
+    [ 'test-nemo-dnd.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('Terminal fallback test',
+  executable('test-eel-terminal',
+    [ 'test-eel-terminal.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+test('Extension column test',
+  executable('test-nemo-column',
+    [ 'test-nemo-column.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_extension ],
+  ),
+  args: []
+)
+
 test('Trash win32 test',
   executable('test-nemo-trash-win32',
     [ 'test-nemo-trash-win32.c' ],

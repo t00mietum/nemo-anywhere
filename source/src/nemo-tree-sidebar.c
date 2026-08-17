@@ -909,6 +909,12 @@ new_folder_done (GFile *new_folder,
 {
 	GList *list;
 
+	/* On failure or abort new_folder is NULL; nemo_file_get would assert.
+	 * Nothing to present, so bail (matches the directory-view twin). */
+	if (!success || new_folder == NULL) {
+		return;
+	}
+
 	/* show the properties window for the newly created
 	 * folder so the user can change its name
 	 */

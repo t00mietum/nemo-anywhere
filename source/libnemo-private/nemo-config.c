@@ -58,6 +58,7 @@ static char       *config_path;
 static guint       save_timeout_id;
 static GFileMonitor *config_monitor;
 static char       *last_written;       /* what we last put on disk, to ignore our own event */
+static gsize       last_written_len;   /* byte length - the file may legally hold a NUL */
 static GHashTable *config_groups;      /* name -> NemoConfigGroup (owned) */
 static gboolean    config_ready;
 
@@ -136,14 +137,10 @@ load_locked (void)
 	gsize   len  = 0;
 	GError *error = NULL;
 
-	if (config_doc != NULL) {
-		shcl_free (config_doc);
-		config_doc = NULL;
-	}
-
 	if (g_file_get_contents (config_path, &text, &len, &error)) {
 		size_t i, n;
 
+		shcl_free (config_doc);
 		config_doc = shcl_parse (text, len);
 
 		/* A broken line is skipped, not fatal - say which, once, so a
@@ -159,13 +156,25 @@ load_locked (void)
 		}
 
 		g_free (last_written);
-		last_written = g_strndup (text, len);
+		last_written = g_memdup2 (text, len);
+		last_written_len = len;
 		g_free (text);
 	} else {
-		if (!g_error_matches (error, G_FILE_ERROR, G_FILE_ERROR_NOENT))
+		gboolean gone = g_error_matches (error, G_FILE_ERROR, G_FILE_ERROR_NOENT);
+
+		if (!gone)
 			g_warning ("nemo-config: cannot read %s: %s",
 			           config_path, error->message);
 		g_clear_error (&error);
+
+		/* A transient failure (AV/sync/editor lock, the delete half of a
+		 * non-atomic external save) must not swap defaults into memory: a
+		 * queued save would then write that near-empty doc over the real
+		 * file. Keep what we have; only a genuinely absent file resets. */
+		if (!gone && config_doc != NULL)
+			return;
+
+		shcl_free (config_doc);
 		config_doc = shcl_parse ("", 0);
 	}
 }
@@ -175,6 +184,7 @@ save_now (gpointer data)
 {
 	char     *text = NULL;
 	char     *dir;
+	gsize     text_len;
 	GError   *error = NULL;
 	shcl_str  canon;
 
@@ -182,17 +192,22 @@ save_now (gpointer data)
 	save_timeout_id = 0;
 
 	canon = shcl_to_canonical (config_doc);
-	text = g_strndup (canon.p, canon.n);
+	/* By length, and g_memdup2 rather than g_strndup (which stops at a NUL
+	 * and pads): SHCL is NUL-transparent, so a NUL that came in from the
+	 * file must not truncate the write or the own-write check. */
+	text = g_memdup2 (canon.p, canon.n);
+	text_len = canon.n;
 
 	g_free (last_written);
-	last_written = g_strdup (text);
+	last_written = g_memdup2 (text, text_len);
+	last_written_len = text_len;
 	g_mutex_unlock (&config_lock);
 
 	dir = g_path_get_dirname (config_path);
 	g_mkdir_with_parents (dir, 0700);
 	g_free (dir);
 
-	if (!g_file_set_contents (config_path, text, -1, &error)) {
+	if (!g_file_set_contents (config_path, text, text_len, &error)) {
 		g_warning ("nemo-config: cannot write %s: %s",
 		           config_path, error->message);
 		g_clear_error (&error);
@@ -258,7 +273,7 @@ config_file_changed (GFileMonitor      *monitor,
 	if (g_file_get_contents (config_path, &text, &len, NULL)) {
 		gboolean ours;
 		g_mutex_lock (&config_lock);
-		ours = (last_written != NULL && strlen (last_written) == len &&
+		ours = (last_written != NULL && last_written_len == len &&
 		        memcmp (last_written, text, len) == 0);
 		g_mutex_unlock (&config_lock);
 		g_free (text);

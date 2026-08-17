@@ -4057,20 +4057,37 @@ remove_target_recursively (CommonJob *job,
 	GFileEnumerator *enumerator;
 	GError *error;
 	GFile *child;
-	gboolean stop;
+	gboolean stop, is_dir;
 	char *primary, *secondary, *details;
 	int response;
 	GFileInfo *info;
+	GFileInfo *type_info;
 
 	stop = FALSE;
 
+	/* NOFOLLOW on the enumerate only affects the children's attributes, not
+	 * the directory open itself - a symlink to a directory would enumerate
+	 * its target and delete through it, outside the folder being replaced.
+	 * Only a real directory gets recursed; everything else is unlinked. */
+	type_info = g_file_query_info (file,
+				       G_FILE_ATTRIBUTE_STANDARD_TYPE,
+				       G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+				       job->cancellable,
+				       NULL);
+	is_dir = type_info != NULL &&
+		 g_file_info_get_file_type (type_info) == G_FILE_TYPE_DIRECTORY;
+	g_clear_object (&type_info);
+
 	error = NULL;
-	enumerator = g_file_enumerate_children (file,
+	enumerator = !is_dir ? NULL :
+		     g_file_enumerate_children (file,
 						G_FILE_ATTRIBUTE_STANDARD_NAME,
 						G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 						job->cancellable,
 						&error);
-	if (enumerator) {
+	if (!is_dir) {
+		/* fall through to the delete below */
+	} else if (enumerator) {
 		error = NULL;
 
 		while (!job_aborted (job) &&
