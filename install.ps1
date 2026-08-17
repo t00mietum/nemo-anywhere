@@ -160,12 +160,14 @@ function fResolveTag {
 ## Windows can't replace files that are still open.
 function fInUse {
 	param([string]$Folder)
-	$full = [System.IO.Path]::GetFullPath($Folder)
-	foreach ($proc in (Get-Process -ErrorAction SilentlyContinue)) {
-		try {
-			$path = $proc.Path
-			if ($path -and $path.StartsWith($full, [StringComparison]::OrdinalIgnoreCase)) { return $true }
-		} catch { }
+	## Win32_Process exposes ExecutablePath for processes whose handle Get-Process
+	## cannot open (protected or cross-session), so a running instance is not read
+	## as absent. Match on the folder plus a separator so C:\foo doesn't hit
+	## C:\foobar.
+	$full = [System.IO.Path]::GetFullPath($Folder).TrimEnd('\') + '\'
+	foreach ($proc in (Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)) {
+		$path = $proc.ExecutablePath
+		if ($path -and $path.StartsWith($full, [StringComparison]::OrdinalIgnoreCase)) { return $true }
 	}
 	return $false
 }
@@ -615,17 +617,31 @@ if ($os -eq "windows") {
 	if ((Test-Path -LiteralPath $prefix) -and (fInUse $prefix)) {
 		fFail "${AppName} is still running from ${prefix} - close it and try again"
 	}
-	if (Test-Path -LiteralPath $prefix) { Remove-Item -LiteralPath $prefix -Recurse -Force }
 	New-Item -ItemType Directory -Path (Split-Path -Parent $prefix) -Force | Out-Null
-	## Move-Item is Directory.Move underneath and throws across volumes, which
-	## would leave nothing installed - the old copy is already gone by here. Fall
-	## back to a copy when the temp folder and the install prefix are on different
-	## drives, which is normal when TEMP is redirected.
+	## Stage beside the prefix, then swap with same-volume renames. Copying the
+	## new tree in before removing the old one means a cross-volume or disk-full
+	## failure never leaves nothing installed; the old copy is dropped only once
+	## the new one is in place. (Move-Item is Directory.Move and throws across
+	## volumes, so keep the copy fallback for the temp-on-another-drive case.)
+	$staging = "${prefix}.new.${PID}"
+	$backup  = "${prefix}.old.${PID}"
+	if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+	if (Test-Path -LiteralPath $backup)  { Remove-Item -LiteralPath $backup  -Recurse -Force }
 	try {
-		Move-Item -LiteralPath $tree -Destination $prefix -ErrorAction Stop
+		Move-Item -LiteralPath $tree -Destination $staging -ErrorAction Stop
 	} catch {
-		Copy-Item -LiteralPath $tree -Destination $prefix -Recurse -Force -ErrorAction Stop
+		Copy-Item -LiteralPath $tree -Destination $staging -Recurse -Force -ErrorAction Stop
 	}
+	if (Test-Path -LiteralPath $prefix) {
+		Move-Item -LiteralPath $prefix -Destination $backup -ErrorAction Stop
+	}
+	try {
+		Move-Item -LiteralPath $staging -Destination $prefix -ErrorAction Stop
+	} catch {
+		if (Test-Path -LiteralPath $backup) { Move-Item -LiteralPath $backup -Destination $prefix -ErrorAction Stop }
+		throw
+	}
+	if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
 	fEcho_Clean "folder installed at ${prefix}"
 
 	New-Item -ItemType Directory -Path $menuDir -Force | Out-Null
