@@ -367,14 +367,17 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 10. Restoring an item from the Windows trash drops its file extension.
 	- Cause: the original name is taken from the shell display name, which hides known extensions by default, and that shortened name is what restore writes.
 
-- 🔘 Item 11. Opening certain images can crash if the tab is closed first.
+- ✅ Item 11. Opening certain images can crash if the tab is closed first.
 	- Cause: the image-viewer sort path dereferences the originating tab with no null check, and that pointer is cleared when the tab closes mid-open. This is the default double-click-an-image path on Mint-family setups.
+	- Fix: guard the NULL weak slot/content_view in add_sorted_view_uris; the image still opens without the wrap-around loop. GUI-async path, no isolated test.
 
-- 🔘 Item 12. The places sidebar keeps reacting to settings after it is destroyed.
+- ✅ Item 12. The places sidebar keeps reacting to settings after it is destroyed.
 	- Cause: two preference handlers are left connected at teardown, so a later settings change (including a live edit of the settings file) fires on freed memory. Triggered by hiding the sidebar or switching to the tree sidebar.
+	- Fix: dispose now disconnects desktop_setting_changed_callback from nemo_desktop_preferences and reset_menu from nemo_preferences.
 
-- 🔘 Item 13. New Folder in the tree sidebar aborts the app when creation fails.
+- ✅ Item 13. New Folder in the tree sidebar aborts the app when creation fails.
 	- Cause: the callback ignores the failure flag and passes a null location on, which asserts. A permission race or a dismissed error dialog triggers it.
+	- Fix: bail on !success || new_folder == NULL (matches the directory-view twin).
 
 - ✅ Item 14. Jumping more than one step forward corrupts the history lists.
 	- Cause: the transfer loop reads one list but edits the other two, so the back and forward lists end up sharing and leaking nodes; a later navigation then frees entries still in use.
