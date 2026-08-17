@@ -47,6 +47,7 @@ main (int argc, char *argv[])
 
 	if (symlink (target, link) != 0) {
 		g_printerr ("SKIP: symlink() unavailable\n");
+		g_free (victim); g_free (link); g_free (target); g_free (root);
 		return 0;
 	}
 
