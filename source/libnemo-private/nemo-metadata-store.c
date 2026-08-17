@@ -221,9 +221,17 @@ save_now (void)
 	data = json_generator_to_data (generator, &length);
 
 	path = store_path ();
-	g_file_set_contents (path, data, length, NULL);
-
-	dirty = FALSE;
+	{
+		GError *error = NULL;
+		/* Only clear dirty on a real write, or a failed save is invisible
+		 * and the shutdown flush becomes a no-op (data lost). */
+		if (g_file_set_contents (path, data, length, &error)) {
+			dirty = FALSE;
+		} else {
+			g_warning ("nemo-metadata: cannot write %s: %s", path, error->message);
+			g_clear_error (&error);
+		}
+	}
 
 	g_free (path);
 	g_free (data);

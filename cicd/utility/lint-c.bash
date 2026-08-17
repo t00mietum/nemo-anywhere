@@ -77,8 +77,9 @@ fi
 
 ## assertWithSideEffect misfires on the idiomatic g_assert(g_hash_table_...)
 ## pattern all over this codebase - not worth per-site suppressions.
-## nullPointerOutOfMemory assumes an allocator can return NULL; glib's abort
-## instead, so every one of these is wrong by construction here.
+## nullPointerOutOfMemory (and its cross-TU twin ctunullpointerOutOfMemory)
+## assume an allocator can return NULL; glib's abort instead, so every one of
+## these is wrong by construction here.
 ## normalCheckLevelMaxBranches just says a big file was analyzed shallowly.
 ## It is not a finding, but --error-exitcode counts it, so any change touching
 ## a large file would fail the gate on it alone.
@@ -94,6 +95,7 @@ cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=missingInclude --suppress=assertWithSideEffect \
 	--suppress=unknownMacro \
 	--suppress=nullPointerOutOfMemory \
+	--suppress=ctunullpointerOutOfMemory \
 	--suppress=normalCheckLevelMaxBranches \
 	--suppress=invalidPrintfArgType_uint:*nemo-dnd.c \
 	--suppress=nullPointerRedundantCheck:*nemo-dnd.c \

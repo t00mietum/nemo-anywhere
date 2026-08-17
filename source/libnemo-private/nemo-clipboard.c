@@ -628,7 +628,10 @@ nemo_clipboard_clear_if_colliding_uris (GtkWidget *widget,
 										   copied_files_atom);
 
 	for (l = (GList *) item_uris; l; l = l->next) {
-		if (g_list_find_custom ((GList *) item_uris, l->data,
+		/* Compare the incoming uris against what is ON the clipboard, not
+		 * against item_uris itself (which always self-matches and cleared
+		 * the clipboard on every DnD move/copy). */
+		if (g_list_find_custom (clipboard_item_uris, l->data,
 					(GCompareFunc) g_strcmp0)) {
 			collision = TRUE;
 			break;

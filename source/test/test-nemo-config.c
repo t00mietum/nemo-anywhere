@@ -383,6 +383,39 @@ test_nul_survives_save (NemoConfigGroup *window_state)
 	g_free (path);
 }
 
+/* An implausibly large file must be refused, not fed to SHCL's arena (which
+ * would exit the process). The in-memory settings must survive the refusal. */
+static void
+test_oversized_file_refused (NemoConfigGroup *prefs)
+{
+	char  *path = nemo_config_get_path ();
+	char  *blob;
+	gsize  n = 9 * 1024 * 1024;   /* over the 8 MiB cap */
+	int    spins = 0;
+
+	nemo_config_set_boolean (prefs, "show-hidden-files", TRUE);
+	nemo_config_flush ();
+
+	blob = g_malloc (n);
+	memset (blob, 'x', n);
+	g_file_set_contents (path, blob, n, NULL);
+	g_free (blob);
+
+	/* let the monitor fire and hit load_locked's cap */
+	while (spins++ < 100) {
+		g_main_context_iteration (NULL, FALSE);
+		g_usleep (10000);
+	}
+
+	/* value preserved, process still alive */
+	check (nemo_config_get_boolean (prefs, "show-hidden-files") == TRUE);
+
+	g_remove (path);
+	nemo_config_set_boolean (prefs, "show-hidden-files", FALSE);
+	nemo_config_flush ();
+	g_free (path);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -413,6 +446,7 @@ main (int argc, char *argv[])
 	test_external_edit (prefs);
 	test_unreadable_file_kept (prefs);
 	test_nul_survives_save (window_state);
+	test_oversized_file_refused (prefs);
 
 	nemo_config_shutdown ();
 	g_free (tmp);

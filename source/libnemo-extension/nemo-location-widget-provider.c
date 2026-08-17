@@ -64,7 +64,13 @@ nemo_location_widget_provider_get_widget (NemoLocationWidgetProvider     *provid
 {
 	g_return_val_if_fail (NEMO_IS_LOCATION_WIDGET_PROVIDER (provider), NULL);
 
-	return NEMO_LOCATION_WIDGET_PROVIDER_GET_IFACE (provider)->get_widget 
+	/* An implementation may leave the vfunc unset; guard it (as the
+	 * column provider does) rather than call through NULL. */
+	if (NEMO_LOCATION_WIDGET_PROVIDER_GET_IFACE (provider)->get_widget == NULL) {
+		return NULL;
+	}
+
+	return NEMO_LOCATION_WIDGET_PROVIDER_GET_IFACE (provider)->get_widget
 		(provider, uri, window);
 
 }				       

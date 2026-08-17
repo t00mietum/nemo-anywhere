@@ -25,6 +25,7 @@
 #include "nemo-config.h"
 
 #include <gio/gio.h>
+#include <glib/gstdio.h>
 #include <string.h>
 
 #define SHCL_IMPLEMENTATION
@@ -35,6 +36,10 @@
 
 #define CONFIG_FILE_NAME      "settings.shcl"
 #define SAVE_DEBOUNCE_SECONDS 2
+/* Settings hold ~168 keys - a few KB. Cap the read well above that: SHCL's
+ * arena retains ~12+ bytes per codepoint permanently and OOMs via a library
+ * exit(70), so an oversized or corrupt file would take the whole process. */
+#define CONFIG_MAX_BYTES      (8 * 1024 * 1024)
 
 struct _NemoConfigGroup {
 	GObject  parent_instance;
@@ -136,6 +141,21 @@ load_locked (void)
 	char   *text = NULL;
 	gsize   len  = 0;
 	GError *error = NULL;
+
+	/* Refuse an implausibly large file rather than feed it to SHCL's arena
+	 * (which would exit the process on OOM). Keep the in-memory doc so a
+	 * pending save cannot then overwrite the real file with defaults. */
+	{
+		GStatBuf st;
+		if (g_stat (config_path, &st) == 0 && st.st_size > CONFIG_MAX_BYTES) {
+			g_warning ("nemo-config: %s is %" G_GOFFSET_FORMAT
+			           " bytes (cap %d); refusing to load",
+			           config_path, (goffset) st.st_size, CONFIG_MAX_BYTES);
+			if (config_doc == NULL)
+				config_doc = shcl_parse ("", 0);
+			return;
+		}
+	}
 
 	if (g_file_get_contents (config_path, &text, &len, &error)) {
 		size_t i, n;

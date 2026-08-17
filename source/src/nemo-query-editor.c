@@ -186,6 +186,11 @@ check_entry_text (NemoQueryEditor *editor)
         filename_ok = TRUE;
     }
 
+    /* The filename check may have set error; clear it before reusing &error
+     * for the content check, or GLib warns "GError set over a previous GError"
+     * (fatal under fatal-warnings) and the stale message shows. */
+    g_clear_error (&error);
+
     if (nemo_query_has_content_pattern (query) &&
         !nemo_search_engine_check_content_pattern (query, &error)) {
         gtk_widget_set_tooltip_text (editor->priv->content_entry, error->message);

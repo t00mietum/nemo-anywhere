@@ -397,19 +397,22 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 18. The Windows sysroot packages are downloaded and unpacked with no integrity check, and those libraries ship in the release.
 	- Cause: neither the database signature nor the per-package checksum is verified, though the checksum sits in data the fetcher already parses.
 
-- 🔘 Item 19. A malformed D-Bus Open hint from any local process crashes the running app.
+- ✅ Item 19. A malformed D-Bus Open hint from any local process crashes the running app.
 	- Cause: a hint with no `=` yields a null that is parsed without a check.
+	- Fix: guard split_options[1] != NULL before sscanf.
 
-- 🔘 Item 20. A pathological settings file can kill the app during parse.
+- ✅ Item 20. A pathological settings file can kill the app during parse.
 	- Cause: the file is read with no size cap, the parser keeps every decoded byte for the document's life, and an allocation failure exits the whole process from library code.
+	- Fix: 8 MiB read cap in load_locked; oversized file refused, in-memory doc kept. Regression test (test-nemo-config).
 
 - 🔘 Item 21. In the Windows pipeline, an abort between stash and pop strands the working changes, and a rerun can commit conflict markers.
 
 - 🔘 Item 22. In cicd.bash, a remote-sync stash-pop conflict aborts with no guidance and the stash still held.
 	- Note: the natural rerun with sync off then builds and publishes a tree missing the stashed changes.
 
-- 🔘 Item 23. The version-bump guard blocks the beta-to-final release push.
+- ✅ Item 23. The version-bump guard blocks the beta-to-final release push.
 	- Cause: version sort orders `1.0.0` before `1.0.0-beta2`, the reverse of release order, so cutting final over the current beta fails the guard. This exact transition is next.
+	- Fix: map '-' to '~' before sort -V (as package.bash does) so a prerelease sorts below its release.
 
 - 🔘 Item 24. Accessibility paste reads a freed stack value.
 	- Cause: a stack struct is handed to an async clipboard callback that runs after the function returns.
@@ -420,16 +423,19 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 26. install.ps1 can half-delete a running install.
 	- Cause: a process whose path cannot be read is treated as not running, so the delete proceeds against a locked copy and throws partway.
 
-- 🔘 Item 27. A partial extension crashes every location load.
+- ✅ Item 27. A partial extension crashes every location load.
+	- Fix: guard the get_widget vfunc != NULL (as the column provider does).
 	- Cause: one provider dispatch skips the null-vfunc guard its siblings have, so an extension that leaves the function unset is called through null.
 
-- 🔘 Item 28. An action's exec condition decides on an uninitialized value when the spawn fails.
+- ✅ Item 28. An action's exec condition decides on an uninitialized value when the spawn fails.
+	- Fix: init return_code = -1 and return FALSE on spawn failure.
 	- Cause: a missing binary or a parse error leaves the result unset, so menu visibility is decided by stack garbage.
 
 - 🔘 Item 29. Actions stored in a path with spaces run the wrong command.
 	- Cause: the action directory is prepended unquoted before the command is split on whitespace. Normal on Windows and on Linux homes with spaces.
 
-- 🔘 Item 30. Any drag-and-drop clears a pending cut or copy.
+- ✅ Item 30. Any drag-and-drop clears a pending cut or copy.
+	- Fix: search the clipboard's uris, not the incoming list against itself.
 	- Cause: the collision check compares the dragged list against itself, so it always matches and always clears the clipboard.
 
 - 🔘 Item 31. The settings-groups table is read from worker threads and grown on the main thread with no lock.
@@ -441,16 +447,19 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 33. Two favorites with the same name in same-named parents collide.
 	- Cause: disambiguation appends only the parent's name, and the display name is the favorite's identity, so operations on one can hit the other.
 
-- 🔘 Item 34. Trashing a file drops favorites of unrelated sibling paths.
+- ✅ Item 34. Trashing a file drops favorites of unrelated sibling paths.
+	- Fix: boundary-guard the prefix (exact or '/' at the split), not a bare has_prefix.
 	- Cause: the removal matches by raw prefix with no path boundary, so trashing `ab` also drops the favorite for `abc.txt`.
 
-- 🔘 Item 35. The mount lookup matches sibling paths by prefix.
+- ✅ Item 35. The mount lookup matches sibling paths by prefix.
+	- Fix: same boundary guard on the mount-root prefix test.
 	- Cause: no trailing-separator check, so a path can be matched to the wrong mount and misclassified as local or network.
 
 - 🔘 Item 36. Successful direct-save drops are reported as failed.
 	- Cause: the success branch repeats the fallback branch's test and is unreachable, so a saved file is reported as a failed drop.
 
-- 🔘 Item 37. A failed metadata save is silent and throws away the pending metadata.
+- ✅ Item 37. A failed metadata save is silent and throws away the pending metadata.
+	- Fix: check g_file_set_contents; only clear dirty on success, warn on failure.
 	- Cause: the write error is ignored and the data is marked saved, so it is never written again and is lost on restart.
 
 - 🔘 Item 38. Large-zoom images render blurry on Windows.
@@ -471,7 +480,8 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 43. Rename-pending activation relies on a garbage return value and leaks the selection each tick.
 	- Cause: a void function is installed as a repeating timeout, and the still-renaming early return does not free the selection it fetched.
 
-- 🔘 Item 44. Two invalid search patterns warn fatally and show the wrong message.
+- ✅ Item 44. Two invalid search patterns warn fatally and show the wrong message.
+	- Fix: g_clear_error between the filename and content checks.
 	- Cause: the content check is handed an error that is already set from the filename check.
 
 - 🔘 Item 45. Tree-sidebar Paste races a freed file and holds a stale view pointer.
