@@ -345,6 +345,21 @@ preview_selected_items (NemoListView *view)
 	}
 }
 
+static void activate_selected_items (NemoListView *view);
+
+/* Proper GSourceFunc: activate_selected_items is void, so casting it to a
+ * source func left the timeout's repeat behaviour undefined. Clear the id and
+ * fire once; if still renaming, activate_selected_items re-arms a fresh one. */
+static gboolean
+activate_selected_items_timeout (gpointer data)
+{
+	NemoListView *view = data;
+
+	view->details->renaming_file_activate_timeout = 0;
+	activate_selected_items (view);
+	return G_SOURCE_REMOVE;
+}
+
 static void
 activate_selected_items (NemoListView *view)
 {
@@ -358,8 +373,9 @@ activate_selected_items (NemoListView *view)
 		   finished, or the activation uri will be wrong */
 		if (view->details->renaming_file_activate_timeout == 0) {
 			view->details->renaming_file_activate_timeout =
-				g_timeout_add (WAIT_FOR_RENAME_ON_ACTIVATE, (GSourceFunc) activate_selected_items, view);
+				g_timeout_add (WAIT_FOR_RENAME_ON_ACTIVATE, activate_selected_items_timeout, view);
 		}
+		nemo_file_list_free (file_list);
 		return;
 	}
 

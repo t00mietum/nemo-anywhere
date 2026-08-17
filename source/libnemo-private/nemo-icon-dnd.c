@@ -2009,7 +2009,7 @@ drag_data_received_callback (GtkWidget *widget,
 				return;
 			} else if (selection_format == 8 &&
 				   selection_length == 1 &&
-				   selection_data[0] == 'F' &&
+				   selection_data[0] == 'S' &&
 			           drag_info->direct_save_uri != NULL) {
 				GdkPoint p;
 				GFile *location;

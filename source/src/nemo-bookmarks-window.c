@@ -70,7 +70,7 @@ static int                   jump_button_signal_id;
 static int                   sort_button_signal_id;
 
 /* forward declarations */
-static guint    get_selected_row                            (void);
+static gint     get_selected_row                            (void);
 static gboolean get_selection_exists                        (void);
 static void     name_or_uri_field_activate                  (NemoEntry        *entry);
 static void     nemo_bookmarks_window_restore_geometry  (GtkWidget            *window);
@@ -437,7 +437,7 @@ get_selected_bookmark (void)
     return bookmark;
 }
 
-static guint
+static gint
 get_selected_row (void)
 {
 	GtkTreeIter       iter;
@@ -774,7 +774,7 @@ update_bookmark_from_text (void)
 		NemoBookmark *bookmark, *bookmark_in_list;
 		const char *name;
 		gchar *icon_name;
-		guint selected_row;
+		gint selected_row;
 		GtkTreeIter iter;
 		GFile *location;
 
