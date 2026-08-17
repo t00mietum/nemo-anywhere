@@ -353,8 +353,9 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Cause: the file is written using string length, which stops at the first NUL, dropping every key after it. The follow-up check is fooled the same way, so the loss is invisible.
 	- Fix: write and compare by byte length (g_memdup2 + canon.n), never strlen. Regression test (test-nemo-config).
 
-- 🔘 Item 7. The thumbnail enable-check reads the disabled-types list without its lock.
+- ✅ Item 7. The thumbnail enable-check reads the disabled-types list without its lock.
 	- Cause: one reader skips the lock the writers and the other reader use, so a settings change on another thread can free the list mid-read.
+	- Fix: take priv->lock around is_disabled at the can_thumbnail site (generate_thumbnail already does); is_disabled documented as caller-holds-lock. Threading race, no deterministic test.
 
 - ✅ Item 8. Replacing a folder deletes through directory symlinks inside it.
 	- Cause: the recursive remove never checks the child type, so a symlink to another directory is followed and its contents are deleted, outside the folder the user agreed to replace.
