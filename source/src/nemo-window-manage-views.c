@@ -226,9 +226,9 @@ handle_go_forward (NemoWindowSlot *slot,
 	for (i = 0; i < slot->location_change_distance; ++i) {
 		bookmark = NEMO_BOOKMARK (slot->forward_list->data);
 		slot->forward_list =
-			g_list_remove (slot->back_list, bookmark);
+			g_list_remove (slot->forward_list, bookmark);
 		slot->back_list =
-			g_list_prepend (slot->forward_list, bookmark);
+			g_list_prepend (slot->back_list, bookmark);
 	}
 
 	/* One bookmark falls out of back/forward lists and becomes viewed location */

@@ -247,7 +247,8 @@ nemo_column_finalize (GObject *object)
 	g_free (column->details->label);
 	g_free (column->details->description);
 
-	g_free (column->details);
+	/* details is instance-private (G_DEFINE_TYPE_WITH_PRIVATE) - the type
+	 * system owns it; freeing it here corrupts the instance block. */
 
 	G_OBJECT_CLASS (nemo_column_parent_class)->finalize (object);
 }

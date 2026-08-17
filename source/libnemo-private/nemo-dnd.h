@@ -114,6 +114,8 @@ void			    nemo_drag_finalize			(NemoDragInfo		      *drag_info);
 NemoDragSelectionItem  *nemo_drag_selection_item_new		(void);
 void			    nemo_drag_destroy_selection_list	(GList				      *selection_list);
 GList			   *nemo_drag_build_selection_list		(GtkSelectionData		      *data);
+GList			   *nemo_drag_build_selection_list_from_raw	(const guchar			      *raw,
+									 int				       size);
 
 char **			    nemo_drag_uri_array_from_selection_list (const GList			      *selection_list);
 GList *			    nemo_drag_uri_list_from_selection_list	(const GList			      *selection_list);
