@@ -414,7 +414,8 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Cause: version sort orders `1.0.0` before `1.0.0-beta2`, the reverse of release order, so cutting final over the current beta fails the guard. This exact transition is next.
 	- Fix: map '-' to '~' before sort -V (as package.bash does) so a prerelease sorts below its release.
 
-- 🔘 Item 24. Accessibility paste reads a freed stack value.
+- ✅ Item 24. Accessibility paste reads a freed stack value.
+	- Fix: heap-allocate the paste struct, free it in the receive callback.
 	- Cause: a stack struct is handed to an async clipboard callback that runs after the function returns.
 
 - 🔘 Item 25. install.bash deletes the existing install before the replacement is in place.
@@ -431,20 +432,24 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: init return_code = -1 and return FALSE on spawn failure.
 	- Cause: a missing binary or a parse error leaves the result unset, so menu visibility is decided by stack garbage.
 
-- 🔘 Item 29. Actions stored in a path with spaces run the wrong command.
+- ✅ Item 29. Actions stored in a path with spaces run the wrong command.
+	- Fix: quote the dir+separator as one token so the program name joins to it through the shell split; also fixes the win32 backslash separator.
 	- Cause: the action directory is prepended unquoted before the command is split on whitespace. Normal on Windows and on Linux homes with spaces.
 
 - ✅ Item 30. Any drag-and-drop clears a pending cut or copy.
 	- Fix: search the clipboard's uris, not the incoming list against itself.
 	- Cause: the collision check compares the dragged list against itself, so it always matches and always clears the clipboard.
 
-- 🔘 Item 31. The settings-groups table is read from worker threads and grown on the main thread with no lock.
+- ✅ Item 31. The settings-groups table is read from worker threads and grown on the main thread with no lock.
+	- Fix: guard the table lookup/insert with config_lock; emit still fires outside the lock so handlers can re-enter.
 	- Cause: a lazy insert can resize the table while a worker thread is reading it. Narrow window, but memory-unsafe.
 
-- 🔘 Item 32. The favorites change-timer id is touched from worker threads without a lock.
+- ✅ Item 32. The favorites change-timer id is touched from worker threads without a lock.
+	- Fix: guard changed_timer_id under the existing infos_lock in queue/callback/dispose.
 	- Cause: a worker can remove a timer id the main thread already reused, silently killing an unrelated source.
 
-- 🔘 Item 33. Two favorites with the same name in same-named parents collide.
+- ✅ Item 33. Two favorites with the same name in same-named parents collide.
+	- Fix: disambiguate with the home-relative/native parent path (ellipsized), plus a counter guard so the name is always unique. Regression: new dedup case.
 	- Cause: disambiguation appends only the parent's name, and the display name is the favorite's identity, so operations on one can hit the other.
 
 - ✅ Item 34. Trashing a file drops favorites of unrelated sibling paths.
@@ -488,7 +493,8 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: g_clear_error between the filename and content checks.
 	- Cause: the content check is handed an error that is already set from the filename check.
 
-- 🔘 Item 45. Tree-sidebar Paste races a freed file and holds a stale view pointer.
+- ✅ Item 45. Tree-sidebar Paste races a freed file and holds a stale view pointer.
+	- Fix: ref the view over the async request and guard NULL popup_file in the reply.
 	- Cause: the clipboard request keeps no reference and an idle frees the target first, so paste from another app degrades to nothing, and a closed sidebar leaves a dangling pointer.
 
 - ✅ Item 46. The script debug log reads a path after freeing it.

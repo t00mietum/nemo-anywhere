@@ -388,12 +388,17 @@ nemo_config_get_group (const char *group)
 
 	g_return_val_if_fail (config_ready, NULL);
 
+	/* config_lock guards the table itself: a lazy insert here can race a
+	 * worker-thread emit_changed lookup. Groups are never removed, so the
+	 * returned pointer stays valid once unlocked. */
+	g_mutex_lock (&config_lock);
 	g = g_hash_table_lookup (config_groups, group);
 	if (g == NULL) {
 		g = g_object_new (NEMO_TYPE_CONFIG_GROUP, NULL);
 		g->name = g_strdup (group);
 		g_hash_table_insert (config_groups, g_strdup (group), g);
 	}
+	g_mutex_unlock (&config_lock);
 	return g;
 }
 
@@ -405,7 +410,11 @@ emit_changed (const char *group, const char *key)
 	if (group == NULL)
 		group = "";
 
+	/* Look the group up under the lock (get_group may be inserting), but emit
+	 * outside it: handlers run synchronously and can re-enter config. */
+	g_mutex_lock (&config_lock);
 	g = g_hash_table_lookup (config_groups, group);
+	g_mutex_unlock (&config_lock);
 	if (g != NULL)
 		g_signal_emit (g, signals[CHANGED], g_quark_from_string (key), key);
 }

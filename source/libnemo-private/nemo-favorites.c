@@ -182,7 +182,11 @@ changed_callback (gpointer data)
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
     g_debug ("NemoFavorites: list updated, emitting changed signal");
 
+    /* changed_timer_id is touched from worker threads via queue_changed; guard
+     * it with the same recursive lock the infos table uses. */
+    g_rec_mutex_lock (&infos_lock);
     priv->changed_timer_id = 0;
+    g_rec_mutex_unlock (&infos_lock);
     g_signal_emit (favorites, signals[CHANGED], 0);
 
     return G_SOURCE_REMOVE;
@@ -193,12 +197,14 @@ queue_changed (NemoFavorites *favorites)
 {
     NemoFavoritesPrivate *priv = nemo_favorites_get_instance_private (favorites);
 
+    g_rec_mutex_lock (&infos_lock);
     if (priv->changed_timer_id > 0)
     {
         g_source_remove (priv->changed_timer_id);
     }
 
     priv->changed_timer_id = g_idle_add ((GSourceFunc) changed_callback, favorites);
+    g_rec_mutex_unlock (&infos_lock);
 }
 
 static void
@@ -490,6 +496,53 @@ remove_favorite (NemoFavorites *favorites,
     queue_changed (favorites);
 }
 
+/* A short label for a favorite's parent dir, used to tell apart favorites that
+ * share a basename. Home-relative when possible, the native path otherwise,
+ * ellipsized in the middle when long. */
+static gchar *
+favorite_parent_label (GFile *parent_file, const gchar *fallback_uri)
+{
+    GFile *home_file = g_file_new_for_path (g_get_home_dir ());
+    gchar *label = NULL;
+
+    if (g_file_equal (parent_file, home_file))
+    {
+        label = g_strdup ("~");
+    }
+    else if (g_file_has_prefix (parent_file, home_file))
+    {
+        gchar *rel = g_file_get_relative_path (home_file, parent_file);
+        label = g_strconcat ("~/", rel, NULL);
+        g_free (rel);
+    }
+    else if (g_file_is_native (parent_file))
+    {
+        label = g_file_get_path (parent_file);
+    }
+
+    g_object_unref (home_file);
+
+    if (label == NULL)
+        label = g_strdup (fallback_uri);
+
+    if (g_utf8_strlen (label, -1) > MAX_DISPLAY_URI_LENGTH)
+    {
+        glong len = g_utf8_strlen (label, -1);
+        glong head = (MAX_DISPLAY_URI_LENGTH - 3) / 2;
+        glong tail = MAX_DISPLAY_URI_LENGTH - 3 - head;
+        const gchar *head_end = g_utf8_offset_to_pointer (label, head);
+        const gchar *tail_start = g_utf8_offset_to_pointer (label, len - tail);
+        gchar *head_str = g_strndup (label, head_end - label);
+        gchar *ellipsized = g_strconcat (head_str, "...", tail_start, NULL);
+
+        g_free (head_str);
+        g_free (label);
+        label = ellipsized;
+    }
+
+    return label;
+}
+
 /* Callers hold infos_lock - this walks the table and rewrites display names in
  * place. */
 static void
@@ -549,100 +602,56 @@ deduplicate_display_names (NemoFavorites *favorites,
         common_display_name = g_uri_unescape_string ((const gchar *) key, NULL);
         same_names_list = (GList *) value;
 
+        /* The display name is the favorites:/// identity, so within a colliding
+         * group it must come out unique. Borrowed set of the names already
+         * handed out this pass (values live on in info->display_name). */
+        GHashTable *taken = g_hash_table_new (g_str_hash, g_str_equal);
+
         for (uri_ptr = same_names_list; uri_ptr != NULL; uri_ptr = uri_ptr->next)
         {
             NemoFavoriteInfo *info;
-            GFile *uri_file, *home_file, *parent_file;
+            GFile *uri_file, *parent_file;
             GString *new_display_string;
             const gchar *current_uri;
+            gchar *parent_label;
 
             current_uri = (const gchar *) uri_ptr->data;
 
             uri_file = g_file_new_for_uri (current_uri);
             parent_file = g_file_get_parent (uri_file);
-            home_file = g_file_new_for_path (g_get_home_dir());
 
             new_display_string = g_string_new (common_display_name);
             g_string_append (new_display_string, "  (");
+            parent_label = favorite_parent_label (parent_file, current_uri);
+            g_string_append (new_display_string, parent_label);
+            g_string_append_c (new_display_string, ')');
+            g_free (parent_label);
 
-            // How much effort should we put into duplicate naming? Keeping it
-            // simple like this won't work all the time.
-            gchar *parent_basename = g_file_get_basename (parent_file);
-            g_string_append (new_display_string, parent_basename);
-            g_free (parent_basename);
+            /* Same basename and same parent label still collides - keep the
+             * label but append a counter until it is unique. */
+            if (g_hash_table_contains (taken, new_display_string->str))
+            {
+                guint n = 2;
+                gsize base_len = new_display_string->len;
 
-            // TODO: ellipsized deduplication paths?
-
-            // if (g_file_has_prefix (parent_file, home_file))
-            // {
-            //     gchar *home_rpath = g_file_get_relative_path (home_file, parent_file);
-            //     gchar *home_basename = g_file_get_basename (home_file);
-
-            //     if (strlen (home_rpath) < MAX_DISPLAY_URI_LENGTH)
-            //     {
-            //         g_string_append (new_display_string, home_basename);
-            //         g_string_append (new_display_string, "/");
-            //         g_string_append (new_display_string, home_rpath);
-            //     }
-            //     else
-            //     {
-            //         gchar *parent_basename = g_file_get_basename (parent_file);
-
-            //         g_string_append (new_display_string, home_basename);
-            //         g_string_append (new_display_string, "/.../");
-            //         g_string_append (new_display_string, parent_basename);
-
-            //         g_free (parent_basename);
-            //     }
-
-            //     g_free (home_rpath);
-            //     g_free (home_basename);
-            // }
-            // else
-            // {
-            //     GString *tmp_string = g_string_new (NULL);
-
-            //     if (g_file_is_native (parent_file))
-            //     {
-            //         g_string_append (tmp_string, g_file_peek_path (parent_file));
-            //     }
-            //     else
-            //     {
-            //         g_string_append (tmp_string, current_uri);
-            //     }
-
-            //     if (tmp_string->len > MAX_DISPLAY_URI_LENGTH)
-            //     {
-            //         gint diff;
-            //         gint replace_pos;
-
-            //         diff = tmp_string->len - MAX_DISPLAY_URI_LENGTH;
-            //         replace_pos = (tmp_string->len / 2) - (diff / 2) - 2;
-
-            //         g_string_erase (tmp_string,
-            //                         replace_pos,
-            //                         diff);
-            //         g_string_insert (tmp_string,
-            //                          replace_pos,
-            //                          "...");
-            //     }
-
-            //     g_string_append (new_display_string, tmp_string->str);
-            //     g_string_free (tmp_string, TRUE);
-            // }
+                do {
+                    g_string_truncate (new_display_string, base_len);
+                    g_string_append_printf (new_display_string, " %u", n++);
+                } while (g_hash_table_contains (taken, new_display_string->str));
+            }
 
             g_object_unref (uri_file);
-            g_object_unref (home_file);
             g_object_unref (parent_file);
-
-            g_string_append (new_display_string, ")");
 
             // Look up the info from our master table
             info = g_hash_table_lookup (infos, current_uri);
             g_free (info->display_name);
 
             info->display_name = g_string_free (new_display_string, FALSE);
+            g_hash_table_add (taken, info->display_name);
         }
+
+        g_hash_table_destroy (taken);
 
         g_free (common_display_name);
         g_list_free_full (same_names_list, g_free);
@@ -887,11 +896,13 @@ nemo_favorites_dispose (GObject *object)
 
     /* The queued idle and the settings handler both call back in here, so they
      * have to go before the list does. */
+    g_rec_mutex_lock (&infos_lock);
     if (priv->changed_timer_id > 0)
     {
         g_source_remove (priv->changed_timer_id);
         priv->changed_timer_id = 0;
     }
+    g_rec_mutex_unlock (&infos_lock);
 
     /* Borrowed from the config store, which outlives us - only the handler is
      * ours to drop. */
