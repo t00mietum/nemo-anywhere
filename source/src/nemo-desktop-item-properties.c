@@ -166,6 +166,13 @@ nemo_desktop_item_properties_url_drag_data_received (GtkWidget *widget, GdkDragC
 	gboolean exactly_one;
 	char *path;
 	
+	/* A failed conversion delivers NULL / negative length; g_strsplit(NULL)
+	 * would crash. */
+	if (gtk_selection_data_get_data (selection_data) == NULL ||
+	    gtk_selection_data_get_length (selection_data) < 0) {
+		return;
+	}
+
 	uris = g_strsplit ((gchar *) gtk_selection_data_get_data (selection_data), "\r\n", 0);
         exactly_one = uris[0] != NULL && (uris[1] == NULL || uris[1][0] == '\0');
 
@@ -198,6 +205,13 @@ nemo_desktop_item_properties_exec_drag_data_received (GtkWidget *widget, GdkDrag
 	GKeyFile *key_file;
 	char *uri, *type, *exec;
 	
+	/* A failed conversion delivers NULL / negative length; g_strsplit(NULL)
+	 * would crash. */
+	if (gtk_selection_data_get_data (selection_data) == NULL ||
+	    gtk_selection_data_get_length (selection_data) < 0) {
+		return;
+	}
+
 	uris = g_strsplit ((gchar *) gtk_selection_data_get_data (selection_data), "\r\n", 0);
         exactly_one = uris[0] != NULL && (uris[1] == NULL || uris[1][0] == '\0');
 

@@ -963,8 +963,10 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 						GFile *root;
 
 						root = g_file_new_for_path ("/");
-						/* the last fallback is to go to a known place that can't be deleted! */
-						nemo_window_slot_open_location (slot, location, 0);
+						/* the last fallback is to go to a known place that can't be deleted!
+						 * Open root, not the same failing home location - passing
+						 * location retried the undisplayable folder forever. */
+						nemo_window_slot_open_location (slot, root, 0);
 						g_object_unref (root);
 					}
 				} else {

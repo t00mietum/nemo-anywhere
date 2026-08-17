@@ -455,7 +455,8 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: same boundary guard on the mount-root prefix test.
 	- Cause: no trailing-separator check, so a path can be matched to the wrong mount and misclassified as local or network.
 
-- 🔘 Item 36. Successful direct-save drops are reported as failed.
+- ✅ Item 36. Successful direct-save drops are reported as failed.
+	- Fix: the dead XDS branch checked 'F' twice; the success branch now checks 'S'.
 	- Cause: the success branch repeats the fallback branch's test and is unreachable, so a saved file is reported as a failed drop.
 
 - ✅ Item 37. A failed metadata save is silent and throws away the pending metadata.
@@ -471,13 +472,16 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 40. Freshly trashed items get a wrong parent until the next poll.
 	- Cause: the top-level check does not refresh on a miss, unlike the sibling lookup, so a not-yet-seen item is filed under a bogus parent.
 
-- 🔘 Item 41. The bookmarks window's no-selection guard never fires and can abort.
+- ✅ Item 41. The bookmarks window's no-selection guard never fires and can abort.
+	- Fix: get_selected_row and its local are gint, so the < 0 no-selection check works.
 	- Cause: an unsigned row holds a would-be -1, so the guard is dead and an assert or a wrapped index is reachable.
 
-- 🔘 Item 42. A failed or empty drop on the .desktop launcher editor crashes.
+- ✅ Item 42. A failed or empty drop on the .desktop launcher editor crashes.
+	- Fix: guard NULL data / negative length before g_strsplit in both drag handlers.
 	- Cause: both drag handlers split the data and index the first element with no length check.
 
-- 🔘 Item 43. Rename-pending activation relies on a garbage return value and leaks the selection each tick.
+- ✅ Item 43. Rename-pending activation relies on a garbage return value and leaks the selection each tick.
+	- Fix: free file_list on the renaming early-return; real GSourceFunc wrapper returns G_SOURCE_REMOVE.
 	- Cause: a void function is installed as a repeating timeout, and the still-renaming early return does not free the selection it fetched.
 
 - ✅ Item 44. Two invalid search patterns warn fatally and show the wrong message.
@@ -487,10 +491,12 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 45. Tree-sidebar Paste races a freed file and holds a stale view pointer.
 	- Cause: the clipboard request keeps no reference and an idle frees the target first, so paste from another app degrades to nothing, and a closed sidebar leaves a dangling pointer.
 
-- 🔘 Item 46. The script debug log reads a path after freeing it.
+- ✅ Item 46. The script debug log reads a path after freeing it.
+	- Fix: free local_file_path after the DEBUG that reads it, not before.
 	- Cause: the path is freed just before the debug line that formats it. Fires when the directory-view debug domain is on.
 
-- 🔘 Item 47. The failed-home fallback reopens the failing location instead of root.
+- ✅ Item 47. The failed-home fallback reopens the failing location instead of root.
+	- Fix: open root (not the same failing location) so an undisplayable home stops retrying.
 	- Cause: the root fallback is built but never used, so an unreadable home retries itself in a loop. The hardcoded root also resolves to the current drive on Windows.
 
 - 🔘 Item 48. The Windows trash test writes past a buffer.

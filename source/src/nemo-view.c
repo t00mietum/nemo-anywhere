@@ -6013,7 +6013,6 @@ run_script_callback (GtkAction *action, gpointer callback_data)
 	g_free (file_uri);
 
 	quoted_path = g_shell_quote (local_file_path);
-	g_free (local_file_path);
 
 	old_working_dir = change_to_view_directory (launch_parameters->directory_view);
 
@@ -6027,6 +6026,7 @@ run_script_callback (GtkAction *action, gpointer callback_data)
 
 	DEBUG ("run_script_callback, script_path=\"%s\" (omitting script parameters)",
 	       local_file_path);
+	g_free (local_file_path);
 
 	nemo_launch_application_from_command_array (screen, quoted_path, FALSE,
 							(const char * const *) parameters);
