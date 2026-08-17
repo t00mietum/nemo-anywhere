@@ -1780,7 +1780,15 @@ nemo_get_mount_for_location_safe (GFile *location)
         gchar *mount_root_uri = g_file_get_uri (mount_location);
         gchar *location_uri = g_file_get_uri (location);
 
-        if (g_str_has_prefix (location_uri, mount_root_uri)) {
+        /* Boundary-guarded: a bare prefix test would let a longer sibling
+         * mount root (tried first by the descending-length sort) swallow a
+         * location that really sits under the true root. Require an exact
+         * match or a '/' at the boundary. A root uri already ending in '/'
+         * (e.g. file:///) matches by prefix alone. */
+        gsize root_len = strlen (mount_root_uri);
+        if (g_str_has_prefix (location_uri, mount_root_uri) &&
+            (root_len == 0 || mount_root_uri[root_len - 1] == '/' ||
+             location_uri[root_len] == '\0' || location_uri[root_len] == '/')) {
             // Add a ref for our match, as it will lose one when the list is freed.
             ret = g_object_ref (mount);
         }

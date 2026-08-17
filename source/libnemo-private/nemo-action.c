@@ -1713,6 +1713,8 @@ check_exec_condition (NemoAction  *action,
 
     DEBUG ("Checking exec condition: %s", exec->str);
 
+    return_code = -1;
+
     if (!g_spawn_command_line_sync (exec->str,
                                     NULL,
                                     NULL,
@@ -1721,6 +1723,10 @@ check_exec_condition (NemoAction  *action,
             DEBUG ("Error spawning exec condition: %s\n",
                    error->message);
             g_error_free (error);
+            /* spawn never ran, so return_code is meaningless - the condition
+             * is simply not satisfied. */
+            g_string_free (exec, TRUE);
+            return FALSE;
         }
 
     DEBUG ("Action checking exec condition '%s' returned: %d", exec->str, return_code);

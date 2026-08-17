@@ -551,7 +551,11 @@ nemo_main_application_open (GApplication *app,
 			if (strcmp (split_options[0], "NULL") != 0) {
 				geometry = g_strdup (split_options[0]);
 			}
-			sscanf (split_options[1], "%d", &open_in_tabs);
+			/* A caller-supplied hint with no '=' leaves split_options[1]
+			 * NULL (g_strsplit limit 2); sscanf(NULL) would crash. */
+			if (split_options[1] != NULL) {
+				sscanf (split_options[1], "%d", &open_in_tabs);
+			}
 			g_strfreev (split_options);
 		}
 	}

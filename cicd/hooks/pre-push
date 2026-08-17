@@ -67,10 +67,12 @@ while read -r localref localsha remoteref remotesha; do
 				echo "FAILED: push to main does not bump the version (still ${newver}); bump source/meson.build on dev first" >&2
 				exit 1
 			fi
-			## Strict increase via version sort (approximates semver precedence,
-			## incl. most prerelease ordering). Highest must be the new version.
-			top="$(printf '%s\n%s\n' "$oldver" "$newver" | sort -V | tail -1)"
-			[[ "$top" == "$newver" ]] || { echo "FAILED: main version ${newver} is not greater than ${oldver}" >&2; exit 1; }
+			## Strict increase via version sort. Map '-' to '~' first (as
+			## package.bash does) so a prerelease sorts BELOW its release -
+			## plain sort -V puts 1.0.0-beta2 after 1.0.0, which wrongly
+			## blocked the beta->final push. Highest must be the new version.
+			top="$(printf '%s\n%s\n' "${oldver//-/\~}" "${newver//-/\~}" | sort -V | tail -1)"
+			[[ "$top" == "${newver//-/\~}" ]] || { echo "FAILED: main version ${newver} is not greater than ${oldver}" >&2; exit 1; }
 		fi
 		## README release badge must match (once such a badge exists). shields.io
 		## escapes '-' as '--'. No badge yet = nothing to enforce (first release adds it).

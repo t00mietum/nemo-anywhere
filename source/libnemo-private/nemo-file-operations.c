@@ -2144,7 +2144,12 @@ trash_files (CommonJob *job, GList *files, guint *files_skipped)
                 for (iter = infos; iter != NULL; iter = iter->next) {
                     NemoFavoriteInfo *info = (NemoFavoriteInfo *) iter->data;
 
-                    if (info->uri && g_str_has_prefix (info->uri, uri)) {
+                    /* uri (from g_file_get_uri) has no trailing '/', so a bare
+                     * prefix test drops siblings: ".../ab" would match
+                     * ".../abc.txt". Match the uri itself or a real descendant. */
+                    if (info->uri && g_str_has_prefix (info->uri, uri) &&
+                        (info->uri[strlen (uri)] == '\0' ||
+                         info->uri[strlen (uri)] == '/')) {
                         to_remove = g_list_prepend (to_remove, g_strdup (info->uri));
                     }
                 }
