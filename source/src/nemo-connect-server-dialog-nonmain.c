@@ -31,21 +31,23 @@
  * nemo-connect-server-dialog-main.c for the standalone version.
  */
 
-static GSimpleAsyncResult *display_location_res = NULL;
-
+/* The result travels as user_data. It used to be a file-static, so two dialogs
+ * open at once clobbered each other's - the first to finish completed the
+ * second's result and left the first hanging. */
 static void
 window_go_to_cb (NemoWindow *window,
 		 GError *error,
 		 gpointer user_data)
 {
+	GSimpleAsyncResult *res = user_data;
+
 	if (error != NULL) {
-		g_simple_async_result_set_from_error (display_location_res, error);
+		g_simple_async_result_set_from_error (res, error);
 	}
 
-	g_simple_async_result_complete (display_location_res);
+	g_simple_async_result_complete (res);
 
-	g_object_unref (display_location_res);
-	display_location_res = NULL;
+	g_object_unref (res);
 }
 
 gboolean
@@ -68,17 +70,17 @@ nemo_connect_server_dialog_display_location_async (NemoConnectServerDialog *self
 {
 	NemoWindow *window;
 	GtkWidget *widget;
+	GSimpleAsyncResult *res;
 
 	widget = GTK_WIDGET (self);
 
-	display_location_res =
-		g_simple_async_result_new (G_OBJECT (self),
-					   callback, user_data,
-					   nemo_connect_server_dialog_display_location_async);
+	res = g_simple_async_result_new (G_OBJECT (self),
+					 callback, user_data,
+					 nemo_connect_server_dialog_display_location_async);
 
 	window = nemo_application_create_window (nemo_application_get_singleton (),
 						     gtk_widget_get_screen (widget));
 
 	nemo_window_go_to_full (window, location,
-				    window_go_to_cb, self);
+				    window_go_to_cb, res);
 }

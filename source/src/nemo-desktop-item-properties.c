@@ -440,6 +440,7 @@ create_page (GKeyFile *key_file, GtkWidget *box)
 		/* we only handle launchers and links */
 
 		/* ensure that we build an empty table with a dummy row at the end */
+		g_free (type);
 		goto build_table;
 	}
 	g_free (type);

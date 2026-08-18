@@ -1429,9 +1429,13 @@ found_mount_cb (GObject *source_object,
 											found_content_type_cb,
 											data->cancellable,
 											data);
+			return;
 		}
 
-		return;
+		/* With content detection off nothing takes ownership of any of this, so
+		   the early return leaked the mount, the cancellable and the struct. */
+		g_object_unref (mount);
+		data->mount = NULL;
 	}
 
 	data->slot->find_mount_cancellable = NULL;

@@ -125,10 +125,13 @@ recycle_quietly (const char *path)
 {
 	SHFILEOPSTRUCTW op;
 	wchar_t *wide;
-	gsize len;
+	glong len;
 	gboolean ok;
 
-	wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, (glong *) &len, NULL);
+	/* glong, and no cast: g_utf8_to_utf16 writes a 32-bit long here, so through
+	   a gsize pointer the top half stayed stack garbage - and that value then
+	   sized and indexed the buffer below. */
+	wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, &len, NULL);
 	if (wide == NULL) {
 		return FALSE;
 	}
@@ -261,6 +264,9 @@ test_trashed_folder (void)
 	}
 }
 
+/* meson reports this exit code as SKIP rather than a pass. */
+#define TEST_SKIPPED 77
+
 int
 main (int argc, char *argv[])
 {
@@ -272,13 +278,17 @@ main (int argc, char *argv[])
 	nemo_trash_win32_register ();
 	test_trashed_folder ();
 
+	/* The seeded cases plant files into wine's unix-style XDG trash layout, which
+	 * does not exist on real Windows - so WINEHOMEDIR being unset is exactly the
+	 * case this test cannot cover. Report that as a skip (meson's 77), not as a
+	 * pass: reading green there is what let the recycle-bin divergences through. */
 	wine_home = g_getenv ("WINEHOMEDIR");
 	if (wine_home == NULL) {
 		g_printerr ("SKIP seeded cases: need wine (WINEHOMEDIR unset)\n");
-		if (failures == 0) {
-			g_print ("trash-win32: all checks passed\n");
+		if (failures != 0) {
+			return EXIT_FAILURE;
 		}
-		return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+		return TEST_SKIPPED;
 	}
 	if (g_str_has_prefix (wine_home, "\\??\\")) {
 		wine_home += 4;

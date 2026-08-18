@@ -30,7 +30,9 @@ root="$(git rev-parse --show-toplevel)"
 z="0000000000000000000000000000000000000000"
 
 ## meson.build: first `version : '...'`.
-_ver_from(){ grep -oP "version\s*:\s*'\K[^']+" "$1" 2>/dev/null | head -1; }
+## The lookbehind matters: without it `meson_version` on the same project() line
+## matches first, and only the field order keeps this honest.
+_ver_from(){ grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "$1" 2>/dev/null | head -1; }
 
 gate_ran=0
 run_gate(){ ((gate_ran)) && return 0; gate_ran=1

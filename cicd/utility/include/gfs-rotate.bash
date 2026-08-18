@@ -63,10 +63,12 @@ _gfs_ts(){
 	fi
 	## The "|| true" guards keep an unparseable name (e.g. an impossible date that
 	## matches the pattern but date rejects) from aborting a caller running set -e.
-	[[ -n "$d" ]] && epoch="$(date -d "${d:0:4}-${d:4:2}-${d:6:2} ${t:0:2}:${t:2:2}:${t:4:2}" +%s 2>/dev/null || true)"
+	if [[ -n "$d" ]]; then
+		epoch="$(date -d "${d:0:4}-${d:4:2}-${d:6:2} ${t:0:2}:${t:2:2}:${t:4:2}" +%s 2>/dev/null || true)"
+	fi
 	[[ -n "$epoch" ]] || epoch="$(stat -c %Y "$1" 2>/dev/null || true)"
-	[[ -n "$epoch" ]] || epoch="$(date +%s)"
-	canon="$(date -d "@${epoch}" +%Y%m%d-%H%M%S 2>/dev/null || true)"
+	[[ -n "$epoch" ]] || printf -v epoch '%(%s)T' -1
+	printf -v canon '%(%Y%m%d-%H%M%S)T' "$epoch" 2>/dev/null || canon=""
 	[[ -n "$canon" ]] || canon="00000000-000000"
 	## Trailing newline so the caller's `read` returns 0; without it `read` hits
 	## EOF with no delimiter, returns 1, and aborts a set -e caller.
@@ -96,20 +98,23 @@ gfs_rotate(){
 
 	## Latest file in each *completed* period (the still-open current one is skipped
 	##   so it can't be tagged yet - that is what makes the roles retrospective).
+	## printf %()T is a builtin; `date` here was five forks per file.
 	local curH curD curW curM curY
-	curH="$(date -d "@$now" +%Y%m%d%H)"; curD="$(date -d "@$now" +%Y%m%d)"
-	curW="$(date -d "@$now" +%G%V)";     curM="$(date -d "@$now" +%Y%m)"; curY="$(date -d "@$now" +%Y)"
+	printf -v curH '%(%Y%m%d%H)T' "$now"; printf -v curD '%(%Y%m%d)T' "$now"
+	printf -v curW '%(%G%V)T'     "$now"; printf -v curM '%(%Y%m)T'   "$now"
+	printf -v curY '%(%Y)T'       "$now"
 	local -A pH pD pW pM pY; local it kH kD kW kM kY
 	# shellcheck disable=SC2034  # pH..pY are populated here, read later through the namerefs
 	for it in "${items[@]}"; do
 		e="${it%%$'\t'*}"
-		kH="$(date -d "@$e" +%Y%m%d%H)"; kD="$(date -d "@$e" +%Y%m%d)"
-		kW="$(date -d "@$e" +%G%V)";     kM="$(date -d "@$e" +%Y%m)"; kY="$(date -d "@$e" +%Y)"
-		[[ "$kH" != "$curH" ]] && pH["$kH"]="$it"
-		[[ "$kD" != "$curD" ]] && pD["$kD"]="$it"
-		[[ "$kW" != "$curW" ]] && pW["$kW"]="$it"
-		[[ "$kM" != "$curM" ]] && pM["$kM"]="$it"
-		[[ "$kY" != "$curY" ]] && pY["$kY"]="$it"
+		printf -v kH '%(%Y%m%d%H)T' "$e"; printf -v kD '%(%Y%m%d)T' "$e"
+		printf -v kW '%(%G%V)T'     "$e"; printf -v kM '%(%Y%m)T'   "$e"
+		printf -v kY '%(%Y)T'       "$e"
+		if [[ "$kH" != "$curH" ]]; then pH["$kH"]="$it"; fi
+		if [[ "$kD" != "$curD" ]]; then pD["$kD"]="$it"; fi
+		if [[ "$kW" != "$curW" ]]; then pW["$kW"]="$it"; fi
+		if [[ "$kM" != "$curM" ]]; then pM["$kM"]="$it"; fi
+		if [[ "$kY" != "$curY" ]]; then pY["$kY"]="$it"; fi
 	done
 
 	## Assign the coarsest role to each kept file:

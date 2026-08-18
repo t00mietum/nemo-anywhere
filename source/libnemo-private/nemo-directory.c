@@ -1166,7 +1166,9 @@ nemo_directory_notify_files_removed_by_uri (GList *uris)
 	GList *files;
 
 	files = nemo_file_list_from_uris (uris);
-	nemo_directory_notify_files_changed (files);
+	/* _removed, not _changed - the by-uri wrapper was calling the wrong one, so
+	   files reported as gone were only marked as having changed. */
+	nemo_directory_notify_files_removed (files);
 	g_list_free_full (files, g_object_unref);
 }
 
@@ -1356,6 +1358,10 @@ nemo_directory_notify_files_moved (GList *file_pairs)
 						 file);
 			collect_parent_directories (parent_directories,
 						    new_directory);
+			/* changed_lists is drained with call_files_changed_free_list,
+			   which does not unref - so balance nemo_file_get_existing the
+			   same way the move branch below does. */
+			unref_list = g_list_prepend (unref_list, file);
 		}
 
 		/* Update any directory objects that are affected. */

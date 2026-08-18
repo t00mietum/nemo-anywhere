@@ -776,7 +776,11 @@ remove_root_metadata (const gchar *attr_name)
 
         t_n_v = g_strsplit (old_metadata[i], "==", 3);
 
-        if (g_strcmp0 (t_n_v[1], attr_name) != 0)
+        /* An entry with no "==" splits to one element, so t_n_v[1] is the
+           terminator and t_n_v[2] would be past the end - keep the row rather
+           than read off it. */
+        if (t_n_v[0] == NULL || t_n_v[1] == NULL ||
+            g_strcmp0 (t_n_v[1], attr_name) != 0)
         {
             g_ptr_array_add (new_array, g_strdup (old_metadata[i]));
         }
@@ -846,7 +850,9 @@ set_or_update_root_metadata (const gchar        *attr_name,
 
         t_n_v = g_strsplit (old_metadata[i], "==", 3);
 
-        if (g_strcmp0 (t_n_v[1], attr_name) == 0)
+        /* Same guard as the remove path: a row with no "==" has no t_n_v[1]. */
+        if (t_n_v[0] != NULL && t_n_v[1] != NULL &&
+            g_strcmp0 (t_n_v[1], attr_name) == 0)
         {
             g_ptr_array_add (new_array, entry);
             exists = TRUE;

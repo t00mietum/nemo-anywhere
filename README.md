@@ -185,7 +185,7 @@ Where it goes:
 | Windows | %LOCALAPPDATA%\Programs\Nemo Anywhere\ | Start Menu shortcut + a PATH entry                     | C:\Program Files\Nemo Anywhere\ | Start Menu shortcut + a PATH entry
 | macOS   | *pending a macOS build*             |                                                           |                         |
 
-Settings live in `~/.config/nemo-anywhere` (`%APPDATA%\nemo-anywhere` on Windows) and are left alone by an uninstall.
+Settings live in `~/.config/nemo-anywhere` (`%LOCALAPPDATA%\nemo-anywhere` on Windows) and are left alone by an uninstall.
 
 ### DIY
 

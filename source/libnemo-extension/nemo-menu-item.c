@@ -298,25 +298,21 @@ nemo_menu_item_set_property (GObject *object,
 		item->details->priority = g_value_get_boolean (value);
 		g_object_notify (object, "priority");
 		break;
+	/* dup_object, not ref: these are nullable (menu can be cleared, widget_b is
+	   optional) and g_object_ref(NULL) warned on every menu item that had none. */
 	case PROP_MENU :
-		if (item->details->menu) {
-			g_object_unref (item->details->menu);
-		}
-		item->details->menu = g_object_ref (g_value_get_object (value));
+		g_clear_object (&item->details->menu);
+		item->details->menu = g_value_dup_object (value);
 		g_object_notify (object, "menu");
 		break;
     case PROP_WIDGET_A:
-        if (item->details->widget_a) {
-            g_object_unref (item->details->widget_a);
-        }
-        item->details->widget_a = g_object_ref (g_value_get_object (value));
+        g_clear_object (&item->details->widget_a);
+        item->details->widget_a = g_value_dup_object (value);
         g_object_notify (object, "widget-a");
         break;
     case PROP_WIDGET_B:
-        if (item->details->widget_b) {
-            g_object_unref (item->details->widget_b);
-        }
-        item->details->widget_b = g_object_ref (g_value_get_object (value));
+        g_clear_object (&item->details->widget_b);
+        item->details->widget_b = g_value_dup_object (value);
         g_object_notify (object, "widget-b");
         break;
     case PROP_SEPARATOR:

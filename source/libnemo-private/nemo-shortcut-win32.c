@@ -145,7 +145,9 @@ nemo_shortcut_win32_read (const char  *lnk_path,
 	IShellLinkW *link = NULL;
 	IPersistFile *pf = NULL;
 	gunichar2 *w_lnk = NULL;
-	wchar_t buf[MAX_PATH];
+	/* Long-path sized: at MAX_PATH a longer target was silently cut short and
+	   then opened, which is a different file. */
+	wchar_t buf[32768];
 	gboolean did_init = FALSE;
 	gboolean ok = FALSE;
 	HRESULT hr;
@@ -187,7 +189,7 @@ nemo_shortcut_win32_read (const char  *lnk_path,
 	}
 
 	buf[0] = L'\0';
-	hr = IShellLinkW_GetPath (link, buf, MAX_PATH, NULL, 0);
+	hr = IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf), NULL, 0);
 	if (FAILED (hr) || buf[0] == L'\0') {
 		/* No file-system target - e.g. a shortcut to a virtual item that
 		 * stores only an ID list. Nothing to follow. */
@@ -198,6 +200,11 @@ nemo_shortcut_win32_read (const char  *lnk_path,
 
 	*target_path = g_utf16_to_utf8 ((const gunichar2 *) buf, -1, NULL, NULL, NULL);
 	ok = (*target_path != NULL);
+	if (!ok) {
+		/* Every other failure here leaves an error behind; this one did not. */
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+				     _("The shortcut's target could not be read."));
+	}
 
 release:
 	if (pf != NULL) {

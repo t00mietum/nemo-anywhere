@@ -48,6 +48,7 @@
 #include <gio/gio.h>
 #include <glib/gi18n.h>
 
+#include <eel/eel-gnome-extensions.h>
 #include <eel/eel-vfs-extensions.h>
 #include <eel/eel-gtk-extensions.h>
 #include <eel/eel-stock-dialogs.h>
@@ -1281,6 +1282,19 @@ open_in_terminal_other (const gchar *path)
     gint i;
 
     gsetting_terminal = nemo_desktop_settings_get_terminal_exec ();
+
+    /* Off a desktop that publishes one, and with nothing set, this comes back
+       empty and the spawn below silently did nothing - while launching a
+       program in a terminal fell back to a scan of the known ones. Agree. */
+    if (gsetting_terminal == NULL || *gsetting_terminal == '\0') {
+        g_free (gsetting_terminal);
+        gsetting_terminal = eel_gnome_get_fallback_terminal_exec ();
+    }
+
+    if (gsetting_terminal == NULL) {
+        g_message ("Could not find a terminal emulator");
+        return;
+    }
 
     token = g_strsplit (gsetting_terminal, " ", 0);
     argv = g_new (gchar *, g_strv_length (token) + 1);

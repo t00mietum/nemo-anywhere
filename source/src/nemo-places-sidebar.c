@@ -150,6 +150,7 @@ typedef struct {
 
     gint bookmark_breakpoint;
     guint expand_timeout_source;
+    guint hide_bookmarks_timeout_id;
     guint popup_menu_action_index;
     guint update_places_on_idle_id;
 
@@ -1022,7 +1023,27 @@ update_places (NemoPlacesSidebar *sidebar)
             }
 
             gchar *drive_uri = g_strdup_printf ("file:///%c:/", letter);
-            gchar *drive_name = g_strdup_printf ("(%c:)", letter);
+            gchar *drive_name;
+
+            /* Explorer shows the volume label first - a bare "(C:)" tells the
+               user nothing when several drives are mounted. */
+            {
+                wchar_t wlabel[MAX_PATH + 1] = { 0 };
+                wchar_t wroot[4] = { (wchar_t) letter, L':', L'\\', L'\0' };
+                gchar *label = NULL;
+
+                if (GetVolumeInformationW (wroot, wlabel, G_N_ELEMENTS (wlabel),
+                                           NULL, NULL, NULL, NULL, 0)) {
+                    label = g_utf16_to_utf8 ((const gunichar2 *) wlabel, -1, NULL, NULL, NULL);
+                }
+
+                if (label != NULL && *label != '\0') {
+                    drive_name = g_strdup_printf ("%s (%c:)", label, letter);
+                } else {
+                    drive_name = g_strdup_printf ("(%c:)", letter);
+                }
+                g_free (label);
+            }
 
             df_file = g_file_new_for_uri (drive_uri);
             full = get_disk_full (sidebar, df_file, &tooltip_info);
@@ -1748,7 +1769,8 @@ maybe_expand_category (gpointer data)
         expand_or_collapse_category (payload->sidebar, payload->section_type, TRUE);
     }
 
-    g_source_remove (payload->sidebar->expand_timeout_source);
+    /* Returning FALSE already drops the source; removing it here as well is a
+       double-remove. */
     payload->sidebar->expand_timeout_source = 0;
     return FALSE;
 }
@@ -2232,6 +2254,8 @@ idle_hide_bookmarks (gpointer user_data)
 {
     NemoPlacesSidebar *sidebar = NEMO_PLACES_SIDEBAR (user_data);
 
+    sidebar->hide_bookmarks_timeout_id = 0;
+
     if (sidebar->in_drag) {
         sidebar->in_drag = FALSE;
         gtk_tree_model_filter_refilter (GTK_TREE_MODEL_FILTER (sidebar->store_filter));
@@ -2389,7 +2413,11 @@ out:
 	gtk_drag_finish (context, success, FALSE, time);
 	gtk_tree_path_free (tree_path);
 
-    g_timeout_add (250, (GSourceFunc) idle_hide_bookmarks, sidebar);
+    /* Kept so dispose can cancel it: unstored, it fired 250ms later on a sidebar
+       that a closed window had already destroyed. */
+    g_clear_handle_id (&sidebar->hide_bookmarks_timeout_id, g_source_remove);
+    sidebar->hide_bookmarks_timeout_id =
+        g_timeout_add (250, (GSourceFunc) idle_hide_bookmarks, sidebar);
 }
 
 static gboolean
@@ -3898,11 +3926,12 @@ clear_eject_hover (GtkTreeModel *model,
                     gpointer      data)
 {
     ClearHoverData *hdata = data;
-    gint size;
+    gint size, current = 0;
     gboolean can_eject = FALSE;
 
     gtk_tree_model_get (model, iter,
                         PLACES_SIDEBAR_COLUMN_EJECT, &can_eject,
+                        PLACES_SIDEBAR_COLUMN_EJECT_ICON_SIZE, &current,
                         -1);
 
     if (can_eject && hdata->hovered_path != NULL && gtk_tree_path_compare (path, hdata->hovered_path) == 0) {
@@ -3912,9 +3941,13 @@ clear_eject_hover (GtkTreeModel *model,
         size = EJECT_ICON_SIZE_NOT_HOVERED;
     }
 
-    gtk_tree_store_set (hdata->sidebar->store, iter,
-                        PLACES_SIDEBAR_COLUMN_EJECT_ICON_SIZE, size,
-                        -1);
+    /* Only touch rows that actually move: this runs for every row on every
+       mouse-motion event, and each set emits row-changed. */
+    if (size != current) {
+        gtk_tree_store_set (hdata->sidebar->store, iter,
+                            PLACES_SIDEBAR_COLUMN_EJECT_ICON_SIZE, size,
+                            -1);
+    }
 
     return FALSE;
 }
@@ -4656,6 +4689,9 @@ nemo_places_sidebar_dispose (GObject *object)
         g_clear_object (&sidebar->df_cancellable);
     }
     g_clear_pointer (&sidebar->df_cache, g_hash_table_destroy);
+
+    g_clear_handle_id (&sidebar->hide_bookmarks_timeout_id, g_source_remove);
+    g_clear_handle_id (&sidebar->expand_timeout_source, g_source_remove);
 
 	g_clear_object (&sidebar->store);
 

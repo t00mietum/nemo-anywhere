@@ -878,7 +878,7 @@ columns_reordered_callback (AtkObject *atk,
     for (iter = tv_list; iter != NULL; iter = iter->next) {
         for (l = vis_columns; l != NULL; l = l->next) {
             if (iter->data == g_hash_table_lookup (view->details->columns, l->data))
-                list = g_list_prepend (list, (gchar *)l->data);
+                list = g_list_prepend (list, g_strdup ((gchar *) l->data));
         }
     }
 
@@ -892,13 +892,16 @@ columns_reordered_callback (AtkObject *atk,
         nemo_config_set_strv (nemo_search_preferences,
                              NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS,
                              (const gchar **) column_array);
+        g_strfreev (column_array);
     } else {
         nemo_file_set_metadata_list (file,
                                      NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER,
                                      list);
     }
+    /* list owns copies now: vis_columns only borrows from columns, and any
+       column that didn't survive the match used to be freed by nobody. */
     g_list_free_full (list, g_free);
-    g_free (columns);
+    g_strfreev (columns);
     g_list_free (vis_columns);
     g_list_free (tv_list);
 }
@@ -3982,6 +3985,17 @@ default_sort_order_changed_callback (gpointer callback_data)
 	set_sort_order_from_metadata_and_preferences (list_view);
 }
 
+/* The callback below is connected per view, so every open tab hears a default
+ * change. Only the one being looked at should give up its pinned zoom. */
+static gboolean
+view_is_frontmost (NemoView *view)
+{
+	NemoWindow *window = nemo_view_get_nemo_window (view);
+
+	return window != NULL &&
+	       nemo_window_get_active_slot (window) == nemo_view_get_nemo_window_slot (view);
+}
+
 static void
 default_zoom_level_changed_callback (gpointer callback_data)
 {
@@ -3992,11 +4006,17 @@ default_zoom_level_changed_callback (gpointer callback_data)
 	/* Setting a new default is an instruction about the folder in front of you,
 	 * so let go of whatever zoom that folder had pinned and take the default.
 	 */
-	if (nemo_global_preferences_get_ignore_view_metadata ()) {
-		nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), -1);
-	} else {
-		nemo_file_set_metadata (nemo_view_get_directory_as_file (NEMO_VIEW (list_view)),
-					NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, NULL, NULL);
+	if (view_is_frontmost (NEMO_VIEW (list_view))) {
+		if (nemo_global_preferences_get_ignore_view_metadata ()) {
+			nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), -1);
+		} else {
+			NemoFile *file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+
+			if (file != NULL) {
+				nemo_file_set_metadata (file,
+							NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, NULL, NULL);
+			}
+		}
 	}
 
 	set_zoom_level_from_metadata_and_preferences (list_view);

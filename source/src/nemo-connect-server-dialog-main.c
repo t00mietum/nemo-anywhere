@@ -36,6 +36,7 @@
 
 #include <eel/eel-stock-dialogs.h>
 
+#include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-icon-names.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
@@ -121,7 +122,7 @@ main (int argc, char *argv[])
 		{ NULL }
 	};
 
-	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
+	bindtextdomain (GETTEXT_PACKAGE, nemo_get_locale_dir ());
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 

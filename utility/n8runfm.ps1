@@ -454,7 +454,12 @@ function fLaunchNemo {
 		$exe = $CopyPath
 	} else {
 		$exe = Join-Path $CopyPath "bin/nemo-anywhere"
-		$env:LD_LIBRARY_PATH = (Join-Path $CopyPath "lib/x86_64-linux-gnu") +
+		## The extension lib sits under whatever multiarch dir the prefix was built
+		## for, which is not x86_64 on arm64 - find it rather than bake one in.
+		$libDirs = @(Get-ChildItem -LiteralPath (Join-Path $CopyPath "lib") -Directory -ErrorAction SilentlyContinue |
+			Where-Object { $_.Name -like "*-linux-gnu*" } | ForEach-Object { $_.FullName })
+		$libDirs += (Join-Path $CopyPath "lib")
+		$env:LD_LIBRARY_PATH = ($libDirs -join ":") +
 			$(if ($env:LD_LIBRARY_PATH) { ":" + $env:LD_LIBRARY_PATH } else { "" })
 		$env:GSETTINGS_SCHEMA_DIR = (Join-Path $CopyPath "share/glib-2.0/schemas") +
 			$(if ($env:GSETTINGS_SCHEMA_DIR) { ":" + $env:GSETTINGS_SCHEMA_DIR } else { "" })

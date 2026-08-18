@@ -161,7 +161,9 @@ nemo_drag_uri_array_from_list (const GList *uri_list)
 		return NULL;
 	}
 
-	uris = g_new0 (char *, g_list_length ((GList *) uri_list));
+	/* +1: the NULL terminator below is written at index n, so an n-element
+	   allocation put it one past the end. */
+	uris = g_new0 (char *, g_list_length ((GList *) uri_list) + 1);
 	for (i = 0, l = uri_list; l != NULL; l = l->next) {
 		uris[i++] = g_strdup ((char *) l->data);
 	}
@@ -542,9 +544,12 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
                                              NULL,
                                              &error);
 
-                if (error != NULL) {
-                    g_warning ("Cannot fetch filesystem type for drag involving the desktop: %s", error->message);
+                if (error != NULL || fs_info == NULL) {
+                    g_warning ("Cannot fetch filesystem type for drag involving the desktop: %s",
+                               error != NULL ? error->message : "no info returned");
                     g_clear_error (&error);
+                    *source_fs = NULL;
+                    *can_delete_source = FALSE;
                 } else {
                     if (g_file_info_has_attribute (fs_info, G_FILE_ATTRIBUTE_ID_FILESYSTEM)) {
                         *source_fs = g_strdup (g_file_info_get_attribute_string (fs_info,
@@ -561,7 +566,8 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
                     }
                 }
 
-                g_object_unref (fs_info);
+                /* A failed query leaves this NULL. */
+                g_clear_object (&fs_info);
             }
 
             g_object_unref (source_file);

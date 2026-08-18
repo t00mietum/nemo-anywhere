@@ -88,6 +88,8 @@ static const char *const deflist_plugins_disabled_actions[] = { NULL };
 static const char *const deflist_plugins_disabled_extensions[] = { NULL };
 static const char *const deflist_plugins_disabled_scripts[] = { NULL };
 static const char *const deflist_preferences_image_viewers_with_external_sort[] = { "xviewer", "feh", "sxiv", NULL };
+/* Windows "Open in Terminal": first one found on PATH wins. */
+static const char *const deflist_terminal_win32_candidates[] = { "wt.exe", "pwsh.exe", "powershell.exe", "cmd.exe", NULL };
 static const char *const deflist_search_disabled_search_helpers[] = { NULL };
 static const char *const deflist_search_search_skip_folders[] = { "/dev", "/proc", "/sys", "dosdevices", ".git", NULL };
 static const char *const deflist_search_search_visible_columns[] = { NULL };
@@ -104,6 +106,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "privacy", "remember-recent-files", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "terminal", "exec", NEMO_CONFIG_STRING, "", NULL, NULL, NULL },
 	{ "terminal", "exec-arg", NEMO_CONFIG_STRING, "-e", NULL, NULL, NULL },
+	{ "terminal", "win32-candidates", NEMO_CONFIG_STRING_LIST, NULL, deflist_terminal_win32_candidates, NULL, "Terminals to try for \"Open in Terminal\" on Windows, in order" },
 	{ "desktop", "background-fade", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Fade the background on change" },
 	{ "desktop", "computer-icon-visible", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Computer icon visible on desktop" },
 	{ "desktop", "desktop-layout", NEMO_CONFIG_STRING, "true::false", NULL, NULL, "Desktop layout" },

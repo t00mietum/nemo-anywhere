@@ -32,5 +32,10 @@
 /* Open up a new terminal, optionally passing in a command to execute */
 void          eel_gnome_open_terminal_on_screen                       (const char               *command,
 								       GdkScreen                *screen);
+
+/* First of the known terminals present on PATH, or NULL if there is none.
+   The fallback the launch path already used, so callers that only honored a
+   configured terminal can agree with it. Caller frees. */
+char *        eel_gnome_get_fallback_terminal_exec                    (void);
 								 
 #endif /* EEL_GNOME_EXTENSIONS_H */

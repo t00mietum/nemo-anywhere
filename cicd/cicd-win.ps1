@@ -328,15 +328,31 @@ function fSignFile {
 	if (-not $signtool) { fWarn "signtool.exe not found (install the Windows SDK, or set NEMO_SIGNTOOL); leaving exe unsigned"; return }
 
 	$signArgs = @("sign", "/fd", "sha256", "/tr", $SignTsUrl, "/td", "sha256", "/v")
+	$imported = $null
+
 	if ($SignThumbprint) {
 		$signArgs += @("/sha1", $SignThumbprint)
+	} elseif ($SignPfxPass) {
+		## Import into this user's store and sign by thumbprint rather than
+		## handing signtool /p: a password on a command line is readable by every
+		## other process on the box for as long as the process lives. The cert is
+		## removed again below.
+		$secure = ConvertTo-SecureString -String $SignPfxPass -AsPlainText -Force
+		$imported = Import-PfxCertificate -FilePath $SignPfx `
+			-CertStoreLocation Cert:\CurrentUser\My -Password $secure
+		$signArgs += @("/sha1", $imported.Thumbprint)
 	} else {
 		$signArgs += @("/f", $SignPfx)
-		if ($SignPfxPass) { $signArgs += @("/p", $SignPfxPass) }
 	}
 	$signArgs += $Path
 
-	& $signtool @signArgs
+	try {
+		& $signtool @signArgs
+	} finally {
+		if ($imported) {
+			Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $imported.Thumbprint) -Force -ErrorAction SilentlyContinue
+		}
+	}
 	if ($LASTEXITCODE -ne 0) { fDie "signing failed (exit $LASTEXITCODE): $Path" }
 	## /pa = default authenticode policy; a self-signed/test cert verifies only if it
 	## is trusted on this box, so treat a verify miss as a warning, not a hard fail.
@@ -395,7 +411,17 @@ function fRemoteSync {
 	fRun "git pull" "git" @("pull", "--ff-only")
 	if ($didStash) {
 		fEcho_Clean "git stash pop ..."
-		fRun "git stash pop" "git" @("stash", "pop")
+		## A conflicting pop leaves the stash held and the tree half-merged.
+		## Abort saying where the work is: a rerun with sync off would otherwise
+		## build and commit a tree missing it, conflict markers and all.
+		& git stash pop
+		if ($LASTEXITCODE -ne 0) {
+			fEcho_Clean
+			fEcho "Your changes are still in the stash (git stash list)."
+			fEcho "Resolve the conflicts, then: git stash drop"
+			fEcho "Or start over:               git checkout -- . ; git stash pop"
+			fDie "stash pop conflicted after the pull"
+		}
 	}
 	fEcho "OK: fast-forwarded $behind commit(s) from upstream"
 }
@@ -409,7 +435,7 @@ function fRun {
 
 ## Publish: the host-side half of the Linux backup+publish, MINUS the rar version
 ## archive (that lives in the Linux-only n8git_backup-and-publish). stash (if dirty)
-## -> pull --no-ff (if upstream) -> pop -> add -> commit -> push. $Msg empty means
+## -> pull --ff-only (if upstream) -> pop -> add -> commit -> push. $Msg empty means
 ## "let git open its editor".
 function fPublish {
 	param([Parameter(Mandatory)][AllowEmptyString()][string]$Msg)
@@ -431,12 +457,24 @@ function fPublish {
 	& git rev-parse --abbrev-ref '@{u}' 2>$null | Out-Null
 	$hasUpstream = ($LASTEXITCODE -eq 0)
 	if ($hasUpstream) {
-		fEcho_Clean "git pull --no-ff ..."
-		fRun "git pull" "git" @("pull", "--no-ff", "--no-edit")
+		## ff-only, like fRemoteSync and the Linux publisher: a diverged branch
+		## should stop here, not get a fabricated merge pushed to it.
+		fEcho_Clean "git pull --ff-only ..."
+		fRun "git pull" "git" @("pull", "--ff-only")
 	}
 	if ($didStash) {
 		fEcho_Clean "git stash pop ..."
-		fRun "git stash pop" "git" @("stash", "pop")
+		## A conflicting pop leaves the stash held and the tree half-merged.
+		## Abort saying where the work is: a rerun with sync off would otherwise
+		## build and commit a tree missing it, conflict markers and all.
+		& git stash pop
+		if ($LASTEXITCODE -ne 0) {
+			fEcho_Clean
+			fEcho "Your changes are still in the stash (git stash list)."
+			fEcho "Resolve the conflicts, then: git stash drop"
+			fEcho "Or start over:               git checkout -- . ; git stash pop"
+			fDie "stash pop conflicted after the pull"
+		}
 	}
 
 	fEcho_Clean "git add --all ..."
@@ -533,7 +571,12 @@ function fMain {
 
 	## Capture the commit message up front so the run finishes unattended. Ctrl+C
 	## here aborts on the common (publish) path.
+	## No tty means Read-Host returns immediately at EOF and the run would sail
+	## on to a git commit with no editor and nothing to type into it.
 	if (-not $Unattended -and -not $NoPublish -and -not $publishMsg) {
+		if ([Console]::IsInputRedirected) {
+			throw "Publish needs a commit message: pass -Message, or -Yes, or run interactively."
+		}
 		$m = Read-Host "Publish commit message (blank = editor; Ctrl+C aborts)"
 		$script:WasLastEchoBlank = $false
 		if ($m) { $publishMsg = $m }

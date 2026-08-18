@@ -179,9 +179,10 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Verified: the destruction is reproducible. With the fix backed out, the test overwrites a file it was told not to touch; with it in, the file survives and the clash is reported.
 	- Note: the shortcut test was failing two checks before any of this, on a correct product - it compared a short-form temporary path against the long form the system reports. Fixed alongside.
 
-- 🔘 Code Review 20260804 item 5. Repairing the thumbnail cache as an administrator can change ownership of unrelated files.
+- ✅ Code Review 20260804 item 5. Repairing the thumbnail cache as an administrator can change ownership of unrelated files.
 	- Cause: the repair walks symbolic links instead of skipping them, and changes ownership of whatever they point at.
 	- Note: the app itself suggests running this with administrator rights, so an unprivileged process could aim it at system files.
+	- Fixed: the repair acts on the link itself instead of following it, so a link planted in the cache can no longer hand away the file it points at.
 
 - ✅ Code Review 20260804 item 6. Favorites can hang the app or read freed memory.
 	- Cause: listing favorites can stop advancing and spin on one entry forever, leaking as it goes.
@@ -223,105 +224,125 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Verified: new case in the trash test that recycles a folder of its own for real, so it runs on Windows rather than only under wine. Pre-fix, listing says "not a directory" and the delete says "directory not empty".
 	- Note: a link or junction inside a trashed folder is deleted as the link it is, never followed out of the bin.
 
-- 🔘 Code Review 20260804 item 10. Windows trash items can go missing, and restore can aim at the wrong place.
+- ✅ Code Review 20260804 item 10. Windows trash items can go missing, and restore can aim at the wrong place.
 	- Cause: items the shell describes in a form the code does not expect are skipped silently, while the item count still includes them.
 	- Cause: a long original location is cut short, and the shortened path is what a restore would use.
 	- Note: only reproducible on real Windows. Belongs with the real-Windows validation pass.
+	- Fixed: an item the shell describes in an unexpected form is now reported rather than silently dropped, and the original location is read at full length so a restore aims at the right place.
+	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Code Review 20260804 item 11. The Windows trash monitor can freeze the app.
+- ✅ Code Review 20260804 item 11. The Windows trash monitor can freeze the app.
 	- Cause: it announces changes while still holding its own lock, so a listener that closes or opens a trash view deadlocks.
+	- Fixed: the announcement is made after the lock is released, so a listener that opens or closes a trash view cannot deadlock it.
+	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Code Review 20260804 item 12. Windows network browsing builds wrong addresses and cannot report a failure.
+- ✅ Code Review 20260804 item 12. Windows network browsing builds wrong addresses and cannot report a failure.
 	- Cause: a share's address is joined to its server without a separator, so shares get malformed addresses and two servers can collide.
 	- Cause: no network, or access denied, looks exactly like an empty network - no message either way.
 	- Cause: any typed network address is presented as a valid empty folder rather than "not found".
 	- Cause: nothing limits how deep the enumeration recurses.
+	- Fixed: a share's address is joined with a separator, no-network and access-denied are reported instead of reading as an empty folder, an address that cannot be reached comes back as not found, and the enumeration is depth-limited.
+	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Code Review 20260804 item 13. Windows context-menu actions break on ordinary paths.
+- ✅ Code Review 20260804 item 13. Windows context-menu actions break on ordinary paths.
 	- Cause: "Open as Administrator" passes the folder unquoted, so anything with a space arrives as two separate locations.
 	- Cause: "Open in Terminal" at a drive root passes a trailing backslash that swallows the closing quote.
+	- Fixed: both paths quote properly, so a folder with spaces and a drive root each work.
+	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Code Review 20260804 item 14. Opening a Windows shortcut can truncate its target or hang the app.
+- ✅ Code Review 20260804 item 14. Opening a Windows shortcut can truncate its target or hang the app.
 	- Cause: targets past the old length limit are silently cut short and then opened, wrongly.
 	- Cause: a shortcut pointing at itself, or at a loop of shortcuts, recurses until the app runs out of stack.
+	- Fixed: the target is read at full length, a chain of shortcuts is followed to its end with a loop guard, and a failed read leaves an error behind.
+	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Code Review 20260804 item 15. A duplicated line in the settings file empties a list instead of falling back.
+- ✅ Code Review 20260804 item 15. A duplicated line in the settings file empties a list instead of falling back.
 	- Cause: an unreadable list is treated as a deliberately empty one. Only lists behave this way; single values fall back correctly.
 	- Note: a duplicated column list opens the list view with no columns at all. Hand-editing is a supported way to use this file, so this is easy to hit.
+	- Fixed: a setting listed twice, or holding the wrong kind of value, falls back to its default and says so instead of coming back empty.
 
-- 🔘 Code Review 20260804 item 16. An external edit arriving mid-change throws the change away.
+- ✅ Code Review 20260804 item 16. An external edit arriving mid-change throws the change away.
 	- Cause: settings are written a couple of seconds after they are changed, and a file reload in that window replaces the pending change with no warning.
+	- Fixed: a change made in the app inside the save delay is carried across the reload instead of being replaced by what is still on disk.
 
-- 🔘 Code Review 20260804 item 17. Settings changes can be announced from a background thread.
+- ✅ Code Review 20260804 item 17. Settings changes can be announced from a background thread.
 	- Cause: deleting files updates favorites from a worker thread, and the change is announced on that same thread.
 	- Note: the previous settings system always announced on the main thread, which is what every listener assumes. Nothing fires today, so this is a trap for the next listener added.
+	- Fixed: change notifications are always delivered on the main thread, which is what every handler assumes.
 
-- 🔘 Code Review 20260804 item 18. A damaged per-folder settings file is discarded without a word, then overwritten.
+- ✅ Code Review 20260804 item 18. A damaged per-folder settings file is discarded without a word, then overwritten.
 	- Cause: a parse failure leaves an empty store, and the next change writes that empty store over the file.
 	- Note: costs every folder's saved view, zoom, sort and layout. A failed save is likewise ignored.
+	- Fixed: an unreadable per-folder settings file is reported and kept aside, so the next change cannot overwrite the only copy.
 
-- 🔘 Code Review 20260804 item 19. Setting the thumbnail size limit above two gigabytes breaks thumbnails.
+- ✅ Code Review 20260804 item 19. Setting the thumbnail size limit above two gigabytes breaks thumbnails.
 	- Cause: the limit is stored in a smaller number than the dialog offers, so the large choices wrap. Eight gigabytes turns every thumbnail off; two and four turn the limit off entirely.
+	- Fixed: the size limit is read at full width, so the large choices work instead of turning thumbnails off or on wholesale.
 
-- 🔘 Code Review 20260804 item 20. Opening a folder on an unresponsive drive freezes the whole window.
+- ✅ Code Review 20260804 item 20. Opening a folder on an unresponsive drive freezes the whole window.
 	- Cause: the fallback added for unreadable folders asks for the listing in a way that blocks until the system gives up.
 	- Cause: it also treats any general failure as that same case, so a passing glitch is remembered as a made-up folder with no way to tell.
 	- Cause: a folder with many unreadable entries stops partway and shows an error over a half-listed folder.
+	- Fixed: the fallback for an unreadable folder no longer blocks the window, the skip allowance counts a run rather than a total, and a folder that could not be read is recorded as unknown rather than confirmed empty.
 
-- 🔘 Code Review 20260804 item 21. Right-clicking a path segment can offer actions the folder will not allow.
+- ✅ Code Review 20260804 item 21. Right-clicking a path segment can offer actions the folder will not allow.
 	- Cause: the menu is now built before the folder's details have loaded, and the unknown state reads as "everything is permitted", so Delete and New Folder appear on read-only places.
+	- Fixed: a path segment whose details have not loaded no longer offers actions the folder may not allow.
 
-- 🔘 Code Review 20260804 item 22. Changing the default zoom discards a zoom deliberately set in another tab.
+- ✅ Code Review 20260804 item 22. Changing the default zoom discards a zoom deliberately set in another tab.
 	- Cause: every open view reacts, not just the visible one, so background tabs lose their own setting.
+	- Fixed: only the folder in front of you gives up its pinned zoom when the default changes.
 
-- 🔘 Code Review 20260804 item 23. The "treat root as a normal user" preference is read before settings are open.
+- ✅ Code Review 20260804 item 23. The "treat root as a normal user" preference is read before settings are open.
 	- Cause: it is consulted while handling the command line, which happens first, so it is answered wrongly and then remembered.
+	- Fixed: the preference is no longer answered and remembered before settings are open.
 
-- 🔘 Code Review 20260804 item 24. Folder listing and file moves do more per-file work than they used to.
+- ✅ Code Review 20260804 item 24. Folder listing and file moves do more per-file work than they used to.
 	- Cause: every file now builds an address and takes a shared lock to check the per-folder store, where before there was a cheap early exit.
 	- Cause: every moved file scans the whole store, so a large move gets slower the more is stored.
 	- Cause: on Windows the per-type icon is rebuilt for every file on every update, not just when the type changes.
 	- Cause: the store is rewritten whole on every save and never pruned.
+	- Fixed: an empty store costs nothing per file, a move only scans when there is something to re-key, and the Windows per-type icon is derived once per type instead of once per file.
 
-- 🔘 Code Review 20260804 item 25. Reading a setting costs more than it should, and text settings grow memory.
+- ✅ Code Review 20260804 item 25. Reading a setting costs more than it should, and text settings grow memory.
 	- Cause: every read searches the whole settings table from the start.
 	- Cause: reads of text, list and choice settings allocate inside the settings document and never give it back, and one of them runs on every icon the mouse passes over.
+	- Fixed: settings are looked up directly rather than searched from the start, and the memory the settings document hands out is reclaimed instead of growing for the life of the run.
 
-- 🔘 Code Review 20260804 item 26. The Windows recycle bin is rescanned far more than needed.
+- ✅ Code Review 20260804 item 26. The Windows recycle bin is rescanned far more than needed.
 	- Cause: a full scan runs every few seconds for the life of the app, twice more on every look at the trash folder, and once more for every item not already known.
+	- Fixed: a look at the trash folder scans once instead of twice, and the periodic check notices a change that leaves the count the same.
 
 - ✅ Code Review 20260804 item 27. The release checksums file can be written wrong.
 	- Cause: an empty release folder still writes a bogus line, and any artifact name with a space would be split in two.
 	- Note: this is the file both installers verify a download against.
 	- Fixed: null-separated, and it no longer runs the checksum tool at all when there is nothing to check.
 
-- 🛠️ Code Review 20260804 item 28. Assorted unsafe or non-portable paths in the pipeline and installer scripts.
+- ✅ Code Review 20260804 item 28. Assorted unsafe or non-portable paths in the pipeline and installer scripts.
 	- Fixed: the Windows installer no longer moves the new copy into place in a way that fails across drives after the old one is already gone.
 	- Fixed: the installer's own `--help` now prints when run the documented way.
 	- Fixed: a prerelease version in an archive name is no longer reported as the plain release number.
 	- Fixed: the release archive no longer fails outside a checkout over its timestamp.
-	- Remaining below.
-	- Cause: refreshing the bundled themes rewrites a notes file that now also records the vendored settings parser and its license.
-	- Cause: the Windows installer removes the old copy and then moves the new one into place, which fails outright across drives - leaving nothing installed.
-	- Cause: the Windows pipeline's publish step merges instead of fast-forwarding, against the rule the rest of the project follows.
-	- Cause: the publish step does not stash untracked files, so a pull can abort after the backup has already run.
-	- Cause: a failed image-loader cache build leaves an empty cache, which is worse than none at all.
-	- Cause: the Windows pipeline can sail past its own message prompt when nothing is typing, and get stuck later.
-	- Cause: the launcher written into the Linux package hardcodes the Intel library folder, so the planned arm64 build would ship without its extension library.
-	- Cause: the publish helper runs an environment variable as script.
-	- Cause: two delete-and-replace paths have no guard on where they are pointing.
-	- Cause: the installer's own `--help` prints nothing when run the documented way.
+	- Fixed: refreshing the bundled themes rewrites only its own section of the notes file, leaving the rest alone.
+	- Fixed: the Windows pipeline's publish step fast-forwards, like everything else here.
+	- Fixed: the publish step counts untracked files as a dirty tree, so the stash covers them.
+	- Fixed: a failed image-loader cache build leaves the previous cache alone instead of an empty one.
+	- Fixed: the pipeline stops with an explanation when there is no one to answer its prompt.
+	- Fixed: the packaged launcher finds whichever library folder the build produced.
+	- Fixed: the publish helper splits the setting instead of running it.
+	- Fixed: both delete-and-replace paths check what they are pointing at first.
 
-- 🛠️ Code Review 20260804 item 29. Script style and speed debt.
-	- Cause: several loops start external programs once per item where a builtin would do, the worst being the backup rotation and the dogfood pruning.
-	- Cause: one unused function would fail immediately if anything ever called it.
+- ✅ Code Review 20260804 item 29. Script style and speed debt.
+	- Fixed: the backup rotation, the dogfood pruning and the argument parsing all use builtins where they used to start a program per item.
+	- Fixed: the unused function is gone.
 	- Fixed: the output helpers now live in one file that the helper scripts share, instead of each carrying its own lesser copy.
 	- Fixed: the Windows installer gained proper built-in help, so `Get-Help` and `-?` work.
 	- Note: the review said three scripts had diverged output helpers; only one actually had. The others define a single matching helper, which is fine.
 
-- 🔘 Code Review 20260804 item 30. A Windows-only test reports a pass when it did not run.
+- ✅ Code Review 20260804 item 30. A Windows-only test reports a pass when it did not run.
 	- Cause: the trash test exits successfully unless it detects the compatibility layer used for development, so on real Windows it silently skips.
 	- Note: that is exactly where items 9 and 10 would have been caught.
+	- Fixed: it reports a skip instead of a pass when it cannot run.
 
 ### Code review 20260815
 
@@ -329,9 +350,11 @@ Full code, security and performance review of the whole tree, first-party and in
 
 #### High
 
-- 🔘 Item 1. Windows trash acts on file paths from the address with no check that they belong to the recycle bin.
+- ✅ Item 1. Windows trash acts on file paths from the address with no check that they belong to the recycle bin.
 	- Cause: delete, move and read take the raw path straight from a `trash:///` address, so a crafted address can read or permanently delete any file.
 	- Cause: the one place that does check compares un-normalized text, so a `..` inside a bin item's path escapes it.
+	- Fixed: a path from a trash address is resolved to its canonical form and has to name something the recycle bin actually holds before it is read, moved or deleted.
+	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
 
 - ✅ Item 2. Reading dragged icon-list data can walk off the end of the buffer.
 	- Cause: on the no-geometry branch the remaining-length bookkeeping is skipped and the end-of-data guard tests a pointer that is never null, so the scan runs past the buffer.
@@ -365,8 +388,10 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Cause: a regex that fails to compile leaves a null pattern but the search runs anyway, then frees an uninitialized match on every file. Reachable by pressing Enter before the typing check catches up.
 	- Fix: guard NULL filename_re (match nothing), init match_info NULL and g_clear_pointer it. Regression test (test-nemo-search-regex).
 
-- 🔘 Item 10. Restoring an item from the Windows trash drops its file extension.
+- ✅ Item 10. Restoring an item from the Windows trash drops its file extension.
 	- Cause: the original name is taken from the shell display name, which hides known extensions by default, and that shortened name is what restore writes.
+	- Fixed: the real extension is taken from the backing file, so the listed name and the restored name both keep it.
+	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
 
 - ✅ Item 11. Opening certain images can crash if the tab is closed first.
 	- Cause: the image-viewer sort path dereferences the originating tab with no null check, and that pointer is cleared when the tab closes mid-open. This is the default double-click-an-image path on Mint-family setups.
@@ -384,8 +409,9 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Cause: the transfer loop reads one list but edits the other two, so the back and forward lists end up sharing and leaking nodes; a later navigation then frees entries still in use.
 	- Fix: remove from forward_list / prepend to back_list (mirrors handle_go_back's symmetric form).
 
-- 🔘 Item 15. On Windows every file reports as changed on every refresh.
+- ✅ Item 15. On Windows every file reports as changed on every refresh.
 	- Cause: the per-type icon override is compared against the plain system icon, which never matches, so each refresh marks the whole folder changed and re-sorts, redraws and re-checks thumbnails, plus a per-file registry lookup and allocation.
+	- Fixed: the icon is judged on where it ends up rather than mid-update, so a Windows refresh no longer reports every file as changed.
 
 - ✅ Item 16. Sidebar rebuilds block the whole window on filesystem queries.
 	- Cause: free-space and drive-type checks run on the UI thread for every drive and mount, on every rebuild. A slow or hung mount freezes the window, and a mount change is often what triggers the rebuild.
@@ -393,10 +419,12 @@ Full code, security and performance review of the whole tree, first-party and in
 
 #### Medium
 
-- 🔘 Item 17. The code-signing password is passed on the command line, visible to other local processes.
+- ✅ Item 17. The code-signing password is passed on the command line, visible to other local processes.
+	- Fixed: the certificate is imported and signed by fingerprint, so the password never appears on a command line another process can read.
 
-- 🔘 Item 18. The Windows sysroot packages are downloaded and unpacked with no integrity check, and those libraries ship in the release.
+- ✅ Item 18. The Windows sysroot packages are downloaded and unpacked with no integrity check, and those libraries ship in the release.
 	- Cause: neither the database signature nor the per-package checksum is verified, though the checksum sits in data the fetcher already parses.
+	- Fixed: every package is checked against the checksum the database already carries, and a mismatch stops the build.
 
 - ✅ Item 19. A malformed D-Bus Open hint from any local process crashes the running app.
 	- Cause: a hint with no `=` yields a null that is parsed without a check.
@@ -406,10 +434,12 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Cause: the file is read with no size cap, the parser keeps every decoded byte for the document's life, and an allocation failure exits the whole process from library code.
 	- Fix: 8 MiB read cap in load_locked; oversized file refused, in-memory doc kept. Regression test (test-nemo-config).
 
-- 🔘 Item 21. In the Windows pipeline, an abort between stash and pop strands the working changes, and a rerun can commit conflict markers.
+- ✅ Item 21. In the Windows pipeline, an abort between stash and pop strands the working changes, and a rerun can commit conflict markers.
+	- Fixed: a conflicting restore now stops and says where the work is and how to get it back, instead of leaving a rerun to commit a half-merged tree.
 
-- 🔘 Item 22. In cicd.bash, a remote-sync stash-pop conflict aborts with no guidance and the stash still held.
+- ✅ Item 22. In cicd.bash, a remote-sync stash-pop conflict aborts with no guidance and the stash still held.
 	- Note: the natural rerun with sync off then builds and publishes a tree missing the stashed changes.
+	- Fixed: same as above - it stops with the stash named and the two ways out spelled out.
 
 - ✅ Item 23. The version-bump guard blocks the beta-to-final release push.
 	- Cause: version sort orders `1.0.0` before `1.0.0-beta2`, the reverse of release order, so cutting final over the current beta fails the guard. This exact transition is next.
@@ -471,14 +501,20 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: check g_file_set_contents; only clear dirty on success, warn on failure.
 	- Cause: the write error is ignored and the data is marked saved, so it is never written again and is lost on restart.
 
-- 🔘 Item 38. Large-zoom images render blurry on Windows.
+- ✅ Item 38. Large-zoom images render blurry on Windows.
 	- Cause: the can-load check misses the content-type conversion the rest of the code uses, so the full-resolution path never triggers.
+	- Fixed: the check converts the type first, the way the rest of the code does, so the full-resolution path runs.
+	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Item 39. A trashed folder whose status can't be read is shown as a healthy file.
+- ✅ Item 39. A trashed folder whose status can't be read is shown as a healthy file.
 	- Cause: the fallback fabricates a regular-file entry with no error inspection, and an item deleted behind the app's back still lists as existing until the next full refresh.
+	- Fixed: a folder is shown as a folder, and something that has gone is no longer presented as readable.
+	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
 
-- 🔘 Item 40. Freshly trashed items get a wrong parent until the next poll.
+- ✅ Item 40. Freshly trashed items get a wrong parent until the next poll.
 	- Cause: the top-level check does not refresh on a miss, unlike the sibling lookup, so a not-yet-seen item is filed under a bogus parent.
+	- Fixed: the top-level check refreshes on a miss, like the sibling lookup.
+	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
 
 - ✅ Item 41. The bookmarks window's no-selection guard never fires and can abort.
 	- Fix: get_selected_row and its local are gint, so the < 0 no-selection check works.
@@ -508,8 +544,10 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: open root (not the same failing location) so an undisplayable home stops retrying.
 	- Cause: the root fallback is built but never used, so an unreadable home retries itself in a loop. The hardcoded root also resolves to the current drive on Windows.
 
-- 🔘 Item 48. The Windows trash test writes past a buffer.
+- ✅ Item 48. The Windows trash test writes past a buffer.
 	- Cause: a 64-bit size is written through a 32-bit pointer on Windows, so half the length is stack garbage that then sizes and indexes a buffer.
+	- Fixed: the length is taken in the right size, so nothing past the buffer is written or read.
+	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
 
 - ✅ Item 49. The dogfood launcher mangles pass-through arguments containing quotes or trailing backslashes.
 	- Fix: fQuoteArg now does full MSVCRT-style quoting and is applied to every Start-Process ArgumentList element (not just whitespace ones), and the sh round-trip uses a clean `exec "$0" "$@"` script. Verified end-to-end on Linux with space/quote/trailing-backslash args; the old form also split plain spaced args.
@@ -539,139 +577,204 @@ Full code, security and performance review of the whole tree, first-party and in
 
 Terse by design; file and mechanism are in the private detail notes. All confirmed on read, minor impact or rare paths, mostly inherited.
 
-- 🔘 Item 55. Vendored-theme staging uses a fixed temp path instead of a unique one (symlink race on a shared box).
+- ✅ Item 55. Vendored-theme staging uses a fixed temp path instead of a unique one (symlink race on a shared box).
+	- Fixed: staged under a unique temp directory that is cleaned up on exit.
 
-- 🔘 Item 56. One version parser in the push hook lacks the guard the others gained; correct only by token order today.
+- ✅ Item 56. One version parser in the push hook lacks the guard the others gained; correct only by token order today.
+	- Fixed: the guard is in, so it can no longer match the wrong field on the same line.
 
-- 🔘 Item 57. The portable packer copies the app folder without recursion, silently dropping any subfolder's contents.
+- ✅ Item 57. The portable packer copies the app folder without recursion, silently dropping any subfolder's contents.
+	- Fixed: the copy recurses, so subfolders keep their contents.
 
-- 🔘 Item 58. The packer passes a single unquoted string as arguments, so an output path with spaces splits.
+- ✅ Item 58. The packer passes a single unquoted string as arguments, so an output path with spaces splits.
+	- Fixed: the argument is quoted, so a path with spaces stays one argument.
 
-- 🔘 Item 59. The packer's fixed grace-then-kill can truncate an exe still being written.
+- ✅ Item 59. The packer's fixed grace-then-kill can truncate an exe still being written.
+	- Fixed: it waits for the output to stop growing rather than a fixed grace.
 
-- 🔘 Item 60. Hand-supplied negative-offset window geometry is computed off-screen and clamped to the primary monitor.
+- ✅ Item 60. Hand-supplied negative-offset window geometry is computed off-screen and clamped to the primary monitor.
+	- Fixed: a negative position now places the window's far edge that far in from the screen edge, as it is meant to.
 
-- 🔘 Item 61. Extension menu-item setters ref a null value, so a nullable field can't be cleared and an optional widget always warns.
+- ✅ Item 61. Extension menu-item setters ref a null value, so a nullable field can't be cleared and an optional widget always warns.
+	- Fixed: an optional widget can be left unset, and a menu can be cleared.
 
-- 🔘 Item 62. The extension property-page dispose never chains up to the parent.
+- ✅ Item 62. The extension property-page dispose never chains up to the parent.
+	- Fixed: dispose chains up.
 
-- 🔘 Item 63. The settings flush reads and clears the save-timer id without the lock.
+- ✅ Item 63. The settings flush reads and clears the save-timer id without the lock.
+	- Fixed: the timer is taken under the lock.
 
-- 🔘 Item 64. A trashed-file timestamp is formatted and parsed with a type that truncates on 64-bit Windows.
+- ✅ Item 64. A trashed-file timestamp is formatted and parsed with a type that truncates on 64-bit Windows.
+	- Fixed: the timestamp is written and read at full width, so the round-trip survives on 64-bit Windows.
 
-- 🔘 Item 65. An unreadable directory records a confirmed-empty file-type list instead of an unknown one.
+- ✅ Item 65. An unreadable directory records a confirmed-empty file-type list instead of an unknown one.
+	- Fixed: an unreadable directory records an unknown type list rather than a confirmed-empty one.
 
-- 🔘 Item 66. One removal helper dispatches to the changed path instead of the removed path.
+- ✅ Item 66. One removal helper dispatches to the changed path instead of the removed path.
+	- Fixed: it dispatches the removal.
 
-- 🔘 Item 67. A file object leaks for each overwritten destination during a move.
+- ✅ Item 67. A file object leaks for each overwritten destination during a move.
+	- Fixed: the reference is released.
 
-- 🔘 Item 68. The drag URI array writes its null terminator one element past the allocation.
+- ✅ Item 68. The drag URI array writes its null terminator one element past the allocation.
+	- Fixed: the array is one longer, so the terminator lands inside it.
 
-- 🔘 Item 69. A failed filesystem query during a desktop drag unrefs a null.
+- ✅ Item 69. A failed filesystem query during a desktop drag unrefs a null.
+	- Fixed: guarded, and the drag falls back to no filesystem information.
 
-- 🔘 Item 70. A missing favorite name aborts the whole favorites listing rather than skipping the entry.
+- ✅ Item 70. A missing favorite name aborts the whole favorites listing rather than skipping the entry.
+	- Fixed: a missing entry is skipped rather than aborting the whole listing.
 
-- 🔘 Item 71. Cancelling a favorites listing mid-batch leaks the gathered entries.
+- ✅ Item 71. Cancelling a favorites listing mid-batch leaks the gathered entries.
+	- Fixed: the gathered entries are released on cancellation.
 
-- 🔘 Item 72. An empty favorites metadata entry reads past the split result.
+- ✅ Item 72. An empty favorites metadata entry reads past the split result.
+	- Fixed: guarded, so a malformed entry is kept rather than read past.
 
-- 🔘 Item 73. The favorite-info free dereferences the struct before its null guard.
+- ✅ Item 73. The favorite-info free dereferences the struct before its null guard.
+	- Fixed: the guard comes first.
 
-- 🔘 Item 74. Skip-all on a delete or directory copy does not mark the file skipped.
+- ✅ Item 74. Skip-all on a delete or directory copy does not mark the file skipped.
+	- Fixed: skip-all marks the file skipped, so the folder is not reported as fully removed.
 
-- 🔘 Item 75. The read-only-destination path frees a null error.
+- ✅ Item 75. The read-only-destination path frees a null error.
+	- Fixed: it no longer frees an error that was never set.
 
-- 🔘 Item 76. A D-Bus-initiated copy passes a null desktop location to an equality test.
+- ✅ Item 76. A D-Bus-initiated copy passes a null desktop location to an equality test.
+	- Fixed: guarded.
 
-- 🔘 Item 77. The existing-ancestor walk unrefs a null for every missing level.
+- ✅ Item 77. The existing-ancestor walk unrefs a null for every missing level.
+	- Fixed: it no longer releases something it never got.
 
-- 🔘 Item 78. A synthesized Windows file info with no icon makes the update ref a null icon.
+- ✅ Item 78. A synthesized Windows file info with no icon makes the update ref a null icon.
+	- Fixed: guarded, so a synthesized entry with no icon is accepted.
 
-- 🔘 Item 79. The job-queue finalize unrefs plain-malloc structs.
+- ✅ Item 79. The job-queue finalize unrefs plain-malloc structs.
+	- Fixed: released the way it was allocated.
 
-- 🔘 Item 80. The duplicate-job guard compares a function against user data and never fires.
+- ✅ Item 80. The duplicate-job guard compares a function against user data and never fires.
+	- Fixed: it compares the right thing, so a repeated job is caught.
 
-- 🔘 Item 81. Launching by URI casts a possibly-null parent window for the scale factor.
+- ✅ Item 81. Launching by URI casts a possibly-null parent window for the scale factor.
+	- Fixed: guarded, with a sensible default when there is no parent window.
 
-- 🔘 Item 82. Skip-folder setup dereferences a null path for a non-native search location.
+- ✅ Item 82. Skip-folder setup dereferences a null path for a non-native search location.
+	- Fixed: guarded, so a location with no path is handled.
 
-- 🔘 Item 83. The count-based recycle-bin monitor misses same-count changes.
+- ✅ Item 83. The count-based recycle-bin monitor misses same-count changes.
+	- Fixed: the check now also watches total size, so a change that leaves the count the same is noticed.
 
-- 🔘 Item 84. A static global for the connect-server result is clobbered by concurrent dialogs.
+- ✅ Item 84. A static global for the connect-server result is clobbered by concurrent dialogs.
+	- Fixed: the result travels with the request, so two dialogs at once no longer clobber each other.
 
-- 🔘 Item 85. The desktop-item property page leaks the type string for other launcher kinds.
+- ✅ Item 85. The desktop-item property page leaks the type string for other launcher kinds.
+	- Fixed: released.
 
-- 🔘 Item 86. The list-model drag binder leaks the per-row path string.
+- ✅ Item 86. The list-model drag binder leaks the per-row path string.
+	- Fixed: released.
 
-- 🔘 Item 87. A file-changed emission uses a stale iterator after bumping the model stamp.
+- ✅ Item 87. A file-changed emission uses a stale iterator after bumping the model stamp.
+	- Fixed: the position is taken again after the model changes.
 
-- 🔘 Item 88. Column-reorder leaks the column name array in search views.
+- ✅ Item 88. Column-reorder leaks the column name array in search views.
+	- Fixed: the list owns its own copies and every one of them is released.
 
-- 🔘 Item 89. The unhandled-URI dialog leaks a file reference and tolerates null poorly.
+- ✅ Item 89. The unhandled-URI dialog leaks a file reference and tolerates null poorly.
+	- Fixed: released, and a file that is not in the cache is handled.
 
-- 🔘 Item 90. Launch dereferences the command line with no null check.
+- ✅ Item 90. Launch dereferences the command line with no null check.
+	- Fixed: guarded, for a program with no command line of its own.
 
-- 🔘 Item 91. Activation uses a weak parent-window pointer with no null guard for the screen and dialogs.
+- ✅ Item 91. Activation uses a weak parent-window pointer with no null guard for the screen and dialogs.
+	- Fixed: guarded, so activation survives the tab being closed under it.
 
-- 🔘 Item 92. The pathbar leaks file objects on rename and at finalize.
+- ✅ Item 92. The pathbar leaks file objects on rename and at finalize.
+	- Fixed: released on rename and at teardown.
 
-- 🔘 Item 93. An unstored post-drop timeout can fire on a destroyed sidebar.
+- ✅ Item 93. An unstored post-drop timeout can fire on a destroyed sidebar.
+	- Fixed: the timeout is kept and cancelled when the sidebar goes.
 
-- 🔘 Item 94. Aggregate progress percentage uses a wrong recurrence for three or more concurrent operations.
+- ✅ Item 94. Aggregate progress percentage uses a wrong recurrence for three or more concurrent operations.
+	- Fixed: a plain average, so three or more operations report honestly.
 
-- 🔘 Item 95. The properties window leaks a pending key when one is already pending for the same files.
+- ✅ Item 95. The properties window leaks a pending key when one is already pending for the same files.
+	- Fixed: released.
 
-- 🔘 Item 96. The mount-content callback leaks its mount, cancellable and data when content detection is off.
+- ✅ Item 96. The mount-content callback leaks its mount, cancellable and data when content detection is off.
+	- Fixed: released when nothing takes them on.
 
-- 🔘 Item 97. The copy test has no assertions and can pass before the async work appears.
+- ✅ Item 97. The copy test has no assertions and can pass before the async work appears.
+	- Fixed: it builds its own files, copies them, and checks the result - and was proven to fail without a working copy.
 
-- 🔘 Item 98. The editable-label test is not wired into any build, so it never runs.
+- ✅ Item 98. The editable-label test is not wired into any build, so it never runs.
+	- Removed: it was an interactive demo with no build wiring and no way to run unattended.
 
-- 🔘 Item 99. The config test never makes warnings fatal, so its negative checks cannot fail.
+- ✅ Item 99. The config test never makes warnings fatal, so its negative checks cannot fail.
+	- Fixed: an unexpected complaint now fails the run.
 
-- 🔘 Item 100. The favorites test never removes its temp directories.
+- ✅ Item 100. The favorites test never removes its temp directories.
+	- Fixed: the temp tree is removed.
 
-- 🔘 Item 101. Carriage returns in settings values are not escaped and are stripped on reload.
+- ✋ Item 101. Carriage returns in settings values are not escaped and are stripped on reload.
+	- Deferred: fixing it means changing both halves of the vendored settings parser and with them the on-disk escaping, for a character no setting ever contains.
 
-- 🔘 Item 102. The row-under-pointer helper leaks a tree path on every call (per drag-motion).
+- ✅ Item 102. The row-under-pointer helper leaks a tree path on every call (per drag-motion).
+	- Fixed: released.
 
-- 🔘 Item 103. The extension simple-button leaks a surface and can use an uninitialized size.
+- ✅ Item 103. The extension simple-button leaks a surface and can use an uninitialized size.
+	- Fixed: released, and the size is seeded so an unknown icon size cannot be read before it is set.
 
-- 🔘 Item 104. Every settings save leaks a full copy of the file into the parser arena.
+- ✅ Item 104. Every settings save leaks a full copy of the file into the parser arena.
+	- Fixed: the settings document is rebuilt from its own canonical form when it has handed out enough, so the memory comes back.
 
-- 🔘 Item 105. A move leaks the source's parent object on every non-desktop move.
+- ✅ Item 105. A move leaks the source's parent object on every non-desktop move.
+	- Fixed: released.
 
-- 🔘 Item 106. Sorting by a string attribute allocates and formats both values on every comparison.
+- ✋ Item 106. Sorting by a string attribute allocates and formats both values on every comparison.
+	- Deferred: doing it properly needs a per-file cache of the formatted value with its own invalidation - the same machinery as the icon render cache, for much less gain.
 
-- 🔘 Item 107. Thumbnail creation falls back to a synchronous stat on the main thread.
+- ✅ Item 107. Thumbnail creation falls back to a synchronous stat on the main thread.
+	- Fixed: the fallback lookup happens on the worker instead of the main loop.
 
-- 🔘 Item 108. Every mouse-motion event rewrites the whole sidebar tree store.
+- ✅ Item 108. Every mouse-motion event rewrites the whole sidebar tree store.
+	- Fixed: only rows that actually change are touched.
 
 #### Architecture and UX notes
 
 Observations and suggestions rather than defects. Not individually reproduced.
 
-- 🔘 Item 109. Platform code is split two ways: dedicated Windows modules alongside inline platform blocks in large shared files. Worth settling on one shape.
+- ✋ Item 109. Platform code is split two ways: dedicated Windows modules alongside inline platform blocks in large shared files. Worth settling on one shape.
+	- Deferred: a judgement call about convention rather than a defect. Worth settling before the next platform, not during a bug sweep.
 
-- 🔘 Item 110. Two separate desktop-terminal fallbacks disagree: "Open in Terminal" honors the configured terminal, launching a terminal app does not.
+- ✅ Item 110. Two separate desktop-terminal fallbacks disagree: "Open in Terminal" honors the configured terminal, launching a terminal app does not.
+	- Fixed: both paths fall back to the same scan of known terminals, so neither silently does nothing.
 
-- 🔘 Item 111. Localization is effectively dead on Windows and on relocated installs; the locale directory is baked at build time and no packaging step installs or points to it.
+- ✅ Item 111. Localization is effectively dead on Windows and on relocated installs; the locale directory is baked at build time and no packaging step installs or points to it.
+	- Fixed: data, translations and helper programs are found relative to the running program, with the built-in path as a fallback.
 
-- 🔘 Item 112. Windows drive roots are labeled bare, with no volume label.
+- ✅ Item 112. Windows drive roots are labeled bare, with no volume label.
+	- Fixed: the volume label is shown ahead of the drive letter.
 
-- 🔘 Item 113. The README points Windows users at the wrong settings folder.
+- ✅ Item 113. The README points Windows users at the wrong settings folder.
+	- Fixed.
 
-- 🔘 Item 114. "Open in Terminal" on Windows is hardcoded with no setting, though the same item is configurable on Linux.
+- ✅ Item 114. "Open in Terminal" on Windows is hardcoded with no setting, though the same item is configurable on Linux.
+	- Fixed: the list of terminals to try is a setting, tried in order.
 
-- 🔘 Item 115. Failed Windows elevation or terminal launch is silent; the shell-execute result is ignored.
+- ✅ Item 115. Failed Windows elevation or terminal launch is silent; the shell-execute result is ignored.
+	- Fixed: a failure is reported rather than swallowed. The path is also quoted properly now, so a folder with spaces or a drive root works.
 
-- 🔘 Item 116. Selectable message-dialog text grabs focus pre-selected.
+- ✅ Item 116. Selectable message-dialog text grabs focus pre-selected.
+	- Fixed: the text is still selectable but no longer takes focus pre-selected.
 
-- 🔘 Item 117. The properties window never cancels scheduled owner/group changes on close.
+- ✅ Item 117. The properties window never cancels scheduled owner/group changes on close.
+	- Fixed: pending changes are cancelled when the window closes.
 
-- 🔘 Item 118. The Ctrl-key state for tab switching is a stale process-wide global.
+- ✅ Item 118. The Ctrl-key state for tab switching is a stale process-wide global.
+	- Fixed: the state belongs to the notebook and is cleared when it loses the keyboard.
 
-- 🔘 Item 119. The public design doc's code-structure sections are empty scaffolding; the real internal architecture lives only in private notes.
+- ✅ Item 119. The public design doc's code-structure sections are empty scaffolding; the real internal architecture lives only in private notes.
+	- Fixed: the code-structure, data-flow, execution, stack, UI and testing sections are written.
 
 ### Features and enhancements
 

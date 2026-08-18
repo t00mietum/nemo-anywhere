@@ -116,6 +116,8 @@ next_files_async_thread (GTask        *task,
 
         if (g_cancellable_set_error_if_cancelled (cancellable, &error))
         {
+            /* Same as the failure tail below: what was gathered goes nowhere. */
+            g_list_free_full (ret, g_object_unref);
             g_task_return_error (task, error);
             return;
         }

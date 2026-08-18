@@ -56,17 +56,34 @@ net_item_free (gpointer data)
 
 /* ---- WNet enumeration ---- */
 
-/* enumerate one container; item->unc NULL means the whole net root */
+/* Providers nest (provider -> domain -> server); a malformed or looping
+ * neighborhood must not recurse forever at 16KB of stack per frame. */
+#define ENUM_MAX_DEPTH 8
+
+/* enumerate one container; item->unc NULL means the whole net root.
+ * @open_rc, when given, receives the WNetOpenEnumW result so the caller can
+ * tell "no network" or "access denied" from a genuinely empty neighborhood. */
 static GList *
-enum_container (NETRESOURCEW *container, gboolean shares)
+enum_container (NETRESOURCEW *container, gboolean shares, int depth, DWORD *open_rc)
 {
 	HANDLE handle;
 	GList *items = NULL;
 	DWORD rc;
 
+	if (open_rc != NULL) {
+		*open_rc = NO_ERROR;
+	}
+
+	if (depth > ENUM_MAX_DEPTH) {
+		return NULL;
+	}
+
 	rc = WNetOpenEnumW (RESOURCE_GLOBALNET, RESOURCETYPE_DISK, 0,
 			    container, &handle);
 	if (rc != NO_ERROR) {
+		if (open_rc != NULL) {
+			*open_rc = rc;
+		}
 		return NULL;
 	}
 
@@ -117,7 +134,7 @@ enum_container (NETRESOURCEW *container, gboolean shares)
 				items = g_list_prepend (items, item);
 			} else if (res->dwUsage & RESOURCEUSAGE_CONTAINER) {
 				/* descend through providers/domains to servers */
-				GList *sub = enum_container (res, FALSE);
+				GList *sub = enum_container (res, FALSE, depth + 1, NULL);
 
 				items = g_list_concat (items, sub);
 			}
@@ -131,18 +148,22 @@ enum_container (NETRESOURCEW *container, gboolean shares)
 }
 
 static GList *
-enum_servers (void)
+enum_servers (DWORD *open_rc)
 {
-	return g_list_reverse (enum_container (NULL, FALSE));
+	return g_list_reverse (enum_container (NULL, FALSE, 0, open_rc));
 }
 
 static GList *
-enum_shares (const char *server_name)
+enum_shares (const char *server_name, DWORD *open_rc)
 {
 	NETRESOURCEW container;
 	char *unc;
 	gunichar2 *unc_w;
 	GList *items;
+
+	if (open_rc != NULL) {
+		*open_rc = NO_ERROR;
+	}
 
 	unc = g_strdup_printf ("\\\\%s", server_name);
 	unc_w = g_utf8_to_utf16 (unc, -1, NULL, NULL, NULL);
@@ -155,7 +176,7 @@ enum_shares (const char *server_name)
 	container.dwUsage = RESOURCEUSAGE_CONTAINER;
 	container.lpRemoteName = (LPWSTR) unc_w;
 
-	items = g_list_reverse (enum_container (&container, TRUE));
+	items = g_list_reverse (enum_container (&container, TRUE, 0, open_rc));
 	g_free (unc_w);
 	return items;
 }
@@ -374,8 +395,14 @@ network_file_resolve_relative_path (GFile *file, const char *relative_path)
 		return network_file_dup (file);
 	}
 
-	uri = g_strconcat (uri_is_root (self->uri) ? ROOT_URI : self->uri,
-			   relative_path, NULL);
+	/* The separator matters: without it a share under network:///FILESRV came
+	   out as network:///FILESRVpublic, get_parent then answered the root, and
+	   SRV+Ashare collided with SRVA+share. */
+	if (uri_is_root (self->uri)) {
+		uri = g_strconcat (ROOT_URI, relative_path, NULL);
+	} else {
+		uri = g_strconcat (self->uri, "/", relative_path, NULL);
+	}
 	result = network_file_new_for_uri (uri);
 	g_free (uri);
 	return result;
@@ -413,6 +440,22 @@ network_file_query_info (GFile *file, const char *attributes,
 		g_file_info_set_display_name (info, _("Network"));
 		icon = g_themed_icon_new_with_default_fallbacks ("network-workgroup");
 	} else {
+		/* Anything typed used to come back as a perfectly good empty folder.
+		   Confirm the name can actually be reached first. */
+		DWORD open_rc = NO_ERROR;
+		GList *shares = enum_shares (server, &open_rc);
+
+		if (shares == NULL && open_rc != NO_ERROR) {
+			g_set_error (error, G_IO_ERROR,
+				     open_rc == ERROR_ACCESS_DENIED ? G_IO_ERROR_PERMISSION_DENIED
+								    : G_IO_ERROR_NOT_FOUND,
+				     _("'%s' could not be found on the network"), server);
+			g_object_unref (info);
+			g_free (server);
+			return NULL;
+		}
+		g_list_free_full (shares, (GDestroyNotify) net_item_free);
+
 		g_file_info_set_name (info, self->uri + strlen (ROOT_URI));
 		g_file_info_set_display_name (info, server);
 		icon = g_themed_icon_new_with_default_fallbacks ("network-server");
@@ -512,12 +555,31 @@ network_file_enumerate_children (GFile *file, const char *attributes,
 	NemoNetworkWin32File *self = NEMO_NETWORK_WIN32_FILE (file);
 	NemoNetworkWin32Enumerator *enumerator;
 	char *server;
+	DWORD open_rc = NO_ERROR;
 
 	enumerator = g_object_new (NEMO_TYPE_NETWORK_WIN32_ENUMERATOR,
 				   "container", file, NULL);
 
 	server = uri_to_server (self->uri);
-	enumerator->items = server == NULL ? enum_servers () : enum_shares (server);
+	enumerator->items = server == NULL ? enum_servers (&open_rc)
+					   : enum_shares (server, &open_rc);
+
+	/* No network and access-denied used to look exactly like an empty
+	   neighborhood - a loaded, blank folder with nothing said either way. */
+	if (enumerator->items == NULL && open_rc != NO_ERROR) {
+		g_set_error (error, G_IO_ERROR,
+			     open_rc == ERROR_ACCESS_DENIED ? G_IO_ERROR_PERMISSION_DENIED
+							    : G_IO_ERROR_NOT_FOUND,
+			     open_rc == ERROR_NO_NETWORK
+				? _("The network is unavailable")
+				: (open_rc == ERROR_ACCESS_DENIED
+					? _("Access to the network was denied")
+					: _("The network could not be browsed")));
+		g_object_unref (enumerator);
+		g_free (server);
+		return NULL;
+	}
+
 	enumerator->position = enumerator->items;
 	g_free (server);
 

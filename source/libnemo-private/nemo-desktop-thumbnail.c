@@ -1666,7 +1666,7 @@ nemo_desktop_thumbnail_factory_save_thumbnail (NemoDesktopThumbnailFactory *fact
     }
   close (tmp_fd);
   
-  g_snprintf (mtime_str, 21, "%ld",  original_mtime);
+  g_snprintf (mtime_str, 21, "%" G_GINT64_FORMAT, (gint64) original_mtime);
   width = gdk_pixbuf_get_option (thumbnail, "tEXt::Thumb::Image::Width");
   height = gdk_pixbuf_get_option (thumbnail, "tEXt::Thumb::Image::Height");
 
@@ -1773,7 +1773,7 @@ nemo_desktop_thumbnail_factory_create_failed_thumbnail (NemoDesktopThumbnailFact
     }
   close (tmp_fd);
   
-  g_snprintf (mtime_str, 21, "%ld",  mtime);
+  g_snprintf (mtime_str, 21, "%" G_GINT64_FORMAT, (gint64) mtime);
   pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8, 1, 1);
   saved_ok  = gdk_pixbuf_save (pixbuf,
 			       tmp_path,
@@ -1903,7 +1903,9 @@ nemo_desktop_thumbnail_is_valid (GdkPixbuf          *pixbuf,
   thumb_mtime_str = gdk_pixbuf_get_option (pixbuf, "tEXt::Thumb::MTime");
   if (!thumb_mtime_str)
     return FALSE;
-  thumb_mtime = atol (thumb_mtime_str);
+  /* time_t is 64-bit on win64 where long is 32, so %ld/atol truncated both
+     halves of the round-trip and every thumbnail read as stale. */
+  thumb_mtime = (time_t) g_ascii_strtoll (thumb_mtime_str, NULL, 10);
   if (mtime != thumb_mtime)
     return FALSE;
   
@@ -1915,7 +1917,10 @@ fix_owner (const gchar *path, uid_t uid, gid_t gid)
 {
     G_GNUC_UNUSED int res;
 
-    res = chown (path, uid, gid);
+    /* lchown, not chown - this runs as root over a cache dir the real user
+     * owns, so a symlink planted there would otherwise hand away any file
+     * it points at. */
+    res = lchown (path, uid, gid);
 }
 
 static gboolean
@@ -1946,6 +1951,13 @@ access_ok (const gchar *path, uid_t uid, gid_t gid)
 static void
 recursively_fix_file (const gchar *path, uid_t uid, gid_t gid)
 {
+    /* Never follow a link out of the cache: take the link itself and stop.
+     * g_file_test/g_access/g_stat all resolve the target. */
+    if (g_file_test (path, G_FILE_TEST_IS_SYMLINK)) {
+        fix_owner (path, uid, gid);
+        return;
+    }
+
     if (!access_ok (path, uid, gid))
         fix_owner (path, uid, gid);
 
@@ -1971,6 +1983,11 @@ recursively_fix_file (const gchar *path, uid_t uid, gid_t gid)
 static gboolean
 recursively_check_file (const gchar *path, uid_t uid, gid_t gid)
 {
+    /* Matches recursively_fix_file: don't walk out of the cache, and don't
+     * spin on a symlink cycle. */
+    if (g_file_test (path, G_FILE_TEST_IS_SYMLINK))
+        return TRUE;
+
     if (!access_ok (path, uid, gid))
         return FALSE;
 

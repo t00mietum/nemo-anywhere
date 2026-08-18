@@ -84,8 +84,10 @@ function fFlatten {
 	fEcho "Flattening bundle -> $FlatDir"
 	if (Test-Path -LiteralPath $FlatDir) { Remove-Item -LiteralPath $FlatDir -Recurse -Force }
 	New-Item -ItemType Directory -Path $FlatDir | Out-Null
-	Copy-Item -Path (Join-Path $StageDir "app\*") -Destination $FlatDir
-	Copy-Item -Path (Join-Path $StageDir "mingw64\bin\*") -Destination $FlatDir
+	## -Recurse: without it any subfolder is created empty and its contents are
+	## silently dropped out of the packed exe.
+	Copy-Item -Path (Join-Path $StageDir "app\*") -Destination $FlatDir -Recurse -Force
+	Copy-Item -Path (Join-Path $StageDir "mingw64\bin\*") -Destination $FlatDir -Recurse -Force
 	foreach ($d in @("lib", "share", "etc")) {
 		$src = Join-Path $StageDir "mingw64\$d"
 		if (-not (Test-Path -LiteralPath $src)) { continue }
@@ -181,16 +183,26 @@ function fMain {
 	## pack already succeeded. So wait on the OUTPUT, not the process: once the exe
 	## appears, give it a short grace to finish flushing, then reap a console that
 	## didn't self-exit. A hard cap still bounds a genuinely stuck pack.
-	$proc     = Start-Process -FilePath $evb -ArgumentList $projEvb -PassThru -NoNewWindow
+	## Quoted: Start-Process joins ArgumentList on spaces, so a project path under
+	## a spaced folder would arrive as two arguments.
+	$proc     = Start-Process -FilePath $evb -ArgumentList @("`"$projEvb`"") -PassThru -NoNewWindow
 	$capSec   = 900
-	$graceSec = 15
 	$waited   = 0
-	$savedAt  = -1
+	$lastSize = -1
+	$stableFor = 0
 	while (-not $proc.HasExited) {
 		Start-Sleep -Seconds 3; $waited += 3
-		if ($savedAt -lt 0 -and (Test-Path -LiteralPath $outExe)) { $savedAt = $waited }
-		if ($savedAt -ge 0 -and ($waited - $savedAt) -ge $graceSec) {
-			fEcho "output present; reaping enigmavbconsole (did not self-exit)"
+
+		## Reap on a size that has stopped moving, not on a fixed grace: the exe
+		## appears as soon as EVB opens it and a fixed wait can cut a large pack
+		## off mid-write.
+		$size = -1
+		try { $size = (Get-Item -LiteralPath $outExe -ErrorAction Stop).Length } catch { }
+		if ($size -ge 0 -and $size -eq $lastSize) { $stableFor += 3 } else { $stableFor = 0 }
+		$lastSize = $size
+
+		if ($size -gt 0 -and $stableFor -ge 15) {
+			fEcho "output settled at $size bytes; reaping enigmavbconsole (did not self-exit)"
 			try { $proc.Kill() } catch { }
 			break
 		}

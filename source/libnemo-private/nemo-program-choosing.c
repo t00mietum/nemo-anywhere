@@ -159,9 +159,13 @@ nemo_launch_application_by_uri (GAppInfo *application,
 	}
 
 	file = nemo_file_get_by_uri (uris->data);
+	/* parent_window is optional here (the block above guards it), and casting
+	   NULL to a widget for the scale factor warns and returns nothing useful. */
 	icon = nemo_file_get_icon (file,
                                48, 0,
-                               gtk_widget_get_scale_factor (GTK_WIDGET (parent_window)),
+                               parent_window != NULL
+                                   ? gtk_widget_get_scale_factor (GTK_WIDGET (parent_window))
+                                   : 1,
                                0);
 	nemo_file_unref (file);
 	if (icon) {

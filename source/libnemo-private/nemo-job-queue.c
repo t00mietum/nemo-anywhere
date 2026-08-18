@@ -55,8 +55,11 @@ nemo_job_queue_finalize (GObject *obj)
 {
 	NemoJobQueue *self = NEMO_JOB_QUEUE (obj);
 
+	/* Jobs are plain g_new0 structs, not GObjects - g_object_unref on one is
+	   undefined. Latent today (the queue is never finalized), wrong regardless. */
 	if (self->priv->queued_jobs != NULL) {
-		g_list_free_full (self->priv->queued_jobs, g_object_unref);
+		g_list_free_full (self->priv->queued_jobs, g_free);
+		self->priv->queued_jobs = NULL;
 	}
 
     if (self->priv->pref_changed_id != 0) {
@@ -145,7 +148,9 @@ compare_job_data_func (gconstpointer a,
                        gconstpointer b)
 {
     Job *job = (Job*) a;
-    return (job->job_func == b) ? 0 : 1;
+    /* The caller passes user_data, not the function - comparing it against
+       job_func meant the duplicate guard could never fire. */
+    return (job->user_data == b) ? 0 : 1;
 }
 
 static void

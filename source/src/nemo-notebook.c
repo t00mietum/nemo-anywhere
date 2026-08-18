@@ -194,14 +194,32 @@ nemo_notebook_find_tab_num_at_pos (NemoNotebook *notebook,
 	return AFTER_ALL_TABS;
 }
 
-static gboolean ctrl_key_is_down = FALSE;
+/* Per notebook, not per process: as a file-static every window shared one flag,
+ * and a Ctrl release that landed on a different window (alt-tab away mid-chord,
+ * or a second window opened while held) left it stuck on everywhere. */
+#define CTRL_DOWN_KEY "nemo-notebook-ctrl-down"
+
+static gboolean
+ctrl_key_is_down (NemoNotebook *notebook)
+{
+	return GPOINTER_TO_INT (g_object_get_data (G_OBJECT (notebook), CTRL_DOWN_KEY));
+}
 
 /* user_data = if this is a callback for a keydown (else a keyup) */
 static gboolean
 control_key_checker_cb(NemoNotebook *notebook, GdkEventKey *event, gpointer user_data)
 {
 	if (event->keyval == GDK_KEY_Control_L || event->keyval == GDK_KEY_Control_R)
-		ctrl_key_is_down = GPOINTER_TO_INT (user_data);
+		g_object_set_data (G_OBJECT (notebook), CTRL_DOWN_KEY, user_data);
+
+	return FALSE;
+}
+
+/* Losing the keyboard means the release will never arrive here. */
+static gboolean
+focus_out_clears_ctrl_cb (NemoNotebook *notebook, GdkEventFocus *event, gpointer user_data)
+{
+	g_object_set_data (G_OBJECT (notebook), CTRL_DOWN_KEY, GINT_TO_POINTER (FALSE));
 
 	return FALSE;
 }
@@ -212,7 +230,7 @@ notebook_tab_shortcut_cb(NemoNotebook *notebook, GtkDirectionType direction, gpo
 	/* the "focus" event is fired if tab/shift+tab is pressed, so we only
 	 * need to check if ctrl is pressed down here.
 	 */
-	if (ctrl_key_is_down)
+	if (ctrl_key_is_down (notebook))
 	{
 		/* change the selected tab. work out if we need to do any wrap-around */
 		int last    = gtk_notebook_get_n_pages (GTK_NOTEBOOK(user_data)) - 1;
@@ -249,6 +267,8 @@ nemo_notebook_init (NemoNotebook *notebook)
 			  G_CALLBACK(control_key_checker_cb), GINT_TO_POINTER (TRUE));
 	g_signal_connect (notebook, "key-release-event",
 			  G_CALLBACK(control_key_checker_cb), GINT_TO_POINTER (FALSE));
+	g_signal_connect (notebook, "focus-out-event",
+			  G_CALLBACK(focus_out_clears_ctrl_cb), NULL);
 }
 
 void

@@ -24,17 +24,18 @@ set -Eeuo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"			# repo: .../github
 vendor="$root/vendor"
-tmp="${TMPDIR:-/tmp}/fluent-vendor"
+## mktemp, not a fixed name: on a shared box anyone can plant that path first.
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/fluent-vendor.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT
 GTK_URL="https://github.com/vinceliuice/Fluent-gtk-theme"
 ICON_URL="https://github.com/vinceliuice/Fluent-icon-theme"
 
 ## git-for-windows isn't on the mingw64 login PATH on this box.
-[[ -d "/c/Program Files/Git/bin" ]] && export PATH="/c/Program Files/Git/bin:$PATH"
+if [[ -d "/c/Program Files/Git/bin" ]]; then export PATH="/c/Program Files/Git/bin:$PATH"; fi
 command -v git >/dev/null || { echo "[ FAILED: git not found ]"; exit 1; }
 
 fEcho(){ echo "[ $* ]"; }
 
-rm -rf "$tmp"; mkdir -p "$tmp"
 fEcho "Cloning Fluent-gtk-theme"
 git clone --depth 1 -q "$GTK_URL" "$tmp/gtk"
 fEcho "Cloning Fluent-icon-theme (sparse src)"
@@ -104,18 +105,27 @@ ctx(){ case "$1" in places) echo Places;; mimetypes) echo MimeTypes;; devices) e
 } > "$it/index.theme"
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Provenance / GPL aggregation note.
-cat > "$vendor/README.md" <<-EOF
-	# Vendored themes
+## Provenance / GPL aggregation note. Only the themes section is rewritten - the
+## rest of the file records the other vendored code and its licenses.
+{
+	if [[ -f "$vendor/README.md" ]] && grep -q '^## Themes' "$vendor/README.md"; then
+		sed '/^## Themes/,$d' "$vendor/README.md"
+	else
+		printf '# Vendored\n\n'
+	fi
+	cat <<-EOF
+		## Themes
 
-	Regenerate with \`cicd/win/vendor-themes.bash\` - do not hand-edit.
+		Regenerate with \`cicd/win/vendor-themes.bash\` - do not hand-edit.
 
-	Fluent GTK + icon themes by vinceliuice, **GPL-3.0**, bundled as mere aggregation
-	(runtime data, not linked into nemo). Each theme keeps its \`COPYING\`.
+		Fluent GTK + icon themes by vinceliuice, **GPL-3.0**, bundled as mere aggregation
+		(runtime data, not linked into nemo). Each theme keeps its \`COPYING\`.
 
-	- \`themes/Fluent\` <- $GTK_URL @ \`$gtk_sha\`
-	- \`icons/Fluent\`  <- $ICON_URL @ \`$icon_sha\` (file-manager subset)
+		- \`themes/Fluent\` <- $GTK_URL @ \`$gtk_sha\`
+		- \`icons/Fluent\`  <- $ICON_URL @ \`$icon_sha\` (file-manager subset)
 	EOF
+} > "$vendor/README.md.new"
+mv -f "$vendor/README.md.new" "$vendor/README.md"
 
 fEcho "widget theme: $(du -sh "$wt" | cut -f1)"
 fEcho "icon theme:   $(du -sh "$it" | cut -f1)"

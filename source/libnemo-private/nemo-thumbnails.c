@@ -328,6 +328,11 @@ thumbnail_thread (gpointer data,
         return;
     }
 
+    /* Deferred from nemo_create_thumbnail, which cannot afford to block. */
+    if (info->original_file_mtime == INVALID_MTIME) {
+        get_file_mtime (info->image_uri, &info->original_file_mtime);
+    }
+
     time (&current_time);
 
     /* Don't try to create a thumbnail if the file was modified recently.
@@ -588,7 +593,9 @@ nemo_create_thumbnail (NemoFile *file)
         file->details->mtime != 0) {
         file_mtime = file->details->mtime;
     } else {
-        get_file_mtime (file_uri, &file_mtime);
+        /* Leave it for the thumbnail thread to stat - this is the main loop, and
+           a spun-down drive or dead mapping would hold the UI for the timeout. */
+        file_mtime = INVALID_MTIME;
     }
 
     NemoThumbnailInfo *info;
@@ -652,8 +659,22 @@ gboolean
 nemo_can_thumbnail_internally (NemoFile *file)
 {
     g_autofree gchar *mime_type = NULL;
+#ifdef G_OS_WIN32
+    g_autofree gchar *real_mime = NULL;
+#endif
 
     mime_type = nemo_file_get_mime_type (file);
+
+#ifdef G_OS_WIN32
+    /* On win32 the "mime type" is the extension (".png"); everything else that
+     * looks at it converts first. Without that this never matched, so the
+     * full-resolution path never ran and large zoom levels stayed blurry. */
+    real_mime = mime_type != NULL ? g_content_type_get_mime_type (mime_type) : NULL;
+    if (real_mime != NULL) {
+        return pixbuf_can_load_type (real_mime);
+    }
+#endif
+
     return pixbuf_can_load_type (mime_type);
 }
 

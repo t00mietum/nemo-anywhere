@@ -5192,6 +5192,7 @@ nemo_properties_window_present (GList       *original_files,
 
 	/* Look to see if we're already waiting for a window for this file. */
 	if (g_hash_table_lookup (pending_lists, pending_key) != NULL) {
+		g_free (pending_key);
 		return;
 	}
 
@@ -5320,6 +5321,18 @@ real_destroy (GtkWidget *object)
 	if (window->details->update_files_timeout_id != 0) {
 		g_source_remove (window->details->update_files_timeout_id);
 		window->details->update_files_timeout_id = 0;
+	}
+
+	/* A pending owner/group change would otherwise fire on the destroyed
+	   window - it is scheduled on a delay so the combo can settle. */
+	if (window->details->group_change_timeout != 0) {
+		g_source_remove (window->details->group_change_timeout);
+		window->details->group_change_timeout = 0;
+	}
+
+	if (window->details->owner_change_timeout != 0) {
+		g_source_remove (window->details->owner_change_timeout);
+		window->details->owner_change_timeout = 0;
 	}
 
     window->details->icon_chooser = NULL;

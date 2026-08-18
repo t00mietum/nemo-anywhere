@@ -43,28 +43,32 @@ tar -xf "$work/db.tar.gz" -C "$work/db"
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 
 fEcho "Indexing packages"
-declare -A FILEOF DEPSOF PROVIDER
+declare -A FILEOF DEPSOF PROVIDER SHA256OF
 while IFS='|' read -r kind a b; do
 	case "$kind" in
 		F) FILEOF[$a]=$b ;;
 		D) DEPSOF[$a]=$b ;;
 		V) PROVIDER[$a]=$b ;;
+		S) SHA256OF[$a]=$b ;;
 	esac
 done < <(gawk '
-	BEGINFILE { name=""; file=""; deps=""; provs=""; sec="" }
+	BEGINFILE { name=""; file=""; deps=""; provs=""; sha=""; sec="" }
 	/^%FILENAME%$/ { sec="F"; next }
 	/^%NAME%$/     { sec="N"; next }
 	/^%DEPENDS%$/  { sec="D"; next }
 	/^%PROVIDES%$/ { sec="V"; next }
+	/^%SHA256SUM%$/{ sec="S"; next }
 	/^%/           { sec="";  next }
 	sec=="F" && NF { file=$0 }
 	sec=="N" && NF { name=$0 }
+	sec=="S" && NF { sha=$0 }
 	sec=="D" && NF { s=$0; sub(/[<>=].*/,"",s); deps=deps" "s }
 	sec=="V" && NF { s=$0; sub(/[<>=].*/,"",s); provs=provs" "s }
 	ENDFILE {
 		if (name!="") {
 			print "F|" name "|" file
 			print "D|" name "|" deps
+			print "S|" name "|" sha
 			n=split(provs,pv," "); for(i=1;i<=n;i++) print "V|" pv[i] "|" name
 		}
 	}
@@ -106,6 +110,24 @@ for pkg in "${resolved[@]}"; do
 	file="${FILEOF[$pkg]}"
 	fEcho "$pkg"
 	curl -fsSL "$MIRROR/$file" -o "$work/$file"
+
+	## The database carries a checksum for every package and these libraries ship
+	## in the release, so unpacking one unverified is not on.
+	want="${SHA256OF[$pkg]:-}"
+	if [[ -z "$want" ]]; then
+		rm -f "$work/$file"
+		fEcho "FAILED: no checksum in the database for $pkg"
+		exit 1
+	fi
+	got="$(sha256sum "$work/$file" | cut -d' ' -f1)"
+	if [[ "$got" != "$want" ]]; then
+		rm -f "$work/$file"
+		fEcho "FAILED: checksum mismatch for $file"
+		fEcho "  expected $want"
+		fEcho "  got      $got"
+		exit 1
+	fi
+
 	tar --zstd -xf "$work/$file" -C "$SYSROOT" \
 		--exclude='.PKGINFO' --exclude='.BUILDINFO' --exclude='.MTREE' --exclude='.INSTALL'
 	rm -f "$work/$file"
@@ -119,8 +141,15 @@ done
 
 thumbDir="$SYSROOT/mingw64/share/thumbnailers"
 if [[ -d "$thumbDir" ]]; then
-	fEcho "Normalizing thumbnailer exec paths"
-	sed -i 's#/mingw64/bin/##g' "$thumbDir"/*.thumbnailer
+	## nullglob-safe: an unmatched glob would hand sed the literal pattern and
+	## abort the whole sysroot build after every package had already downloaded.
+	shopt -s nullglob
+	thumbFiles=( "$thumbDir"/*.thumbnailer )
+	shopt -u nullglob
+	if ((${#thumbFiles[@]})); then
+		fEcho "Normalizing thumbnailer exec paths"
+		sed -i 's#/mingw64/bin/##g' "${thumbFiles[@]}"
+	fi
 fi
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -136,10 +165,16 @@ queryLoaders="$SYSROOT/mingw64/bin/gdk-pixbuf-query-loaders.exe"
 if [[ -f "$queryLoaders" ]]; then
 	fEcho "Building gdk-pixbuf loaders.cache"
 	binWin="Z:${SYSROOT//\//\\}\\mingw64\\bin"
-	if WINEDEBUG=-all WINEPATH="$binWin" wine "$queryLoaders" > "$pixLoaders/loaders.cache" 2>/dev/null \
-	   && grep -q pixbufloader_svg "$pixLoaders/loaders.cache"; then
-		:
+	## Write to a temp and only move it into place once it looks right. The
+	## redirection truncates its target before wine even starts, so on failure
+	## this used to leave a zero-byte cache - worse than none, because
+	## gdk-pixbuf then finds no loaders at all instead of falling back.
+	cacheTmp="$pixLoaders/loaders.cache.new"
+	if WINEDEBUG=-all WINEPATH="$binWin" wine "$queryLoaders" > "$cacheTmp" 2>/dev/null \
+	   && grep -q pixbufloader_svg "$cacheTmp"; then
+		mv -f "$cacheTmp" "$pixLoaders/loaders.cache"
 	else
+		rm -f "$cacheTmp"
 		fEcho "warn: loaders.cache generation failed - SVG/symbolic icons may not render"
 	fi
 fi

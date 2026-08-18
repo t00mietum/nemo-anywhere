@@ -114,7 +114,9 @@ get_recycle_folder (void)
 static char *
 strret_to_utf8 (STRRET *sr, LPITEMIDLIST pidl)
 {
-	WCHAR buffer[MAX_PATH * 2];
+	/* Long-path aware: MAX_PATH*2 silently truncated a long original location,
+	   and that shortened path is what a restore would have used. */
+	WCHAR buffer[32768];
 	char *result = NULL;
 
 	if (SUCCEEDED (StrRetToBufW (sr, pidl, buffer, G_N_ELEMENTS (buffer)))) {
@@ -215,6 +217,33 @@ get_deletion_date_from_trashinfo (const char *real_path)
 }
 
 /* full re-scan of the bin into trash_items; caller holds items_mutex */
+/* The shell's in-folder display name obeys Explorer's "hide extensions for
+ * known file types", and that shortened name is both what we would list and
+ * what restore would write. The backing $R file keeps the real extension, so
+ * put it back. */
+static char *
+name_with_extension (const char *display_name, const char *real_path)
+{
+	char *base, *out;
+	const char *dot;
+
+	if (display_name == NULL) {
+		return NULL;
+	}
+
+	base = g_path_get_basename (real_path);
+	dot = strrchr (base, '.');
+
+	if (dot != NULL && dot[1] != '\0' && strrchr (display_name, '.') == NULL) {
+		out = g_strconcat (display_name, dot, NULL);
+	} else {
+		out = g_strdup (display_name);
+	}
+
+	g_free (base);
+	return out;
+}
+
 static void
 refresh_items_locked (void)
 {
@@ -268,13 +297,24 @@ refresh_items_locked (void)
 				}
 			}
 			if (real_path == NULL || !g_path_is_absolute (real_path)) {
-				/* shell-namespace-only item; can't proxy it */
+				/* Shell-namespace-only item; we cannot proxy it. Say so - it
+				   is missing from the listing while the bin's own count still
+				   includes it, which reads as an item that vanished. */
+				g_warning ("nemo-trash: skipping a recycle bin item with no file path%s%s",
+					   real_path != NULL ? ": " : "",
+					   real_path != NULL ? real_path : "");
 				g_free (real_path);
 				CoTaskMemFree (pidl);
 				continue;
 			}
 
 			name = get_display_name (folder, pidl, SHGDN_INFOLDER);
+			if (name != NULL) {
+				char *full_name = name_with_extension (name, real_path);
+
+				g_free (name);
+				name = full_name;
+			}
 			orig_dir = get_details_column (folder, pidl, 1);
 			date = get_deletion_date_iso (folder, pidl);
 			if (date == NULL) {
@@ -314,6 +354,25 @@ query_bin_count (void)
 		return 0;
 	}
 	return (guint64) info.i64NumItems;
+}
+
+/* Count alone misses a change that keeps it the same - one item deleted and
+ * another recycled between two polls, or an item replaced by a bigger one.
+ * Total size moves in those cases; both together are a usable fingerprint. */
+static void
+query_bin_state (guint64 *count, guint64 *size)
+{
+	SHQUERYRBINFO info;
+
+	memset (&info, 0, sizeof (info));
+	info.cbSize = sizeof (info);
+	if (SHQueryRecycleBinW (NULL, &info) != S_OK) {
+		*count = 0;
+		*size = 0;
+		return;
+	}
+	*count = (guint64) info.i64NumItems;
+	*size = (guint64) info.i64Size;
 }
 
 /* remove the metadata sibling after the backing file leaves the bin:
@@ -373,14 +432,37 @@ uri_is_root (const char *uri)
 	       strcmp (uri, "trash:") == 0;
 }
 
+/* Lexical only - resolves . and .. and settles on one separator, without
+ * touching the filesystem. Both the stored keys and anything compared against
+ * them go through this, so two spellings of the same path compare equal and a
+ * "\.." cannot walk out of a bin entry unnoticed. */
+static char *
+canonical_path (const char *path)
+{
+	if (path == NULL) {
+		return NULL;
+	}
+	return g_canonicalize_filename (path, NULL);
+}
+
 /* item uri -> backing real path, NULL for the root */
 static char *
 uri_to_real_path (const char *uri)
 {
+	char *raw, *canonical;
+
 	if (uri_is_root (uri)) {
 		return NULL;
 	}
-	return g_uri_unescape_string (uri + strlen (ROOT_URI), NULL);
+
+	raw = g_uri_unescape_string (uri + strlen (ROOT_URI), NULL);
+	if (raw == NULL) {
+		return NULL;
+	}
+
+	canonical = canonical_path (raw);
+	g_free (raw);
+	return canonical;
 }
 
 /* TRUE when child names something strictly below parent */
@@ -409,6 +491,55 @@ is_inside_item_locked (const char *real_path)
 		}
 	}
 	return FALSE;
+}
+
+/* Caller holds items_mutex. */
+static gboolean
+is_bin_path_locked (const char *real_path)
+{
+	if (trash_items == NULL) {
+		refresh_items_locked ();
+	}
+	if (g_hash_table_lookup (trash_items, real_path) != NULL ||
+	    is_inside_item_locked (real_path)) {
+		return TRUE;
+	}
+
+	/* A miss may just be a stale snapshot. */
+	refresh_items_locked ();
+	return g_hash_table_lookup (trash_items, real_path) != NULL ||
+	       is_inside_item_locked (real_path);
+}
+
+/* Every operation that touches a real file goes through here. The path comes
+ * out of a uri any local process can construct and hand us over D-Bus, so it
+ * has to be shown to name something the bin actually holds before anything is
+ * read, moved or permanently deleted. */
+static char *
+uri_to_verified_real_path (const char *uri, GError **error)
+{
+	char *real_path;
+	gboolean ok;
+
+	real_path = uri_to_real_path (uri);
+	if (real_path == NULL) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+			     "Not a recycle bin item");
+		return NULL;
+	}
+
+	g_mutex_lock (&items_mutex);
+	ok = is_bin_path_locked (real_path);
+	g_mutex_unlock (&items_mutex);
+
+	if (!ok) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+			     "'%s' is not in the recycle bin", real_path);
+		g_free (real_path);
+		return NULL;
+	}
+
+	return real_path;
 }
 
 /* look an item up by uri, refreshing the snapshot if it's unknown;
@@ -468,6 +599,14 @@ uri_is_top_level_item (const char *uri)
 		refresh_items_locked ();
 	}
 	result = g_hash_table_lookup (trash_items, real_path) != NULL;
+	if (!result) {
+		/* Refresh on a miss, the way the sibling lookup does. Without it a
+		 * just-trashed item is not yet in the snapshot, so it is taken for
+		 * something inside a folder and filed under a parent that isn't
+		 * there - until the next poll happens to catch up. */
+		refresh_items_locked ();
+		result = g_hash_table_lookup (trash_items, real_path) != NULL;
+	}
 	g_mutex_unlock (&items_mutex);
 
 	g_free (real_path);
@@ -492,31 +631,51 @@ make_item_info (TrashItem *item)
 {
 	GFileInfo *info;
 	GFile *real;
+	GError *query_error = NULL;
 	char *escaped;
 
 	/* real file supplies type/size/times/icon; overlay the trash bits */
 	real = g_file_new_for_path (item->real_path);
 	info = g_file_query_info (real,
 				  "standard::*,time::*,access::*,thumbnail::*,preview::*",
-				  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
-	g_object_unref (real);
+				  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, &query_error);
 
 	if (info == NULL) {
 		char *content_type;
 		GIcon *icon;
+		gboolean is_dir;
 
-		/* backing file unreadable; guess enough from the name that
-		 * downstream never sees an info without type or icon */
+		/* Backing file unreadable; guess enough from the name that downstream
+		 * never sees an info without type or icon - but do not call a folder a
+		 * file, and do not present something that is simply gone as healthy. */
+		is_dir = g_file_test (item->real_path, G_FILE_TEST_IS_DIR);
+
 		info = g_file_info_new ();
-		g_file_info_set_file_type (info, G_FILE_TYPE_REGULAR);
+		g_file_info_set_file_type (info, is_dir ? G_FILE_TYPE_DIRECTORY
+							: G_FILE_TYPE_REGULAR);
 
-		content_type = g_content_type_guess (item->display_name, NULL, 0, NULL);
+		if (is_dir) {
+			content_type = g_strdup ("inode/directory");
+		} else {
+			content_type = g_content_type_guess (item->display_name, NULL, 0, NULL);
+		}
 		g_file_info_set_content_type (info, content_type);
 		icon = g_content_type_get_icon (content_type);
 		g_file_info_set_icon (info, icon);
 		g_object_unref (icon);
 		g_free (content_type);
+
+		/* Deleted behind our back: say so rather than listing it as present
+		 * until the next full refresh. */
+		if (g_error_matches (query_error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND) ||
+		    !g_file_query_exists (real, NULL)) {
+			g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_READ, FALSE);
+			g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_STANDARD_IS_VIRTUAL, TRUE);
+		}
 	}
+
+	g_clear_error (&query_error);
+	g_object_unref (real);
 
 	escaped = g_uri_escape_string (item->real_path, NULL, TRUE);
 	g_file_info_set_name (info, escaped);
@@ -719,13 +878,17 @@ trash_file_query_info (GFile *file, const char *attributes,
 		g_file_info_set_display_name (info, _("Trash"));
 		g_file_info_set_content_type (info, "inode/directory");
 
-		icon = g_themed_icon_new (query_bin_count () > 0 ?
+		/* One walk of the bin, not two - this runs on every look at the
+		   trash folder. */
+		guint64 bin_count = query_bin_count ();
+
+		icon = g_themed_icon_new (bin_count > 0 ?
 					  "user-trash-full" : "user-trash");
 		g_file_info_set_icon (info, icon);
 		g_object_unref (icon);
 
 		g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_TRASH_ITEM_COUNT,
-						  (guint32) query_bin_count ());
+						  (guint32) bin_count);
 		g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_READ, TRUE);
 		g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_WRITE, FALSE);
 		g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE, FALSE);
@@ -990,7 +1153,11 @@ trash_file_delete (GFile *file, GCancellable *cancellable, GError **error)
 		return FALSE;
 	}
 
-	real_path = uri_to_real_path (self->uri);
+	real_path = uri_to_verified_real_path (self->uri, error);
+	if (real_path == NULL) {
+		return FALSE;
+	}
+
 	real = g_file_new_for_path (real_path);
 	result = delete_real_tree (real, cancellable, error);
 	g_object_unref (real);
@@ -1035,7 +1202,12 @@ trash_file_move (GFile *source, GFile *destination, GFileCopyFlags flags,
 		return FALSE;
 	}
 
-	real_path = uri_to_real_path (self->uri);
+	real_path = uri_to_verified_real_path (self->uri, error);
+	if (real_path == NULL) {
+		g_free (dest_path);
+		return FALSE;
+	}
+
 	real = g_file_new_for_path (real_path);
 	result = g_file_move (real, destination, flags, cancellable,
 			      progress_callback, progress_callback_data, error);
@@ -1065,7 +1237,11 @@ trash_file_read_fn (GFile *file, GCancellable *cancellable, GError **error)
 		return NULL;
 	}
 
-	real_path = uri_to_real_path (self->uri);
+	real_path = uri_to_verified_real_path (self->uri, error);
+	if (real_path == NULL) {
+		return NULL;
+	}
+
 	real = g_file_new_for_path (real_path);
 	stream = g_file_read (real, cancellable, error);
 	g_object_unref (real);
@@ -1082,6 +1258,7 @@ typedef struct {
 	GFileMonitor parent;
 	guint timeout_id;
 	guint64 last_count;
+	guint64 last_size;
 } NemoTrashWin32Monitor;
 
 typedef struct {
@@ -1107,11 +1284,12 @@ static gboolean
 monitor_poll (gpointer user_data)
 {
 	NemoTrashWin32Monitor *monitor = user_data;
-	guint64 count;
+	guint64 count, size;
 
-	count = query_bin_count ();
-	if (count != monitor->last_count) {
+	query_bin_state (&count, &size);
+	if (count != monitor->last_count || size != monitor->last_size) {
 		monitor->last_count = count;
+		monitor->last_size = size;
 		monitor_emit (monitor);
 	}
 	return G_SOURCE_CONTINUE;
@@ -1120,16 +1298,24 @@ monitor_poll (gpointer user_data)
 static gboolean
 emit_changed_idle (gpointer user_data)
 {
-	GList *l;
+	GList *snapshot = NULL, *l;
 
+	/* Emission is synchronous, and a handler that opens or closes a trash view
+	   drops the last monitor reference - which re-enters cancel and deadlocks
+	   on this same non-recursive lock. Take a referenced copy, then let go. */
 	g_mutex_lock (&monitors_mutex);
 	for (l = active_monitors; l != NULL; l = l->next) {
 		NemoTrashWin32Monitor *monitor = l->data;
 
-		monitor->last_count = query_bin_count ();
-		monitor_emit (monitor);
+		query_bin_state (&monitor->last_count, &monitor->last_size);
+		snapshot = g_list_prepend (snapshot, g_object_ref (monitor));
 	}
 	g_mutex_unlock (&monitors_mutex);
+
+	for (l = snapshot; l != NULL; l = l->next) {
+		monitor_emit (l->data);
+	}
+	g_list_free_full (snapshot, g_object_unref);
 
 	return G_SOURCE_REMOVE;
 }
@@ -1176,7 +1362,7 @@ trash_file_monitor (GFile *file, GFileMonitorFlags flags,
 	NemoTrashWin32Monitor *monitor;
 
 	monitor = g_object_new (NEMO_TYPE_TRASH_WIN32_MONITOR, NULL);
-	monitor->last_count = query_bin_count ();
+	query_bin_state (&monitor->last_count, &monitor->last_size);
 	monitor->timeout_id = g_timeout_add_seconds (3, monitor_poll, monitor);
 
 	g_mutex_lock (&monitors_mutex);

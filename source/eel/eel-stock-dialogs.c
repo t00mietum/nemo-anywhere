@@ -320,6 +320,10 @@ make_message_labels_selectable (GtkMessageDialog *dialog)
 	for (l = children; l != NULL; l = l->next) {
 		if (GTK_IS_LABEL (l->data)) {
 			gtk_label_set_selectable (GTK_LABEL (l->data), TRUE);
+			/* Selectable labels are focusable, so the first one grabs focus
+			   with the whole message highlighted and the default button
+			   unfocused. Copying still works from the pointer. */
+			gtk_widget_set_can_focus (GTK_WIDGET (l->data), FALSE);
 		}
 	}
 	g_list_free (children);

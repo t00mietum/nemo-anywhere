@@ -44,6 +44,8 @@ static inline uid_t getuid  (void) { return NEMO_COMPAT_FAKE_UID; }
 static inline uid_t geteuid (void) { return NEMO_COMPAT_FAKE_UID; }
 static inline int   chown   (const char *path, uid_t owner, gid_t grp)
 	{ (void) path; (void) owner; (void) grp; return 0; }
+static inline int   lchown  (const char *path, uid_t owner, gid_t grp)
+	{ (void) path; (void) owner; (void) grp; return 0; }
 
 static inline struct passwd *getpwuid (uid_t uid)      { (void) uid;  return NULL; }
 static inline struct passwd *getpwnam (const char *nm) { (void) nm;   return NULL; }

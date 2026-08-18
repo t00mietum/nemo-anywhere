@@ -170,6 +170,8 @@ nemo_property_page_dispose (GObject *object)
 		g_object_unref (page->details->page);
 		page->details->page = NULL;
 	}
+
+	G_OBJECT_CLASS (nemo_property_page_parent_class)->dispose (object);
 }
 
 static void

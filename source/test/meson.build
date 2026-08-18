@@ -63,14 +63,17 @@ test('User input parse test',
   args: []
 )
 
-test('Symlink recurse premise test',
-  executable('test-nemo-symlink-recurse',
-    [ 'test-nemo-symlink-recurse.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
-  ),
-  args: []
-)
+# symlink(2) and the guard-page mmap below are POSIX; neither test cross-builds.
+if not is_windows
+  test('Symlink recurse premise test',
+    executable('test-nemo-symlink-recurse',
+      [ 'test-nemo-symlink-recurse.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif
 
 test('Search invalid regex test',
   executable('test-nemo-search-regex',
@@ -81,14 +84,16 @@ test('Search invalid regex test',
   args: []
 )
 
-test('DnD selection parser test',
-  executable('test-nemo-dnd',
-    [ 'test-nemo-dnd.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
-  ),
-  args: []
-)
+if not is_windows
+  test('DnD selection parser test',
+    executable('test-nemo-dnd',
+      [ 'test-nemo-dnd.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif
 
 test('Terminal fallback test',
   executable('test-eel-terminal',

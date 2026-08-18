@@ -2051,6 +2051,12 @@ more_files_callback (GObject *source_object,
 		directory_load_done (directory, error);
 		directory_load_state_free (state);
 	} else {
+#ifdef G_OS_WIN32
+		/* The cap is on a run of unstattable children, not on the folder as
+		 * a whole - counting cumulatively half-listed anything with more than
+		 * DIRECTORY_LOAD_MAX_SKIP of them spread about, then raised the dialog. */
+		state->win_skip_count = 0;
+#endif
 		g_file_enumerator_next_files_async (state->enumerator,
 						    DIRECTORY_LOAD_ITEMS_PER_CALLBACK,
 						    G_PRIORITY_DEFAULT,
@@ -2957,7 +2963,10 @@ mime_list_state_free (MimeListState *state)
 
 
 static void
-mime_list_done (MimeListState *state, gboolean success)
+/* @failed, despite what the old parameter name said - both branches always read
+   it that way, and the enumerate-failure caller passing the other one recorded a
+   confirmed-empty type list for a directory it could not read. */
+mime_list_done (MimeListState *state, gboolean failed)
 {
 	NemoFile *file;
 	NemoDirectory *directory;
@@ -2969,7 +2978,7 @@ mime_list_done (MimeListState *state, gboolean success)
 	
 	file->details->mime_list_is_up_to_date = TRUE;
 	g_list_free_full (file->details->mime_list, g_free);
-	if (success) {
+	if (failed) {
 		file->details->mime_list_failed = TRUE;
 		file->details->mime_list = NULL;
 	} else {
@@ -3099,7 +3108,7 @@ list_mime_enum_callback (GObject *source_object,
 							res, &error);
 
 	if (enumerator == NULL) {
-		mime_list_done (state, FALSE);
+		mime_list_done (state, TRUE);
 		g_error_free (error);
 		mime_list_state_free (state);
 		return;
@@ -3187,6 +3196,81 @@ get_info_state_free (GetInfoState *state)
 	g_free (state);
 }
 
+/* Takes ownership of @info or @error, whichever is non-NULL, plus the refs the
+ * caller holds on @directory and @get_info_file. */
+static void
+query_info_finish (GetInfoState  *state,
+		   NemoDirectory *directory,
+		   NemoFile      *get_info_file,
+		   GFileInfo     *info,
+		   GError        *error)
+{
+	if (info == NULL) {
+		if (error->domain == G_IO_ERROR && error->code == G_IO_ERROR_NOT_FOUND) {
+			/* mark file as gone */
+			nemo_file_mark_gone (get_info_file);
+		}
+		get_info_file->details->file_info_is_up_to_date = TRUE;
+		nemo_file_clear_info (get_info_file);
+		get_info_file->details->get_info_failed = TRUE;
+		get_info_file->details->get_info_error = error;
+	} else {
+		nemo_file_update_info (get_info_file, info);
+		g_object_unref (info);
+	}
+
+	nemo_file_changed (get_info_file);
+	nemo_file_unref (get_info_file);
+
+	async_job_end (directory, "file info");
+	nemo_directory_async_state_changed (directory);
+
+	nemo_directory_unref (directory);
+
+	get_info_state_free (state);
+}
+
+#ifdef G_OS_WIN32
+typedef struct {
+	GetInfoState  *state;
+	NemoDirectory *directory;
+	NemoFile      *file;
+	GError        *error;      /* the original stat failure, kept if the probe fails too */
+} WinDirProbe;
+
+static void
+win_dir_probe_callback (GObject *source_object,
+			GAsyncResult *res,
+			gpointer user_data)
+{
+	WinDirProbe *probe = user_data;
+	GFileEnumerator *en;
+	GFileInfo *info = NULL;
+
+	en = g_file_enumerate_children_finish (G_FILE (source_object), res, NULL);
+	if (en != NULL) {
+		char *bname = g_file_get_basename (G_FILE (source_object));
+
+		g_file_enumerator_close (en, NULL, NULL);
+		g_object_unref (en);
+
+		info = g_file_info_new ();
+		g_file_info_set_file_type (info, G_FILE_TYPE_DIRECTORY);
+		g_file_info_set_content_type (info, "inode/directory");
+		if (bname != NULL) {
+			g_file_info_set_name (info, bname);
+			g_file_info_set_display_name (info, bname);
+		}
+		g_free (bname);
+		g_clear_error (&probe->error);
+	}
+
+	query_info_finish (probe->state, probe->directory, probe->file,
+			   info, probe->error);
+	g_free (probe);
+}
+#endif
+
 static void
 query_info_callback (GObject *source_object,
 		     GAsyncResult *res,
@@ -3233,51 +3317,28 @@ query_info_callback (GObject *source_object,
 	 * load proceeds; the children come from enumeration, which works. */
 	if (info == NULL && error != NULL &&
 	    error->domain == G_IO_ERROR && error->code == G_IO_ERROR_FAILED) {
-		GFile *loc = G_FILE (source_object);
-		GFileEnumerator *en = g_file_enumerate_children (loc, G_FILE_ATTRIBUTE_STANDARD_NAME,
-								 G_FILE_QUERY_INFO_NONE, NULL, NULL);
-		if (en != NULL) {
-			char *bname = g_file_get_basename (loc);
+		WinDirProbe *probe = g_new0 (WinDirProbe, 1);
 
-			g_file_enumerator_close (en, NULL, NULL);
-			g_object_unref (en);
+		probe->state = state;
+		probe->directory = directory;
+		probe->file = get_info_file;
+		probe->error = error;
 
-			info = g_file_info_new ();
-			g_file_info_set_file_type (info, G_FILE_TYPE_DIRECTORY);
-			g_file_info_set_content_type (info, "inode/directory");
-			if (bname != NULL) {
-				g_file_info_set_name (info, bname);
-				g_file_info_set_display_name (info, bname);
-			}
-			g_free (bname);
-			g_clear_error (&error);
-		}
+		/* Async and cancellable: as a blocking enumerate on the main loop
+		 * this froze the whole window for the OS timeout whenever the drive
+		 * was spun down or the mapping was dead. */
+		g_file_enumerate_children_async (G_FILE (source_object),
+						 G_FILE_ATTRIBUTE_STANDARD_NAME,
+						 G_FILE_QUERY_INFO_NONE,
+						 G_PRIORITY_DEFAULT,
+						 state->cancellable,
+						 win_dir_probe_callback,
+						 probe);
+		return;
 	}
 #endif
 
-	if (info == NULL) {
-		if (error->domain == G_IO_ERROR && error->code == G_IO_ERROR_NOT_FOUND) {
-			/* mark file as gone */
-			nemo_file_mark_gone (get_info_file);
-		}
-		get_info_file->details->file_info_is_up_to_date = TRUE;
-		nemo_file_clear_info (get_info_file);
-		get_info_file->details->get_info_failed = TRUE;
-		get_info_file->details->get_info_error = error;
-	} else {
-		nemo_file_update_info (get_info_file, info);
-		g_object_unref (info);
-	}
-
-	nemo_file_changed (get_info_file);
-	nemo_file_unref (get_info_file);
-
-	async_job_end (directory, "file info");
-	nemo_directory_async_state_changed (directory);
-
-	nemo_directory_unref (directory);
-
-	get_info_state_free (state);
+	query_info_finish (state, directory, get_info_file, info, error);
 }
 
 static void
