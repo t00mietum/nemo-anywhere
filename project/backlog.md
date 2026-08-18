@@ -135,7 +135,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Everything anonymized - no real user name, no distinctive paths.
 	- Re-recorded after a noticeable change to the interface or to the demo script.
 	- Note: sister projects already have most of the recording machinery to copy from.
-	- Generally follow the 'Automated demo of program use' section of '/mnt/zfs/zf10/0-0/users/collierjr/data/prs/dev/github.com/jim-collier/common/github/claude.md'
+	- Follow the 'Automated demo of program use' notes kept with the shared project directives.
 
 ### Milestone 7 - Packaging
 
