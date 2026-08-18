@@ -394,6 +394,7 @@ nemo_path_bar_finalize (GObject *object)
     }
 
     g_list_free (path_bar->priv->button_list);
+    g_clear_object (&path_bar->priv->current_path);
     g_clear_object (&path_bar->priv->home_path);
     g_clear_object (&path_bar->priv->root_path);
     g_clear_object (&path_bar->priv->xdg_documents_path);
@@ -1743,6 +1744,9 @@ button_data_file_changed (NemoFile *file,
         }
 
         if (renamed) {
+            /* Overwriting without letting go of the old one leaked a GFile per
+               rename of a path-bar folder. */
+            g_object_unref (button_data->path);
             button_data->path = g_object_ref (location);
         } else {
             /* the file has been moved.

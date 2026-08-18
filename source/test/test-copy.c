@@ -4,97 +4,126 @@
 #include <libnemo-private/nemo-progress-info.h>
 #include <libnemo-private/nemo-progress-info-manager.h>
 
+#include <glib/gstdio.h>
+#include <stdlib.h>
+
+/* Sources and destination are built here rather than taken from the command
+ * line: with no arguments this used to print a usage line and fail, and with
+ * arguments it asserted nothing - the copy could do anything at all and the
+ * run still counted as a pass. */
+
+#define COPY_TIMEOUT_SECONDS 20
+
+static int  failures;
+static gboolean copy_finished;
+static gboolean copy_succeeded;
+
+#define check(expr)							\
+	G_STMT_START {							\
+		if (!(expr)) {						\
+			g_printerr ("FAIL %s:%d: %s\n",			\
+				    __FILE__, __LINE__, #expr);		\
+			failures++;					\
+		}							\
+	} G_STMT_END
+
 static void
-copy_done (GHashTable *debuting_uris, 
+copy_done (GHashTable *debuting_uris,
            gboolean success,
            gpointer data)
 {
-	g_print ("Copy done\n");
-}
-
-static void
-changed_cb (NemoProgressInfo *info,
-	    gpointer data)
-{
-	g_print ("Changed: %s -- %s\n",
-		 nemo_progress_info_get_status (info),
-		 nemo_progress_info_get_details (info));
-}
-
-static void
-progress_changed_cb (NemoProgressInfo *info,
-		     gpointer data)
-{
-	g_print ("Progress changed: %f\n",
-		 nemo_progress_info_get_progress (info));
-}
-
-static void
-finished_cb (NemoProgressInfo *info,
-	     gpointer data)
-{
-	g_print ("Finished\n");
+	copy_succeeded = success;
+	copy_finished = TRUE;
 	gtk_main_quit ();
 }
 
-int 
+static gboolean
+give_up (gpointer data)
+{
+	g_printerr ("FAIL: copy did not finish within %d seconds\n",
+		    COPY_TIMEOUT_SECONDS);
+	failures++;
+	gtk_main_quit ();
+	return G_SOURCE_REMOVE;
+}
+
+static char *
+write_file (const char *dir, const char *name, const char *contents)
+{
+	char *path = g_build_filename (dir, name, NULL);
+
+	check (g_file_set_contents (path, contents, -1, NULL));
+	return path;
+}
+
+int
 main (int argc, char* argv[])
 {
 	GtkWidget *window;
-	GList *sources;
+	GList *sources = NULL;
 	GFile *dest;
-	GFile *source;
-	int i;
-	GList *infos;
-        NemoProgressInfoManager *manager;
-	NemoProgressInfo *progress_info;
-	
+	char *tmp, *src_dir, *dst_dir, *src_file, *landed, *contents = NULL;
+	guint timeout_id;
+
 	test_init (&argc, &argv);
 
-	if (argc < 3) {
-		g_print ("Usage test-copy <sources...> <dest dir>\n");
-		return 1;
-	}
+	tmp = g_dir_make_tmp ("nemo-copy-test-XXXXXX", NULL);
+	src_dir = g_build_filename (tmp, "from", NULL);
+	dst_dir = g_build_filename (tmp, "to", NULL);
+	g_mkdir_with_parents (src_dir, 0700);
+	g_mkdir_with_parents (dst_dir, 0700);
 
-	sources = NULL;
-	for (i = 1; i < argc - 1; i++) {
-		source = g_file_new_for_commandline_arg (argv[i]);
-		sources = g_list_prepend (sources, source);
-	}
-	sources = g_list_reverse (sources);
-	
-	dest = g_file_new_for_commandline_arg (argv[i]);
-	
+	src_file = write_file (src_dir, "copied.txt", "payload");
+	sources = g_list_prepend (sources, g_file_new_for_path (src_file));
+	dest = g_file_new_for_path (dst_dir);
+
 	window = test_window_new ("copy test", 5);
-	
 	gtk_widget_show (window);
-
-        manager = nemo_progress_info_manager_new ();
 
 	nemo_file_operations_copy (sources,
 				       NULL /* GArray *relative_item_points */,
 				       dest,
 				       GTK_WINDOW (window),
 				       copy_done, NULL);
-        
-	infos = nemo_progress_info_manager_get_all_infos (manager);
 
-	if (infos == NULL) {
-		g_object_unref (manager);
-		return 0;
+	/* The operation runs on a worker; without a deadline a hang here would
+	   sit in the suite until meson's own timeout killed it. */
+	timeout_id = g_timeout_add_seconds (COPY_TIMEOUT_SECONDS, give_up, NULL);
+	gtk_main ();
+	g_source_remove (timeout_id);
+
+	check (copy_finished);
+	check (copy_succeeded);
+
+	landed = g_build_filename (dst_dir, "copied.txt", NULL);
+	check (g_file_test (landed, G_FILE_TEST_IS_REGULAR));
+	if (g_file_get_contents (landed, &contents, NULL, NULL)) {
+		check (g_strcmp0 (contents, "payload") == 0);
+		g_free (contents);
+	} else {
+		check (FALSE);
 	}
 
-	progress_info = NEMO_PROGRESS_INFO (infos->data);
+	/* The source is a copy, not a move. */
+	check (g_file_test (src_file, G_FILE_TEST_IS_REGULAR));
 
-	g_signal_connect (progress_info, "changed", (GCallback)changed_cb, NULL);
-	g_signal_connect (progress_info, "progress-changed", (GCallback)progress_changed_cb, NULL);
-	g_signal_connect (progress_info, "finished", (GCallback)finished_cb, NULL);
-	
-	gtk_main ();
+	g_remove (landed);
+	g_remove (src_file);
+	g_rmdir (dst_dir);
+	g_rmdir (src_dir);
+	g_rmdir (tmp);
 
-        g_object_unref (manager);
-	
-	return 0;
+	g_free (landed);
+	g_free (src_file);
+	g_free (src_dir);
+	g_free (dst_dir);
+	g_free (tmp);
+	g_list_free_full (sources, g_object_unref);
+	g_object_unref (dest);
+
+	if (failures == 0) {
+		g_print ("copy: all checks passed\n");
+	}
+
+	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-

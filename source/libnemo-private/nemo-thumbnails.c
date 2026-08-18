@@ -328,6 +328,11 @@ thumbnail_thread (gpointer data,
         return;
     }
 
+    /* Deferred from nemo_create_thumbnail, which cannot afford to block. */
+    if (info->original_file_mtime == INVALID_MTIME) {
+        get_file_mtime (info->image_uri, &info->original_file_mtime);
+    }
+
     time (&current_time);
 
     /* Don't try to create a thumbnail if the file was modified recently.
@@ -588,7 +593,9 @@ nemo_create_thumbnail (NemoFile *file)
         file->details->mtime != 0) {
         file_mtime = file->details->mtime;
     } else {
-        get_file_mtime (file_uri, &file_mtime);
+        /* Leave it for the thumbnail thread to stat - this is the main loop, and
+           a spun-down drive or dead mapping would hold the UI for the timeout. */
+        file_mtime = INVALID_MTIME;
     }
 
     NemoThumbnailInfo *info;

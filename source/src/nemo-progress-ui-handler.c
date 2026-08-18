@@ -100,7 +100,7 @@ get_icon_name_from_percent (guint pct)
     else
         rounded = pct + (10 - ones);
 
-    icon_name = g_strdup_printf ("nemo-progress-%d-symbolic", rounded);
+    icon_name = g_strdup_printf ("nemo-progress-%u-symbolic", rounded);
 
     return icon_name;
 }
@@ -309,12 +309,20 @@ progress_info_changed_cb (NemoProgressInfo *info,
         GList *l;
         g_autofree gchar *status = nemo_progress_info_get_status (first_info);
         double progress = 0.0;
+        double total = 0.0;
         int i = 0;
+        /* Plain mean: the running form here divided by the count on every step,
+           so with three or more operations the earlier ones were weighted down
+           to almost nothing and the bar under-reported. */
         for (l = self->priv->infos; l != NULL; l = l->next) {
             if (nemo_progress_info_get_is_finished (l->data)) {
                 continue;
             }
-            progress = (progress + nemo_progress_info_get_progress (l->data)) / (double) ++i;
+            total += nemo_progress_info_get_progress (l->data);
+            i++;
+        }
+        if (i > 0) {
+            progress = total / (double) i;
         }
         if (progress > 0) {
             int iprogress = progress * 100;

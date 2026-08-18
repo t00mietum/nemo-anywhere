@@ -408,6 +408,32 @@ want (const char *name, int argc, char *argv[])
 	return FALSE;
 }
 
+static void
+remove_tree (const char *path)
+{
+	GDir *dir;
+
+	dir = g_dir_open (path, 0, NULL);
+	if (dir != NULL) {
+		const char *name;
+
+		while ((name = g_dir_read_name (dir)) != NULL) {
+			char *child = g_build_filename (path, name, NULL);
+
+			if (g_file_test (child, G_FILE_TEST_IS_DIR) &&
+			    !g_file_test (child, G_FILE_TEST_IS_SYMLINK)) {
+				remove_tree (child);
+			} else {
+				g_remove (child);
+			}
+			g_free (child);
+		}
+		g_dir_close (dir);
+	}
+
+	g_rmdir (path);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -451,7 +477,9 @@ main (int argc, char *argv[])
 		test_concurrent_reload (favorites);
 
 	nemo_config_shutdown ();
-	g_rmdir (tmp);
+	/* g_rmdir only ever worked on an empty dir, so every run left a tree in
+	   the system temp folder. */
+	remove_tree (tmp);
 	g_free (tmp);
 
 	if (failures == 0)

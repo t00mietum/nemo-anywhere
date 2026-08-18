@@ -428,6 +428,10 @@ main (int argc, char *argv[])
 
 	gtk_init (&argc, &argv);
 
+	/* Several checks below assert that a misuse is refused. Without this a
+	   critical is just printed and the test carries on reporting a pass. */
+	g_log_set_always_fatal (G_LOG_LEVEL_CRITICAL);
+
 	nemo_config_init ();
 
 	prefs        = nemo_config_get_group ("preferences");

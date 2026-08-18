@@ -5192,6 +5192,7 @@ nemo_properties_window_present (GList       *original_files,
 
 	/* Look to see if we're already waiting for a window for this file. */
 	if (g_hash_table_lookup (pending_lists, pending_key) != NULL) {
+		g_free (pending_key);
 		return;
 	}
 
