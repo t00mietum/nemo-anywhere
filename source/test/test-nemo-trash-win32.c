@@ -508,6 +508,289 @@ test_outside_bin_refused (void)
 	g_free (outside);
 }
 
+/* The backing file of a bin item whose contents are exactly @marker, found by
+ * reading the bin off disk. Going through the trash enumerator would refresh the
+ * snapshot, which is the very thing the freshly-trashed case has to do without.
+ * NULL if it is not there, or if the per-user folder cannot be read. */
+static char *
+find_backing_by_contents (const char *data, gsize data_len)
+{
+	const char *bin_root = "C:\\$Recycle.Bin";
+	GDir *sids;
+	const char *sid;
+	char *found = NULL;
+
+	sids = g_dir_open (bin_root, 0, NULL);
+	if (sids == NULL) {
+		return NULL;
+	}
+
+	while (found == NULL && (sid = g_dir_read_name (sids)) != NULL) {
+		char *sid_dir = g_build_filename (bin_root, sid, NULL);
+		GDir *items = g_dir_open (sid_dir, 0, NULL);
+		const char *name;
+
+		if (items == NULL) {   /* another user's folder - not ours to read */
+			g_free (sid_dir);
+			continue;
+		}
+
+		while (found == NULL && (name = g_dir_read_name (items)) != NULL) {
+			char *path, *contents = NULL;
+			gsize length = 0;
+
+			if (!g_str_has_prefix (name, "$R")) {
+				continue;
+			}
+
+			path = g_build_filename (sid_dir, name, NULL);
+			if (g_file_test (path, G_FILE_TEST_IS_REGULAR) &&
+			    g_file_get_contents (path, &contents, &length, NULL) &&
+			    length == data_len &&
+			    memcmp (contents, data, length) == 0) {
+				found = path;
+			} else {
+				g_free (path);
+			}
+			g_free (contents);
+		}
+
+		g_dir_close (items);
+		g_free (sid_dir);
+	}
+
+	g_dir_close (sids);
+	return found;
+}
+
+/* Drop a backing file and the $I sidecar that names it, leaving the bin as it
+ * was found. The sidecar shares the backing file's suffix after the "$R"/"$I". */
+static void
+purge_backing (const char *backing_path)
+{
+	char *dir, *base, *info_name, *info_path;
+
+	if (backing_path == NULL) {
+		return;
+	}
+
+	dir = g_path_get_dirname (backing_path);
+	base = g_path_get_basename (backing_path);
+
+	if (g_str_has_prefix (base, "$R")) {
+		info_name = g_strconcat ("$I", base + 2, NULL);
+		info_path = g_build_filename (dir, info_name, NULL);
+		g_unlink (info_path);
+		g_free (info_path);
+		g_free (info_name);
+	}
+
+	g_unlink (backing_path);
+	g_free (base);
+	g_free (dir);
+}
+
+/* A bin entry hangs off the root the moment it is trashed, not once a poll has
+ * caught up. The top-level check used to answer off a snapshot taken before the
+ * item existed and, on the miss, treat it as something nested - so it was filed
+ * under a parent folder that is not in the bin at all. */
+static void
+test_fresh_item_parent (void)
+{
+	const char *marker = "nemoverify-fresh-parent-marker";
+	char *fixture, *backing, *uri;
+	GFile *root, *item, *parent;
+
+	/* Warm the snapshot first, so the item below is genuinely one the cache
+	 * has never seen - which is the whole condition being tested. */
+	root = g_file_new_for_uri (TRASH_ROOT_URI);
+	{
+		GFileEnumerator *warm = g_file_enumerate_children (root, "standard::name",
+								   0, NULL, NULL);
+		g_clear_object (&warm);
+	}
+
+	fixture = g_build_filename (g_get_home_dir (), "nemoverify-fresh.txt", NULL);
+	write_fixture (fixture, marker);
+
+	if (!recycle_quietly (fixture)) {
+		g_printerr ("SKIP fresh-parent case: could not recycle %s\n", fixture);
+		g_unlink (fixture);
+		g_free (fixture);
+		g_object_unref (root);
+		return;
+	}
+
+	backing = find_backing_by_contents (marker, strlen (marker));
+	if (backing == NULL) {
+		g_printerr ("SKIP fresh-parent case: could not find the backing file\n");
+		g_free (fixture);
+		g_object_unref (root);
+		return;
+	}
+
+	real_bin_ran = TRUE;
+
+	uri = uri_for_real_path (backing);
+	item = g_file_new_for_uri (uri);
+
+	parent = g_file_get_parent (item);
+	check (parent != NULL);
+	if (parent != NULL) {
+		char *parent_uri = g_file_get_uri (parent);
+
+		if (g_strcmp0 (parent_uri, TRASH_ROOT_URI) != 0) {
+			g_printerr ("  parent came back as %s\n", parent_uri);
+		}
+		check (g_strcmp0 (parent_uri, TRASH_ROOT_URI) == 0);
+		check (g_file_equal (parent, root));
+
+		g_free (parent_uri);
+		g_object_unref (parent);
+	}
+
+	check (g_file_has_parent (item, root));
+
+	g_object_unref (item);
+	g_free (uri);
+
+	purge_backing (backing);
+	g_free (backing);
+	g_free (fixture);
+	g_object_unref (root);
+}
+
+static void
+note_monitor_fired (GFileMonitor *monitor, GFile *file, GFile *other,
+		    GFileMonitorEvent event, gpointer user_data)
+{
+	*(gboolean *) user_data = TRUE;
+}
+
+
+/* A change that leaves the item count untouched still has to reach a watcher.
+ * The poll compared counts alone, so an item replaced by another, or one going
+ * as another arrives, was invisible until something else moved the count.
+ *
+ * Rewriting a backing file is no good as a stand-in: the shell reports the size
+ * it recorded when the item was recycled, not what the file holds now, so that
+ * changes nothing it can see. What does move it is one item leaving and a
+ * differently-sized one arriving - the count lands back where it started and
+ * only the total size says anything happened. Both happen with the main loop
+ * parked, so no poll can run in between and catch the count mid-swing. */
+static void
+test_same_count_change_noticed (void)
+{
+	const char *small = "nemoverify-samecount-small";
+	char *fixture_a, *fixture_b, *backing_a, *backing_b, *big;
+	GFile *root;
+	GFileMonitor *monitor;
+	GError *error = NULL;
+	gboolean fired = FALSE;
+	gint64 deadline;
+	gsize big_len = 200 * 1024;
+	gsize i;
+
+	fixture_a = g_build_filename (g_get_home_dir (), "nemoverify-samecount-a.txt", NULL);
+	fixture_b = g_build_filename (g_get_home_dir (), "nemoverify-samecount-b.txt", NULL);
+
+	big = g_malloc (big_len);
+	for (i = 0; i < big_len; i++) {
+		big[i] = (char) ('a' + (i % 26));
+	}
+
+	write_fixture (fixture_a, small);
+	if (!recycle_quietly (fixture_a)) {
+		g_printerr ("SKIP same-count case: could not recycle %s\n", fixture_a);
+		g_unlink (fixture_a);
+		goto out;
+	}
+
+	backing_a = find_backing_by_contents (small, strlen (small));
+	if (backing_a == NULL) {
+		g_printerr ("SKIP same-count case: could not find the backing file\n");
+		goto out;
+	}
+
+	real_bin_ran = TRUE;
+
+	/* Let everything the cases above set going finish first. Deleting through
+	 * the trash backend posts its notification to the main context, and that
+	 * notification reaches whichever monitors are registered when it finally
+	 * runs - including one created here, which never asked for it. */
+	deadline = g_get_monotonic_time () + 2 * G_USEC_PER_SEC;
+	while (g_get_monotonic_time () < deadline) {
+		g_main_context_iteration (NULL, FALSE);
+		g_usleep (20 * 1000);
+	}
+
+	root = g_file_new_for_uri (TRASH_ROOT_URI);
+	monitor = g_file_monitor (root, G_FILE_MONITOR_NONE, NULL, &error);
+	check (monitor != NULL);
+	check (error == NULL);
+	g_clear_error (&error);
+
+	if (monitor != NULL) {
+		/* The baseline is taken when the monitor is made, so the swap has
+		 * to happen after that - not before. */
+		g_signal_connect (monitor, "changed",
+				  G_CALLBACK (note_monitor_fired), &fired);
+
+		/* Quiet first, for long enough to cover a poll turn: a monitor that
+		 * simply cries change on every turn would otherwise be counted as a
+		 * pass by the check below. */
+		deadline = g_get_monotonic_time () + 5 * G_USEC_PER_SEC;
+		while (g_get_monotonic_time () < deadline) {
+			g_main_context_iteration (NULL, FALSE);
+			g_usleep (50 * 1000);
+		}
+
+		if (fired) {
+			g_printerr ("  a change was reported before anything changed\n");
+		}
+		check (!fired);
+		fired = FALSE;
+
+		/* The swap, with the loop parked so no poll sees the halfway state. */
+		purge_backing (backing_a);
+		g_clear_pointer (&backing_a, g_free);
+
+		if (!g_file_set_contents (fixture_b, big, big_len, NULL) ||
+		    !recycle_quietly (fixture_b)) {
+			g_printerr ("SKIP same-count case: could not recycle the replacement\n");
+			g_unlink (fixture_b);
+		} else {
+			/* The poll runs every 3s; give it a few turns. */
+			deadline = g_get_monotonic_time () + 15 * G_USEC_PER_SEC;
+			while (!fired && g_get_monotonic_time () < deadline) {
+				g_main_context_iteration (NULL, FALSE);
+				g_usleep (50 * 1000);
+			}
+
+			if (!fired) {
+				g_printerr ("  no change reported in 15s for a same-count swap\n");
+			}
+			check (fired);
+
+			backing_b = find_backing_by_contents (big, big_len);
+			purge_backing (backing_b);
+			g_free (backing_b);
+		}
+
+		g_file_monitor_cancel (monitor);
+		g_object_unref (monitor);
+	}
+
+	purge_backing (backing_a);
+	g_free (backing_a);
+	g_object_unref (root);
+
+out:
+	g_free (big);
+	g_free (fixture_a);
+	g_free (fixture_b);
+}
+
 /* meson reports this exit code as SKIP rather than a pass. */
 #define TEST_SKIPPED 77
 
@@ -523,6 +806,8 @@ main (int argc, char *argv[])
 	test_trashed_folder ();
 	test_real_bin_roundtrip ();
 	test_outside_bin_refused ();
+	test_fresh_item_parent ();
+	test_same_count_change_noticed ();
 
 	/* The seeded cases plant files into wine's unix-style XDG trash layout, which
 	 * does not exist on real Windows. Everything above works the shell bin itself,

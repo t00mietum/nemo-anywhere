@@ -113,13 +113,16 @@ test('Extension column test',
   args: []
 )
 
+# The recycle-bin monitor is polled, so the same-count case has to sit through
+# a few turns of it - well past the 30s meson allows by default.
 test('Trash win32 test',
   executable('test-nemo-trash-win32',
     [ 'test-nemo-trash-win32.c' ],
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private ],
   ),
-  args: []
+  args: [],
+  timeout: 120
 )
 
 test('Shortcut win32 test',
