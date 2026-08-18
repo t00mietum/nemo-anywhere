@@ -1958,6 +1958,53 @@ nemo_path_is_network_safe (const gchar *path)
     return nemo_location_is_network_safe (location);
 }
 
+/* Three surfaces used to name a drive root three different ways: gio's display
+   name is the basename, which is "\" for every drive alike; the volume monitor
+   says "(C:) Windows"; and the sidebar built "Windows (C:)" itself. The drive
+   letter is the part that identifies it, so that is what all of them show now. */
+gboolean
+nemo_location_is_drive_root (GFile *location)
+{
+#ifdef G_OS_WIN32
+    g_autofree gchar *path = NULL;
+
+    if (location == NULL || !g_file_is_native (location)) {
+        return FALSE;
+    }
+
+    path = g_file_get_path (location);
+
+    /* Exactly "X:\" or "X:/" - a path one character longer is already inside. */
+    return path != NULL
+           && g_ascii_isalpha (path[0])
+           && path[1] == ':'
+           && (path[2] == '\\' || path[2] == '/')
+           && path[3] == '\0';
+#else
+    return FALSE;
+#endif
+}
+
+gchar *
+nemo_get_drive_root_name (GFile *location)
+{
+#ifdef G_OS_WIN32
+    g_autofree gchar *path = NULL;
+
+    if (!nemo_location_is_drive_root (location)) {
+        return NULL;
+    }
+
+    path = g_file_get_path (location);
+
+    /* Spelled the way the user would type it, and the way every other Windows
+       program writes it: an upper-case letter and a trailing backslash. */
+    return g_strdup_printf ("%c:\\", g_ascii_toupper (path[0]));
+#else
+    return NULL;
+#endif
+}
+
 #if !defined (NEMO_OMIT_SELF_CHECK)
 
 void

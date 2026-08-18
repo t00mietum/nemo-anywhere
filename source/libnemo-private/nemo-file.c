@@ -289,6 +289,26 @@ nemo_file_clear_display_name (NemoFile *file)
     g_clear_pointer (&file->details->edit_name, g_ref_string_release);
 }
 
+/* "C:\" for a drive root, NULL for everything else (and everywhere but win32).
+   gio hands back the basename, which is "\" for every drive alike, so the title
+   bar and the breadcrumb both read "\" with no way to tell the drives apart. */
+static char *
+file_get_drive_root_name (NemoFile *file)
+{
+	GFile *location;
+	char *name;
+
+	if (file == NULL || file->details->directory == NULL) {
+		return NULL;
+	}
+
+	location = nemo_file_get_location (file);
+	name = nemo_get_drive_root_name (location);
+	g_clear_object (&location);
+
+	return name;
+}
+
 static gboolean
 foreach_metadata_free (gpointer  key,
 		       gpointer  value,
@@ -2450,6 +2470,7 @@ update_info_internal (NemoFile *file,
 	const char *group, *owner, *owner_real;
 	gboolean free_owner, free_group;
     const char *edit_name;
+    char *drive_root_name;
 
 	if (file->details->is_gone) {
 		return FALSE;
@@ -2483,10 +2504,20 @@ update_info_internal (NemoFile *file,
 
     edit_name = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_EDIT_NAME);
 
-	changed |= nemo_file_set_display_name (file,
-						  g_file_info_get_display_name (info),
-						  edit_name,
-						  FALSE);
+	drive_root_name = file_get_drive_root_name (file);
+	if (drive_root_name != NULL) {
+		/* A drive root cannot be renamed, so it edits as it displays. */
+		changed |= nemo_file_set_display_name (file,
+							  drive_root_name,
+							  drive_root_name,
+							  FALSE);
+		g_free (drive_root_name);
+	} else {
+		changed |= nemo_file_set_display_name (file,
+							  g_file_info_get_display_name (info),
+							  edit_name,
+							  FALSE);
+	}
 
 	file_type = g_file_info_get_file_type (info);
 	if (file->details->type != file_type) {
@@ -4279,6 +4310,20 @@ nemo_file_peek_display_name (NemoFile *file)
 	/* Default to display name based on filename if its not set yet */
 
 	if (file->details->display_name == NULL) {
+		char *drive_root_name = file_get_drive_root_name (file);
+
+		/* Before the info arrives the name is still the bare basename, so a
+		   drive root would flash up as "\" and then correct itself. */
+		if (drive_root_name != NULL) {
+			nemo_file_set_display_name (file,
+							drive_root_name,
+							drive_root_name,
+							FALSE);
+			g_free (drive_root_name);
+
+			return file->details->display_name;
+		}
+
 		name = file->details->name;
 		if (g_utf8_validate (name, -1, NULL)) {
 			nemo_file_set_display_name (file,

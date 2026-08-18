@@ -182,3 +182,27 @@ if is_windows
     args: []
   )
 endif
+
+if is_windows
+  test('Drive root name test',
+    executable('test-nemo-drive-root-name',
+      [ 'test-nemo-drive-root-name.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
+
+if is_windows
+  test('File refresh churn test',
+    executable('test-nemo-file-win32-churn',
+      [ 'test-nemo-file-win32-churn.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
