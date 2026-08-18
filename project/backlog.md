@@ -387,8 +387,9 @@ Full code, security and performance review of the whole tree, first-party and in
 - 🔘 Item 15. On Windows every file reports as changed on every refresh.
 	- Cause: the per-type icon override is compared against the plain system icon, which never matches, so each refresh marks the whole folder changed and re-sorts, redraws and re-checks thumbnails, plus a per-file registry lookup and allocation.
 
-- 🔘 Item 16. Sidebar rebuilds block the whole window on filesystem queries.
+- ✅ Item 16. Sidebar rebuilds block the whole window on filesystem queries.
 	- Cause: free-space and drive-type checks run on the UI thread for every drive and mount, on every rebuild. A slow or hung mount freezes the window, and a mount change is often what triggers the rebuild.
+	- Fix: back get_disk_full with a per-sidebar cache; it only ever reads the cache, so the build never waits. A miss or stale (>8s) entry fires an async filesystem-info query off the UI thread that fills the cache and coalesces a rebuild. Cancellable torn down in dispose; a hung mount leaves one entry pending and never blocks. All the inline tooltip/show-df composition is untouched.
 
 #### Medium
 

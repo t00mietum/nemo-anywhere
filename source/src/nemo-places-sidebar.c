@@ -153,6 +153,13 @@ typedef struct {
     guint popup_menu_action_index;
     guint update_places_on_idle_id;
 
+    /* Free-space is fetched off the UI thread so a slow or hung mount can't
+     * freeze the window during a rebuild. get_disk_full only ever reads this
+     * cache; misses/stale entries kick an async query that fills it and
+     * coalesces a rebuild. */
+    GHashTable *df_cache;        /* uri -> DfCacheEntry */
+    GCancellable *df_cancellable;
+
 } NemoPlacesSidebar;
 
 typedef struct {
@@ -612,60 +619,149 @@ sidebar_update_restore_selection (NemoPlacesSidebar *sidebar,
 	}
 }
 
-static gint
-get_disk_full (GFile *file, gchar **tooltip_info)
+/* Entries stay valid this long before a rebuild triggers a fresh async query;
+   free-space that is a few seconds stale is imperceptible next to a frozen
+   window. */
+#define DF_CACHE_TTL_USEC (8 * G_USEC_PER_SEC)
+
+typedef struct {
+    gint percent;       /* -1 = unknown */
+    gchar *freestr;     /* "Free space: X" or NULL */
+    gint64 stamp;       /* g_get_monotonic_time of last successful fill */
+    gboolean pending;   /* a query is in flight - do not issue another */
+} DfCacheEntry;
+
+typedef struct {
+    NemoPlacesSidebar *sidebar;
+    gchar *uri;
+} DfQueryCtx;
+
+static void
+df_cache_entry_free (gpointer data)
 {
-    GFileInfo *info;
-    GError *error;
+    DfCacheEntry *entry = data;
+    g_free (entry->freestr);
+    g_free (entry);
+}
+
+static void
+df_info_to_result (GFileInfo *info, gint *out_percent, gchar **out_str)
+{
     guint64 k_used, k_total, k_free;
-    gint df_percent;
-    float fraction;
-    int prefix;
-    gchar *size_string;
-    gchar *out_string;
 
-    error = NULL;
-    df_percent = -1;
-    out_string = NULL;
+    *out_percent = -1;
+    *out_str = NULL;
 
-    info = g_file_query_filesystem_info (file,
-                                         "filesystem::*",
-                                         NULL,
-                                         &error);
+    k_used = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_USED);
+    k_total = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE);
+    k_free = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_FREE);
 
-    if (info != NULL) {
-        k_used = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_USED);
-        k_total = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE);
-        k_free = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_FREE);
+    if (k_total > 0) {
+        float fraction = ((float) k_used / (float) k_total) * 100.0;
+        int prefix = nemo_global_preferences_get_size_prefix_preference ();
+        gchar *size_string = g_format_size_full (k_free, prefix);
 
-        if (k_total > 0) {
-            fraction = ((float) k_used / (float) k_total) * 100.0;
+        *out_percent = (gint) rintf (fraction);
+        *out_str = g_strdup_printf (_("Free space: %s"), size_string);
+        g_free (size_string);
+    }
+}
 
-            df_percent = (gint) rintf(fraction);
+static void
+df_query_ready (GObject *source, GAsyncResult *result, gpointer user_data)
+{
+    DfQueryCtx *ctx = user_data;
+    NemoPlacesSidebar *sidebar = ctx->sidebar;
+    GFileInfo *info;
+    GError *error = NULL;
 
-            prefix = nemo_global_preferences_get_size_prefix_preference ();
-            size_string = g_format_size_full (k_free, prefix);
+    info = g_file_query_filesystem_info_finish (G_FILE (source), result, &error);
 
-            out_string = g_strdup_printf (_("Free space: %s"), size_string);
+    /* The cache is torn down in dispose (main thread, same as this callback),
+     * so a NULL cache means the sidebar is gone - just drop the result. */
+    if (sidebar->df_cache != NULL) {
+        DfCacheEntry *entry = g_hash_table_lookup (sidebar->df_cache, ctx->uri);
 
-            g_free (size_string);
+        if (entry != NULL) {
+            entry->pending = FALSE;
+            entry->stamp = g_get_monotonic_time ();
+
+            if (info != NULL) {
+                gint percent;
+                gchar *freestr;
+
+                df_info_to_result (info, &percent, &freestr);
+                g_free (entry->freestr);
+                entry->percent = percent;
+                entry->freestr = freestr;
+
+                /* Fold the freshly-filled value into the visible rows. */
+                update_places_on_idle (sidebar);
+            }
         }
-
-        g_object_unref (info);
     }
 
     if (error != NULL) {
-        g_warning ("Couldn't get disk full info for: %s", error->message);
+        if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+            g_warning ("Couldn't get disk full info for %s: %s", ctx->uri, error->message);
+        }
         g_clear_error (&error);
     }
 
-    if (out_string == NULL) {
-        out_string = g_strdup (" ");
+    g_clear_object (&info);
+    g_object_unref (sidebar);
+    g_free (ctx->uri);
+    g_free (ctx);
+}
+
+static void
+df_issue_query (NemoPlacesSidebar *sidebar, GFile *file, const gchar *uri, DfCacheEntry *entry)
+{
+    DfQueryCtx *ctx;
+
+    entry->pending = TRUE;
+
+    ctx = g_new0 (DfQueryCtx, 1);
+    ctx->sidebar = g_object_ref (sidebar);
+    ctx->uri = g_strdup (uri);
+
+    g_file_query_filesystem_info_async (file,
+                                        "filesystem::*",
+                                        G_PRIORITY_DEFAULT,
+                                        sidebar->df_cancellable,
+                                        df_query_ready,
+                                        ctx);
+}
+
+/* Non-blocking: returns whatever free-space value is cached (possibly none yet),
+   refreshing it in the background. The window never waits on the query. */
+static gint
+get_disk_full (NemoPlacesSidebar *sidebar, GFile *file, gchar **tooltip_info)
+{
+    gchar *uri;
+    DfCacheEntry *entry;
+    gint64 now;
+    gint percent;
+
+    uri = g_file_get_uri (file);
+    now = g_get_monotonic_time ();
+
+    entry = g_hash_table_lookup (sidebar->df_cache, uri);
+    if (entry == NULL) {
+        entry = g_new0 (DfCacheEntry, 1);
+        entry->percent = -1;
+        g_hash_table_insert (sidebar->df_cache, g_strdup (uri), entry);
     }
 
-    *tooltip_info = out_string;
+    if (!entry->pending && (entry->stamp == 0 || now - entry->stamp >= DF_CACHE_TTL_USEC)) {
+        df_issue_query (sidebar, file, uri, entry);
+    }
 
-    return df_percent;
+    percent = entry->percent;
+    *tooltip_info = g_strdup (entry->freestr != NULL ? entry->freestr : " ");
+
+    g_free (uri);
+    return percent;
 }
 
 #ifdef G_OS_WIN32
@@ -801,7 +897,7 @@ update_places (NemoPlacesSidebar *sidebar)
     icon = get_icon_name (mount_uri);
 
     df_file = g_file_new_for_uri (mount_uri);
-    full = get_disk_full (df_file, &tooltip_info);
+    full = get_disk_full (sidebar, df_file, &tooltip_info);
     g_clear_object (&df_file);
 
     tooltip = g_strdup_printf (_("Open your personal folder\n%s"), tooltip_info);
@@ -929,7 +1025,7 @@ update_places (NemoPlacesSidebar *sidebar)
             gchar *drive_name = g_strdup_printf ("(%c:)", letter);
 
             df_file = g_file_new_for_uri (drive_uri);
-            full = get_disk_full (df_file, &tooltip_info);
+            full = get_disk_full (sidebar, df_file, &tooltip_info);
             g_clear_object (&df_file);
 
             tooltip = g_strdup_printf (_("Open drive %c:\n%s"), letter, tooltip_info);
@@ -958,7 +1054,7 @@ update_places (NemoPlacesSidebar *sidebar)
     icon = NEMO_ICON_SYMBOLIC_FILESYSTEM;
 
     df_file = g_file_new_for_uri (mount_uri);
-    full = get_disk_full (df_file, &tooltip_info);
+    full = get_disk_full (sidebar, df_file, &tooltip_info);
     g_clear_object (&df_file);
 
     tooltip = g_strdup_printf (_("Open the contents of the File System\n%s"), tooltip_info);
@@ -1142,7 +1238,7 @@ update_places (NemoPlacesSidebar *sidebar)
                     full_display_name = g_file_get_parse_name (root);
 
                     df_file = g_file_new_for_uri (mount_uri);
-                    full = get_disk_full (df_file, &tooltip_info);
+                    full = get_disk_full (sidebar, df_file, &tooltip_info);
                     g_clear_object (&df_file);
 
                     tooltip = g_strdup_printf (_("%s (%s)\n%s"),
@@ -1269,7 +1365,7 @@ update_places (NemoPlacesSidebar *sidebar)
             mount_uri = g_file_get_uri (root);
 
             df_file = g_file_new_for_uri (mount_uri);
-            full = get_disk_full (df_file, &tooltip_info);
+            full = get_disk_full (sidebar, df_file, &tooltip_info);
             g_clear_object (&df_file);
 
             parse_name = g_file_get_parse_name (root);
@@ -4257,6 +4353,10 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 
     sidebar->update_places_on_idle_id = 0;
 
+    sidebar->df_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, df_cache_entry_free);
+    sidebar->df_cancellable = g_cancellable_new ();
+
     sidebar->my_computer_expanded = nemo_config_get_boolean (nemo_window_state,
                                                             NEMO_WINDOW_STATE_MY_COMPUTER_EXPANDED);
     sidebar->bookmarks_expanded = nemo_config_get_boolean (nemo_window_state,
@@ -4548,6 +4648,14 @@ nemo_places_sidebar_dispose (GObject *object)
         g_source_remove (sidebar->update_places_on_idle_id);
         sidebar->update_places_on_idle_id = 0;
     }
+
+    /* Cancel in-flight df queries; a pending callback sees a NULL cache and
+     * drops its result. Held sidebar refs keep the memory valid until then. */
+    if (sidebar->df_cancellable != NULL) {
+        g_cancellable_cancel (sidebar->df_cancellable);
+        g_clear_object (&sidebar->df_cancellable);
+    }
+    g_clear_pointer (&sidebar->df_cache, g_hash_table_destroy);
 
 	g_clear_object (&sidebar->store);
 
