@@ -2764,12 +2764,14 @@ update_info_internal (NemoFile *file,
 	   refresh. Judge the change on where the icon ends up instead. */
 	old_icon = file->details->icon != NULL ? g_object_ref (file->details->icon) : NULL;
 
+	/* Synthesized info (the win32 unstattable-directory fallback) carries no
+	   standard::icon, and g_object_ref(NULL) warns. */
 	icon = g_file_info_get_icon (info);
 	if (!g_icon_equal (icon, file->details->icon)) {
 		if (file->details->icon) {
 			g_object_unref (file->details->icon);
 		}
-		file->details->icon = g_object_ref (icon);
+		file->details->icon = icon != NULL ? g_object_ref (icon) : NULL;
 	}
 
 	thumbnail_path =  g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_THUMBNAIL_PATH);

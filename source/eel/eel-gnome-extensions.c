@@ -76,6 +76,23 @@ terminal_settings_new (void)
     return NULL;
 }
 
+char *
+eel_gnome_get_fallback_terminal_exec (void)
+{
+    gint i;
+
+    for (i = 0; i < G_N_ELEMENTS (known_terminals); i++) {
+        gchar *term_path = g_find_program_in_path (known_terminals[i].exec);
+
+        if (term_path != NULL) {
+            g_free (term_path);
+            return g_strdup (known_terminals[i].exec);
+        }
+    }
+
+    return NULL;
+}
+
 static char *
 prepend_terminal_to_command_line (const char *command_line)
 {

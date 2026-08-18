@@ -1023,7 +1023,27 @@ update_places (NemoPlacesSidebar *sidebar)
             }
 
             gchar *drive_uri = g_strdup_printf ("file:///%c:/", letter);
-            gchar *drive_name = g_strdup_printf ("(%c:)", letter);
+            gchar *drive_name;
+
+            /* Explorer shows the volume label first - a bare "(C:)" tells the
+               user nothing when several drives are mounted. */
+            {
+                wchar_t wlabel[MAX_PATH + 1] = { 0 };
+                wchar_t wroot[4] = { (wchar_t) letter, L':', L'\\', L'\0' };
+                gchar *label = NULL;
+
+                if (GetVolumeInformationW (wroot, wlabel, G_N_ELEMENTS (wlabel),
+                                           NULL, NULL, NULL, NULL, 0)) {
+                    label = g_utf16_to_utf8 ((const gunichar2 *) wlabel, -1, NULL, NULL, NULL);
+                }
+
+                if (label != NULL && *label != '\0') {
+                    drive_name = g_strdup_printf ("%s (%c:)", label, letter);
+                } else {
+                    drive_name = g_strdup_printf ("(%c:)", letter);
+                }
+                g_free (label);
+            }
 
             df_file = g_file_new_for_uri (drive_uri);
             full = get_disk_full (sidebar, df_file, &tooltip_info);

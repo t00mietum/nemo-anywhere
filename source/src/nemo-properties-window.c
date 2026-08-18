@@ -5323,6 +5323,18 @@ real_destroy (GtkWidget *object)
 		window->details->update_files_timeout_id = 0;
 	}
 
+	/* A pending owner/group change would otherwise fire on the destroyed
+	   window - it is scheduled on a delay so the combo can settle. */
+	if (window->details->group_change_timeout != 0) {
+		g_source_remove (window->details->group_change_timeout);
+		window->details->group_change_timeout = 0;
+	}
+
+	if (window->details->owner_change_timeout != 0) {
+		g_source_remove (window->details->owner_change_timeout);
+		window->details->owner_change_timeout = 0;
+	}
+
     window->details->icon_chooser = NULL;
 
 	GTK_WIDGET_CLASS (nemo_properties_window_parent_class)->destroy (object);

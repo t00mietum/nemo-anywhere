@@ -7122,6 +7122,19 @@ open_in_terminal (const gchar *path)
 
     gsetting_terminal = nemo_desktop_settings_get_terminal_exec ();
 
+    /* Off a desktop that publishes one, and with nothing set, this comes back
+       empty and the spawn below silently did nothing - while launching a
+       program in a terminal fell back to a scan of the known ones. Agree. */
+    if (gsetting_terminal == NULL || *gsetting_terminal == '\0') {
+        g_free (gsetting_terminal);
+        gsetting_terminal = eel_gnome_get_fallback_terminal_exec ();
+    }
+
+    if (gsetting_terminal == NULL) {
+        g_message ("Could not find a terminal emulator");
+        return;
+    }
+
     token = g_strsplit (gsetting_terminal, " ", 0);
     argv = g_new (gchar *, g_strv_length (token) + 1);
     for (i = 0; token[i] != NULL; i++) {

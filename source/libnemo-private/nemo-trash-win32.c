@@ -316,6 +316,25 @@ query_bin_count (void)
 	return (guint64) info.i64NumItems;
 }
 
+/* Count alone misses a change that keeps it the same - one item deleted and
+ * another recycled between two polls, or an item replaced by a bigger one.
+ * Total size moves in those cases; both together are a usable fingerprint. */
+static void
+query_bin_state (guint64 *count, guint64 *size)
+{
+	SHQUERYRBINFO info;
+
+	memset (&info, 0, sizeof (info));
+	info.cbSize = sizeof (info);
+	if (SHQueryRecycleBinW (NULL, &info) != S_OK) {
+		*count = 0;
+		*size = 0;
+		return;
+	}
+	*count = (guint64) info.i64NumItems;
+	*size = (guint64) info.i64Size;
+}
+
 /* remove the metadata sibling after the backing file leaves the bin:
  * $I twin beside a $R file on real Windows, .trashinfo under wine */
 static void
@@ -719,13 +738,17 @@ trash_file_query_info (GFile *file, const char *attributes,
 		g_file_info_set_display_name (info, _("Trash"));
 		g_file_info_set_content_type (info, "inode/directory");
 
-		icon = g_themed_icon_new (query_bin_count () > 0 ?
+		/* One walk of the bin, not two - this runs on every look at the
+		   trash folder. */
+		guint64 bin_count = query_bin_count ();
+
+		icon = g_themed_icon_new (bin_count > 0 ?
 					  "user-trash-full" : "user-trash");
 		g_file_info_set_icon (info, icon);
 		g_object_unref (icon);
 
 		g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_TRASH_ITEM_COUNT,
-						  (guint32) query_bin_count ());
+						  (guint32) bin_count);
 		g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_READ, TRUE);
 		g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_WRITE, FALSE);
 		g_file_info_set_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE, FALSE);
@@ -1082,6 +1105,7 @@ typedef struct {
 	GFileMonitor parent;
 	guint timeout_id;
 	guint64 last_count;
+	guint64 last_size;
 } NemoTrashWin32Monitor;
 
 typedef struct {
@@ -1107,11 +1131,12 @@ static gboolean
 monitor_poll (gpointer user_data)
 {
 	NemoTrashWin32Monitor *monitor = user_data;
-	guint64 count;
+	guint64 count, size;
 
-	count = query_bin_count ();
-	if (count != monitor->last_count) {
+	query_bin_state (&count, &size);
+	if (count != monitor->last_count || size != monitor->last_size) {
 		monitor->last_count = count;
+		monitor->last_size = size;
 		monitor_emit (monitor);
 	}
 	return G_SOURCE_CONTINUE;
@@ -1126,7 +1151,7 @@ emit_changed_idle (gpointer user_data)
 	for (l = active_monitors; l != NULL; l = l->next) {
 		NemoTrashWin32Monitor *monitor = l->data;
 
-		monitor->last_count = query_bin_count ();
+		query_bin_state (&monitor->last_count, &monitor->last_size);
 		monitor_emit (monitor);
 	}
 	g_mutex_unlock (&monitors_mutex);
@@ -1176,7 +1201,7 @@ trash_file_monitor (GFile *file, GFileMonitorFlags flags,
 	NemoTrashWin32Monitor *monitor;
 
 	monitor = g_object_new (NEMO_TYPE_TRASH_WIN32_MONITOR, NULL);
-	monitor->last_count = query_bin_count ();
+	query_bin_state (&monitor->last_count, &monitor->last_size);
 	monitor->timeout_id = g_timeout_add_seconds (3, monitor_poll, monitor);
 
 	g_mutex_lock (&monitors_mutex);
