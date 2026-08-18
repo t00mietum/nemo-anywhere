@@ -1666,7 +1666,7 @@ nemo_desktop_thumbnail_factory_save_thumbnail (NemoDesktopThumbnailFactory *fact
     }
   close (tmp_fd);
   
-  g_snprintf (mtime_str, 21, "%ld",  original_mtime);
+  g_snprintf (mtime_str, 21, "%" G_GINT64_FORMAT, (gint64) original_mtime);
   width = gdk_pixbuf_get_option (thumbnail, "tEXt::Thumb::Image::Width");
   height = gdk_pixbuf_get_option (thumbnail, "tEXt::Thumb::Image::Height");
 
@@ -1773,7 +1773,7 @@ nemo_desktop_thumbnail_factory_create_failed_thumbnail (NemoDesktopThumbnailFact
     }
   close (tmp_fd);
   
-  g_snprintf (mtime_str, 21, "%ld",  mtime);
+  g_snprintf (mtime_str, 21, "%" G_GINT64_FORMAT, (gint64) mtime);
   pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8, 1, 1);
   saved_ok  = gdk_pixbuf_save (pixbuf,
 			       tmp_path,
@@ -1903,7 +1903,9 @@ nemo_desktop_thumbnail_is_valid (GdkPixbuf          *pixbuf,
   thumb_mtime_str = gdk_pixbuf_get_option (pixbuf, "tEXt::Thumb::MTime");
   if (!thumb_mtime_str)
     return FALSE;
-  thumb_mtime = atol (thumb_mtime_str);
+  /* time_t is 64-bit on win64 where long is 32, so %ld/atol truncated both
+     halves of the round-trip and every thumbnail read as stale. */
+  thumb_mtime = (time_t) g_ascii_strtoll (thumb_mtime_str, NULL, 10);
   if (mtime != thumb_mtime)
     return FALSE;
   

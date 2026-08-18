@@ -63,8 +63,9 @@ nemo_favorite_info_copy (const NemoFavoriteInfo *info)
 void
 nemo_favorite_info_free (NemoFavoriteInfo *info)
 {
-    g_debug ("NemoFavoriteInfo free (%s)", info->uri);
     g_return_if_fail (info != NULL);
+
+    g_debug ("NemoFavoriteInfo free (%s)", info->uri);
 
     g_free (info->uri);
     g_free (info->display_name);

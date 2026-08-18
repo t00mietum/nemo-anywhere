@@ -878,7 +878,7 @@ columns_reordered_callback (AtkObject *atk,
     for (iter = tv_list; iter != NULL; iter = iter->next) {
         for (l = vis_columns; l != NULL; l = l->next) {
             if (iter->data == g_hash_table_lookup (view->details->columns, l->data))
-                list = g_list_prepend (list, (gchar *)l->data);
+                list = g_list_prepend (list, g_strdup ((gchar *) l->data));
         }
     }
 
@@ -892,13 +892,16 @@ columns_reordered_callback (AtkObject *atk,
         nemo_config_set_strv (nemo_search_preferences,
                              NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS,
                              (const gchar **) column_array);
+        g_strfreev (column_array);
     } else {
         nemo_file_set_metadata_list (file,
                                      NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER,
                                      list);
     }
+    /* list owns copies now: vis_columns only borrows from columns, and any
+       column that didn't survive the match used to be freed by nobody. */
     g_list_free_full (list, g_free);
-    g_free (columns);
+    g_strfreev (columns);
     g_list_free (vis_columns);
     g_list_free (tv_list);
 }

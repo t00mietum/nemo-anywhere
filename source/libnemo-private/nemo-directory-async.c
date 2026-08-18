@@ -2963,7 +2963,10 @@ mime_list_state_free (MimeListState *state)
 
 
 static void
-mime_list_done (MimeListState *state, gboolean success)
+/* @failed, despite what the old parameter name said - both branches always read
+   it that way, and the enumerate-failure caller passing the other one recorded a
+   confirmed-empty type list for a directory it could not read. */
+mime_list_done (MimeListState *state, gboolean failed)
 {
 	NemoFile *file;
 	NemoDirectory *directory;
@@ -2975,7 +2978,7 @@ mime_list_done (MimeListState *state, gboolean success)
 	
 	file->details->mime_list_is_up_to_date = TRUE;
 	g_list_free_full (file->details->mime_list, g_free);
-	if (success) {
+	if (failed) {
 		file->details->mime_list_failed = TRUE;
 		file->details->mime_list = NULL;
 	} else {
@@ -3105,7 +3108,7 @@ list_mime_enum_callback (GObject *source_object,
 							res, &error);
 
 	if (enumerator == NULL) {
-		mime_list_done (state, FALSE);
+		mime_list_done (state, TRUE);
 		g_error_free (error);
 		mime_list_state_free (state);
 		return;

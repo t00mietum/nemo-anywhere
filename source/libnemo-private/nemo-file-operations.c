@@ -1861,6 +1861,10 @@ delete_dir (CommonJob *job, GFile *dir,
 	    !local_skipped_file) {
 		if (!file_delete_wrapper (dir, job->cancellable, &error)) {
 			if (job->skip_all_error) {
+				/* Same as the explicit Skip below - jumping straight to the
+				   label left the file unmarked, so the caller was told the
+				   whole folder came away cleanly. */
+				local_skipped_file = TRUE;
 				goto skip;
 			}
 			primary = f (_("Error while deleting."));
@@ -3243,8 +3247,7 @@ verify_destination (CommonJob *job,
 				      GTK_STOCK_CANCEL,
 				      NULL);
 
-		g_error_free (error);
-
+		/* The query above succeeded to get here, so there is no error to free. */
 		abort_job (job);
 	}
 
@@ -4015,6 +4018,7 @@ copy_move_directory (CopyMoveJob *copy_job,
 	    !local_skipped_file) {
 		if (!file_delete_wrapper (src, job->cancellable, &error)) {
 			if (job->skip_all_error) {
+				local_skipped_file = TRUE;
 				goto skip;
 			}
 			primary = f (_("Error while moving \"%B\"."), src);
@@ -4465,7 +4469,8 @@ copy_move_file (CopyMoveJob *copy_job,
         GFile *parent = g_file_get_parent (src);
 
         if (parent != NULL) {
-            if (g_file_equal (copy_job->desktop_location, parent)) {
+            if (copy_job->desktop_location != NULL &&
+                g_file_equal (copy_job->desktop_location, parent)) {
                 source_is_desktop = TRUE;
             }
             g_object_unref (parent);
@@ -5218,8 +5223,13 @@ move_file_prepare (CopyMoveJob *move_job,
     if (src != NULL) {
         GFile *parent = g_file_get_parent (src);
 
-        if (parent != NULL && g_file_equal (move_job->desktop_location, parent)) {
-            source_is_desktop = TRUE;
+        /* The unref belongs to the parent, not to the match - it sat inside the
+           branch, so every non-desktop move leaked one. */
+        if (parent != NULL) {
+            if (move_job->desktop_location != NULL &&
+                g_file_equal (move_job->desktop_location, parent)) {
+                source_is_desktop = TRUE;
+            }
             g_object_unref (parent);
         }
     }

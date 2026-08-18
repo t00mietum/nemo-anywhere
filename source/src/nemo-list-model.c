@@ -969,6 +969,7 @@ each_path_get_data_binder (NemoDragEachSelectedItemDataGet data_get,
 				     data);
 
 			g_free (uri);
+			g_free (path_str);
 
 			nemo_file_unref (file);
 		}
@@ -1251,6 +1252,9 @@ nemo_list_model_file_changed (NemoListModel *model, NemoFile *file,
 
     if (nemo_file_is_directory (file)) {
         if (update_dummy_row (model, file, g_sequence_get (ptr))) {
+            /* Removing the dummy row bumps the model stamp, so the iter built
+               above no longer validates. */
+            nemo_list_model_ptr_to_iter (model, ptr, &iter);
             gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model),
                                                   path, &iter);
         }

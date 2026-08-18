@@ -174,17 +174,30 @@ eel_gtk_window_set_initial_geometry (GtkWindow *window,
 		screen_width  = gdk_screen_get_width  (screen);
 		screen_height = gdk_screen_get_height (screen);
 
-		/* This is sub-optimal. GDK doesn't allow us to set win_gravity
-		 * to South/East types, which should be done if using negative
-		 * positions (so that the right or bottom edge of the window
-		 * appears at the specified position, not the left or top).
-		 * However it does seem to be consistent with other GNOME apps.
+		/* GDK doesn't allow win_gravity South/East, so place by hand: "-N"
+		 * means the window's right (or bottom) edge sits N pixels in from
+		 * that screen edge. The parser has already made real_left negative,
+		 * so the sign is applied once here, and the window's own size is
+		 * subtracted - without either, -20-20 landed off-screen and got
+		 * clamped back to the primary monitor's origin.
 		 */
-		if (geometry_flags & EEL_GDK_X_NEGATIVE) {
-			real_left = screen_width - real_left;
-		}
-		if (geometry_flags & EEL_GDK_Y_NEGATIVE) {
-			real_top = screen_height - real_top;
+		if (geometry_flags & (EEL_GDK_X_NEGATIVE | EEL_GDK_Y_NEGATIVE)) {
+			int win_width = (int) width;
+			int win_height = (int) height;
+
+			if (!(geometry_flags & EEL_GDK_WIDTH_VALUE) ||
+			    !(geometry_flags & EEL_GDK_HEIGHT_VALUE)) {
+				gtk_window_get_default_size (window,
+							     (geometry_flags & EEL_GDK_WIDTH_VALUE) ? NULL : &win_width,
+							     (geometry_flags & EEL_GDK_HEIGHT_VALUE) ? NULL : &win_height);
+			}
+
+			if (geometry_flags & EEL_GDK_X_NEGATIVE) {
+				real_left = screen_width - MAX (win_width, 0) + real_left;
+			}
+			if (geometry_flags & EEL_GDK_Y_NEGATIVE) {
+				real_top = screen_height - MAX (win_height, 0) + real_top;
+			}
 		}
 
 		sanity_check_window_position (&real_left, &real_top);
@@ -430,8 +443,11 @@ eel_gtk_get_treeview_row_text_is_under_pointer (GtkTreeView *tree_view)
         GtkTreePath *path;
         GtkTreeViewColumn *column;
 
+        gboolean inside;
+
         // A positive is_blank_at_pos is a reliable result.
         if (gtk_tree_view_is_blank_at_pos (tree_view, x, y, &path, &column, NULL, NULL)) {
+            gtk_tree_path_free (path);
             return FALSE;
         }
 
@@ -440,12 +456,13 @@ eel_gtk_get_treeview_row_text_is_under_pointer (GtkTreeView *tree_view)
         // Make sure the pointer position is actually inside the cell's bounds, and ignore edge
         // events.
         gtk_tree_view_get_cell_area (tree_view, path, column, &area);
-        if (x > area.x && x < area.x + area.width &&
-            y > area.y && y < area.y + area.height) {
-            return TRUE;
-        }
+        inside = (x > area.x && x < area.x + area.width &&
+                  y > area.y && y < area.y + area.height);
 
-        return FALSE;
+        // is_blank_at_pos hands out a path either way; this runs on every
+        // drag-motion event.
+        gtk_tree_path_free (path);
+        return inside;
     }
 
     // If we can't figure out the location, we need to default to allowing the operation. The highlighting will

@@ -494,10 +494,13 @@ search_thread_data_new (NemoSearchEngineAdvanced *engine,
     }
 
     data->skip_folders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    /* A non-native location (network://, favorites) has no path at all, and the
+       ancestor check below would dereference it. */
+    const gchar *location_path = g_file_peek_path (location);
     gchar **folders_array = nemo_config_get_strv (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_SKIP_FOLDERS);
     for (i = 0; i < g_strv_length (folders_array); i++) {
         /* Don't add an ancestor of the current location if it's in the skip list */
-        if (g_str_has_prefix (g_file_peek_path (location), folders_array[i])) {
+        if (location_path != NULL && g_str_has_prefix (location_path, folders_array[i])) {
             DEBUG ("Ignoring skip folder that is an ancestor to the search root: '%s'", folders_array[i]);
             continue;
         }

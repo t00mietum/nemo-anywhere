@@ -1244,7 +1244,9 @@ application_unhandled_uri (ActivateParameters *parameters, char *uri)
                      NULL);
 
     primary = _("Unknown file type");
-    display_name = nemo_file_get_display_name (file);
+    /* The file may not be in the cache at all - get_existing_by_uri can return
+       NULL, and everything below has to cope. */
+    display_name = file != NULL ? nemo_file_get_display_name (file) : NULL;
     if (display_name == NULL || g_strcmp0(display_name, "") == 0) {
         g_free(display_name);
         display_name = g_strdup(uri);
@@ -1276,7 +1278,7 @@ application_unhandled_uri (ActivateParameters *parameters, char *uri)
                    _("Choose a program"), RESPONSE_OPEN_WITH);
     }
 
-    if (!nemo_file_can_set_permissions (file) && enable_exec_button) {
+    if (enable_exec_button && (file == NULL || !nemo_file_can_set_permissions (file))) {
         GtkWidget *w = gtk_dialog_get_widget_for_response (GTK_DIALOG (dialog), RESPONSE_RUN);
         gtk_widget_set_sensitive (w, FALSE);
     }
@@ -1294,7 +1296,8 @@ application_unhandled_uri (ActivateParameters *parameters, char *uri)
     g_free (display_name);
     g_free (secondary);
     g_free (param_uri);
-    return;
+    /* parameters_special holds its own ref; this one is ours to give back. */
+    nemo_file_unref (file);
 }
 
 
@@ -1309,7 +1312,12 @@ untrusted_launcher_response_callback (GtkDialog *dialog,
 
 	switch (response_id) {
 	case RESPONSE_RUN:
-		screen = gtk_widget_get_screen (GTK_WIDGET (parameters->parent_window));
+		/* parent_window is a weak pointer - it nulls itself when the window
+		   goes, which is what happens if the tab is closed while activation is
+		   still in flight. Fall back rather than cast NULL to a widget. */
+		screen = parameters->parent_window != NULL
+			? gtk_widget_get_screen (GTK_WIDGET (parameters->parent_window))
+			: gdk_screen_get_default ();
 		uri = nemo_file_get_uri (parameters->file);
 		DEBUG ("Launching untrusted launcher %s", uri);
 		nemo_launch_desktop_file (screen, uri, NULL,
@@ -1343,7 +1351,9 @@ activate_desktop_file (ActivateParameters *parameters,
 	GdkScreen *screen;
 	char *uri;
 
-	screen = gtk_widget_get_screen (GTK_WIDGET (parameters->parent_window));
+	screen = parameters->parent_window != NULL
+			? gtk_widget_get_screen (GTK_WIDGET (parameters->parent_window))
+			: gdk_screen_get_default ();
 
 	if (!nemo_file_is_trusted_link (file)) {
 		/* copy the parts of parameters we are interested in as the orignal will be freed */
@@ -1506,8 +1516,13 @@ launch_application (GAppInfo *application,
 	char **sortable_image_viewers;
     gboolean accepts_uri_list;
 
-    accepts_uri_list = g_strstr_len (g_app_info_get_commandline (application), -1, "%F") ||
-                       g_strstr_len (g_app_info_get_commandline (application), -1, "%U");
+    /* A GAppInfo built from anything other than a desktop file has no command
+       line at all, and g_strstr_len does not take NULL. */
+    const char *commandline = g_app_info_get_commandline (application);
+
+    accepts_uri_list = commandline != NULL &&
+                       (g_strstr_len (commandline, -1, "%F") ||
+                        g_strstr_len (commandline, -1, "%U"));
 
 	if (uris != NULL && uris->next == NULL && accepts_uri_list) {
 		sortable_image_viewers = nemo_config_get_strv (nemo_preferences,
@@ -1558,7 +1573,9 @@ activate_files (ActivateParameters *parameters)
 	gboolean open_files;
     gboolean launch_location_is_desktop;
 
-	screen = gtk_widget_get_screen (GTK_WIDGET (parameters->parent_window));
+	screen = parameters->parent_window != NULL
+			? gtk_widget_get_screen (GTK_WIDGET (parameters->parent_window))
+			: gdk_screen_get_default ();
 
 	launch_desktop_files = NULL;
 	launch_files = NULL;
