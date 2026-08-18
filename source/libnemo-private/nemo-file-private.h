@@ -101,6 +101,11 @@ struct NemoFileDetails
 
 	char *thumbnail_path;
     eel_boolean_bit thumbnail_access_problem : 1;
+    /* Caches a negative nemo_can_thumbnail() verdict (unsupported type, or a
+     * valid failed-thumbnail marker already on disk) so we stop re-hashing and
+     * re-decoding the fail PNG on every icon fetch - per row per draw in list
+     * view. Reset when thumbnail state is invalidated or the file's mtime moves. */
+    eel_boolean_bit thumbnail_try_ruled_out : 1;
 	GdkPixbuf *thumbnail;
 	time_t thumbnail_mtime;
     gint thumbnail_throttle_count;

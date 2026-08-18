@@ -105,7 +105,25 @@ struct FileEntry {
 	guint loaded : 1;
     guint expanding : 1;
     guint ok_to_show_thumb : 1;
+    /* Steady-state render cache for the icon column. GtkTreeView re-fetches
+     * get_value on every draw/validate; without this the icon, emblems and a
+     * fresh scaled surface are rebuilt each time for every visible row. Only
+     * populated when no drag/highlight is active - those cases still render
+     * live. Cleared on file change and free. */
+    cairo_surface_t *icon_surface;
+    guint icon_surface_column : 8;
+    guint icon_surface_scale : 8;
+    guint icon_surface_thumb : 1;
 };
+
+static void
+file_entry_clear_icon_cache (FileEntry *file_entry)
+{
+    if (file_entry->icon_surface != NULL) {
+        cairo_surface_destroy (file_entry->icon_surface);
+        file_entry->icon_surface = NULL;
+    }
+}
 
 G_DEFINE_TYPE_WITH_CODE (NemoListModel, nemo_list_model, G_TYPE_OBJECT,
 			 G_IMPLEMENT_INTERFACE (GTK_TYPE_TREE_MODEL,
@@ -125,6 +143,7 @@ static GtkTargetList *drag_target_list = NULL;
 static void
 file_entry_free (FileEntry *file_entry)
 {
+	file_entry_clear_icon_cache (file_entry);
 	nemo_file_unref (file_entry->file);
 	if (file_entry->reverse_map) {
 		g_hash_table_destroy (file_entry->reverse_map);
@@ -314,10 +333,26 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
             GdkPixbuf *icon, *rendered_icon;
             NemoIconInfo *icon_info;
             GList *emblem_icons, *l;
+            gboolean cacheable;
 
 			zoom_level = nemo_list_model_get_zoom_level_from_column_id (column);
 			icon_size = nemo_get_list_icon_size_for_zoom_level (zoom_level);
             icon_scale = nemo_list_model_get_icon_scale (model);
+
+            /* Drag-accept and cut-highlight render live; everything else is a
+             * stable function of (column, scale, thumb-shown) until the file
+             * changes, so serve a cached surface across redraws. */
+            cacheable = model->details->drag_view == NULL &&
+                        model->details->highlight_files == NULL;
+
+            if (cacheable &&
+                file_entry->icon_surface != NULL &&
+                file_entry->icon_surface_column == (guint) column &&
+                file_entry->icon_surface_scale == (guint) icon_scale &&
+                file_entry->icon_surface_thumb == file_entry->ok_to_show_thumb) {
+                g_value_set_boxed (value, file_entry->icon_surface);
+                break;
+            }
 
 			flags = NEMO_FILE_ICON_FLAGS_FORCE_THUMBNAIL_SIZE |
 				NEMO_FILE_ICON_FLAGS_USE_MOUNT_ICON_AS_EMBLEM;
@@ -405,6 +440,15 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 			}
 
             surface = gdk_cairo_surface_create_from_pixbuf (icon, icon_scale, NULL);
+
+            if (cacheable) {
+                file_entry_clear_icon_cache (file_entry);
+                file_entry->icon_surface = cairo_surface_reference (surface);
+                file_entry->icon_surface_column = column;
+                file_entry->icon_surface_scale = icon_scale;
+                file_entry->icon_surface_thumb = file_entry->ok_to_show_thumb;
+            }
+
             g_value_take_boxed (value, surface);
 			g_object_unref (icon);
 		}
@@ -1152,6 +1196,10 @@ nemo_list_model_file_changed (NemoListModel *model, NemoFile *file,
 	if (!ptr) {
 		return;
 	}
+
+	/* Icon/thumbnail/theme changes all funnel through here - drop the cached
+	 * render so the next draw rebuilds it. */
+	file_entry_clear_icon_cache (g_sequence_get (ptr));
 
 	pos_before = g_sequence_iter_get_position (ptr);
 

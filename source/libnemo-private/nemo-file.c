@@ -604,6 +604,7 @@ nemo_file_clear_info (NemoFile *file)
 	g_free (file->details->thumbnail_path);
 	file->details->thumbnail_path = NULL;
 	file->details->thumbnailing_failed = FALSE;
+    file->details->thumbnail_try_ruled_out = FALSE;
     file->details->last_thumbnail_try_mtime = 0;
 
 	file->details->is_launcher = FALSE;
@@ -2443,6 +2444,7 @@ update_info_internal (NemoFile *file,
 	file->details->file_info_is_up_to_date = TRUE;
 
     file->details->thumbnail_access_problem = FALSE;
+    file->details->thumbnail_try_ruled_out = FALSE;
 
     file->details->pinning = FILE_META_STATE_INIT;
     file->details->favorite = FILE_META_STATE_INIT;
@@ -2719,6 +2721,9 @@ update_info_internal (NemoFile *file,
 		if (file->details->thumbnail == NULL) {
 			file->details->thumbnail_is_up_to_date = FALSE;
 		}
+
+		/* File moved on disk - let it re-attempt a thumbnail. */
+		file->details->thumbnail_try_ruled_out = FALSE;
 
 		changed = TRUE;
 	}
@@ -5115,9 +5120,15 @@ nemo_file_get_icon (NemoFile *file,
 		} else if (file->details->thumbnail_path == NULL &&
 			   file->details->can_read &&
 			   !file->details->is_thumbnailing &&
-			   !file->details->thumbnailing_failed) {
+			   !file->details->thumbnailing_failed &&
+			   !file->details->thumbnail_try_ruled_out) {
 			if (nemo_can_thumbnail (file)) {
 				nemo_create_thumbnail (file);
+			} else {
+				/* nemo_can_thumbnail hashed the uri and decoded the
+				 * fail-dir PNG to get here; cache the no so we don't
+				 * repeat it on every subsequent fetch. */
+				file->details->thumbnail_try_ruled_out = TRUE;
 			}
 		}
 	}

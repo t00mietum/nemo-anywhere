@@ -518,15 +518,17 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Fix: skip the sync existence probe for `\\host\share` input (structural backslashes, not a pasted local path) and hand it to the async load path.
 	- Cause: the backslash-to-slash retry does synchronous existence checks on the UI thread, so an unreachable host stalls for the full network timeout before the location even opens.
 
-- 🔘 Item 51. Failed thumbnails are re-decoded on every icon fetch.
+- ✅ Item 51. Failed thumbnails are re-decoded on every icon fetch.
 	- Cause: the app records failures under its own name, which the system's "failed" flag never reads, so every failed file re-hashes and re-decodes a PNG on each fetch. In list view that is per row per draw.
+	- Fix: cache the negative can-thumbnail verdict per file (thumbnail_try_ruled_out); reset on clear_info, info init and mtime change so a changed file re-attempts.
 
 - ✅ Item 52. Content search buffers whole files into memory with no cap.
 	- Fix: cap the per-file read at 16 MB (it is copied twice more downstream), so an unbounded stream can't exhaust the worker thread.
 	- Cause: each candidate text file is read entirely, then copied again to validate and strip, so a multi-gigabyte file can freeze or exhaust memory.
 
-- 🔘 Item 53. The list view rebuilds and rescales each icon on every row draw.
+- ✅ Item 53. The list view rebuilds and rescales each icon on every row draw.
 	- Cause: the icon, emblems and a fresh surface are assembled with no caching, and thumbnails are rescaled every time, so any redraw re-does the work for every visible row.
+	- Fix: cache the rendered surface on the FileEntry keyed by (column, scale, thumb-shown); reuse across draws, invalidate on file change and free. Drag-accept and cut-highlight still render live.
 
 - ✅ Item 54. The list view re-invalidates visible thumbnails on every scroll pause.
 	- Fix: drop the unused shown fetch and invalidate only on the first-in-view transition (deferred-attrs NO->YES), matching the icon-container twin.
