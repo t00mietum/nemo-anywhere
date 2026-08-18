@@ -62,18 +62,23 @@ interesting_folder_bar_response_cb (GtkInfoBar *infobar,
 {
     NemoInterestingFolderBar *bar;
     GFile *f = NULL;
+    gchar *path;
 
     bar = NEMO_INTERESTING_FOLDER_BAR (infobar);
 
     switch (response_id) {
         case INTERESTING_FOLDER_BAR_ACTION_OPEN_DOC:
-            f = g_file_new_for_path (NEMO_DATADIR "/action-info.md");
+            path = g_build_filename (nemo_get_data_dir (), "action-info.md", NULL);
+            f = g_file_new_for_path (path);
+            g_free (path);
             if (g_file_query_exists (f, NULL))
                 nemo_view_activate_file (bar->priv->view, nemo_file_get (f), NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW);
             g_object_unref (f);
             break;
         case INTERESTING_FOLDER_BAR_SCRIPT_OPEN_DOC:
-            f = g_file_new_for_path (NEMO_DATADIR "/script-info.md");
+            path = g_build_filename (nemo_get_data_dir (), "script-info.md", NULL);
+            f = g_file_new_for_path (path);
+            g_free (path);
             if (g_file_query_exists (f, NULL))
                 nemo_view_activate_file (bar->priv->view, nemo_file_get (f), NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW);
             g_object_unref (f);

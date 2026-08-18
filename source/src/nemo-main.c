@@ -32,6 +32,7 @@
 
 #include "nemo-main-application.h"
 
+#include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-debug.h>
 #include <libnemo-private/nemo-metadata-store.h>
 #include <libnemo-private/nemo-config.h>
@@ -94,7 +95,7 @@ main (int argc, char *argv[])
 #endif
 	
 	/* Initialize gettext support */
-	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
+	bindtextdomain (GETTEXT_PACKAGE, nemo_get_locale_dir ());
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 

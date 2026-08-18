@@ -69,6 +69,13 @@ char *   nemo_compute_search_title_for_location (GFile *location);
 char *   nemo_get_desktop_directory_uri_no_create (void);
 
 /* Locate a file in either the uers directory or the datadir. */
+/* Installed data, translations and helper binaries, resolved against the
+   running executable so a relocated prefix (and every Windows layout) works.
+   Never NULL; owned by nemo. */
+const char * nemo_get_data_dir                   (void);
+const char * nemo_get_locale_dir                 (void);
+const char * nemo_get_libexec_dir                (void);
+
 char *   nemo_get_data_file_path                 (const char *partial_path);
 
 gboolean nemo_is_file_roller_installed           (void);

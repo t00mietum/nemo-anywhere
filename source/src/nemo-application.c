@@ -323,8 +323,11 @@ static void
 init_icons_and_styles (void)
 {
     /* initialize search path for custom icons */
+    gchar *icon_dir = g_build_filename (nemo_get_data_dir (), "icons", NULL);
+
     gtk_icon_theme_append_search_path (gtk_icon_theme_get_default (),
-                       NEMO_DATADIR G_DIR_SEPARATOR_S "icons");
+                       icon_dir);
+    g_free (icon_dir);
 
     gtk_icon_size_register (NEMO_STATUSBAR_ICON_SIZE_NAME,
                             NEMO_STATUSBAR_ICON_SIZE,

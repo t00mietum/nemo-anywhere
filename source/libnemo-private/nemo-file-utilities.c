@@ -44,6 +44,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#ifdef G_OS_WIN32
+#include <windows.h>
+#endif
+
 #define NEMO_USER_DIRECTORY_NAME NEMO_APP_SLUG
 
 #define DESKTOP_DIRECTORY_NAME "Desktop"
@@ -814,6 +818,98 @@ nemo_get_gmc_desktop_directory (void)
 	return g_build_filename (g_get_home_dir (), LEGACY_DESKTOP_DIRECTORY_NAME, NULL);
 }
 
+/* The compiled-in prefix is only right for an install that stayed where it was
+ * built. A relocated Linux prefix and every Windows layout put the data beside
+ * the executable instead, which is why translations and the info-bar docs went
+ * missing there. Resolve against the running binary first, fall back to the
+ * built-in path. */
+static const char *
+runtime_dir_for (const char *tail, const char *built_in)
+{
+	char *exe = NULL;
+	char *dir;
+	const char *result = built_in;
+	int i;
+
+#ifdef G_OS_WIN32
+	{
+		wchar_t wexe[32768];
+		DWORD n = GetModuleFileNameW (NULL, wexe, G_N_ELEMENTS (wexe));
+
+		if (n > 0 && n < G_N_ELEMENTS (wexe)) {
+			exe = g_utf16_to_utf8 ((const gunichar2 *) wexe, -1, NULL, NULL, NULL);
+		}
+	}
+#else
+	exe = g_file_read_link ("/proc/self/exe", NULL);
+	if (exe == NULL) {
+		/* BSD */
+		exe = g_file_read_link ("/proc/curproc/file", NULL);
+	}
+#endif
+
+	if (exe == NULL) {
+		return built_in;
+	}
+
+	dir = g_path_get_dirname (exe);
+	g_free (exe);
+
+	/* bin/<exe> in a prefix, then the flat Windows layout. */
+	for (i = 0; i < 2; i++) {
+		char *candidate = i == 0
+			? g_build_filename (dir, "..", tail, NULL)
+			: g_build_filename (dir, tail, NULL);
+
+		if (g_file_test (candidate, G_FILE_TEST_IS_DIR)) {
+			result = g_strdup (candidate);
+			g_free (candidate);
+			break;
+		}
+		g_free (candidate);
+	}
+
+	g_free (dir);
+	return result;
+}
+
+const char *
+nemo_get_data_dir (void)
+{
+	static const char *dir;
+
+	if (g_once_init_enter (&dir)) {
+		g_once_init_leave (&dir,
+				   runtime_dir_for ("share" G_DIR_SEPARATOR_S NEMO_APP_SLUG,
+						    NEMO_DATADIR));
+	}
+	return dir;
+}
+
+const char *
+nemo_get_locale_dir (void)
+{
+	static const char *dir;
+
+	if (g_once_init_enter (&dir)) {
+		g_once_init_leave (&dir,
+				   runtime_dir_for ("share" G_DIR_SEPARATOR_S "locale",
+						    LOCALEDIR));
+	}
+	return dir;
+}
+
+const char *
+nemo_get_libexec_dir (void)
+{
+	static const char *dir;
+
+	if (g_once_init_enter (&dir)) {
+		g_once_init_leave (&dir, runtime_dir_for ("libexec", LIBEXECDIR));
+	}
+	return dir;
+}
+
 char *
 nemo_get_data_file_path (const char *partial_path)
 {
@@ -830,7 +926,7 @@ nemo_get_data_file_path (const char *partial_path)
 	g_free (path);
 
 	/* next try the shared directory */
-	path = g_build_filename (NEMO_DATADIR, partial_path, NULL);
+	path = g_build_filename (nemo_get_data_dir (), partial_path, NULL);
 	if (g_file_test (path, G_FILE_TEST_EXISTS)) {
 		return path;
 	}

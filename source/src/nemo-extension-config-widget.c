@@ -8,6 +8,7 @@
 #include "nemo-extension-config-widget.h"
 #include "nemo-application.h"
 #include "nemo-global-preferences.h"
+#include <libnemo-private/nemo-file-utilities.h>
 
 #include <glib.h>
 
@@ -153,11 +154,13 @@ detect_extensions (NemoExtensionConfigWidget *widget)
     (void) out;
     return;
 #else
-    if (g_spawn_command_line_sync (LIBEXECDIR "/nemo-anywhere-extensions-list",
-                                   &out,
-                                   NULL,
-                                   NULL,
-                                   NULL)) {
+    gchar *lister_path = g_build_filename (nemo_get_libexec_dir (),
+                                           "nemo-anywhere-extensions-list", NULL);
+    gboolean ran = g_spawn_command_line_sync (lister_path, &out, NULL, NULL, NULL);
+
+    g_free (lister_path);
+
+    if (ran) {
         if (out) {
             gchar **lines = g_strsplit (out, "\n", -1);
 
