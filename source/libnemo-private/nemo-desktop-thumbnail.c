@@ -1915,7 +1915,10 @@ fix_owner (const gchar *path, uid_t uid, gid_t gid)
 {
     G_GNUC_UNUSED int res;
 
-    res = chown (path, uid, gid);
+    /* lchown, not chown - this runs as root over a cache dir the real user
+     * owns, so a symlink planted there would otherwise hand away any file
+     * it points at. */
+    res = lchown (path, uid, gid);
 }
 
 static gboolean
@@ -1946,6 +1949,13 @@ access_ok (const gchar *path, uid_t uid, gid_t gid)
 static void
 recursively_fix_file (const gchar *path, uid_t uid, gid_t gid)
 {
+    /* Never follow a link out of the cache: take the link itself and stop.
+     * g_file_test/g_access/g_stat all resolve the target. */
+    if (g_file_test (path, G_FILE_TEST_IS_SYMLINK)) {
+        fix_owner (path, uid, gid);
+        return;
+    }
+
     if (!access_ok (path, uid, gid))
         fix_owner (path, uid, gid);
 
@@ -1971,6 +1981,11 @@ recursively_fix_file (const gchar *path, uid_t uid, gid_t gid)
 static gboolean
 recursively_check_file (const gchar *path, uid_t uid, gid_t gid)
 {
+    /* Matches recursively_fix_file: don't walk out of the cache, and don't
+     * spin on a symlink cycle. */
+    if (g_file_test (path, G_FILE_TEST_IS_SYMLINK))
+        return TRUE;
+
     if (!access_ok (path, uid, gid))
         return FALSE;
 

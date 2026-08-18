@@ -24,6 +24,7 @@
 #include "nemo-metadata-store.h"
 
 #include <string.h>
+#include <glib/gstdio.h>
 #include <json-glib/json-glib.h>
 
 #include "nemo-file-utilities.h"
@@ -106,8 +107,25 @@ ensure_loaded (void)
 	path = store_path ();
 	parser = json_parser_new ();
 
-	if (json_parser_load_from_file (parser, path, NULL) &&
-	    (root = json_parser_get_root (parser)) != NULL &&
+	{
+		GError *error = NULL;
+
+		if (!json_parser_load_from_file (parser, path, &error) &&
+		    !g_error_matches (error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
+			char *aside = g_strconcat (path, ".bad", NULL);
+
+			/* Every folder's view, zoom, sort and layout is in here. Say so,
+			 * and keep the damaged file: the next set() would otherwise write
+			 * an empty store straight over the only copy. */
+			g_warning ("nemo-metadata: cannot read %s: %s - keeping it as %s",
+			           path, error->message, aside);
+			g_rename (path, aside);
+			g_free (aside);
+		}
+		g_clear_error (&error);
+	}
+
+	if ((root = json_parser_get_root (parser)) != NULL &&
 	    JSON_NODE_HOLDS_OBJECT (root)) {
 		JsonObjectIter file_iter;
 		const char *uri;

@@ -104,6 +104,9 @@ char            *nemo_config_get_path        (void);
 
 gboolean   nemo_config_get_boolean (NemoConfigGroup *group, const char *key);
 gint       nemo_config_get_int     (NemoConfigGroup *group, const char *key);
+/* Same key, full width. The store is 64-bit; the gint form is the convenience
+ * one, and silently truncates anything that doesn't fit. */
+gint64     nemo_config_get_int64   (NemoConfigGroup *group, const char *key);
 gdouble    nemo_config_get_double  (NemoConfigGroup *group, const char *key);
 char      *nemo_config_get_string  (NemoConfigGroup *group, const char *key);
 char     **nemo_config_get_strv    (NemoConfigGroup *group, const char *key);
@@ -111,6 +114,7 @@ gint       nemo_config_get_enum    (NemoConfigGroup *group, const char *key);
 
 void       nemo_config_set_boolean (NemoConfigGroup *group, const char *key, gboolean value);
 void       nemo_config_set_int     (NemoConfigGroup *group, const char *key, gint value);
+void       nemo_config_set_int64   (NemoConfigGroup *group, const char *key, gint64 value);
 void       nemo_config_set_double  (NemoConfigGroup *group, const char *key, gdouble value);
 void       nemo_config_set_string  (NemoConfigGroup *group, const char *key, const char *value);
 void       nemo_config_set_strv    (NemoConfigGroup *group, const char *key, const char *const *value);

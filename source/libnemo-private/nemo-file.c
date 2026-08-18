@@ -8989,8 +8989,11 @@ nemo_file_list_cancel_call_when_ready (NemoFileListHandle *handle)
 static void
 thumbnail_limit_changed_callback (gpointer user_data)
 {
-	cached_thumbnail_limit = nemo_config_get_int (nemo_preferences,
-						      NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT);
+	/* The preference offers up to 64 GB, so read it at full width: through
+	 * the gint accessor 8 GB truncated to 0 (nothing thumbnailed at all) and
+	 * 2 GB went negative, widening to near-G_MAXUINT64 (everything). */
+	cached_thumbnail_limit = (guint64) nemo_config_get_int64 (nemo_preferences,
+								  NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT);
 
 	/* Tell the world that icons might have changed. We could invent a narrower-scope
 	 * signal to mean only "thumbnails might have changed" if this ends up being slow
