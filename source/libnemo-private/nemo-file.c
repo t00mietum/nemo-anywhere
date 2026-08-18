@@ -471,11 +471,15 @@ nemo_file_update_metadata_from_info (NemoFile *file,
 	gboolean changed = FALSE;
 	char *store_uri;
 
-	/* our store shadows whatever a gvfs metadata daemon may have supplied */
-	store_uri = metadata_store_uri_from_info (file, info);
-	if (store_uri != NULL) {
-		nemo_metadata_store_apply_to_info (store_uri, info);
-		g_free (store_uri);
+	/* Our store shadows whatever a gvfs metadata daemon may have supplied - but
+	 * this runs for every file on every info update, and the uri build plus the
+	 * global store lock is real work to do for a store with nothing in it. */
+	if (!nemo_metadata_store_is_empty ()) {
+		store_uri = metadata_store_uri_from_info (file, info);
+		if (store_uri != NULL) {
+			nemo_metadata_store_apply_to_info (store_uri, info);
+			g_free (store_uri);
+		}
 	}
 
 	if (g_file_info_has_namespace (info, "metadata")) {
@@ -2358,6 +2362,7 @@ access_ok (const gchar *path)
 static GIcon *
 win32_themed_icon_for_mime_type (const char *mime_type)
 {
+	static GHashTable *cache;      /* mime type -> GIcon (owned) */
 	const char *slash;
 	char *media, *specific, *media_generic;
 	char *names[3];
@@ -2367,16 +2372,25 @@ win32_themed_icon_for_mime_type (const char *mime_type)
 		return NULL;
 	}
 
+	if (cache == NULL) {
+		cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+					       g_free, g_object_unref);
+	}
+	icon = g_hash_table_lookup (cache, mime_type);
+	if (icon != NULL) {
+		return icon;
+	}
+
 	slash = strchr (mime_type, '/');
 	if (slash == NULL || slash == mime_type) {
 		return NULL;
 	}
 
-	media = g_strndup (mime_type, slash - mime_type);
-	if (strcmp (media, "inode") == 0) {           /* directory, symlink, mount */
-		g_free (media);
+	if (strncmp (mime_type, "inode/", 6) == 0) {  /* directory, symlink, mount */
 		return NULL;
 	}
+
+	media = g_strndup (mime_type, slash - mime_type);
 
 	specific = g_strdup (mime_type);
 	for (char *p = specific; *p != '\0'; p++) {
@@ -2394,6 +2408,11 @@ win32_themed_icon_for_mime_type (const char *mime_type)
 	g_free (media);
 	g_free (specific);
 	g_free (media_generic);
+
+	/* One icon per mime type for the life of the process: this is called for
+	 * every file on every info update, and the answer only depends on the
+	 * mime type. The caller gets a borrowed ref. */
+	g_hash_table_insert (cache, g_strdup (mime_type), icon);
 	return icon;
 }
 #endif
@@ -2422,7 +2441,7 @@ update_info_internal (NemoFile *file,
 	const char *symlink_name, *selinux_context, *name, *thumbnail_path;
     char *mime_type;
 	GFileType file_type;
-	GIcon *icon;
+	GIcon *icon, *old_icon;
 	char *old_activation_uri;
 	const char *activation_uri;
 	const char *description;
@@ -2739,10 +2758,14 @@ update_info_internal (NemoFile *file,
 		changed = TRUE;
 	}
 
+	/* Held until after the win32 override further down, so the two can't fight:
+	   GIO's flat icon goes back over our themed one here on every single update,
+	   and comparing against that made every file report as changed on every
+	   refresh. Judge the change on where the icon ends up instead. */
+	old_icon = file->details->icon != NULL ? g_object_ref (file->details->icon) : NULL;
+
 	icon = g_file_info_get_icon (info);
 	if (!g_icon_equal (icon, file->details->icon)) {
-		changed = TRUE;
-
 		if (file->details->icon) {
 			g_object_unref (file->details->icon);
 		}
@@ -2872,16 +2895,22 @@ update_info_internal (NemoFile *file,
     {
         char *real_mime = file->details->mime_type != NULL
             ? g_content_type_get_mime_type (file->details->mime_type) : NULL;
-        GIcon *win_icon = win32_themed_icon_for_mime_type (real_mime);
-        if (win_icon != NULL) {
+        GIcon *win_icon = win32_themed_icon_for_mime_type (real_mime);   /* borrowed */
+
+        if (win_icon != NULL && !g_icon_equal (win_icon, file->details->icon)) {
             if (file->details->icon != NULL) {
                 g_object_unref (file->details->icon);
             }
-            file->details->icon = win_icon;
+            file->details->icon = g_object_ref (win_icon);
         }
         g_free (real_mime);
     }
 #endif
+
+	if (!g_icon_equal (old_icon, file->details->icon)) {
+		changed = TRUE;
+	}
+	g_clear_object (&old_icon);
 
 	if (changed) {
 		add_to_link_hash_table (file);

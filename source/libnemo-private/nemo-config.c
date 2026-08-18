@@ -566,6 +566,12 @@ nemo_config_shutdown (void)
 	g_clear_object (&config_monitor);
 }
 
+gboolean
+nemo_config_is_ready (void)
+{
+	return config_ready;
+}
+
 char *
 nemo_config_get_path (void)
 {

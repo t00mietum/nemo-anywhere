@@ -2077,6 +2077,17 @@ default_sort_in_reverse_order_changed_callback (gpointer callback_data)
 	nemo_icon_container_request_update_all (icon_container);
 }
 
+/* The callback below is connected per view, so every open tab hears a default
+ * change. Only the one being looked at should give up its pinned zoom. */
+static gboolean
+view_is_frontmost (NemoView *view)
+{
+	NemoWindow *window = nemo_view_get_nemo_window (view);
+
+	return window != NULL &&
+	       nemo_window_get_active_slot (window) == nemo_view_get_nemo_window_slot (view);
+}
+
 static void
 default_zoom_level_changed_callback (gpointer callback_data)
 {
@@ -2093,14 +2104,18 @@ default_zoom_level_changed_callback (gpointer callback_data)
 
         /* Setting a new default is an instruction about the folder in front of you,
          * so let go of whatever zoom that folder had pinned and take the default.
+         * The callback is per view, so gate on which one is actually in front -
+         * otherwise every open tab's folder loses its pinned zoom too.
          */
-        if (nemo_global_preferences_get_ignore_view_metadata ()) {
-            nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), -1);
-        } else {
-            nemo_file_set_metadata (file,
-                                    nemo_icon_view_is_compact (icon_view) ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
-                                                                          : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                    NULL, NULL);
+        if (view_is_frontmost (NEMO_VIEW (icon_view))) {
+            if (nemo_global_preferences_get_ignore_view_metadata ()) {
+                nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), -1);
+            } else if (file != NULL) {
+                nemo_file_set_metadata (file,
+                                        nemo_icon_view_is_compact (icon_view) ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
+                                                                              : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                        NULL, NULL);
+            }
         }
 
         if (nemo_global_preferences_get_ignore_view_metadata () &&

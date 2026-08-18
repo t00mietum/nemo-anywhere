@@ -41,6 +41,10 @@ void nemo_metadata_store_set_stringv   (const char *uri,
 					char      **values);
 
 /* overlay stored values onto a queried GFileInfo as metadata:: attributes */
+/* TRUE when nothing at all is stored, without taking the lock. Lets the
+ * per-file info update skip the uri build entirely on a fresh install. */
+gboolean nemo_metadata_store_is_empty  (void);
+
 void nemo_metadata_store_apply_to_info (const char *uri,
 					GFileInfo  *info);
 

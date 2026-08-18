@@ -1720,7 +1720,13 @@ nemo_treating_root_as_normal (void)
     static gsize once_init = 0;
 
     // We only need to set this at startup then cache the result, as we check
-    // quite a bit in various parts of the code.
+    // quite a bit in various parts of the code. local_command_line reaches
+    // here before the settings are open (--fix-cache as root), which used to
+    // cache a critical-and-FALSE for the rest of the run.
+    if (!nemo_config_is_ready ()) {
+        return FALSE;
+    }
+
     if (g_once_init_enter (&once_init)) {
         root_is_normal = nemo_config_get_boolean (nemo_config_get_group ("preferences"),
                                                   "treat-root-as-normal");

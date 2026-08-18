@@ -90,6 +90,24 @@ store_path (void)
 }
 
 /* caller holds the mutex */
+/* Lets callers skip the uri build and the global lock entirely while nothing is
+ * stored - the common case, and this runs for every file on every info update.
+ * -1 means "not loaded yet", which reads as not-empty so the slow path runs. */
+static gint store_entry_count = -1;
+
+/* caller holds the mutex */
+static void
+sync_count_locked (void)
+{
+	g_atomic_int_set (&store_entry_count, store != NULL ? (gint) g_hash_table_size (store) : -1);
+}
+
+gboolean
+nemo_metadata_store_is_empty (void)
+{
+	return g_atomic_int_get (&store_entry_count) == 0;
+}
+
 static void
 ensure_loaded (void)
 {
@@ -264,6 +282,7 @@ save_timeout_callback (gpointer user_data)
 	g_mutex_lock (&store_mutex);
 	save_timeout_id = 0;
 	save_now ();
+	sync_count_locked ();
 	g_mutex_unlock (&store_mutex);
 
 	return G_SOURCE_REMOVE;
@@ -314,6 +333,7 @@ nemo_metadata_store_set_string (const char *uri,
 
 	if (value == NULL) {
 		remove_key (uri, key);
+		sync_count_locked ();
 		g_mutex_unlock (&store_mutex);
 		return;
 	}
@@ -331,6 +351,7 @@ nemo_metadata_store_set_string (const char *uri,
 		schedule_save ();
 	}
 
+	sync_count_locked ();
 	g_mutex_unlock (&store_mutex);
 }
 
@@ -349,6 +370,7 @@ nemo_metadata_store_set_stringv (const char *uri,
 
 	if (values == NULL) {
 		remove_key (uri, key);
+		sync_count_locked ();
 		g_mutex_unlock (&store_mutex);
 		return;
 	}
@@ -368,6 +390,7 @@ nemo_metadata_store_set_stringv (const char *uri,
 		schedule_save ();
 	}
 
+	sync_count_locked ();
 	g_mutex_unlock (&store_mutex);
 }
 
@@ -401,6 +424,7 @@ nemo_metadata_store_apply_to_info (const char *uri,
 		}
 	}
 
+	sync_count_locked ();
 	g_mutex_unlock (&store_mutex);
 }
 
@@ -426,6 +450,13 @@ nemo_metadata_store_rename (const char *old_uri,
 	g_mutex_lock (&store_mutex);
 	ensure_loaded ();
 
+	/* This runs once per moved file, so nothing below should cost anything at
+	 * all when there is no metadata to re-key. */
+	if (g_hash_table_size (store) == 0) {
+		g_mutex_unlock (&store_mutex);
+		return;
+	}
+
 	/* the entry itself */
 	if (g_hash_table_steal_extended (store, old_uri, &orig_key, &orig_value)) {
 		g_free (orig_key);
@@ -433,19 +464,23 @@ nemo_metadata_store_rename (const char *old_uri,
 		changed = TRUE;
 	}
 
-	/* descendants, when a directory moved */
+	/* descendants, when a directory moved - the array is only built if there
+	 * are any, which for a plain file move there never are */
 	old_prefix = g_strconcat (old_uri, "/", NULL);
 	prefix_len = strlen (old_prefix);
-	moved_uris = g_ptr_array_new_with_free_func (g_free);
+	moved_uris = NULL;
 
 	g_hash_table_iter_init (&iter, store);
 	while (g_hash_table_iter_next (&iter, &key, &value)) {
 		if (g_str_has_prefix ((const char *) key, old_prefix)) {
+			if (moved_uris == NULL) {
+				moved_uris = g_ptr_array_new_with_free_func (g_free);
+			}
 			g_ptr_array_add (moved_uris, g_strdup ((const char *) key));
 		}
 	}
 
-	for (i = 0; i < moved_uris->len; i++) {
+	for (i = 0; moved_uris != NULL && i < moved_uris->len; i++) {
 		const char *child_old = g_ptr_array_index (moved_uris, i);
 		char *child_new;
 
@@ -463,8 +498,11 @@ nemo_metadata_store_rename (const char *old_uri,
 		schedule_save ();
 	}
 
-	g_ptr_array_unref (moved_uris);
+	if (moved_uris != NULL) {
+		g_ptr_array_unref (moved_uris);
+	}
 	g_free (old_prefix);
+	sync_count_locked ();
 	g_mutex_unlock (&store_mutex);
 }
 
@@ -477,5 +515,6 @@ nemo_metadata_store_flush (void)
 		save_timeout_id = 0;
 	}
 	save_now ();
+	sync_count_locked ();
 	g_mutex_unlock (&store_mutex);
 }

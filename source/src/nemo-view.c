@@ -9540,10 +9540,16 @@ real_update_location_menu (NemoView *view)
 
 	file = view->details->location_popup_directory_as_file;
 	g_assert (NEMO_IS_FILE (file));
-	/* INFO is always loaded for these files; MOUNT/FILESYSTEM_INFO may still be
-	   pending for a path-bar ancestor. We pop up now regardless (see
-	   schedule_pop_up_location_context_menu) - the volume items just stay hidden
-	   until that info exists, rather than deferring the whole menu. */
+	/* MOUNT/FILESYSTEM_INFO may still be pending for a path-bar ancestor. We pop
+	   up now regardless (see schedule_pop_up_location_context_menu) - the volume
+	   items just stay hidden until that info exists, rather than deferring the
+	   whole menu.
+
+	   INFO is usually there too, but on a slow mount it may not be, and
+	   nemo_file_clear_info defaults can_write/can_delete/can_trash/can_rename to
+	   TRUE - which offered Trash, Delete and New Folder on read-only ancestors.
+	   Treat "not loaded yet" as "don't offer". */
+	gboolean info_ready = nemo_file_check_if_ready (file, NEMO_FILE_ATTRIBUTE_INFO);
 
 	is_special_link = FALSE;
 	is_desktop_or_home_dir = nemo_file_is_home (file)
@@ -9586,10 +9592,11 @@ real_update_location_menu (NemoView *view)
 		action = gtk_action_group_get_action (view->details->dir_action_group,
 						      NEMO_ACTION_LOCATION_NEW_FOLDER);
 		gtk_action_set_visible (action, !is_recent);
-		gtk_action_set_sensitive (action, is_current_dir && nemo_file_can_write (file));
+		gtk_action_set_sensitive (action, is_current_dir && info_ready && nemo_file_can_write (file));
 	}
 
 	can_delete_file =
+		info_ready &&
 		nemo_file_can_delete (file) &&
 		!is_special_link &&
 		!is_desktop_or_home_dir;
@@ -9603,7 +9610,7 @@ real_update_location_menu (NemoView *view)
 					      NEMO_ACTION_LOCATION_PASTE_FILES_INTO);
 	g_object_set_data (G_OBJECT (action),
 			   "can-paste-according-to-destination",
-			   GINT_TO_POINTER (can_paste_into_file (file)));
+			   GINT_TO_POINTER (info_ready && can_paste_into_file (file)));
 	gtk_action_set_sensitive (action,
                               !is_recent &&
                               GPOINTER_TO_INT (g_object_get_data (G_OBJECT (action),
