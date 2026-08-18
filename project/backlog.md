@@ -113,9 +113,12 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Cause: the data dir is a compile-time absolute Unix path, so the sort-menu icons, eject icon, and emblem art don't resolve on Windows.
 	- Probable fix: derive the data dir from the exe location on Windows. Waits on the final release folder layout.
 
-- 🔘 Real-Windows validation pass. Everything so far is verified under wine only.
+- 🛠️ Real-Windows validation pass. Everything so far is verified under wine only.
 	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
 	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Worth deciding whether ours should stand down there. The test that hit it now skips that step unless asked for it, since nothing can answer the dialog unattended.
+	- Done on real Windows: the recycle bin end to end, network browsing against this box's own shares, single instance and location forwarding, the installer's install/reinstall/uninstall round trip, and elevated relaunch. Each of the code-review items below was re-checked here, and the fix removed to watch the check fail first.
+	- Found doing it, and fixed: the whole compiled-resource bundle was missing from the Windows build, so there was no menu bar at all; a drive root was named three different ways; "Set as default" failed silently forever; the installer read a prerelease version as the release it precedes.
+	- Still not exercised here: the signing path, which only runs in the hosted release workflow on a tag and needs a SignPath account that is not set up yet. The UAC consent prompt itself was not seen either - this box elevates without prompting and the session is already elevated - so what is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 
 ### Milestone 6 - CI/CD
 
@@ -156,11 +159,32 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Misc to-do
 
+- ✅ Depend on Explorer as little as possible.
+	- Audited every place the Windows build reaches into the shell. The only one that handed work to Explorer was a "show this file in the file manager" call, which asked Windows for the default handler for a folder - Explorer, by definition.
+	- It was already unreachable: the only caller sits behind a desktop-view check that went permanently false when the desktop shell was removed. On Windows it would also have been asking for a handler that Windows does not answer for - nothing is registered for a folder as a type.
+	- Removed, along with its declaration. Nothing in the tree launches Explorer now.
+	- What remains is in-process and unavoidable: the recycle bin and `.lnk` files are shell APIs called inside our own process, with no Explorer involved. Two `ShellExecute` calls stay for good reasons - one launches the terminal the user chose (found on PATH, not via the shell's associations), the other relaunches our own executable elevated, which is the only way to ask for elevation.
+
 ### Bugs
 
-- 🔘 On Windows a drive root is named `\` everywhere except the sidebar - the window title reads `\` and the breadcrumb reads `(C:) Windows` while the sidebar has `Windows (C:)`. Seen on this box browsing `C:\`.
+- ✅ On Windows a drive root is named `\` everywhere except the sidebar - the window title reads `\` and the breadcrumb reads `(C:) Windows` while the sidebar has `Windows (C:)`. Seen on this box browsing `C:\`.
 	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
-	- Wants one shared answer for "what is this drive called" so the title, the breadcrumb and the sidebar agree, rather than a third copy of the same lookup. Ordering should match the sidebar's.
+	- Three different sources were in play: the basename, which is `\` for every drive alike; the volume monitor, which says `(C:) Windows`; and the sidebar's own string.
+	- Fixed: a drive root is `C:\` everywhere - title, breadcrumb and sidebar all ask the same helper. The volume label moved to the sidebar tooltip, where it cannot be mistaken for the path.
+	- Verified on Windows: a new test covers the naming, including that the first folder inside a drive keeps its own name; the three surfaces were then checked by eye. Pre-fix the checks fail.
+
+- ✅ "Set as default" in the Open With tab did nothing on Windows, and said nothing either.
+	- Cause: Windows keeps the per-user default behind a hash it will not let a program write, so the call fails outright - and the result was thrown away along with the error.
+	- Fixed: the failure is reported. The choice still cannot be made on Windows; the difference is the user is told rather than left thinking it worked.
+	- Verified on Windows: the underlying call refuses with "Setting default applications not supported yet". Looking a default up still works, but only by extension - asking by mime type answers nothing.
+
+- 🔘 A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
+	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
+	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
+
+- 🔘 The installer leaves the user PATH very slightly different from how it found it.
+	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
 
 - 🔘 The Windows executable carries no application manifest, so it is not marked long-path aware. With long paths switched on in Windows - as they are on this box - anything past the old 260-character limit is still out of reach for us while Explorer handles it fine.
 	- The same manifest is where DPI awareness would be declared, so it is worth deciding both together rather than twice.
@@ -171,7 +195,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Fixed: it is spawned under the app slug, out of the folder the app itself was started from, and a failure to start now says so instead of doing nothing.
 	- Also found and fixed alongside: the Restart button in extension settings was quitting and starting whichever upstream Nemo happened to be installed, not this app.
 
-- 🔘 Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
+- ✅ The Windows build shipped without its compiled-in resources, so it had no menu bar at all and every `.ui`, `.glade` and `.css` lookup failed.
+	- Cause: the resource bundle is attached to the extension library. On Linux that is a shared library and the whole thing loads, so the resources register themselves. On Windows it is a static one, and the linker keeps only the members that resolve a symbol - the resources register from a constructor nothing calls by name, so the object was dropped.
+	- Nobody noticed because the app still starts and browses: the missing menu bar reads as a design choice, and the fallout was a wall of criticals that had been written off as noise.
+	- Fixed: on Windows the resources go straight into the executable. Linux keeps them in the shared library as before.
+	- Verified on Windows: the menu bar is back, and startup criticals went from 40 to 9 - none of the remainder about resources or widgets.
+
+- 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
+	- The Windows half of this was the missing resource bundle above, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
+	- What is left on Windows is a different signature: nine `g_file_get_child: assertion 'name != NULL'` at startup. Not looked into.
 	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
 
@@ -254,7 +286,8 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Cause: nothing limits how deep the enumeration recurses.
 	- Fixed: a share's address is joined with a separator, no-network and access-denied are reported instead of reading as an empty folder, an address that cannot be reached comes back as not found, and the enumeration is depth-limited.
 	- Verified on Windows: new test covers the address building - a share now lands under its server, and two server/share pairs that used to run together into one address stay apart. Pre-fix both checks fail.
-	- Still open: the no-network, access-denied and depth-limit halves need a box with real shares to browse.
+	- Also verified against real shares: this box serves four of its own, and the test now browses them for real - each comes back as a link to its UNC path, and each is opened to prove the link goes somewhere. The one that does not open is an empty optical drive, which the test names rather than counting against the backend.
+	- Still open: the no-network and access-denied halves. Both need a machine that fails in those specific ways, which this one does not.
 
 - ✅ Code Review 20260804 item 13. Windows context-menu actions break on ordinary paths.
 	- Cause: "Open as Administrator" passes the folder unquoted, so anything with a space arrives as two separate locations.
@@ -426,6 +459,7 @@ Full code, security and performance review of the whole tree, first-party and in
 - ✅ Item 15. On Windows every file reports as changed on every refresh.
 	- Cause: the per-type icon override is compared against the plain system icon, which never matches, so each refresh marks the whole folder changed and re-sorts, redraws and re-checks thumbnails, plus a per-file registry lookup and allocation.
 	- Fixed: the icon is judged on where it ends up rather than mid-update, so a Windows refresh no longer reports every file as changed.
+	- Verified on Windows: a new test refreshes real files of several types five times over and requires everything after the first sighting to report nothing changed, plus a real change that still has to come through. Pre-fix every file reports changed on all five passes.
 
 - ✅ Item 16. Sidebar rebuilds block the whole window on filesystem queries.
 	- Cause: free-space and drive-type checks run on the UI thread for every drive and mount, on every rebuild. A slow or hung mount freezes the window, and a mount change is often what triggers the rebuild.
@@ -518,17 +552,17 @@ Full code, security and performance review of the whole tree, first-party and in
 - ✅ Item 38. Large-zoom images render blurry on Windows.
 	- Cause: the can-load check misses the content-type conversion the rest of the code uses, so the full-resolution path never triggers.
 	- Fixed: the check converts the type first, the way the rest of the code does, so the full-resolution path runs.
-	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: a new test writes real images and requires the internal-thumbnail check to accept them, and to keep refusing text. Pre-fix both image cases fail. Confirmed here that the stored type for a `.png` really is ".png", which is why the conversion is needed at all.
 
 - ✅ Item 39. A trashed folder whose status can't be read is shown as a healthy file.
 	- Cause: the fallback fabricates a regular-file entry with no error inspection, and an item deleted behind the app's back still lists as existing until the next full refresh.
 	- Fixed: a folder is shown as a folder, and something that has gone is no longer presented as readable.
-	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: a new test lists the bin, removes an item behind the backend's back, and requires the entry to come back saying outright that it cannot be read. Pre-fix it reads as a healthy file. The folder half is covered only by a live trashed folder listing as a folder - forcing a folder that is present but unreadable was not attempted.
 
 - ✅ Item 40. Freshly trashed items get a wrong parent until the next poll.
 	- Cause: the top-level check does not refresh on a miss, unlike the sibling lookup, so a not-yet-seen item is filed under a bogus parent.
 	- Fixed: the top-level check refreshes on a miss, like the sibling lookup.
-	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: a new test warms the snapshot, recycles a file, then finds its backing path by reading the bin off disk rather than through the enumerator - which would refresh and hide the whole thing - and requires the item's parent to be the bin root. Pre-fix the parent comes back as the per-user bin folder, which is not in the bin at all.
 
 - ✅ Item 41. The bookmarks window's no-selection guard never fires and can abort.
 	- Fix: get_selected_row and its local are gint, so the < 0 no-selection check works.
@@ -678,6 +712,8 @@ Terse by design; file and mechanism are in the private detail notes. All confirm
 
 - ✅ Item 83. The count-based recycle-bin monitor misses same-count changes.
 	- Fixed: the check now also watches total size, so a change that leaves the count the same is noticed.
+	- Verified on Windows: a new test watches the bin, swaps one item for a much larger one with the main loop parked so no poll can catch the count mid-swing, and requires the watcher to be told. It sits quiet through a poll turn first, so a monitor that cried change every time would fail rather than pass. Pre-fix nothing is reported at all.
+	- Learned here: rewriting a bin item's backing file does not move the reported size - Windows answers with the size recorded when the item was recycled. An item leaving and a differently-sized one arriving does move it, which is the case the fix is for.
 
 - ✅ Item 84. A static global for the connect-server result is clobbered by concurrent dialogs.
 	- Fixed: the result travels with the request, so two dialogs at once no longer clobber each other.
