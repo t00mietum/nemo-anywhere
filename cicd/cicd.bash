@@ -153,8 +153,10 @@ in_use(){
 	local -r bin="$(realpath -e "$1" 2>/dev/null || true)"
 	[[ -n "$bin" ]] || return 1
 	local exe
+	## readlink is a builtin-cheap single syscall; realpath here forked a process
+	## per running pid per candidate. /proc/*/exe is already fully resolved.
 	for e in /proc/[0-9]*/exe; do
-		exe="$(realpath -e "$e" 2>/dev/null || true)"
+		exe="$(readlink "$e" 2>/dev/null || true)"
 		[[ "$exe" == "$bin" ]] && return 0
 	done
 	return 1

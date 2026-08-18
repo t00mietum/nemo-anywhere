@@ -119,8 +119,15 @@ done
 
 thumbDir="$SYSROOT/mingw64/share/thumbnailers"
 if [[ -d "$thumbDir" ]]; then
-	fEcho "Normalizing thumbnailer exec paths"
-	sed -i 's#/mingw64/bin/##g' "$thumbDir"/*.thumbnailer
+	## nullglob-safe: an unmatched glob would hand sed the literal pattern and
+	## abort the whole sysroot build after every package had already downloaded.
+	shopt -s nullglob
+	thumbFiles=( "$thumbDir"/*.thumbnailer )
+	shopt -u nullglob
+	if ((${#thumbFiles[@]})); then
+		fEcho "Normalizing thumbnailer exec paths"
+		sed -i 's#/mingw64/bin/##g' "${thumbFiles[@]}"
+	fi
 fi
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -136,10 +143,16 @@ queryLoaders="$SYSROOT/mingw64/bin/gdk-pixbuf-query-loaders.exe"
 if [[ -f "$queryLoaders" ]]; then
 	fEcho "Building gdk-pixbuf loaders.cache"
 	binWin="Z:${SYSROOT//\//\\}\\mingw64\\bin"
-	if WINEDEBUG=-all WINEPATH="$binWin" wine "$queryLoaders" > "$pixLoaders/loaders.cache" 2>/dev/null \
-	   && grep -q pixbufloader_svg "$pixLoaders/loaders.cache"; then
-		:
+	## Write to a temp and only move it into place once it looks right. The
+	## redirection truncates its target before wine even starts, so on failure
+	## this used to leave a zero-byte cache - worse than none, because
+	## gdk-pixbuf then finds no loaders at all instead of falling back.
+	cacheTmp="$pixLoaders/loaders.cache.new"
+	if WINEDEBUG=-all WINEPATH="$binWin" wine "$queryLoaders" > "$cacheTmp" 2>/dev/null \
+	   && grep -q pixbufloader_svg "$cacheTmp"; then
+		mv -f "$cacheTmp" "$pixLoaders/loaders.cache"
 	else
+		rm -f "$cacheTmp"
 		fEcho "warn: loaders.cache generation failed - SVG/symbolic icons may not render"
 	fi
 fi

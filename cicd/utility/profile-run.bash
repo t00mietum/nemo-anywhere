@@ -142,7 +142,7 @@ fEcho "Launching ${SLUG}"
 prefix_root="$(cd "$(dirname "$(dirname "$bin")")" && pwd)"
 DBUS_SESSION_BUS_ADDRESS="disabled:" DISPLAY="$disp" \
 	HOME="$fake_home" XDG_CONFIG_HOME="${fake_home}/.config" \
-	LD_LIBRARY_PATH="${prefix_root}/lib/x86_64-linux-gnu:${prefix_root}/lib" \
+	LD_LIBRARY_PATH="$(printf '%s:' "${prefix_root}"/lib/*-linux-gnu*)${prefix_root}/lib" \
 	XDG_DATA_DIRS="${prefix_root}/share:/usr/local/share:/usr/share" \
 	"$bin" "$tree" > "${work}/app.log" 2>&1 &
 app_pid=$!

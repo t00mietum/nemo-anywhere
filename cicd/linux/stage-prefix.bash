@@ -42,6 +42,11 @@ installed="$(find "${staging}" -type f -path "*/bin/${SLUG}" -print -quit)"
 [[ -n "${installed}" ]] || { fEcho "FAILED: meson install produced no bin/${SLUG}"; exit 1; }
 prefix="$(cd "$(dirname "${installed}")/.." && pwd)"
 
+## Same guards install.bash puts on its own removals: absolute, and named after
+## the app. ${2:?} alone would happily accept "/" or "$HOME".
+[[ "${DEST:0:1}" == "/" ]] || { fEcho "FAILED: dest must be an absolute path: ${DEST}"; exit 1; }
+[[ "$(basename "${DEST}")" == "${SLUG}" ]] || { fEcho "FAILED: dest must be named ${SLUG}: ${DEST}"; exit 1; }
+
 rm -rf "${DEST}"
 mkdir -p "$(dirname "${DEST}")"
 mv "${prefix}" "${DEST}"
@@ -90,7 +95,12 @@ cat > "${DEST}/bin/${SLUG}" <<-'WRAPPER'
 	done
 	prefix="$(cd "$(dirname "$self")/.." && pwd)"
 
-	LD_LIBRARY_PATH="${prefix}/lib/x86_64-linux-gnu:${prefix}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+	# The extension library sits under the build machine's multiarch dir, which
+	# is not x86_64 on an arm64 build - glob rather than bake one triplet in.
+	for libdir in "${prefix}"/lib/*-linux-gnu*; do
+		[ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+	done
+	LD_LIBRARY_PATH="${prefix}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 	XDG_DATA_DIRS="${prefix}/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 	PATH="${prefix}/bin:${PATH}"
 	export LD_LIBRARY_PATH XDG_DATA_DIRS PATH

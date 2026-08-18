@@ -409,7 +409,7 @@ function fRun {
 
 ## Publish: the host-side half of the Linux backup+publish, MINUS the rar version
 ## archive (that lives in the Linux-only n8git_backup-and-publish). stash (if dirty)
-## -> pull --no-ff (if upstream) -> pop -> add -> commit -> push. $Msg empty means
+## -> pull --ff-only (if upstream) -> pop -> add -> commit -> push. $Msg empty means
 ## "let git open its editor".
 function fPublish {
 	param([Parameter(Mandatory)][AllowEmptyString()][string]$Msg)
@@ -431,8 +431,10 @@ function fPublish {
 	& git rev-parse --abbrev-ref '@{u}' 2>$null | Out-Null
 	$hasUpstream = ($LASTEXITCODE -eq 0)
 	if ($hasUpstream) {
-		fEcho_Clean "git pull --no-ff ..."
-		fRun "git pull" "git" @("pull", "--no-ff", "--no-edit")
+		## ff-only, like fRemoteSync and the Linux publisher: a diverged branch
+		## should stop here, not get a fabricated merge pushed to it.
+		fEcho_Clean "git pull --ff-only ..."
+		fRun "git pull" "git" @("pull", "--ff-only")
 	}
 	if ($didStash) {
 		fEcho_Clean "git stash pop ..."
@@ -533,7 +535,12 @@ function fMain {
 
 	## Capture the commit message up front so the run finishes unattended. Ctrl+C
 	## here aborts on the common (publish) path.
+	## No tty means Read-Host returns immediately at EOF and the run would sail
+	## on to a git commit with no editor and nothing to type into it.
 	if (-not $Unattended -and -not $NoPublish -and -not $publishMsg) {
+		if ([Console]::IsInputRedirected) {
+			throw "Publish needs a commit message: pass -Message, or -Yes, or run interactively."
+		}
 		$m = Read-Host "Publish commit message (blank = editor; Ctrl+C aborts)"
 		$script:WasLastEchoBlank = $false
 		if ($m) { $publishMsg = $m }

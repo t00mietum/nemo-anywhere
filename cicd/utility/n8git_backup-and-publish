@@ -172,8 +172,10 @@ fMain(){
 		done < "${filePath_Excludes}"
 	fi
 	if [[ -n "${GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES:-}" ]]; then
+		## Word-split on whitespace, no eval: this is an environment variable and
+		## it was being run as shell code moments before a push.
 		local -a extraExcludes=()
-		eval "extraExcludes=( ${GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES} )"
+		read -r -a extraExcludes <<< "${GIT_BACKUP_AND_PUBLISH_RAR_EXCLUDES}"
 		((${#extraExcludes[@]})) && baseCmdArgs+=("${extraExcludes[@]}")
 	fi
 	local -a cmd_Rar=(rar "${baseCmdArgs[@]}" "${filePath_Rar}" "../.")
@@ -241,8 +243,11 @@ fMain(){
 	local -i preCount
 	local -i postCount
 
-	## Stash
-	if ! git diff --quiet || ! git diff --cached --quiet; then
+	## Stash. Untracked counts too - the stash includes them, and a pull that
+	## brings in a file you already have untracked aborts otherwise, after the
+	## backup has already run.
+	if ! git diff --quiet || ! git diff --cached --quiet || \
+	   [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
 		fEcho; fEcho "git stash push --include-untracked..."
 		preCount=$(git stash list | wc -l)
 		git stash push --include-untracked -m "auto-stash"
@@ -349,7 +354,7 @@ fParseArgs(){
 		#fEcho_Clean "Debug: currentArg ........: '${currentArg}'"
 
 		## Test if an option switch or not
-		if [[ -n "$(echo "${currentArg}" | grep -P "^\-(\-?)[^\ \-]" 2>/dev/null || true)" ]]; then
+		if [[ "${currentArg}" == -[!-\ ]* || "${currentArg}" == --[!-\ ]* ]]; then
 			## It's an option (either unary or long-option, we don't know yet)
 			#fEcho_Clean "Debug: option ............: '${currentArg}'"
 
@@ -432,11 +437,6 @@ fDoesDirHaveContents(){
 	[[ ! -d "${1}" ]]                                     && return 1
 	[[   -z "$(ls -1A "${1%%/}/" 2>/dev/null || true)" ]] && return 1
 	return 0; }
-fBuildQuotedParams(){
-	local -n varName_1mtkp9p=$1 ; shift || true
-	local -i maxIdx=0
-	for i in {1..32}; do [[ -n "${!i}" ]] && maxIdx=$i; done
-	for i in $(seq 1 $maxIdx); do ((i > 1)) && varName_1mtkp9p="${varName_1mtkp9p}  "; varName_1mtkp9p="${varName_1mtkp9p}\"${!i}\""; done; }
 fMustBeInPath(){
 	##	Unit tests passed on: 20250704.
 	local -r programToCheckForInPath="${1:-}"
