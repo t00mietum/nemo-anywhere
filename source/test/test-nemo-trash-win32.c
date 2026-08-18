@@ -791,6 +791,131 @@ out:
 	g_free (fixture_b);
 }
 
+/* Something that has left the bin must not be listed as a healthy readable file.
+ *
+ * The entry list is snapshotted when the enumeration starts and each entry's
+ * details are worked out only as it is read, so an item can genuinely be gone by
+ * the time anyone asks about it. The fallback used to invent a plain readable
+ * file in that case, which is how a folder came back as a file and how something
+ * already deleted still looked present until the next full refresh. */
+static void
+test_vanished_item_not_healthy (void)
+{
+	const char *marker = "nemoverify-vanish-marker";
+	char *fixture, *backing, *wanted_name;
+	GFile *root;
+	GFileEnumerator *enumerator;
+	GFileInfo *info;
+	gboolean seen = FALSE;
+	gboolean folder_seen = FALSE;
+	char *folder_fixture, *inner;
+
+	/* A folder alongside it, to confirm the other half of the same answer: a
+	 * directory in the bin is reported as a directory. */
+	folder_fixture = g_build_filename (g_get_home_dir (), "nemoverify-vanish-dir", NULL);
+	inner = g_build_filename (folder_fixture, "inner.txt", NULL);
+	g_mkdir_with_parents (folder_fixture, 0700);
+	write_fixture (inner, "inner");
+	g_free (inner);
+
+	fixture = g_build_filename (g_get_home_dir (), "nemoverify-vanish.txt", NULL);
+	write_fixture (fixture, marker);
+
+	if (!recycle_quietly (folder_fixture)) {
+		g_printerr ("SKIP vanished-item case: could not recycle the folder\n");
+	}
+
+	if (!recycle_quietly (fixture)) {
+		g_printerr ("SKIP vanished-item case: could not recycle %s\n", fixture);
+		g_unlink (fixture);
+		g_free (fixture);
+		g_free (folder_fixture);
+		return;
+	}
+
+	backing = find_backing_by_contents (marker, strlen (marker));
+	if (backing == NULL) {
+		g_printerr ("SKIP vanished-item case: could not find the backing file\n");
+		g_free (fixture);
+		g_free (folder_fixture);
+		return;
+	}
+
+	real_bin_ran = TRUE;
+	wanted_name = g_uri_escape_string (backing, NULL, TRUE);
+
+	root = g_file_new_for_uri (TRASH_ROOT_URI);
+	enumerator = g_file_enumerate_children (root, "standard::*,access::*,trash::*",
+						0, NULL, NULL);
+	check (enumerator != NULL);
+
+	if (enumerator != NULL) {
+		/* Listed a moment ago, gone now - without ever telling the backend. */
+		g_unlink (backing);
+
+		while ((info = g_file_enumerator_next_file (enumerator, NULL, NULL)) != NULL) {
+			const char *name = g_file_info_get_name (info);
+
+			if (g_strcmp0 (name, wanted_name) == 0) {
+				seen = TRUE;
+
+				/* Not presented as something that can be opened.
+				 * Said outright, not left unset: an absent
+				 * attribute reads as false anyway, so only an
+				 * explicit one shows the case was recognised. */
+				check (g_file_info_has_attribute (
+					info, G_FILE_ATTRIBUTE_ACCESS_CAN_READ));
+				check (!g_file_info_get_attribute_boolean (
+					info, G_FILE_ATTRIBUTE_ACCESS_CAN_READ));
+				check (g_file_info_get_attribute_boolean (
+					info, G_FILE_ATTRIBUTE_STANDARD_IS_VIRTUAL));
+			}
+
+			if (g_strcmp0 (g_file_info_get_display_name (info),
+				       "nemoverify-vanish-dir") == 0) {
+				folder_seen = TRUE;
+				check (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY);
+			}
+
+			g_object_unref (info);
+		}
+
+		g_file_enumerator_close (enumerator, NULL, NULL);
+		g_object_unref (enumerator);
+	}
+
+	if (!seen) {
+		g_printerr ("  the vanished item was not in the listing at all\n");
+	}
+	check (seen);
+
+	if (!folder_seen) {
+		g_printerr ("  the trashed folder was not in the listing\n");
+	}
+	check (folder_seen);
+
+	purge_backing (backing);
+
+	/* Take the folder back out, however the shell named it. */
+	{
+		char *uri;
+
+		while ((uri = find_item_uri ("nemoverify-vanish-dir")) != NULL) {
+			GFile *item = g_file_new_for_uri (uri);
+
+			g_file_delete (item, NULL, NULL);
+			g_object_unref (item);
+			g_free (uri);
+		}
+	}
+
+	g_free (wanted_name);
+	g_free (backing);
+	g_free (fixture);
+	g_free (folder_fixture);
+	g_object_unref (root);
+}
+
 /* meson reports this exit code as SKIP rather than a pass. */
 #define TEST_SKIPPED 77
 
@@ -808,6 +933,7 @@ main (int argc, char *argv[])
 	test_outside_bin_refused ();
 	test_fresh_item_parent ();
 	test_same_count_change_noticed ();
+	test_vanished_item_not_healthy ();
 
 	/* The seeded cases plant files into wine's unix-style XDG trash layout, which
 	 * does not exist on real Windows. Everything above works the shell bin itself,
