@@ -206,3 +206,15 @@ if is_windows
     args: []
   )
 endif
+
+if is_windows
+  test('Thumbnail win32 type test',
+    executable('test-nemo-thumbnail-win32',
+      [ 'test-nemo-thumbnail-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
