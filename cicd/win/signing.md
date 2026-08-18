@@ -1,50 +1,29 @@
 # Windows code signing
 
-Two paths exist. The project uses SignPath Foundation for released binaries; the local path is kept for anyone who has a token/store certificate.
+Status: **deferred**. Releases ship an unsigned exe, with the `.zip` as the fallback for anyone whose AV objects to the packed single exe.
 
-## A. SignPath Foundation (release CI) - the chosen path
+## Where this stands
 
-Free OV code signing for open-source projects, done in the cloud. The private key lives in SignPath's HSM; artifacts are signed by submitting them from CI. Two things to know up front:
+- SignPath Foundation was the chosen path for released binaries. The application was refused, so nothing signs the release today.
+- Worth not re-deriving: the release-only GitHub Actions workflow exists *because* SignPath would only sign artifacts from a verifiable CI build. With that gone, nothing forces the release build into hosted CI, and a local `cicd-win.ps1` cut is viable again. That matters because most of the remaining options sign locally rather than in CI.
+- `.github/workflows/release-win.yml` is kept as it is. It still builds, packs and publishes; the SignPath submission step stays dormant behind its `SIGNPATH_API_TOKEN` gate, so there is nothing to unpick if this is picked back up. The repo has no secrets or variables set, and the step is confirmed skipped on the last tag build.
 
-- It only signs artifacts built by a verifiable CI build, so the released exe is built and signed in `.github/workflows/release-win.yml`, not locally. Local `cicd-win.ps1` stays for dev and dogfooding.
-- The signed publisher shown in Windows (UAC / SmartScreen / file Properties) is **SignPath Foundation**, not t00mietum or Nemo Anywhere.
+## Options, if this is revisited
 
-### Prerequisites before applying
+Backdrop for any comparison: since the 2026 changes, no certificate tier buys immediate SmartScreen clearance, EV included. Reputation accrues with download volume regardless of what was paid, which argues for the cheapest workable option rather than the most trusted-sounding one.
 
-- OSI-approved license, no commercial dual-licensing. GPL-2.0-only qualifies.
+- **Azure Artifact Signing** (renamed from Trusted Signing): about $10/month on the Basic tier, no hardware, short-lived certificates issued per-sign from a Microsoft CA, and the publisher shown is your own validated identity. Best CI fit by far - swap the SignPath step for the Azure signing action and the rest of the workflow stands. The gate is eligibility: individual (non-organization) sign-up is limited to the USA and Canada, and organization validation wants three years of verifiable legal existence.
+- **Certum Open Source Code Signing**: roughly EUR 69 up front for the certificate, smartcard and reader, then about EUR 29 a year. Individuals only, and revoked if used for commercially distributed software, which is fine here. The certificate's Organization field reads "Open Source Developer" rather than the project - the same drawback that SignPath had. The hardware card makes hosted CI awkward, but the SimplySign cloud variant presents as a virtual card and would drop straight into the `NEMO_SIGN_THUMBPRINT` path below.
+- **Commercial OV/EV cloud** (SSL.com eSigner, DigiCert and the like): a few hundred a year. Only worth it if the publisher string has to read as the project itself.
+- **Reapplying to SignPath**: not ruled out. If it is tried, one thing to check first is whether the packed Enigma Virtual Box exe is a problem for them, since it is opaque to build verification - the same property that drives the AV false-positive item on the backlog.
 
-- Actively maintained, and **already released in the form to be signed**. SignPath wants a real release to point at, so cut the first `v<version>` release before applying.
+## Local signtool (a certificate you hold yourself)
 
-- Functionality described on the download/README page.
-
-### One-time setup
-
-1. Apply for a SignPath Foundation account at signpath.org and create an organization for the project.
-
-2. Create a project (slug `nemo-anywhere`), an artifact configuration for the single exe, and a signing policy (e.g. `release-signing`).
-
-3. Connect this GitHub repository as the trusted build system, so SignPath can verify each submission came from `release-win.yml` on a tag build.
-
-4. Generate an API token for CI submissions.
-
-5. In the repo, set:
-	- Secret `SIGNPATH_API_TOKEN` - the API token.
-	- Variable `SIGNPATH_ORG_ID` - the SignPath organization id.
-	- Variable `SIGNPATH_POLICY_SLUG` - the signing policy slug (e.g. `release-signing`).
-
-Until `SIGNPATH_API_TOKEN` is set, the workflow still builds and attaches the unsigned exe - the sign step just skips. Once set, tag a release (`v<version>`) and the attached exe is signed.
-
-### Follow-ups (not done yet)
-
-- Sign the release `.zip` contents and, once it exists, the installer - the workflow signs only the single portable exe today.
-
-## B. Local signtool (token / store certificate)
-
-For a certificate you hold yourself (Certum OSS, Azure Trusted Signing, or a commercial EV cert), `cicd-win.ps1` stage 5 signs the packed exe locally via `signtool`, driven entirely by env vars - nothing secret is stored in the repo:
+Independent of the above and already working. `cicd-win.ps1` stage 5 signs the packed exe via `signtool`, driven entirely by env vars, so nothing secret lives in the repo:
 
 - `NEMO_SIGN_THUMBPRINT` - SHA-1 thumbprint of an installed certificate (store or hardware token). Preferred.
 - `NEMO_SIGN_PFX` (+ `NEMO_SIGN_PFX_PASSWORD`) - a `.pfx` on disk (testing / self-signed).
 - `NEMO_SIGN_TS_URL` - RFC-3161 timestamp URL (defaults to a public TSA).
 - `NEMO_SIGNTOOL` - explicit `signtool.exe` path (else PATH, then the newest Windows SDK build).
 
-Unconfigured, signing is a no-op with a note, so the unsigned dev flow is never blocked. `-NoSign` skips it even when configured. This path signs with your own identity as the publisher, and needs no CI.
+Unconfigured, signing is a no-op with a note, so the unsigned dev flow is never blocked. `-NoSign` skips it even when configured. This path signs with your own identity as the publisher and needs no CI.

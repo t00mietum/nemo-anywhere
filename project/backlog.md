@@ -145,11 +145,11 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 - ✅ Single-exe packaging stage in `cicd-win.ps1` - pack the staged DLL closure into one portable `.exe`.
 	- Done: `cicd/win/pack-portable.ps1` flattens the bundle and packs it with Enigma Virtual Box into one self-contained exe; wired as cicd-win stage 5.
 
-- 🛠️ Windows code signing + AV false-positive reduction.
+- ✋ Windows code signing + AV false-positive reduction. Deferred: the SignPath Foundation application was refused, so releases ship an unsigned exe with the `.zip` as the fallback.
 	- ✅ Embedded VERSIONINFO in the exe (real publisher/version metadata; a blank-metadata binary scores worse with AV heuristics and looks unfinished in Properties).
 	- ✅ Local `signtool` signing scaffold in cicd-win stage 5 - env-driven, no-op until a cert is configured (fits a token/store cert: Certum OSS, Azure Trusted Signing, or a commercial EV).
-	- 🛠️ SignPath Foundation (free OSS signing) for the released exe: release-only CI at `.github/workflows/release-win.yml` builds + packs + submits to SignPath. First prerelease `v1.0.0-beta1` is cut (unsigned exe attached), so the "already-released" gate is met, and the CI is proven green (build + pack + upload validated). Remaining: the Foundation application and the repo secrets - the signed tag path then runs on its own. Signed publisher shows as "SignPath Foundation". Setup steps in `cicd/win/signing.md`.
-	- 🔘 Also sign the release `.zip` contents and, once it exists, the installer (the workflow signs only the single exe today).
+	- ✋ SignPath Foundation (free OSS signing) for the released exe: applied for and refused. The release-only CI at `.github/workflows/release-win.yml` still builds, packs and publishes; its submission step is left dormant behind the token gate, so nothing needs unpicking if this is revisited. Consequence worth remembering: that workflow existed because SignPath would only sign CI-built artifacts, so with it gone nothing forces a release into hosted CI and a local cut is viable again. Options weighed (Azure Artifact Signing, Certum open source, commercial cloud, reapplying) are in `cicd/win/signing.md`.
+	- ✋ Also sign the release `.zip` contents and, once it exists, the installer. Blocked on there being any signing identity at all.
 	- 🔘 Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 
 - ✅ Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer had nothing to fetch even though the release carried a working exe.

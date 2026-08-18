@@ -1,19 +1,20 @@
 # Release-only Windows build, pack, and sign.
 #
-# Why this exists: SignPath Foundation (free OSS code signing) will only sign
-# artifacts built by a verifiable CI system - it will not sign a locally-built
-# exe. So the released Windows single-exe is built and packed here, then submitted
-# to SignPath for signing. Day-to-day dev and dogfooding stay local (cicd-win.ps1);
-# only the release artifact runs through this.
+# Why this exists: it was introduced because SignPath Foundation (free OSS code
+# signing) will only sign artifacts built by a verifiable CI system, never a
+# locally-built exe. That application was refused and signing is deferred, so what
+# this earns its keep for now is being the reproducible public build of the
+# released Windows single-exe. Day-to-day dev and dogfooding stay local
+# (cicd-win.ps1); only the release artifact runs through this.
 #
 # It mirrors the known-good local chain: MSYS2/mingw64 meson+ninja build ->
 # stage-native.bash (self-contained bundle) -> pack-portable.ps1 (EVB single exe).
 #
-# Signing is gated on the SIGNPATH_API_TOKEN secret: until the SignPath project is
-# approved and the secret/vars are set, the job still builds and attaches the
-# UNSIGNED exe, so it never hard-fails on a missing cert. See cicd/win/signing.md
-# for the one-time SignPath setup (and note the signed publisher shows as
-# "SignPath Foundation", not the project).
+# The SignPath step below is left in place but dormant: it is gated on the
+# SIGNPATH_API_TOKEN secret, which is not set, so the job builds and attaches the
+# UNSIGNED exe and never hard-fails on a missing cert. Nothing here needs unpicking
+# if signing is picked back up. See cicd/win/signing.md for where that stands and
+# what the alternatives are.
 #
 # Triggers: a pushed v* tag (the release cut), or a manual run for a build/pack
 # smoke without releasing.
