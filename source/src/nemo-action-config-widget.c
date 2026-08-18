@@ -11,6 +11,7 @@
 #include "nemo-file.h"
 #include <glib.h>
 #include <libnemo-private/nemo-action-manager.h>
+#include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-action-symbols.h>
 #include "nemo-global-preferences.h"
 
@@ -375,7 +376,25 @@ on_open_folder_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
 static void
 on_layout_editor_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
 {
-    g_spawn_command_line_async ("nemo-action-layout-editor", NULL);
+    GError *error = NULL;
+    gchar *editor;
+
+    /* The binary installs under the app slug; spawning the upstream name was a
+     * missed rename and the button simply did nothing. */
+    if (*nemo_get_bin_dir () != '\0') {
+        editor = g_build_filename (nemo_get_bin_dir (),
+                                   NEMO_APP_SLUG "-action-layout-editor", NULL);
+    } else {
+        editor = g_strdup (NEMO_APP_SLUG "-action-layout-editor");
+    }
+
+    if (!g_spawn_command_line_async (editor, &error)) {
+        g_warning ("Could not start the action layout editor (%s): %s",
+                   editor, error->message);
+        g_clear_error (&error);
+    }
+
+    g_free (editor);
 }
 
 static void

@@ -910,6 +910,21 @@ nemo_get_libexec_dir (void)
 	return dir;
 }
 
+/* Where our sibling programs are. The packaged Linux build runs the real binary
+ * out of libexec behind a bin/ wrapper, so this is not simply the exe's own
+ * directory. "" means we could not work it out and the caller should just let
+ * PATH answer. */
+const char *
+nemo_get_bin_dir (void)
+{
+	static const char *dir;
+
+	if (g_once_init_enter (&dir)) {
+		g_once_init_leave (&dir, runtime_dir_for ("bin", ""));
+	}
+	return dir;
+}
+
 char *
 nemo_get_data_file_path (const char *partial_path)
 {

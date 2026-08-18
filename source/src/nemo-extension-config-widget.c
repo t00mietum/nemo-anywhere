@@ -367,7 +367,26 @@ on_restart_clicked (GtkWidget *button, NemoExtensionConfigWidget *widget)
      * not be possible or exceedingly tedious, but we can cover the default view in
      * each window. */
 
-    g_spawn_command_line_async ("sh -c \"nemo --quit && sleep 1 && nemo\"", NULL);
+#ifdef G_OS_WIN32
+    /* Nothing is loaded from outside the exe here, so there is nothing to
+     * reload - see detect_extensions. */
+    g_warning ("Restart is not offered on this platform");
+#else
+    GError *error = NULL;
+    gchar *cmd;
+
+    /* NEMO_APP_SLUG, not "nemo": this was quitting and starting whichever
+     * upstream Nemo happened to be installed alongside. */
+    cmd = g_strdup_printf ("sh -c \"%s --quit && sleep 1 && %s\"",
+                           NEMO_APP_SLUG, NEMO_APP_SLUG);
+
+    if (!g_spawn_command_line_async (cmd, &error)) {
+        g_warning ("Could not restart: %s", error->message);
+        g_clear_error (&error);
+    }
+
+    g_free (cmd);
+#endif
 }
 
 static void

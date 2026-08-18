@@ -14,10 +14,11 @@ config_py = configure_file(
 
 bin_conf = configuration_data()
 bin_conf.set('PKG_DATADIR', nemoDataPath)
+bin_conf.set('APP_SLUG', appSlug)
 
 bin = configure_file(
   input: 'nemo-action-layout-editor.in',
-  output: 'nemo-anywhere-action-layout-editor',
+  output: appSlug + '-action-layout-editor',
   configuration: bin_conf,
   install: true,
   install_dir: get_option('bindir'),
