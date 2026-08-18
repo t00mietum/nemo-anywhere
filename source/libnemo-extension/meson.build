@@ -3,8 +3,12 @@ nemo_i18n_header = [
   'nemo-extension-i18n.h'
 ]
 
+# The compiled resources register themselves from a constructor, which nothing
+# calls by name. Out of a shared library that is fine - the whole object is
+# loaded. Out of a static one the linker takes only the members that resolve a
+# symbol, so the resources were dropped and every .ui, .glade and .css lookup
+# failed. On Windows they go straight into the executable instead.
 nemo_extension_sources = [
-  gresources,
   'nemo-column-provider.c',
   'nemo-column.c',
   'nemo-extension-private.h',
@@ -52,7 +56,7 @@ if is_windows
   )
 else
   nemo_extension_lib = shared_library('nemo-anywhere-extension',
-    nemo_extension_sources + nemo_i18n_header,
+    nemo_extension_sources + nemo_i18n_header + gresources,
     dependencies: nemo_extension_deps,
     include_directories: [ rootInclude, ],
     install: true,

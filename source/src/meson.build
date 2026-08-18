@@ -111,8 +111,11 @@ if is_windows
   nemo_win_res = winmod.compile_resources(nemo_rc)
 endif
 
+# gresources rides with the executable on Windows, where the extension library is
+# static and the linker would otherwise drop the self-registering resource object.
 nemo = executable('nemo-anywhere',
-  nemoCommon_sources + nemoWindow_sources + nemo_win_res,
+  nemoCommon_sources + nemoWindow_sources + nemo_win_res +
+    (is_windows ? gresources : []),
   include_directories: [ rootInclude ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,

@@ -157,6 +157,41 @@ reset_clicked_cb (GtkButton *button,
 	g_signal_emit_by_name (nemo_signaller_get_current (), "mime_data_changed");
 }
 
+/* Say so when the choice cannot be made. Windows keeps the per-user default
+   under a hash it will not let a program write, so glib refuses outright - and
+   the result was a button that changed nothing and said nothing either. */
+static void
+set_default_or_say_why (NemoMimeApplicationChooser *chooser,
+			GAppInfo *info)
+{
+	GError *error = NULL;
+	GtkWidget *toplevel;
+
+	if (info == NULL) {
+		return;
+	}
+
+	if (g_app_info_set_as_default_for_type (info, chooser->details->content_type,
+						&error)) {
+		return;
+	}
+
+	toplevel = gtk_widget_get_toplevel (GTK_WIDGET (chooser));
+
+	{
+		char *primary = g_strdup_printf (_("Could not make \"%s\" the default application."),
+						 g_app_info_get_display_name (info));
+
+		eel_show_error_dialog (primary,
+				       error != NULL ? error->message : NULL,
+				       gtk_widget_is_toplevel (toplevel) ?
+				       GTK_WINDOW (toplevel) : NULL);
+		g_free (primary);
+	}
+
+	g_clear_error (&error);
+}
+
 static void
 set_as_default_clicked_cb (GtkButton *button,
 			   gpointer user_data)
@@ -166,10 +201,10 @@ set_as_default_clicked_cb (GtkButton *button,
 
     if (!chooser->details->custom_info) {
         info = gtk_app_chooser_get_app_info (GTK_APP_CHOOSER (chooser->details->open_with_widget));
-        g_app_info_set_as_default_for_type (info, chooser->details->content_type, NULL);
+        set_default_or_say_why (chooser, info);
     } else {
         info = chooser->details->custom_info;
-        g_app_info_set_as_default_for_type (info, chooser->details->content_type, NULL);
+        set_default_or_say_why (chooser, info);
     }
 
     gtk_app_chooser_refresh (GTK_APP_CHOOSER (chooser->details->open_with_widget));
