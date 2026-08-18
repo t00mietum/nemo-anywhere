@@ -89,7 +89,22 @@ nemo_shortcut_win32_create (const char  *target_path,
 		goto uninit;
 	}
 
-	IShellLinkW_SetPath (link, w_target);
+	/* SetPath is MAX_PATH-bound and refuses a longer target outright. Ignoring
+	 * that saved a shortcut with no target at all and called it a success, so
+	 * "Make Link" produced a dead link with nothing said. */
+	hr = IShellLinkW_SetPath (link, w_target);
+	if (FAILED (hr)) {
+		if (wcslen ((const wchar_t *) w_target) >= MAX_PATH) {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_FILENAME,
+				     _("A Windows shortcut cannot point at \"%s\": the path is too long."),
+				     target_path);
+		} else {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_FILENAME,
+				     _("A Windows shortcut cannot point at \"%s\"."),
+				     target_path);
+		}
+		goto release;
+	}
 
 	if (working_dir != NULL && (w_dir = to_utf16 (working_dir)) != NULL) {
 		IShellLinkW_SetWorkingDirectory (link, w_dir);

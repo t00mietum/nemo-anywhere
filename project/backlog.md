@@ -158,6 +158,13 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Bugs
 
+- 🔘 On Windows a drive root is named `\` everywhere except the sidebar - the window title reads `\` and the breadcrumb reads `(C:) Windows` while the sidebar has `Windows (C:)`. Seen on this box browsing `C:\`.
+	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
+	- Wants one shared answer for "what is this drive called" so the title, the breadcrumb and the sidebar agree, rather than a third copy of the same lookup. Ordering should match the sidebar's.
+
+- 🔘 The Windows executable carries no application manifest, so it is not marked long-path aware. With long paths switched on in Windows - as they are on this box - anything past the old 260-character limit is still out of reach for us while Explorer handles it fine.
+	- The same manifest is where DPI awareness would be declared, so it is worth deciding both together rather than twice.
+
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
 
 - ✅ The action layout editor never opens: the app spawns it as `nemo-action-layout-editor`, but the binary installs under the app slug as `nemo-anywhere-action-layout-editor`. One missed rename from the rebrand.
@@ -246,19 +253,21 @@ Full adversarial review of everything written or changed since the fork point. O
 	- Cause: any typed network address is presented as a valid empty folder rather than "not found".
 	- Cause: nothing limits how deep the enumeration recurses.
 	- Fixed: a share's address is joined with a separator, no-network and access-denied are reported instead of reading as an empty folder, an address that cannot be reached comes back as not found, and the enumeration is depth-limited.
-	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: new test covers the address building - a share now lands under its server, and two server/share pairs that used to run together into one address stay apart. Pre-fix both checks fail.
+	- Still open: the no-network, access-denied and depth-limit halves need a box with real shares to browse.
 
 - ✅ Code Review 20260804 item 13. Windows context-menu actions break on ordinary paths.
 	- Cause: "Open as Administrator" passes the folder unquoted, so anything with a space arrives as two separate locations.
 	- Cause: "Open in Terminal" at a drive root passes a trailing backslash that swallows the closing quote.
 	- Fixed: both paths quote properly, so a folder with spaces and a drive root each work.
-	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: new test over the quoting itself - drive roots, UNC roots, spaces and embedded quotes. Pre-fix, both root cases fail. The two hand-offs themselves can't run unattended, since one raises a UAC prompt and the other opens a console.
 
 - ✅ Code Review 20260804 item 14. Opening a Windows shortcut can truncate its target or hang the app.
 	- Cause: targets past the old length limit are silently cut short and then opened, wrongly.
 	- Cause: a shortcut pointing at itself, or at a loop of shortcuts, recurses until the app runs out of stack.
 	- Fixed: the target is read at full length, a chain of shortcuts is followed to its end with a loop guard, and a failed read leaves an error behind.
-	- Note: written and cross-built here, exercised only under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: new test creates and reads back a shortcut, including one aimed past the old length limit.
+	- Also found and fixed while checking it: Windows itself refuses to store a target that long, and we were not looking at the answer - so "Make Link" wrote a shortcut pointing at nothing and called it a success. It now refuses and says why, and leaves no file behind. Pre-fix the new checks fail.
 
 - ✅ Code Review 20260804 item 15. A duplicated line in the settings file empties a list instead of falling back.
 	- Cause: an unreadable list is treated as a deliberately empty one. Only lists behave this way; single values fall back correctly.
@@ -358,7 +367,7 @@ Full code, security and performance review of the whole tree, first-party and in
 	- Cause: delete, move and read take the raw path straight from a `trash:///` address, so a crafted address can read or permanently delete any file.
 	- Cause: the one place that does check compares un-normalized text, so a `..` inside a bin item's path escapes it.
 	- Fixed: a path from a trash address is resolved to its canonical form and has to name something the recycle bin actually holds before it is read, moved or deleted.
-	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: new test aims a trash address at a file outside the bin and at a real bin item walked back out of it with `..`, and checks delete, move and read each refuse and leave the file alone. Each is re-seeded so one succeeding cannot mask the next. Pre-fix all four checks fail and the file is really gone.
 
 - ✅ Item 2. Reading dragged icon-list data can walk off the end of the buffer.
 	- Cause: on the no-geometry branch the remaining-length bookkeeping is skipped and the end-of-data guard tests a pointer that is never null, so the scan runs past the buffer.
@@ -395,7 +404,8 @@ Full code, security and performance review of the whole tree, first-party and in
 - ✅ Item 10. Restoring an item from the Windows trash drops its file extension.
 	- Cause: the original name is taken from the shell display name, which hides known extensions by default, and that shortened name is what restore writes.
 	- Fixed: the real extension is taken from the backing file, so the listed name and the restored name both keep it.
-	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: the round trip is covered by a new test - a recycled file is found under its full name, reports the original location it came from, and restores to it. That part holds.
+	- But the cause does not reproduce on Windows 11: with "hide extensions for known file types" switched on, the recycle bin still reports full names, in this app and at any setting. So the repair is inert here rather than load-bearing, and the test passes with it removed. Kept for older Windows, and corrected while checking - it used to give up on any name containing a dot, so `report.2026.txt` would have been repaired to `report.2026`.
 
 - ✅ Item 11. Opening certain images can crash if the tab is closed first.
 	- Cause: the image-viewer sort path dereferences the originating tab with no null check, and that pointer is cleared when the tab closes mid-open. This is the default double-click-an-image path on Mint-family setups.
@@ -551,7 +561,7 @@ Full code, security and performance review of the whole tree, first-party and in
 - ✅ Item 48. The Windows trash test writes past a buffer.
 	- Cause: a 64-bit size is written through a 32-bit pointer on Windows, so half the length is stack garbage that then sizes and indexes a buffer.
 	- Fixed: the length is taken in the right size, so nothing past the buffer is written or read.
-	- Note: written and cross-built here, but only ever exercised under wine. Belongs to the real-Windows validation pass.
+	- Verified on Windows: the trash test used to report itself skipped on this box whatever it had done. It now works the recycle bin directly and reports a real result, so this code runs natively on every run.
 
 - ✅ Item 49. The dogfood launcher mangles pass-through arguments containing quotes or trailing backslashes.
 	- Fix: fQuoteArg now does full MSVCRT-style quoting and is applied to every Start-Process ArgumentList element (not just whitespace ones), and the sh round-trip uses a clean `exec "$0" "$@"` script. Verified end-to-end on Linux with space/quote/trailing-backslash args; the old form also split plain spaced args.
@@ -610,6 +620,7 @@ Terse by design; file and mechanism are in the private detail notes. All confirm
 
 - ✅ Item 64. A trashed-file timestamp is formatted and parsed with a type that truncates on 64-bit Windows.
 	- Fixed: the timestamp is written and read at full width, so the round-trip survives on 64-bit Windows.
+	- Verified on Windows: a freshly recycled file reports a deletion date of the right shape and in this century, which a truncated one would not be.
 
 - ✅ Item 65. An unreadable directory records a confirmed-empty file-type list instead of an unknown one.
 	- Fixed: an unreadable directory records an unknown type list rather than a confirmed-empty one.
@@ -758,6 +769,8 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 - ✅ Item 112. Windows drive roots are labeled bare, with no volume label.
 	- Fixed: the volume label is shown ahead of the drive letter.
+	- Verified on Windows: the sidebar reads "Windows (C:)" and "Extra (K:)" against the real volumes on this box.
+	- But only the sidebar was covered - see the drive-root naming item under Bugs.
 
 - ✅ Item 113. The README points Windows users at the wrong settings folder.
 	- Fixed.

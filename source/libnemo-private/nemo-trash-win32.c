@@ -217,10 +217,25 @@ get_deletion_date_from_trashinfo (const char *real_path)
 }
 
 /* full re-scan of the bin into trash_items; caller holds items_mutex */
-/* The shell's in-folder display name obeys Explorer's "hide extensions for
+/* Windows extensions are case-insensitive, so ".TXT" already ends with ".txt". */
+static gboolean
+has_suffix_nocase (const char *str, const char *suffix)
+{
+	gsize str_len = strlen (str);
+	gsize suffix_len = strlen (suffix);
+
+	return str_len >= suffix_len &&
+	       g_ascii_strcasecmp (str + str_len - suffix_len, suffix) == 0;
+}
+
+/* The shell's in-folder display name can obey Explorer's "hide extensions for
  * known file types", and that shortened name is both what we would list and
  * what restore would write. The backing $R file keeps the real extension, so
- * put it back. */
+ * put it back.
+ *
+ * The test is whether the name already ENDS with that extension, not whether it
+ * contains a dot at all: "report.2026" and "archive.tar" both have one and are
+ * both still missing their last suffix. */
 static char *
 name_with_extension (const char *display_name, const char *real_path)
 {
@@ -234,7 +249,7 @@ name_with_extension (const char *display_name, const char *real_path)
 	base = g_path_get_basename (real_path);
 	dot = strrchr (base, '.');
 
-	if (dot != NULL && dot[1] != '\0' && strrchr (display_name, '.') == NULL) {
+	if (dot != NULL && dot[1] != '\0' && !has_suffix_nocase (display_name, dot)) {
 		out = g_strconcat (display_name, dot, NULL);
 	} else {
 		out = g_strdup (display_name);
