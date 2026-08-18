@@ -161,9 +161,32 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 ### Logical code structure
 
+Four layers, bottom to top, each depending only on the ones below it.
+
+- `eel/` - a small widget and utility library inherited from the fork's ancestry: string and GTK helpers, stock dialogs, the editable label and canvas used by the icon view. It sits below everything and knows nothing about files or settings, which is why the couple of desktop-integration helpers that live here read the desktop's own settings directly rather than asking the config store.
+- `libnemo-extension/` - the public plugin interface: the interfaces a third-party extension implements (menu provider, column provider, property page, info provider) and the small value types they exchange. It is a standalone shared library with its own headers, so it deliberately depends on GTK and nothing else of ours.
+- `libnemo-private/` - the model. Files and directories (`NemoFile`, `NemoDirectory`) with their asynchronous attribute loading, the file operations engine, search, thumbnails, favorites, the settings store, the per-file metadata store, and the platform backends for trash, network and shell integration. No window or view lives here.
+- `src/` - the application and its views: the GtkApplication, windows, tabs and slots, the icon/list/tree views, the sidebar and path bar, the properties and preferences dialogs.
+
+Platform-specific code is kept out of the shared files where it can be: `*-win32.c` modules for trash, network, shortcuts and shell actions, and a POSIX compatibility header that lets ordinary callers compile unchanged where the platform has no equivalent. Some large shared files still carry inline platform blocks; consolidating on one convention is an open item.
+
 ### Data flow
 
+A location is a URI throughout, and everything hangs off two model objects.
+
+- `NemoDirectory` owns the list of files at one location and the machinery that loads them. Views ask for a set of attributes (names and sizes, mime types, deep counts, thumbnails); the directory works out what is missing, issues the asynchronous requests, and reports each answer as it lands.
+- `NemoFile` is one file. Attributes arrive in stages, so a file starts out with a name and fills in over time. A file emits `changed` whenever anything about it moves, and every view redraws from that one signal - which is also why the caches added for redraw speed all invalidate there.
+- Anything the filesystem does not store is layered on top: per-folder view state, custom icons, emblems and favorite markers come from the app's own metadata store and are merged into the file's attributes as they load. On Linux a gvfs metadata daemon may supply the same keys; ours takes precedence.
+- Settings flow the other way. A read goes through one settings store to one file; a change emits a per-key signal, and the widgets and views that care are bound to it. An external edit to the file produces exactly the same signals as a change made in the UI.
+
 ### Execution flow/loops
+
+One process, one main loop, and a firm rule that nothing slow runs on it.
+
+- Startup registers the application, opens the settings store, and either creates a window or hands the location to an already-running instance over the session bus.
+- The main loop drives everything the user sees. Directory loading, file operations, search and thumbnailing all run off it - GIO asynchronous calls for anything that touches a filesystem, worker threads for thumbnail generation and for the file operations engine.
+- Work started off the main loop reports back on it. File operations own a progress object that the UI observes; thumbnails hand back a finished image; a completed directory load emits `done_loading`. Callbacks that outlive their object are the recurring hazard here, so long-running work holds a reference and cancels on dispose.
+- Debounce and coalesce, rather than write or redraw on every event: settings saves, metadata saves, window geometry, and sidebar rebuilds all batch.
 
 ## Decisions along the way
 
@@ -211,6 +234,12 @@ Upstream shipped everything at the root with decades of accumulated meta-files; 
 
 ### Software stack
 
+- **Language**: C, built with meson and ninja. No C++ and no additional language runtime.
+- **Toolkit**: GTK 3 with GLib/GObject/GIO. GTK 3 rather than 4 because the fork inherits a large GTK 3 codebase and GTK 3 still has the better Windows story; the deprecated pieces still in use (the status icon, a few stock dialogs) are isolated and marked.
+- **Filesystem access**: GIO everywhere, with native backends filling the gaps that have no portable answer - the Windows Recycle Bin, Windows network browsing, and Windows shell shortcuts.
+- **Other libraries**: json-glib for the metadata store, libexif/libgsf/exempi for file property extraction, and a single vendored header for the settings format. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
+- **Optional at runtime**: gvfs on Linux, for network shares, trash and remote mounts. Absent, the affected entries hide themselves rather than fail.
+
 ### Configuration model
 
 Settings are ours, in a file we own, in a format a person can read. There is no
@@ -248,7 +277,22 @@ Settings are deliberately isolated from an upstream Nemo installed alongside: ou
 
 ### UI
 
+The window is a menu and toolbar, a sidebar, a path bar, and a view - and the view is interchangeable.
+
+- Three views share one interface: icon, compact and list, with an optional tree column in list view. Each reads its layout from per-folder state where the folder has any, and from the defaults where it does not.
+- A window holds tabs; each tab is a slot with its own location, history and view. Navigation, loading state and the busy cursor belong to the slot, which is why a slow location can only block its own tab.
+- The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Everything that could be slow to answer - free space, mount state - is fetched off the main loop and folded in when it arrives.
+- Extensions can add context-menu items, list columns, property pages and file attributes; nothing in the shipped UI depends on one being present.
+- Look and feel follows the platform: the desktop's theme and font on Linux, a bundled Fluent-style theme with Segoe UI and the system light/dark preference on Windows.
+
 ### Testing
+
+Tests are ordinary executables run by meson, and the bar for adding one is a defect that could come back.
+
+- Each regression test is written against a specific defect and is checked by backing the fix out and watching the test fail. A test that passes either way is not evidence.
+- Coverage is concentrated where the risk is: the settings parser and its bindings, the metadata store, favorites, search patterns, drag-and-drop parsing, extension objects, symlink handling, and the Windows trash and shortcut backends.
+- The suite runs headless (a virtual display where GTK needs one) and forms part of the pre-push gate along with the build, a lint pass and a launch smoke test. A test that cannot run on the current platform reports a skip, never a pass.
+- Interactive behaviour that no assertion can reach - the visible free-space bar, icon redraw, keyboard shortcuts - is verified by hand against a build kept on the desktop for daily use.
 
 ## Delivery (CI/CD, branches, releases)
 

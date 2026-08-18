@@ -227,7 +227,17 @@ remote_sync(){
 	git pull --ff-only
 	if ((stashed)); then
 		fEcho_Clean "git stash pop ..."
-		git stash pop >/dev/null
+		## A conflicting pop leaves the stash held and the tree half-merged. Say
+		## exactly that, and how to get back, rather than aborting on the bare
+		## git error - the natural rerun with --no-sync would otherwise build and
+		## publish a tree missing the stashed work.
+		if ! git stash pop >/dev/null; then
+			fEcho_Clean
+			fEcho "Your changes are still in the stash (git stash list)."
+			fEcho "Resolve the conflicts, then: git stash drop"
+			fEcho "Or start over:               git checkout -- . && git stash pop"
+			fDie "stash pop conflicted after the pull"
+		fi
 	fi
 	fEcho "OK: fast-forwarded ${behind} commit(s) from upstream"
 }

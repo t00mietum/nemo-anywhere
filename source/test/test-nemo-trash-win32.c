@@ -125,10 +125,13 @@ recycle_quietly (const char *path)
 {
 	SHFILEOPSTRUCTW op;
 	wchar_t *wide;
-	gsize len;
+	glong len;
 	gboolean ok;
 
-	wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, (glong *) &len, NULL);
+	/* glong, and no cast: g_utf8_to_utf16 writes a 32-bit long here, so through
+	   a gsize pointer the top half stayed stack garbage - and that value then
+	   sized and indexed the buffer below. */
+	wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, &len, NULL);
 	if (wide == NULL) {
 		return FALSE;
 	}

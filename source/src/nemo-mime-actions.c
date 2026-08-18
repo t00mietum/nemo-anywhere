@@ -2253,6 +2253,7 @@ activation_start_mountables (ActivateParameters *parameters)
 static GList *
 resolve_win32_shortcuts (GList *files)
 {
+#define SHORTCUT_MAX_HOPS 8
 	GList *resolved = NULL;
 	GList *l;
 	gboolean any = FALSE;
@@ -2260,13 +2261,39 @@ resolve_win32_shortcuts (GList *files)
 	for (l = files; l != NULL; l = l->next) {
 		NemoFile *file = NEMO_FILE (l->data);
 		char *path = nemo_file_get_path (file);
-		char *target = NULL;
-		gsize len = path ? strlen (path) : 0;
+		char *current = path;
+		char *final = NULL;
+		GHashTable *seen;
+		int hop;
 
-		if (path != NULL && len > 4 &&
-		    g_ascii_strcasecmp (path + len - 4, ".lnk") == 0 &&
-		    nemo_shortcut_win32_read (path, &target, NULL) && target != NULL) {
-			char *uri = g_filename_to_uri (target, NULL, NULL);
+		/* Follow the whole chain here rather than leaning on the redispatch
+		 * below to do one hop at a time: a shortcut can point at another
+		 * shortcut, and a.lnk -> a.lnk recursed until the stack ran out. */
+		seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+		for (hop = 0; hop < SHORTCUT_MAX_HOPS && current != NULL; hop++) {
+			gsize len = strlen (current);
+			char *target = NULL;
+
+			if (len <= 4 || g_ascii_strcasecmp (current + len - 4, ".lnk") != 0) {
+				break;
+			}
+			if (g_hash_table_contains (seen, current)) {
+				break;  /* already followed this one - a loop */
+			}
+			g_hash_table_insert (seen, g_strdup (current), NULL);
+			if (!nemo_shortcut_win32_read (current, &target, NULL) || target == NULL) {
+				g_free (target);
+				break;
+			}
+
+			g_free (final);
+			final = target;
+			current = final;
+		}
+		g_hash_table_destroy (seen);
+
+		if (final != NULL) {
+			char *uri = g_filename_to_uri (final, NULL, NULL);
 			NemoFile *tfile = uri ? nemo_file_get_by_uri (uri) : NULL;
 
 			if (tfile != NULL) {
@@ -2280,7 +2307,7 @@ resolve_win32_shortcuts (GList *files)
 			resolved = g_list_prepend (resolved, nemo_file_ref (file));
 		}
 
-		g_free (target);
+		g_free (final);
 		g_free (path);
 	}
 
@@ -2323,8 +2350,9 @@ nemo_mime_activate_files (GtkWindow *parent_window,
 
 #ifdef G_OS_WIN32
 	{
-		/* Redispatch on shortcut targets so opening a .lnk follows through
-		 * (the targets carry no .lnk, so this recurses at most one hop). */
+		/* Redispatch on shortcut targets so opening a .lnk follows through.
+		 * resolve_win32_shortcuts already walked any chain to its end, so
+		 * nothing it hands back is a shortcut and this cannot recurse. */
 		GList *resolved = resolve_win32_shortcuts (files);
 		if (resolved != NULL) {
 			nemo_mime_activate_files (parent_window, slot, resolved,
