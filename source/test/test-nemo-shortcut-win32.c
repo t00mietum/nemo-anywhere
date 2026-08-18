@@ -173,6 +173,38 @@ main (int argc, char *argv[])
 		g_free (occupied);
 	}
 
+	/* A target past MAX_PATH has to be refused, and refused with an error. The
+	 * shell will not store one - SetPath rejects it - so a create that ignores
+	 * that result writes a .lnk pointing at nothing and reports success, which
+	 * is a dead shortcut the user was never told about. Long paths are enabled
+	 * on plenty of boxes, so the target itself is perfectly ordinary. */
+	{
+		GString *deep = g_string_new (dir);
+		char *long_target, *long_lnk;
+		GError *lerr = NULL;
+		int i;
+
+		for (i = 0; i < 12; i++) {
+			g_string_append_printf (deep, "\\level-%02d-padded-out-to-length", i);
+		}
+		g_string_append (deep, "\\deep-target.txt");
+		long_target = g_string_free (deep, FALSE);
+		check (strlen (long_target) > MAX_PATH);
+
+		long_lnk = g_build_filename (dir, "long.lnk", NULL);
+		check (!nemo_shortcut_win32_create (long_target, long_lnk, NULL, NULL, NULL, &lerr));
+		check (lerr != NULL);
+		check (lerr == NULL || lerr->message != NULL);
+
+		/* Nothing left behind to double-click. */
+		check (!g_file_test (long_lnk, G_FILE_TEST_EXISTS));
+
+		g_clear_error (&lerr);
+		g_unlink (long_lnk);
+		g_free (long_lnk);
+		g_free (long_target);
+	}
+
 	/* A refused create must always leave an error behind: the file-operations
 	 * caller reads error->message straight off the failure path. */
 	{
