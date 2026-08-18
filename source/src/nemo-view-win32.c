@@ -33,8 +33,8 @@ shell_execute_ok (HINSTANCE result, const gchar *what, const gchar *target)
 /* Command-line quoting, MSVCRT rules: a run of backslashes immediately before
    the closing quote has to be doubled, or the quote is escaped away. A drive
    root ("C:\") is the common case and used to swallow it. */
-static gchar *
-quote_arg (const gchar *arg)
+gchar *
+nemo_view_win32_quote_arg (const gchar *arg)
 {
 	GString *out = g_string_new ("\"");
 	gsize i, backslashes = 0;
@@ -88,7 +88,7 @@ nemo_view_win32_open_elevated (const gchar *path)
 		return;
 	}
 
-	quoted = quote_arg (path);
+	quoted = nemo_view_win32_quote_arg (path);
 	wpath = (wchar_t *) g_utf8_to_utf16 (quoted, -1, NULL, NULL, NULL);
 	res = ShellExecuteW (NULL, L"runas", exe, wpath, NULL, SW_SHOWNORMAL);
 	shell_execute_ok (res, "Open as Administrator", path);
@@ -128,7 +128,7 @@ nemo_view_win32_open_terminal (const gchar *path)
 	wexe = (wchar_t *) g_utf8_to_utf16 (exe, -1, NULL, NULL, NULL);
 
 	if (is_wt) {
-		gchar *quoted = quote_arg (path);
+		gchar *quoted = nemo_view_win32_quote_arg (path);
 		gchar *params = g_strconcat ("-d ", quoted, NULL);
 		wchar_t *wparams = (wchar_t *) g_utf8_to_utf16 (params, -1, NULL, NULL, NULL);
 

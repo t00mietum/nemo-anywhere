@@ -158,3 +158,16 @@ test('Copy test',
   ),
   args: []
 )
+
+# The win32 helper lives in src/, not a library, so it is compiled straight in.
+if is_windows
+  test('Win32 argument quoting test',
+    executable('test-nemo-view-win32',
+      [ 'test-nemo-view-win32.c', '../src/nemo-view-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif

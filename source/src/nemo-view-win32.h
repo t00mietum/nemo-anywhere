@@ -6,6 +6,11 @@
 
 #include <glib.h>
 
+/* Quote @arg as one command-line argument under MSVCRT rules. Exposed because
+ * both callers below hand the result to a process that re-splits it, and the
+ * trailing-backslash case (a drive root) has no unattended end-to-end path. */
+gchar *nemo_view_win32_quote_arg (const gchar *arg);
+
 /* Relaunch the running executable elevated ("runas"/UAC) at @path. */
 void nemo_view_win32_open_elevated (const gchar *path);
 
