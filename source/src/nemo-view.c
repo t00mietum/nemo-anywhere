@@ -7226,11 +7226,7 @@ action_follow_symlink_callback (GtkAction *action,
             nemo_view_set_selection (view, l);
             nemo_file_list_free (l);
         } else {
-            if (get_is_desktop_view (view)) {
-                nemo_mime_launch_fm_and_select_file (location);
-            } else {
-                nemo_window_slot_open_location (view->details->slot, location, 0);
-            }
+            nemo_window_slot_open_location (view->details->slot, location, 0);
         }
 
         g_free (uri);

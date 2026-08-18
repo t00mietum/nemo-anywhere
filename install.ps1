@@ -491,7 +491,10 @@ if ($From) {
 	$downloadUrl  = $From
 	$sourceDesc   = $From
 	## Display only: a conventionally named archive still tells us its version.
-	$version      = if ((Split-Path -Leaf $From) -match "^${ExeName}-([0-9][^-]*)") { $Matches[1] } else { "" }
+	## Stop at the platform suffix, not at the first dash - a prerelease version
+	## has one of its own (1.0.0-beta2), and cutting there reported a beta as the
+	## release it precedes.
+	$version      = if ((Split-Path -Leaf $From) -match "^${ExeName}-(.+)-[^-]+-[^-.]+\.(?:zip|tar\.gz|tgz)$") { $Matches[1] } else { "" }
 	$releaseDesc  = "local archive"
 	$verifyDesc   = "no checksum (-From)"
 } else {

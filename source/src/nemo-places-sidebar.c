@@ -772,14 +772,15 @@ get_disk_full (NemoPlacesSidebar *sidebar, GFile *file, gchar **tooltip_info)
 static gboolean
 file_is_win_fixed_drive_root (GFile *file)
 {
-    gchar *path = g_file_get_path (file);
-    gboolean is_root = path != NULL
-                       && g_ascii_isalpha (path[0])
-                       && path[1] == ':'
-                       && (path[2] == '\\' || path[2] == '/')
-                       && path[3] == '\0';
+    gchar *path;
+    gboolean is_root;
 
-    if (is_root) {
+    if (!nemo_location_is_drive_root (file)) {
+        return FALSE;
+    }
+
+    path = g_file_get_path (file);
+    {
         gchar drive_path[4] = { path[0], ':', '\\', '\0' };
         is_root = (GetDriveTypeA (drive_path) == DRIVE_FIXED);
     }
@@ -1025,8 +1026,16 @@ update_places (NemoPlacesSidebar *sidebar)
             gchar *drive_uri = g_strdup_printf ("file:///%c:/", letter);
             gchar *drive_name;
 
-            /* Explorer shows the volume label first - a bare "(C:)" tells the
-               user nothing when several drives are mounted. */
+            df_file = g_file_new_for_uri (drive_uri);
+
+            /* Named the same here as in the breadcrumb and the title bar. The
+               volume label is worth showing but it is not the identity, so it
+               rides in the tooltip where it cannot be mistaken for the path. */
+            drive_name = nemo_get_drive_root_name (df_file);
+
+            full = get_disk_full (sidebar, df_file, &tooltip_info);
+            g_clear_object (&df_file);
+
             {
                 wchar_t wlabel[MAX_PATH + 1] = { 0 };
                 wchar_t wroot[4] = { (wchar_t) letter, L':', L'\\', L'\0' };
@@ -1038,18 +1047,15 @@ update_places (NemoPlacesSidebar *sidebar)
                 }
 
                 if (label != NULL && *label != '\0') {
-                    drive_name = g_strdup_printf ("%s (%c:)", label, letter);
+                    tooltip = g_strdup_printf (_("Open %c:\\ (%s)\n%s"),
+                                               letter, label, tooltip_info);
                 } else {
-                    drive_name = g_strdup_printf ("(%c:)", letter);
+                    tooltip = g_strdup_printf (_("Open %c:\\\n%s"), letter, tooltip_info);
                 }
+
                 g_free (label);
             }
 
-            df_file = g_file_new_for_uri (drive_uri);
-            full = get_disk_full (sidebar, df_file, &tooltip_info);
-            g_clear_object (&df_file);
-
-            tooltip = g_strdup_printf (_("Open drive %c:\n%s"), letter, tooltip_info);
             g_free (tooltip_info);
 
             cat_iter = add_place (sidebar, PLACES_BUILT_IN,

@@ -113,13 +113,16 @@ test('Extension column test',
   args: []
 )
 
+# The recycle-bin monitor is polled, so the same-count case has to sit through
+# a few turns of it - well past the 30s meson allows by default.
 test('Trash win32 test',
   executable('test-nemo-trash-win32',
     [ 'test-nemo-trash-win32.c' ],
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private ],
   ),
-  args: []
+  args: [],
+  timeout: 120
 )
 
 test('Shortcut win32 test',
@@ -178,6 +181,42 @@ if is_windows
       [ 'test-nemo-network-win32.c' ],
       include_directories: [ rootInclude, ],
       dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif
+
+if is_windows
+  test('Drive root name test',
+    executable('test-nemo-drive-root-name',
+      [ 'test-nemo-drive-root-name.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
+
+if is_windows
+  test('File refresh churn test',
+    executable('test-nemo-file-win32-churn',
+      [ 'test-nemo-file-win32-churn.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
+
+if is_windows
+  test('Thumbnail win32 type test',
+    executable('test-nemo-thumbnail-win32',
+      [ 'test-nemo-thumbnail-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
     ),
     args: []
   )

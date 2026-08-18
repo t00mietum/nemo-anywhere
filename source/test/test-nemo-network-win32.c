@@ -47,6 +47,96 @@ child_uri (const char *server, const char *share)
 	return uri;
 }
 
+/* Browse a server that really is there, if this box is one. Enumeration is the
+ * half the uri checks cannot reach, and a share only proves anything if it can
+ * be followed - so the target each one points at is opened for real. Skips, out
+ * loud, on a box that shares nothing. */
+static void
+test_live_shares (void)
+{
+	const char *host = g_get_host_name ();
+	GFile *root, *server;
+	GFileEnumerator *enumerator;
+	GFileInfo *info;
+	GError *error = NULL;
+	int shares = 0, followed = 0;
+
+	if (host == NULL || *host == '\0') {
+		g_printerr ("SKIP live shares: no host name\n");
+		return;
+	}
+
+	root = g_file_new_for_uri ("network:///");
+	server = g_file_get_child (root, host);
+
+	enumerator = g_file_enumerate_children (server, "standard::*", 0, NULL, &error);
+	if (enumerator == NULL) {
+		g_printerr ("SKIP live shares: cannot browse \\\\%s: %s\n",
+			    host, error != NULL ? error->message : "?");
+		g_clear_error (&error);
+		g_object_unref (server);
+		g_object_unref (root);
+		return;
+	}
+
+	while ((info = g_file_enumerator_next_file (enumerator, NULL, NULL)) != NULL) {
+		const char *target_uri;
+
+		shares++;
+
+		/* A share is a link to its UNC path - that is what makes opening
+		 * one work through the activation nemo already had. */
+		check (g_file_info_get_file_type (info) == G_FILE_TYPE_SHORTCUT);
+
+		target_uri = g_file_info_get_attribute_string (
+			info, G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
+		check (target_uri != NULL);
+
+		if (target_uri != NULL) {
+			GFile *target = g_file_new_for_uri (target_uri);
+			GFileInfo *reached;
+
+			/* Every share the enumeration offered has to sit under
+			 * the server it was listed beneath, or the uri built for
+			 * it names some other machine entirely. */
+			check (g_file_has_prefix (target, server) == FALSE);
+
+			reached = g_file_query_info (target, "standard::type",
+						     0, NULL, NULL);
+			if (reached != NULL) {
+				followed++;
+				g_object_unref (reached);
+			} else {
+				/* An empty optical drive shares fine and opens
+				 * to nothing, so name it rather than counting
+				 * it silently against the backend. */
+				g_print ("  share %s did not open (%s)\n",
+					 g_file_info_get_display_name (info),
+					 target_uri);
+			}
+			g_object_unref (target);
+		}
+
+		g_object_unref (info);
+	}
+
+	g_file_enumerator_close (enumerator, NULL, NULL);
+	g_object_unref (enumerator);
+
+	if (shares == 0) {
+		g_printerr ("SKIP live shares: \\\\%s offers none\n", host);
+	} else {
+		g_print ("  browsed \\\\%s: %d share(s), %d opened\n",
+			 host, shares, followed);
+		/* At least one has to actually open, or "browsing works" is a
+		 * claim about a list nobody can follow. */
+		check (followed > 0);
+	}
+
+	g_object_unref (server);
+	g_object_unref (root);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -90,6 +180,8 @@ main (int argc, char *argv[])
 	}
 	g_object_unref (server);
 	g_object_unref (root);
+
+	test_live_shares ();
 
 	if (failures == 0) {
 		g_print ("network-win32: all checks passed\n");

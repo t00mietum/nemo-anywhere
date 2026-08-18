@@ -130,4 +130,9 @@ gboolean nemo_user_is_root (void);
 GMount *nemo_get_mount_for_location_safe (GFile *location);
 gboolean nemo_location_is_network_safe (GFile *location);
 gboolean nemo_path_is_network_safe (const gchar *path);
+
+/* A drive root such as "C:\". Every surface that names a location asks here, so
+   the sidebar, the breadcrumb and the title agree. Always FALSE/NULL off win32. */
+gboolean nemo_location_is_drive_root (GFile *location);
+gchar *nemo_get_drive_root_name (GFile *location);
 #endif /* NEMO_FILE_UTILITIES_H */
