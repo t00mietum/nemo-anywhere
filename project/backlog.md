@@ -160,9 +160,13 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
 
-- 🔘 The action layout editor never opens: the app spawns it as `nemo-action-layout-editor`, but the binary installs under the app slug as `nemo-anywhere-action-layout-editor`. One missed rename from the rebrand.
+- ✅ The action layout editor never opens: the app spawns it as `nemo-action-layout-editor`, but the binary installs under the app slug as `nemo-anywhere-action-layout-editor`. One missed rename from the rebrand.
+	- Fixed: it is spawned under the app slug, out of the folder the app itself was started from, and a failure to start now says so instead of doing nothing.
+	- Also found and fixed alongside: the Restart button in extension settings was quitting and starting whichever upstream Nemo happened to be installed, not this app.
 
 - 🔘 Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
+	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
+	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
 
 - 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
 	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.

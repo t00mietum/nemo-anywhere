@@ -75,6 +75,7 @@ char *   nemo_get_desktop_directory_uri_no_create (void);
 const char * nemo_get_data_dir                   (void);
 const char * nemo_get_locale_dir                 (void);
 const char * nemo_get_libexec_dir                (void);
+const char * nemo_get_bin_dir                    (void);
 
 char *   nemo_get_data_file_path                 (const char *partial_path);
 

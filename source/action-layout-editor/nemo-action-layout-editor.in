@@ -1,2 +1,17 @@
 #!/bin/sh
-exec @PKG_DATADIR@/layout-editor/nemo_action_layout_editor.py
+# Resolve the data dir from this script's own location, so a relocated prefix
+# still finds the editor; fall back to where it was configured to install.
+self="$0"
+while [ -L "$self" ]; do
+	link="$(readlink "$self")"
+	case "$link" in
+		/*) self="$link" ;;
+		 *) self="$(dirname "$self")/$link" ;;
+	esac
+done
+prefix="$(cd "$(dirname "$self")/.." && pwd)"
+
+editor="${prefix}/share/@APP_SLUG@/layout-editor/nemo_action_layout_editor.py"
+[ -f "$editor" ] || editor="@PKG_DATADIR@/layout-editor/nemo_action_layout_editor.py"
+
+exec "$editor" "$@"
