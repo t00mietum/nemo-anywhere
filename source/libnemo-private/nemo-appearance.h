@@ -64,7 +64,11 @@ typedef struct {
 	char     *dir;			/* directory holding it, or NULL if GTK found it */
 	char     *counterpart;		/* theme to swap to when the mode flips */
 	guint     fits;			/* NemoThemeFit bits */
-	gboolean  bundled;		/* shipped with the app rather than found */
+	gboolean  declared;		/* @fits is the theme's own answer, not a guess */
+	/* Found in nemo's own folder beside the app rather than anywhere GTK
+	 * looks. Note the bundled set installs into share/themes and share/icons
+	 * so GTK can resolve it by name, so this is FALSE for most of it. */
+	gboolean  bundled;
 } NemoThemeInfo;
 
 void     nemo_appearance_init      (void);

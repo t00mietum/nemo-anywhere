@@ -1,0 +1,17 @@
+[Icon Theme]
+Name=Fluent-dark
+Comment=Windows 11 style, trimmed for nemo-anywhere
+X-Nemo-Style=Windows 11
+X-Nemo-Modes=dark
+X-Nemo-Counterpart=Fluent
+Inherits=Fluent,Adwaita,hicolor
+Example=folder
+Directories=scalable/places
+
+[scalable/places]
+Size=48
+MinSize=8
+MaxSize=512
+Context=Places
+Type=Scalable
+

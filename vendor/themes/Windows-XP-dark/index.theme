@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Windows-XP-dark
+Comment=Windows XP style
+X-Nemo-Style=Windows XP
+X-Nemo-Modes=dark
+X-Nemo-Counterpart=Windows-XP
+
+[X-GNOME-Metatheme]
+GtkTheme=Windows-XP-dark

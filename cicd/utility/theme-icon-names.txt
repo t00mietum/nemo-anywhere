@@ -1,0 +1,206 @@
+## Every icon name a bundled theme is trimmed down to.
+##
+## One "<context> <name>" per line. A name ending in -symbolic lands in
+## symbolic/<context>, everything else in scalable/<context>. Anything a theme
+## does not have falls through to Adwaita and then hicolor via Inherits, so a
+## gap here costs a mismatched glyph, never a missing one.
+##
+## This is deliberately the file-manager surface only. Themes carry thousands of
+## per-application icons that nemo never asks for; keeping the list explicit is
+## what holds each bundled theme to a few hundred KB.
+##
+## Read by cicd/utility/vendor-themes.bash.
+
+## ---- Folders and locations (icon and list views, sidebar, breadcrumbs) ----
+places folder
+places folder-open
+places folder-drag-accept
+places folder-visiting
+places folder-new
+places folder-documents
+places folder-download
+places folder-music
+places folder-pictures
+places folder-videos
+places folder-publicshare
+places folder-templates
+places folder-remote
+places folder-recent
+places folder-saved-search
+places inode-directory
+places user-home
+places user-desktop
+places user-trash
+places user-trash-full
+places user-bookmarks
+places network-workgroup
+places network-server
+places start-here
+
+## ---- File types ----
+mimetypes text-x-generic
+mimetypes text-x-generic-template
+mimetypes text-x-script
+mimetypes text-x-preview
+mimetypes text-html
+mimetypes application-x-generic
+mimetypes application-x-executable
+mimetypes application-x-shellscript
+mimetypes application-pdf
+mimetypes application-zip
+mimetypes application-certificate
+mimetypes package-x-generic
+mimetypes image-x-generic
+mimetypes audio-x-generic
+mimetypes video-x-generic
+mimetypes font-x-generic
+mimetypes x-office-document
+mimetypes x-office-spreadsheet
+mimetypes x-office-presentation
+mimetypes x-office-address-book
+mimetypes x-office-calendar
+mimetypes unknown
+
+## ---- Drives and devices (sidebar, Computer) ----
+devices computer
+devices drive-harddisk
+devices drive-harddisk-usb
+devices drive-harddisk-system
+devices drive-removable-media
+devices drive-optical
+devices drive-multidisk
+devices media-optical
+devices media-flash
+devices media-removable
+devices media-tape
+devices camera-photo
+devices multimedia-player
+devices phone
+devices network-wired
+devices network-wireless
+
+## ---- Emblems (the emblem picker in file properties) ----
+emblems emblem-symbolic-link
+emblems emblem-important
+emblems emblem-favorite
+emblems emblem-readonly
+emblems emblem-unreadable
+emblems emblem-shared
+emblems emblem-default
+emblems emblem-documents
+emblems emblem-generic
+emblems emblem-new
+emblems emblem-ok
+emblems emblem-photos
+emblems emblem-system
+emblems emblem-urgent
+emblems emblem-web
+emblems emblem-mail
+emblems emblem-package
+emblems emblem-sound
+emblems emblem-people
+emblems emblem-art
+emblems emblem-money
+emblems emblem-note
+emblems emblem-danger
+emblems emblem-personal
+emblems emblem-downloads
+
+## ---- Sidebar and tree (monochrome, recoloured to the foreground) ----
+places folder-symbolic
+places folder-open-symbolic
+places folder-documents-symbolic
+places folder-download-symbolic
+places folder-music-symbolic
+places folder-pictures-symbolic
+places folder-videos-symbolic
+places folder-publicshare-symbolic
+places folder-templates-symbolic
+places folder-remote-symbolic
+places folder-saved-search-symbolic
+places folder-new-symbolic
+places inode-directory-symbolic
+places user-home-symbolic
+places user-desktop-symbolic
+places user-trash-symbolic
+places user-trash-full-symbolic
+places user-bookmarks-symbolic
+places network-workgroup-symbolic
+places network-server-symbolic
+places start-here-symbolic
+
+devices computer-symbolic
+devices drive-harddisk-symbolic
+devices drive-removable-media-symbolic
+devices drive-optical-symbolic
+devices media-optical-symbolic
+devices media-removable-symbolic
+devices media-eject-symbolic
+
+## ---- Toolbar, menus and dialogs ----
+actions go-previous-symbolic
+actions go-next-symbolic
+actions go-up-symbolic
+actions go-down-symbolic
+actions go-home-symbolic
+actions go-jump-symbolic
+actions edit-copy-symbolic
+actions edit-cut-symbolic
+actions edit-paste-symbolic
+actions edit-delete-symbolic
+actions edit-clear-symbolic
+actions edit-find-symbolic
+actions edit-undo-symbolic
+actions edit-redo-symbolic
+actions view-refresh-symbolic
+actions view-list-symbolic
+actions view-grid-symbolic
+actions view-continuous-symbolic
+actions view-dual-symbolic
+actions view-pin-symbolic
+actions view-more-symbolic
+actions view-sort-ascending-symbolic
+actions view-sort-descending-symbolic
+actions zoom-in-symbolic
+actions zoom-out-symbolic
+actions zoom-original-symbolic
+actions document-new-symbolic
+actions document-open-symbolic
+actions document-open-recent-symbolic
+actions document-properties-symbolic
+actions document-save-symbolic
+actions window-close-symbolic
+actions window-new-symbolic
+actions list-add-symbolic
+actions list-remove-symbolic
+actions tab-new-symbolic
+actions pan-start-symbolic
+actions pan-end-symbolic
+actions pan-up-symbolic
+actions pan-down-symbolic
+actions process-stop-symbolic
+actions media-playback-start-symbolic
+actions media-playback-pause-symbolic
+actions media-playback-stop-symbolic
+actions bookmark-new-symbolic
+actions help-about-symbolic
+actions help-contents-symbolic
+actions open-menu-symbolic
+actions system-search-symbolic
+actions system-run-symbolic
+actions preferences-system-symbolic
+actions preferences-desktop-keyboard-shortcuts-symbolic
+actions utilities-terminal-symbolic
+actions image-x-generic-symbolic
+actions object-select-symbolic
+actions applications-system-symbolic
+
+status dialog-error-symbolic
+status dialog-warning-symbolic
+status dialog-information-symbolic
+status dialog-password-symbolic
+status dialog-question-symbolic
+status image-loading-symbolic
+status image-missing-symbolic
+status folder-visiting-symbolic
+status network-offline-symbolic

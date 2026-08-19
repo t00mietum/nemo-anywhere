@@ -1,0 +1,17 @@
+[Icon Theme]
+Name=Colloid-dark
+Comment=Rounded style, trimmed for nemo-anywhere
+X-Nemo-Style=Rounded
+X-Nemo-Modes=dark
+X-Nemo-Counterpart=Colloid
+Inherits=Colloid,Adwaita,hicolor
+Example=folder
+Directories=scalable/places
+
+[scalable/places]
+Size=48
+MinSize=8
+MaxSize=512
+Context=Places
+Type=Scalable
+

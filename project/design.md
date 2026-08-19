@@ -35,6 +35,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 	- [Configuration model](#configuration-model)
 	- [Saves and persistence](#saves-and-persistence)
 	- [UI](#ui)
+	- [Appearance and themes](#appearance-and-themes)
 	- [Testing](#testing)
 - [Delivery CI/CD, branches, releases](#delivery-cicd-branches-releases)
 
@@ -283,7 +284,18 @@ The window is a menu and toolbar, a sidebar, a path bar, and a view - and the vi
 - A window holds tabs; each tab is a slot with its own location, history and view. Navigation, loading state and the busy cursor belong to the slot, which is why a slow location can only block its own tab.
 - The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Everything that could be slow to answer - free space, mount state - is fetched off the main loop and folded in when it arrives.
 - Extensions can add context-menu items, list columns, property pages and file attributes; nothing in the shipped UI depends on one being present.
-- Look and feel follows the platform: the desktop's theme and font on Linux, a bundled Fluent-style theme with Segoe UI and the system light/dark preference on Windows.
+- Look and feel follows the platform: the desktop's theme and font on Linux, a bundled theme set with Segoe UI and the system light/dark preference on Windows. See Appearance and themes below.
+
+### Appearance and themes
+
+Two settings decide how the app looks: a light/dark mode, and the widget and icon themes to draw with. Both live in `settings.shcl` under `appearance`, and both apply while the app is running rather than at the next launch.
+
+- **Mode is Light, Dark, or Follow the system.** Following means asking the platform: on Windows that is the `AppsUseLightTheme` personalisation value, watched for changes so the app turns with the rest of the desktop; anywhere the desktop has already told GTK, it means leaving that answer alone. An explicit Light or Dark overrides the platform on every target.
+- **Themes are offered by the mode they suit.** A theme states which backgrounds it was drawn for; one that says nothing is judged by its name, which is how the convention already works in practice - a trailing `-dark` marks the dark half of a pair, and a theme with a `-dark` sibling is the light half. Most colourful icon sets genuinely serve both, because the monochrome half of any theme is recoloured to the foreground by GTK - and where an upstream theme does draw for dark, it turns out to redraw two or three icons and no more, so a dark variant carries only those and inherits the rest from its light half.
+- **Picking one half of a pair picks the pair.** Choosing a theme and then changing mode swaps to its counterpart rather than leaving a dark theme on a light window. A widget theme that ships its own dark stylesheet needs no counterpart, since GTK swaps sheets on its own.
+- **Targets unlikely to have GTK themes installed carry their own set.** That is Windows and macOS; Linux and the BSDs use what the desktop already provides. Each bundled icon theme is trimmed to the icon names a file manager actually asks for - roughly 180 - which is what keeps a theme to a few hundred KB instead of tens of MB. Anything not shipped falls through the standard `Inherits` chain to Adwaita and then hicolor, so a gap is a mismatched glyph, never a missing one.
+- **The Windows XP and Windows 7 icon sets are our own artwork.** No cleanly-licensed set of either exists; what circulates is Microsoft's shell art extracted and repackaged, which this project will not ship. The two sets are drawn from a shared vocabulary of shapes and glyphs and carry the project's own license. Every other bundled theme is an upstream open-source theme, unmodified apart from the trim, keeping its own license file and a pinned source commit.
+- **Themes can be dropped in on any platform**, bundled set or not, by putting an ordinary GTK theme folder in `themes` or an icon theme in `icons` beside the settings file. Drop-ins are searched before the bundled set, so a same-named theme shadows it.
 
 ### Testing
 

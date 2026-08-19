@@ -73,14 +73,16 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 - 🛠️ Windows look: make it feel native even though it isn't Explorer.
 	- ✅ Fix the thin, poorly anti-aliased text - Segoe UI 9 with full hinting and subpixel (generated settings.ini + fontconfig).
-	- 🛠️ Themes: bundle a Windows 11 (Fluent) icon + widget theme, light and dark. Keep a lightweight Linux light/dark pair compiled in (Adwaita / Adwaita-dark). Permissive licenses only - not Microsoft's own art.
-		- Done: Fluent widget theme (light + dark) and icon theme bundled, vendored at a pinned commit with licenses kept. Icon set trimmed to file-manager contexts, falls back to Adwaita for the rest.
-		- Done: standard icon names materialized as real files (the theme ships them as symlink aliases, which a Windows checkout breaks).
-		- 🔘 Linux side: Adwaita / Adwaita-dark pair.
-	- 🔘 Custom theming: nemo-anywhere theme search folders at system (prefix) and user level, so themes can be dropped in.
-	- 🛠️ Theme + light/dark selection stored in config; auto-follow the Windows light/dark setting with a manual override.
-		- ✅ Auto-follow: reads Windows AppsUseLightTheme at startup and live (registry watch), toggles GTK prefer-dark. One icon theme serves both modes.
-		- 🔘 Manual override + theme choice persisted in the config file (no longer blocked - the config engine is in).
+	- ✅ Themes: bundle a curated set of icon and widget styles, light and dark. Permissive licenses only - not Microsoft's own art.
+		- Done: eight widget themes (Windows 11, 10, 7, XP light+dark, macOS light+dark) and nine icon styles, about 5 MB all told. Each vendored at a pinned commit with its license kept.
+		- Done: icon themes trimmed to the ~180 names a file manager asks for, which took Fluent from 1.8 MB to 261 KB; the rest falls back to Adwaita.
+		- Done: standard icon names materialized as real files (themes ship them as symlink aliases, which a Windows checkout breaks).
+		- Done: Windows XP and Windows 7 icon sets drawn in-house - no cleanly-licensed set of either exists, only repackaged Microsoft art.
+		- Bundled where the platform is unlikely to have themes installed (Windows, macOS). Linux keeps using the desktop's own, so the thin prefix stays thin.
+	- ✅ Custom theming: theme search folders beside the settings file, so themes can be dropped in on any platform. Drop-ins are searched before the bundled set.
+	- ✅ Theme + light/dark selection stored in config; auto-follow the Windows light/dark setting with a manual override.
+		- Done: auto-follow reads Windows AppsUseLightTheme at startup and live (registry watch).
+		- Done: an Appearance page in settings with Light / Dark / Follow the system, plus style and icon pickers filtered to the mode in force. Picking one half of a light/dark pair follows the pair when the mode changes.
 
 - ✅ Config engine: settings + persistence moved to SHCL in a user-level `settings.shcl`; gconf/dconf and the Windows registry are out of the picture.
 	- Done: GSettings replaced outright rather than kept over a SHCL backend, so no compiled schema is installed or shipped. All 168 settings, ~300 call sites, 84 change handlers and 16 property binds moved over.

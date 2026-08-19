@@ -28,6 +28,7 @@
 #include "nemo-file-utilities.h"
 #include "nemo-global-preferences.h"
 
+#include <eel/eel-debug.h>
 #include <gtk/gtk.h>
 #include <string.h>
 
@@ -57,6 +58,14 @@ static gboolean         applying;
  * would latch on the last explicit choice. Keep the desktop's own answer
  * separately, refreshed only when the change came from outside. */
 static gboolean         desktop_dark;
+
+/* What the platform had chosen before we touched anything - the Windows bundle
+ * names both in its settings.ini, a desktop names them in its own settings.
+ * "System default" in the picker means going back to exactly these, which
+ * without keeping them would leave the last explicit choice in place until the
+ * next launch. */
+static char            *platform_gtk_theme;
+static char            *platform_icon_theme;
 
 /* ---- Roots ---- */
 
@@ -287,6 +296,7 @@ scan_add (ScanState  *state,
 		value = g_key_file_get_string (keys, group, "X-Nemo-Modes", NULL);
 		if (value != NULL) {
 			info->fits = parse_modes (value);
+			info->declared = TRUE;
 			g_free (value);
 		}
 
@@ -303,6 +313,7 @@ scan_add (ScanState  *state,
 	 * sheets on gtk-application-prefer-dark-theme without changing the name. */
 	if (has_dark_css) {
 		info->fits = NEMO_THEME_FITS_BOTH;
+		info->declared = TRUE;
 		g_clear_pointer (&info->counterpart, g_free);
 	}
 
@@ -415,7 +426,10 @@ infer_fits (ScanState *state)
 		char          *sibling;
 		gboolean       capitalized;
 
-		if (info->counterpart != NULL) {
+		/* A theme that answered for itself is not second-guessed. Naming is
+		 * only ever the fallback: "Foo-dark" that declares itself fit for
+		 * both really is fit for both. */
+		if (info->declared || info->counterpart != NULL) {
 			continue;
 		}
 
@@ -716,6 +730,9 @@ apply_appearance (void)
 		g_free (resolved);
 	} else {
 		clear_dropin_provider ();
+		if (platform_gtk_theme != NULL) {
+			g_object_set (settings, "gtk-theme-name", platform_gtk_theme, NULL);
+		}
 	}
 	g_free (wanted);
 
@@ -725,10 +742,31 @@ apply_appearance (void)
 		resolved = nemo_appearance_theme_for_mode (NEMO_THEME_KIND_ICON, wanted);
 		g_object_set (settings, "gtk-icon-theme-name", resolved, NULL);
 		g_free (resolved);
+	} else if (platform_icon_theme != NULL) {
+		g_object_set (settings, "gtk-icon-theme-name", platform_icon_theme, NULL);
 	}
 	g_free (wanted);
 
 	applying = FALSE;
+
+	/* What actually reached GTK, which is the only way to check the chain on a
+	 * box that cannot show a window. G_MESSAGES_DEBUG=Nemo to see it. */
+	{
+		char *gtk_theme = NULL;
+		char *icon_theme = NULL;
+
+		g_object_get (settings,
+			      "gtk-theme-name", &gtk_theme,
+			      "gtk-icon-theme-name", &icon_theme,
+			      NULL);
+		g_debug ("appearance: %s, widget theme \"%s\"%s, icon theme \"%s\"",
+			 dark ? "dark" : "light",
+			 gtk_theme != NULL ? gtk_theme : "",
+			 dropin_provider != NULL ? " (loaded from a drop-in folder)" : "",
+			 icon_theme != NULL ? icon_theme : "");
+		g_free (gtk_theme);
+		g_free (icon_theme);
+	}
 
 	gtk_style_context_reset_widgets (gdk_screen_get_default ());
 }
@@ -782,9 +820,12 @@ nemo_appearance_init (void)
 	build_theme_roots ();
 	ensure_user_dirs ();
 
-	/* Whatever the desktop had already decided, before we write anything. */
+	/* Whatever the platform had already decided, before we write anything. */
 	g_object_get (gtk_settings_get_default (),
-		      "gtk-application-prefer-dark-theme", &desktop_dark, NULL);
+		      "gtk-application-prefer-dark-theme", &desktop_dark,
+		      "gtk-theme-name", &platform_gtk_theme,
+		      "gtk-icon-theme-name", &platform_icon_theme,
+		      NULL);
 	g_signal_connect (gtk_settings_get_default (),
 			  "notify::gtk-application-prefer-dark-theme",
 			  G_CALLBACK (prefer_dark_notify_cb), NULL);
@@ -809,6 +850,8 @@ nemo_appearance_init (void)
 
 	apply_appearance ();
 
+	eel_debug_call_at_shutdown (nemo_appearance_shutdown);
+
 #ifdef G_OS_WIN32
 	/* Follow the Windows setting live, so "system" tracks it while running. */
 	nemo_win32_watch_dark (system_dark_changed_cb, NULL);
@@ -820,5 +863,7 @@ nemo_appearance_shutdown (void)
 {
 	clear_dropin_provider ();
 	g_clear_pointer (&theme_roots, g_strfreev);
+	g_clear_pointer (&platform_gtk_theme, g_free);
+	g_clear_pointer (&platform_icon_theme, g_free);
 	initialized = FALSE;
 }
