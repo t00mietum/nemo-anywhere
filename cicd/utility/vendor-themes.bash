@@ -95,6 +95,19 @@ iconThemes=(
 	"tela|Tela|Circles|light;dark||https://github.com/vinceliuice/Tela-icon-theme|HEAD|src links||full"
 	"qogir|Qogir|Soft|light;dark||https://github.com/vinceliuice/Qogir-icon-theme|HEAD|src links||full"
 	"papirus|Papirus|Flat|light;dark||https://github.com/PapirusDevelopmentTeam/papirus-icon-theme|HEAD|Papirus/64x64 Papirus/48x48 Papirus/32x32 Papirus/24x24 Papirus/22x22 Papirus/16x16||sparse"
+	"beautyline|BeautyLine|Outline|light;dark||https://github.com/gvolpe/BeautyLine|HEAD|BeautyLine||full"
+	"simplyblue|Simply-Blue-Circles|Circles Blue|light;dark||https://github.com/ju1464/Simply_Circles_Icons|HEAD|Simply-Circles-GNOME/Simply-Blue-Circles||sparse"
+	"simplycyan|Simply-Cyan-Circles|Circles Cyan|light;dark||https://github.com/ju1464/Simply_Circles_Icons|HEAD|Simply-Circles-GNOME/Simply-Cyan-Circles||sparse"
+	"simplyorange|Simply-Orange-Circles|Circles Orange|light;dark||https://github.com/ju1464/Simply_Circles_Icons|HEAD|Simply-Circles-GNOME/Simply-Orange-Circles||sparse"
+	"simplypurple|Simply-Purple-Circles|Circles Purple|light;dark||https://github.com/ju1464/Simply_Circles_Icons|HEAD|Simply-Circles-GNOME/Simply-Purple-Circles||sparse"
+	"simplyred|Simply-Red-Circles|Circles Red|light;dark||https://github.com/ju1464/Simply_Circles_Icons|HEAD|Simply-Circles-GNOME/Simply-Red-Circles||sparse"
+	"simplywhite|Simply-White-Circles|Circles White|dark||https://github.com/ju1464/Simply_Circles_Icons|HEAD|Simply-Circles-GNOME/Simply-White-Circles||sparse"
+	"limenumix|Lime-Numix-2021|Numix Lime|light;dark||https://github.com/rtlewis88/rtl88-Themes|MBC-Icon-SuperPack|Lime-Numix-2021||sparse"
+	"mblimeglow|MB-Lime-Suru-GLOW|Suru Lime|light;dark||https://github.com/rtlewis88/rtl88-Themes|MBC-Icon-SuperPack|MB-Lime-Suru-GLOW||sparse"
+	"mbpistachio|Material-Black-Pistachio-Suru|Suru Pistachio|light;dark||https://github.com/rtlewis88/rtl88-Themes|MBC-Icon-SuperPack|Material-Black-Pistachio-Suru||sparse"
+	"aviditydusk|Avidity-Dusk-Mixed-Suru|Suru Dusk|light;dark||https://github.com/rtlewis88/rtl88-Themes|Avidity-Icons-and-Folders|Avidity-Dusk-Mixed-Suru||sparse"
+	"ffblackgreen|FF-BlackGreen|Black and Green|light;dark||https://www.opencode.net/felipefacundes/ff-blackgreen|HEAD|icons||full"
+	"ffflamengo|FF-Flamengo-RJ-BR|Flamengo|light;dark||https://www.opencode.net/felipefacundes/ff-flamengo-rj-br|HEAD|icons||full"
 )
 
 ## Widget themes: the whole gtk-3.0 folder, normalised so gtk.css is always at
@@ -139,10 +152,20 @@ fWanted(){
 ## minutes - blobs arrive only for what the sparse patterns actually place.
 fClone(){
 	local url="$1" ref="$2" roots="${3:-}" fetch="${4:-full}" key dest
-	key="$(printf '%s' "$url" | tr -c 'A-Za-z0-9' '_')"
+	## Keyed on the ref as well as the url: rtl88-Themes keeps one theme family
+	## per branch, so the same repo is cloned once per branch we want.
+	key="$(printf '%s@%s' "$url" "$ref" | tr -c 'A-Za-z0-9' '_')"
 	dest="$tmp/$key"
 
-	if [[ -d "$dest/.git" ]]; then printf '%s' "$dest"; return 0; fi
+	if [[ -d "$dest/.git" ]]; then
+		## Several themes can come out of one sparse checkout - the six Simply
+		## Circles colours do - and each names only its own directory, so widen
+		## the checkout rather than reusing one that is missing the others.
+		if [[ "$fetch" == "sparse" && -n "$roots" && "$roots" != "." ]]; then
+			git -C "$dest" sparse-checkout add $roots >/dev/null 2>&1 || true
+		fi
+		printf '%s' "$dest"; return 0
+	fi
 
 	## Every one of these repos has case-only filename pairs, so a checkout here
 	## prints a screenful of "paths have collided" that says nothing we do not
@@ -164,6 +187,15 @@ fClone(){
 		git -C "$dest" fetch --depth 1 -q origin "$ref" > "$log" 2>&1 || { cat "$log" >&2; return 1; }
 		git -C "$dest" checkout -q FETCH_HEAD > "$log" 2>&1 || { cat "$log" >&2; return 1; }
 	fi
+
+	## A couple of upstreams commit the icon set as a tar rather than as files -
+	## the theme is one blob in a repo that otherwise holds a GTK theme and some
+	## screenshots. Unpacking it in place turns it back into an ordinary
+	## checkout, which is all the indexer downstream wants.
+	while IFS= read -r archive; do
+		[[ -n "$archive" ]] || continue
+		tar -xf "$archive" -C "$(dirname "$archive")" 2>/dev/null || true
+	done < <( find "$dest" -name '*.tar' -type f )
 
 	printf '%s' "$dest"
 }
