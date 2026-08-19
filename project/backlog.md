@@ -846,6 +846,18 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Windows icon sets: one per Windows generation, all with yellow folders.
+	- Luna (XP) and Aero (7) were already ours; Metro (10) and Mica (11) are new, so every bundled Windows widget theme now has icons drawn to match it. The picker pairs them automatically.
+	- Folders are yellow in all four. Aero's were blue, which is not what Windows 7 shipped, and a yellow folder is the one colour that reads on a light background and a dark one alike.
+	- The XP and 7 folders were too shallow to read as folders at a glance; the body is taller in every era now.
+	- The folder itself is drawn per era rather than shared - chunky and outlined for XP and 7, flat and square for 10, rounded with the front panel falling away for 11. It is the icon a Windows generation is recognised by.
+	- The vendored Fluent icon set is gone with them: it drew blue folders and looked nothing like Windows 11, and Mica now covers that style. The Fluent *widget* theme stays. About 390 KB and 179 files lighter.
+
+- ✅ Every bundled SVG run through a size pass: 2.1 MB of icon art down to 1.8 MB, and nemo's own artwork from 142 KB to 50 KB.
+	- Numbers in path data are rounded to a step finer than a two-thousandth of the icon, which is under a tenth of a pixel at any size one is drawn. Colours fold to their short form and unreferenced ids go.
+	- Multipliers - transform matrices, gradient vectors - are deliberately left alone: rounding a scale factor moves everything it touches, which is visible where rounding a coordinate is not.
+	- Checked by rendering all 983 icons before and after and comparing pixels. One icon differs at all, by an amount invisible side by side. Doing that caught a real fault first time round: an arc's two flags can be written with nothing between them, and reading path data as a plain run of numbers swallows one and silently reshapes the glyph.
+
 - ✅ Default settings changed: folder expanders on in list view, binary size prefixes (KiB/MiB), and thumbnail visibility inherited from the parent folder.
 
 - ✅ List columns trimmed to one row per idea.

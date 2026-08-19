@@ -824,6 +824,13 @@ gtk_knows_widget_theme (const char *name)
 	gboolean  found;
 	int       i;
 
+	/* GTK carries this one in its own resources, so it resolves everywhere and
+	 * is never on disk. Searching for it finds nothing and warns about a theme
+	 * that works perfectly well. */
+	if (g_strcmp0 (name, BASE_WIDGET_THEME) == 0) {
+		return TRUE;
+	}
+
 	dir = g_build_filename (g_get_user_data_dir (), THEME_SUBDIR, NULL);
 	found = widget_theme_at (dir, name, &unused);
 	g_free (dir);

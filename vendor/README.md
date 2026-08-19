@@ -12,8 +12,10 @@ GPL-2.0-only. Update by copying `source/c/shcl.h` from a newer tag and re-pinnin
 
 Regenerate with `cicd/utility/vendor-themes.bash` - do not hand-edit. Bundled as
 mere aggregation: GTK reads them at runtime, nothing is linked into nemo. Each
-theme keeps its own `COPYING`. Our own Luna and Aero icon sets are not here -
-they are first-party art in `assets/icons`, built by `gen-icon-theme.py`.
+theme keeps its own `COPYING`. Our own Windows-look icon sets are not here -
+Luna, Aero, Metro and Mica are first-party art in `assets/icons`, built by
+`gen-icon-theme.py`. Nothing Windows-styled is vendored as icons: every such
+set that circulates draws blue folders, and Windows folders are yellow.
 
 | Theme | Kind | Style | Upstream | Commit |
 | :-- | :-- | :-- | :-- | :-- |
@@ -29,8 +31,6 @@ they are first-party art in `assets/icons`, built by `gen-icon-theme.py`.
 | `AdwaitaLegacy` | Icon | Adwaita | https://gitlab.gnome.org/GNOME/adwaita-icon-theme-legacy | `7642b102c4a7c4088f170f548ae37960f2443522` |
 | `Colloid` | Icon | Rounded | https://github.com/vinceliuice/Colloid-icon-theme | `fa07485895a2443f7cfbceefe9dcdde798a05215` |
 | `Colloid-dark` | Icon | Rounded | https://github.com/vinceliuice/Colloid-icon-theme | `fa07485895a2443f7cfbceefe9dcdde798a05215` |
-| `Fluent` | Icon | Windows 11 | https://github.com/vinceliuice/Fluent-icon-theme | `ad627380aa452aa5e18fd5fbab94291f409af710` |
-| `Fluent-dark` | Icon | Windows 11 | https://github.com/vinceliuice/Fluent-icon-theme | `ad627380aa452aa5e18fd5fbab94291f409af710` |
 | `Papirus` | Icon | Flat | https://github.com/PapirusDevelopmentTeam/papirus-icon-theme | `5f8b701d7521e27b4859d7e4f9b0da4c423c036c` |
 | `Qogir` | Icon | Soft | https://github.com/vinceliuice/Qogir-icon-theme | `c633057ba0d27a504b3255144071c9691ed0264a` |
 | `Tela` | Icon | Circles | https://github.com/vinceliuice/Tela-icon-theme | `a1fffc5bfab716bd022dd228ee96fe3965cdb33d` |

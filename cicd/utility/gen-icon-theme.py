@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Draw the first-party Luna and Aero icon sets into assets/icons.
+"""Draw the first-party Windows-look icon sets into assets/icons.
 
-Windows XP and Windows 7 are two of the looks worth offering, and there is no
-cleanly-licensed SVG set of either: what circulates is Microsoft's own shell art
-extracted and repackaged, which we will not ship. So these two are ours - drawn
-here from a shared vocabulary of shapes (folder, page, disc, drive, monitor) and
-glyphs, recoloured per theme. Original work, GPL-2.0-only like the rest of the
-tree, and about a kilobyte an icon.
+Four eras, one per Windows generation worth offering: Luna (XP), Aero (7),
+Metro (10) and Mica (11). There is no cleanly-licensed SVG set of any of them -
+what circulates is Microsoft's own shell art extracted and repackaged, which we
+will not ship - so these are ours, drawn here from a shared vocabulary of shapes
+(folder, page, disc, drive, monitor) and glyphs, recoloured per theme. Original
+work, GPL-2.0-only like the rest of the tree, and about a kilobyte an icon.
+
+Folders are yellow in all four, because that is what Windows does and because a
+yellow folder is the one colour that reads on a light background and a dark one
+alike. The folder drawing itself differs per era - a chunky outlined one for XP
+and 7, a flat rectangle for 10, a rounded tapered panel for 11 - since the
+folder is the icon people recognise a Windows generation by.
 
 Coverage is the visually defining part of the file-manager surface - folders,
 file types, drives. Everything else falls through Inherits to Adwaita, which is
@@ -28,12 +34,18 @@ CANVAS = 48
 # Palettes
 #
 # Luna is the warm amber-and-cream of Windows XP: saturated fills, a firm
-# outline, everything a little chunky. Aero is Windows 7 - cooler, glassier,
-# lighter outlines and a highlight sweep across the top of every solid.
+# outline, everything a little chunky. Aero is Windows 7 - glassier and softly
+# lit, its cool blues kept for glass, screens and discs while the folder stays
+# the amber Windows has always used. Metro is Windows 10: flat, no gradient at
+# all past a two-tone split, square corners. Mica is Windows 11 - rounded, the
+# front panel tapering away from the viewer, no outline anywhere.
+#
+# folderShape picks the folder drawing: "classic" (XP/7), "metro", "mica".
 
 THEMES = {
 	"Luna": {
 		"style": "Windows XP",
+		"folderShape": "classic",
 		"comment": "Warm, chunky, saturated - the Windows XP look",
 		"folder": ("#FFDC8A", "#F0A22E"),
 		"folderBack": ("#FFCF63", "#E08A16"),
@@ -55,10 +67,11 @@ THEMES = {
 	},
 	"Aero": {
 		"style": "Windows 7",
-		"comment": "Cool, glassy, softly lit - the Windows 7 look",
-		"folder": ("#D6E9FA", "#8FBEE6"),
-		"folderBack": ("#BFDCF5", "#6FA6D6"),
-		"folderLine": "#4A7CA8",
+		"folderShape": "classic",
+		"comment": "Glassy and softly lit - the Windows 7 look",
+		"folder": ("#FFE3A8", "#F0B03A"),
+		"folderBack": ("#F9CE7C", "#DD9A22"),
+		"folderLine": "#A86F17",
 		"paper": ("#FFFFFF", "#E8F0F8"),
 		"paperLine": "#A8BDD2",
 		"fold": "#CFDEEC",
@@ -73,6 +86,50 @@ THEMES = {
 		"glyph": "#FFFFFF",
 		"glyphOn": "#14364F",
 		"gloss": 0.45,
+	},
+	"Metro": {
+		"style": "Windows 10",
+		"folderShape": "metro",
+		"comment": "Flat, square, one accent - the Windows 10 look",
+		"folder": ("#FFC943", "#FFC943"),
+		"folderBack": ("#E5A521", "#E5A521"),
+		"folderLine": "#C4890F",
+		"paper": ("#FFFFFF", "#FFFFFF"),
+		"paperLine": "#C8CDD2",
+		"fold": "#E4E7EA",
+		"metal": ("#D8DEE4", "#D8DEE4"),
+		"metalLine": "#98A2AD",
+		"glass": ("#0078D7", "#0078D7"),
+		"accent": "#0078D7",
+		"warm": "#E5A521",
+		"green": "#107C10",
+		"red": "#E81123",
+		"purple": "#5C2D91",
+		"glyph": "#FFFFFF",
+		"glyphOn": "#5A3E00",
+		"gloss": 0.0,
+	},
+	"Mica": {
+		"style": "Windows 11",
+		"folderShape": "mica",
+		"comment": "Rounded and softly shaded - the Windows 11 look",
+		"folder": ("#FFDA7C", "#FBBE2C"),
+		"folderBack": ("#F4B62C", "#E09811"),
+		"folderLine": "#C4871A",
+		"paper": ("#FFFFFF", "#F5F7F9"),
+		"paperLine": "#C6CBD2",
+		"fold": "#E7EAEE",
+		"metal": ("#F3F5F8", "#D2D8E0"),
+		"metalLine": "#98A1AD",
+		"glass": ("#CFE4FA", "#4A90D9"),
+		"accent": "#0F6CBD",
+		"warm": "#D97706",
+		"green": "#0F7B0F",
+		"red": "#C42B1C",
+		"purple": "#8764B8",
+		"glyph": "#FFFFFF",
+		"glyphOn": "#4A3200",
+		"gloss": 0.18,
 	},
 }
 
@@ -89,26 +146,74 @@ def grad(gid, top, bottom, x1=0, y1=0, x2=0, y2=1):
 # Base shapes. Each returns (defs, body).
 
 def base_folder(t, open_lid=False):
+	"""The folder, drawn the way the theme's era drew it.
+
+	This is the icon a Windows generation is recognised by, so it is the one
+	shape that is not shared: XP and 7 get the chunky outlined folder, 10 the
+	flat rectangle, 11 the rounded panel tapering away from the viewer. The
+	body is 44 wide by 35 tall in every era - shallower than that and it stops
+	reading as a folder and starts reading as an envelope.
+	"""
+	shape = t.get("folderShape", "classic")
+	if shape == "mica":
+		return folder_mica(t, open_lid)
+	if shape == "metro":
+		return folder_metro(t, open_lid)
+	return folder_classic(t, open_lid)
+
+
+def folder_classic(t, open_lid):
+	"""XP and 7: firm outline, rounded corners, a highlight along the top."""
 	defs = grad("gb", *t["folderBack"]) + grad("gf", *t["folder"])
 	back = (
-		'<path d="M5 9h13l4 4.5h21a3 3 0 0 1 3 3V37a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V12a3 3 0 0 1 3-3z"'
+		'<path d="M5 7h13l4 4.5h21a3 3 0 0 1 3 3V39a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3z"'
 		' fill="url(#gb)" stroke="%s" stroke-width="1.2"/>' % t["folderLine"]
 	)
 	if open_lid:
 		front = (
-			'<path d="M9.5 21h38.2a1 1 0 0 1 1 1.3l-4.4 15.5a3 3 0 0 1-2.9 2.2H5a3 3 0 0 1-3-3z"'
+			'<path d="M9.5 19h38.2a1 1 0 0 1 1 1.3l-4.9 18.4a3 3 0 0 1-2.9 2.3H5a3 3 0 0 1-3-3z"'
 			' fill="url(#gf)" stroke="%s" stroke-width="1.2"/>' % t["folderLine"]
 		)
+		gloss = '<path d="M10.5 20.4h36.4l-1.5 5.2H9z" fill="#fff" opacity="%s"/>' % t["gloss"]
 	else:
 		front = (
-			'<path d="M2 20h44v17a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z"'
+			'<path d="M2 19h44v20a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z"'
 			' fill="url(#gf)" stroke="%s" stroke-width="1.2"/>' % t["folderLine"]
 		)
-	gloss = (
-		'<path d="M3.5 21.5h41v5.5H3.5z" fill="#fff" opacity="%s"/>' % t["gloss"]
-		if not open_lid
-		else '<path d="M10.5 22.4h36.4l-1.5 5.2H9z" fill="#fff" opacity="%s"/>' % t["gloss"]
+		gloss = '<path d="M3.5 20.5h41v5.5H3.5z" fill="#fff" opacity="%s"/>' % t["gloss"]
+	return defs, back + front + gloss
+
+
+def folder_metro(t, open_lid):
+	"""10: square corners, two flat tones, no outline and no highlight."""
+	defs = ""
+	back = '<path d="M2 7h15.6l3.4 4H46v31H2z" fill="%s"/>' % t["folderBack"][0]
+	if open_lid:
+		front = '<path d="M8 18h38l-4 24H2V21z" fill="%s"/>' % t["folder"][0]
+	else:
+		front = '<path d="M2 18h44v24H2z" fill="%s"/>' % t["folder"][0]
+	return defs, back + front
+
+
+def folder_mica(t, open_lid):
+	"""11: rounded throughout, the front panel narrowing as it falls away."""
+	defs = grad("gb", *t["folderBack"]) + grad("gf", *t["folder"])
+	back = (
+		'<path d="M6 7h11.4a3 3 0 0 1 2.2 1l2.7 2.9H42a4 4 0 0 1 4 4V38a4 4 0 0 1-4 4'
+		'H6a4 4 0 0 1-4-4V11a4 4 0 0 1 4-4z" fill="url(#gb)"/>'
 	)
+	if open_lid:
+		front = (
+			'<path d="M9.6 17h34.2a2 2 0 0 1 2 2.4l-4 19.4a4 4 0 0 1-3.9 3.2H6a4 4 0 0 1-4-4'
+			'V21.6z" fill="url(#gf)"/>'
+		)
+		gloss = '<path d="M10.4 18.6h33.2l-.9 4H9.6z" fill="#fff" opacity="%s"/>' % t["gloss"]
+	else:
+		front = (
+			'<path d="M4.6 17h38.8a2 2 0 0 1 2 2.3l-2.5 19.5a4 4 0 0 1-4 3.2H9.1a4 4 0 0 1-4-3.2'
+			'L2.6 19.3a2 2 0 0 1 2-2.3z" fill="url(#gf)"/>'
+		)
+		gloss = '<path d="M5.3 18.6h37.4l-.5 4H5.8z" fill="#fff" opacity="%s"/>' % t["gloss"]
 	return defs, back + front + gloss
 
 

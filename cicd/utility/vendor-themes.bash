@@ -15,8 +15,10 @@
 ##	  mimetypes, links/ aliases), so names are resolved by searching an index of
 ##	  the checkout rather than by hardcoding paths. Aliases are followed, real
 ##	  symlink or the text file a Windows checkout leaves in its place.
-##	- Our own Luna and Aero sets are NOT fetched here - they live in assets/ and
-##	  are built by gen-icon-theme.py.
+##	- Our own Windows-look sets are NOT fetched here - Luna, Aero, Metro and
+##	  Mica live in assets/ and are built by gen-icon-theme.py. They are also
+##	  why no Windows-styled icon theme is vendored: every such set that
+##	  circulates draws blue folders, and Windows folders are yellow.
 ##	- Syntax: bash cicd/utility/vendor-themes.bash [themeId ...]   (needs git)
 
 ##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
@@ -88,7 +90,6 @@ fEcho_Clean(){ echo "$@"; }
 iconThemes=(
 	"adwaita|Adwaita|Adwaita|light;dark||https://gitlab.gnome.org/GNOME/adwaita-icon-theme|HEAD|Adwaita/scalable Adwaita/symbolic Adwaita/16x16||full|AdwaitaLegacy,hicolor"
 	"adwaitalegacy|AdwaitaLegacy|Adwaita|light;dark||https://gitlab.gnome.org/GNOME/adwaita-icon-theme-legacy|HEAD|AdwaitaLegacy/48x48 AdwaitaLegacy/32x32 AdwaitaLegacy/24x24 AdwaitaLegacy/22x22 AdwaitaLegacy/16x16||full|hicolor"
-	"fluent|Fluent|Windows 11|light|Fluent-dark|https://github.com/vinceliuice/Fluent-icon-theme|HEAD|src links|suffix:-dark|full"
 	"whitesur|WhiteSur|macOS|light;dark||https://github.com/vinceliuice/WhiteSur-icon-theme|HEAD|src links||full"
 	"colloid|Colloid|Rounded|light|Colloid-dark|https://github.com/vinceliuice/Colloid-icon-theme|HEAD|src links|roots:dark|full"
 	"tela|Tela|Circles|light;dark||https://github.com/vinceliuice/Tela-icon-theme|HEAD|src links||full"
