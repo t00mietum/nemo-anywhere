@@ -275,6 +275,7 @@ Three separate stores, each with its own lifetime.
 	- Changing a default in Settings also applies to the folders already on screen. Folders you are not looking at keep their own view and zoom until you visit them.
 
 - Window size, position, and maximized state are shared by all windows and live with the application settings. They are written shortly after a move or resize settles, rather than only when a window closes, so an abnormal exit doesn't discard them.
+	- On a first run there is nothing saved yet, so the window opens at 1280x720 including its title bar and borders, with the side pane at about a fifth of the width.
 
 Settings are deliberately isolated from an upstream Nemo installed alongside: our own config file, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
 

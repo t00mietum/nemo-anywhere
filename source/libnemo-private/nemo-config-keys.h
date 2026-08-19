@@ -267,7 +267,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "window-state", "network-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Expand Network section in places sidebar" },
 	{ "window-state", "side-pane-view", NEMO_CONFIG_STRING, "places", NULL, NULL, "Side pane view" },
 	{ "window-state", "sidebar-bookmark-breakpoint", NEMO_CONFIG_INT, "-1", NULL, NULL, "Index of the bookmark list to jump to the dedicated sidebar bookmark section" },
-	{ "window-state", "sidebar-width", NEMO_CONFIG_INT, "170", NULL, NULL, "Width of the side pane" },
+	{ "window-state", "sidebar-width", NEMO_CONFIG_INT, "240", NULL, NULL, "Width of the side pane" },
 	{ "window-state", "start-with-location-bar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show location bar in new windows" },
 	{ "window-state", "start-with-menu-bar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show menu bar in new windows" },
 	{ "window-state", "start-with-sidebar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show side pane in new windows" },
