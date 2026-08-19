@@ -71,6 +71,9 @@ static HFONT             font_title;
 static HFONT             font_body;
 static int               dpi = 96;
 
+/* Under the name, where a second "Starting" would just be the log line again. */
+static wchar_t           version_text[64] = L"";
+
 static gboolean          dark;
 
 #define SCALE(v)	MulDiv ((v), dpi, 96)
@@ -174,6 +177,12 @@ push_line (const char *utf8)
 	}
 	log_lines[slot] = wide;
 
+	/* Fills from the top like a terminal, and only scrolls once the ten
+	 * lines are used up. Nothing moves while there is still room. */
+	if (log_count > LOG_LINES) {
+		scroll_px = SCALE (LINE_H);
+	}
+
 	LeaveCriticalSection (&splash_lock);
 }
 
@@ -203,6 +212,7 @@ paint (HWND window, HDC target)
 	RECT     box;
 	int      log_top, log_bottom;
 	int      i, first, count;
+	gboolean full;
 	double   offset;
 	wchar_t *shown[LOG_LINES + 1];
 	int      shown_count = 0;
@@ -241,7 +251,7 @@ paint (HWND window, HDC target)
 	SetTextColor (dc, colour_body ());
 	box.top = box.bottom;
 	box.bottom = box.top + SCALE (LINE_H);
-	DrawTextW (dc, L"Starting", -1, &box,
+	DrawTextW (dc, version_text, -1, &box,
 		   DT_SINGLELINE | DT_LEFT | DT_TOP | DT_NOPREFIX);
 
 	/* The log viewport: a fixed ten lines, clipped, never wrapped. */
@@ -250,7 +260,10 @@ paint (HWND window, HDC target)
 
 	EnterCriticalSection (&splash_lock);
 	offset = scroll_px;
-	count = log_count < LOG_LINES + 1 ? log_count : LOG_LINES + 1;
+	/* Once past ten, one extra is carried so the line leaving the top has
+	 * something to slide out as. */
+	full = log_count > LOG_LINES;
+	count = full ? LOG_LINES + 1 : log_count;
 	first = (log_first + log_count - count) % MAX_LINES;
 	for (i = 0; i < count; i++) {
 		shown[shown_count++] = wide_dup (log_lines[(first + i) % MAX_LINES]);
@@ -261,7 +274,11 @@ paint (HWND window, HDC target)
 			   client.right - SCALE (SPLASH_PAD), log_bottom);
 
 	for (i = 0; i < shown_count; i++) {
-		int row = log_bottom - SCALE (LINE_H) * (shown_count - i) + (int) (offset + 0.5);
+		/* Filling: straight down from the top, nothing moving. Full: the
+		 * oldest of these sits one line above the top on its way out. */
+		int row = full
+			? log_top + SCALE (LINE_H) * (i - 1) + (int) (offset + 0.5)
+			: log_top + SCALE (LINE_H) * i;
 
 		box.left = SCALE (SPLASH_PAD);
 		box.right = client.right - SCALE (SPLASH_PAD);
@@ -296,9 +313,7 @@ splash_proc (HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	switch (message) {
 	case WM_SPLASH_LINE:
-		EnterCriticalSection (&splash_lock);
-		scroll_px = SCALE (LINE_H);
-		LeaveCriticalSection (&splash_lock);
+		/* push_line has already decided whether this one scrolls. */
 		InvalidateRect (window, NULL, FALSE);
 		return 0;
 
@@ -378,6 +393,9 @@ splash_main (LPVOID data)
 
 	dark = windows_prefers_dark ();
 	make_fonts ();
+
+	MultiByteToWideChar (CP_UTF8, 0, VERSION, -1, version_text,
+			     (int) G_N_ELEMENTS (version_text));
 
 	memset (&cls, 0, sizeof (cls));
 	cls.cbSize = sizeof (cls);
