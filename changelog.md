@@ -31,6 +31,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Settings now live where each platform expects them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS, `~/.config/nemo-anywhere` on Linux and BSD as before. An existing settings folder is moved to the new place on first run, so nothing is lost. Drop-in themes are unaffected.
 - The single-file Windows build starts far faster. Nearly all of its startup went on unpacking the couple of thousand loose theme and icon files it carried; those now live inside the executable itself. Nothing about how themes are chosen or dropped in changes.
 - The window appears at the size and place you left it as soon as it exists, rather than waiting for the first folder to finish loading.
+
+### Fixed
+
+- On Windows the window opened behind whatever you were already looking at, so a launch could look like nothing had happened until you noticed the taskbar button. It comes to the front now.
 ## v1.0.0-beta2 - 2026-08-04
 
 ### Notes
