@@ -429,7 +429,13 @@ splash_main (LPVOID data)
 	}
 
 	SetTimer (splash_window, ANIM_TIMER, ANIM_MS, NULL);
-	ShowWindow (splash_window, SW_SHOWNOACTIVATE);
+
+	/* Activating, not SW_SHOWNOACTIVATE. Windows only lets a process call
+	 * SetForegroundWindow when it already owns the foreground window, so the
+	 * splash taking it is what lets the real window be handed it a moment
+	 * later. Without this the app opens behind whatever was in front. */
+	ShowWindow (splash_window, SW_SHOW);
+	SetForegroundWindow (splash_window);
 	UpdateWindow (splash_window);
 
 	while (GetMessageW (&message, NULL, 0, 0) > 0) {
