@@ -24,6 +24,14 @@
 ##		  it no longer has the caller's console.
 ##		- If no copy is held and the source is unreachable, falls back to the
 ##		  first installed known file manager.
+##		- With '--admin' (Windows), runs the WHOLE launcher elevated - it self-
+##		  elevates via a UAC prompt, so the copy, the log and the launched app all
+##		  get admin rights. A shortcut click then behaves like running from an
+##		  elevated shell instead of silently launching a stale build.
+##		- Reports a failure, a rejected argument or a skipped copy in a dialog when
+##		  launched from a shortcut (or with '--gui'), since a click's console just
+##		  flashes shut. '--admin'/'--gui' are consumed here; everything else is
+##		  checked against the app's own options and then forwarded.
 ##	History: At bottom of script.
 
 
@@ -86,6 +94,30 @@ $DogfoodPrefix = "nemofmdf"
 ## Delete idle stamped copies older than this many days.
 $MaxAgeDays = 7
 
+## Launch elevated (as administrator). Off by default; the '--admin' arg (consumed
+## at the entry point below, never forwarded) flips it on. RunAs pops a UAC consent
+## unless the calling session is already elevated. Windows only - a file manager
+## running as root on unix is a footgun, not a feature.
+$RunAsAdmin = $false
+
+## Options the app itself accepts, so a typo is refused here instead of forwarded.
+## The packed Windows exe is GUI-subsystem: its "Could not parse arguments" goes to
+## a stderr nobody is attached to, and it takes over ten seconds to get that far, so
+## an unknown flag reads as the launcher doing nothing at all. Anything not starting
+## with '-' is a path or URI and passes untouched.
+##
+## First list is nemo's own (source/src/nemo-main-application.c, the GOptionEntry
+## table); second is the GTK option group it adds. Keep them in step with that table.
+$KnownAppOptions = @(
+	"--check", "-c", "--browser", "--version", "--geometry", "-g",
+	"--no-default-window", "-n", "--no-desktop", "--tabs", "-t",
+	"--existing-window", "--fix-cache", "--debug", "--quit", "-q",
+	"--help", "--help-all", "-h", "-?",
+	"--display", "--screen", "--class", "--name", "--sync", "--gtk-module",
+	"--g-fatal-warnings", "--gdk-debug", "--gdk-no-debug", "--gtk-debug",
+	"--gtk-no-debug", "--help-gtk", "--help-gtk-1", "--help-gdk"
+)
+
 ## Fallback file managers, tried in order when no copy is held and the source is
 ## unreachable. Launched plainly (generic managers accept a path arg at most).
 $FallbackManagers = if ($IsWindows) {
@@ -123,7 +155,9 @@ function fMain {
 
 	fTrimLog $RunLog
 	if (-not $IsWindows) { fTrimLog $AppLog }
-	fLog ("=== run: PS {0}, script {1} ===" -f $PSVersionTable.PSVersion, $PSCommandPath)
+	## Log the args too: a launch that dies on one of them leaves no other trace.
+	fLog ("=== run: PS {0}, script {1}, admin {2}, args [{3}] ===" -f `
+		$PSVersionTable.PSVersion, $PSCommandPath, $RunAsAdmin, ($PassArgs -join " "))
 
 	## 0. Windows only: strip a synced-on mark-of-the-web so a later click can't
 	##    be policy-blocked.
@@ -149,8 +183,39 @@ function fMain {
 	}
 
 	## 4. Nothing held and no source reachable - fall back to any file manager.
-	fWarn "no dogfood copy held and source not reachable; trying fallbacks"
+	fWarn -Gui "no dogfood copy held and source not reachable; trying fallbacks"
 	$null = fLaunchFallback -PassArgs $PassArgs
+}
+
+
+## Refuse an option the app will reject, rather than forwarding it into a silent
+## death (see $KnownAppOptions). Only '-'-leading tokens are checked - anything else
+## is a path or URI. '--opt=value' is checked on the name; a value that follows as
+## its own token doesn't lead with '-', so it passes as a path would. '--' ends the
+## options, and a single-dash run of known short flags ('-tn') is accepted bundled.
+function fCheckPassArgs {
+	param([string[]]$PassArgs)
+
+	if (-not $PassArgs) { return }
+	$shorts = ($KnownAppOptions | Where-Object { $_ -match '^-[^-]$' } |
+		ForEach-Object { $_.Substring(1) }) -join ""
+
+	foreach ($arg in $PassArgs) {
+		if ($arg -eq "--") { return }
+		if ($arg -notmatch '^-') { continue }
+
+		$name = ($arg -split "=", 2)[0]
+		if ($KnownAppOptions -contains $name) { continue }
+		## .Contains, not -like: '?' and '*' are real short flags, and -like would
+		## read them as wildcards and wave anything through.
+		if ($name -match '^-[^-]+$' -and
+			-not ($name.Substring(1).ToCharArray() | Where-Object { -not $shorts.Contains($_) })) { continue }
+
+		fFail ("the app doesn't accept '$name'" +
+			$(if ($name -ieq "-admin") { " - did you mean '--admin' (elevate)?" } else { "" }) +
+			"`n`nLauncher flags: --admin, --gui" +
+			"`nApp options:    " + (($KnownAppOptions | Where-Object { $_ -match '^--' }) -join " "))
+	}
 }
 
 
@@ -262,7 +327,7 @@ function fCopyIfNewer {
 		if ($CopyIsFile) { try { Unblock-File -LiteralPath $dst -ErrorAction SilentlyContinue } catch { } }
 		fNote "copied -> $(Split-Path $dst -Leaf)"
 	} catch {
-		fWarn "couldn't copy build ($($_.Exception.Message))"
+		fWarn -Gui "couldn't copy build ($($_.Exception.Message))"
 		if (Test-Path -LiteralPath $tmp) { try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch { } }
 	}
 }
@@ -470,7 +535,7 @@ function fLaunchNemo {
 	if (-not (Test-Path -LiteralPath $exe)) {
 		fFail "copy is missing its main binary: $exe"
 	}
-	return fStartApp -Exe $exe -ArgList @($PassArgs | ForEach-Object { fQuoteArg $_ })
+	return fStartApp -Exe $exe -ArgList $PassArgs
 }
 
 
@@ -482,7 +547,7 @@ function fLaunchFallback {
 		$path = fFindOnPath $cand
 		if (-not $path) { continue }
 		fNote "falling back to ${cand}: $path"
-		return fStartApp -Exe $path -ArgList @($PassArgs | ForEach-Object { fQuoteArg $_ })
+		return fStartApp -Exe $path -ArgList $PassArgs
 	}
 
 	fFail ("no file manager available (no dogfood copy/source, and none of " +
@@ -549,17 +614,27 @@ function fStartApp {
 	## join and no quoting, then the target re-splits it (.NET on unix, the MSVCRT
 	## parser on Windows). Quote every element so args with spaces, quotes or
 	## trailing backslashes survive that round trip.
-	if ($sp.ArgumentList) {
+	## ContainsKey, not $sp.ArgumentList: under Set-StrictMode -Version Latest a
+	## hashtable member that was never set throws rather than answering $null, so
+	## the plain read blew up every launch that passed no arguments.
+	if ($sp.ContainsKey("ArgumentList")) {
 		$sp.ArgumentList = @($sp.ArgumentList | ForEach-Object { fQuoteArg $_ })
 	}
+
+	## RunAs is a ShellExecute verb, so Windows only - and only reached when the
+	## whole launcher is already elevated (the entry point self-elevates first), so
+	## this raises no second consent prompt.
+	if ($IsWindows -and $RunAsAdmin) { $sp.Verb = "RunAs" }
 
 	try {
 		$proc = Start-Process @sp
 	} catch {
+		## RunAs throws if UAC is declined; surface it plainly.
 		fFail "launch failed for $Exe ($($_.Exception.Message))"
 	}
 
-	fNote "launched pid $($proc.Id): $([System.IO.Path]::GetFileName($Exe))"
+	$how = if ($IsWindows -and $RunAsAdmin) { " (as admin)" } else { "" }
+	fNote "launched$how pid $($proc.Id): $([System.IO.Path]::GetFileName($Exe))"
 	return $proc
 }
 
@@ -595,19 +670,71 @@ function fQuoteArg {
 ## Informational note to the host (and the run log).
 function fNote { param([string]$Msg); fLog $Msg; Write-Host "n8runfm: $Msg" }
 
-## Non-fatal note to stderr (and the run log).
+## Non-fatal note to stderr (and the run log). Pass -Gui to also surface it in the
+## end-of-run dialog (the shortcut case, where the console flashes shut) - reserved
+## for real problems (a failed copy), not benign skips (an offline source).
 function fWarn {
-	param([string]$Msg)
+	param([string]$Msg, [switch]$Gui)
 	fLog "WARN: $Msg"
 	Write-Warning "n8runfm: $Msg"
+	if ($Gui) { $script:RunWarnings += $Msg }
 }
 
-## Fatal error to stderr (and the run log), then stop.
+## Fatal error to stderr (and the run log), then stop. Pops a dialog first when GUI
+## feedback is on, so a shortcut click shows WHY instead of a blank flash.
+##
+## WriteErrorLine rather than Write-Error: under $ErrorActionPreference = "Stop" a
+## Write-Error throws, so the exit below never runs and the caller reads a thrown
+## error instead of rc 1 - and its formatter folds a multi-line message (the option
+## list) onto one wrapped line.
 function fFail {
 	param([string]$Msg)
 	fLog "FAIL: $Msg"
-	Write-Error "n8runfm: $Msg"
+	if ($script:GuiFeedback) { fGuiShow -Msg $Msg -Icon Error -Title "Nemo Anywhere dogfood - failed" }
+	$Host.UI.WriteErrorLine("n8runfm: $Msg")
 	exit 1
+}
+
+
+## True when this process is running elevated (Administrators / high integrity).
+## Windows-only notion; everything else answers false and never elevates.
+function fIsElevated {
+	if (-not $IsWindows) { return $false }
+	$id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+	return (New-Object System.Security.Principal.WindowsPrincipal($id)).IsInRole(
+		[System.Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+
+## True when we were double-clicked (a .lnk / Explorer launch) rather than started
+## from a shell - Explorer is the parent of a shortcut click, a terminal (pwsh/cmd/
+## wt) is the parent of a command-line run. Used to auto-enable GUI feedback so a
+## flash-and-close shortcut can still report a failure. Best-effort -> $false.
+function fLaunchedFromShortcut {
+	if (-not $IsWindows) { return $false }
+	try {
+		$parentId = (Get-CimInstance Win32_Process -Filter "ProcessId=$PID" -ErrorAction Stop).ParentProcessId
+		$parent   = (Get-Process -Id $parentId -ErrorAction Stop).ProcessName
+		return ($parent -ieq "explorer")
+	} catch { return $false }
+}
+
+
+## Show a modal message box. Never throws - feedback must not be the thing that
+## breaks a launch; a no-op if WinForms can't load (which is every non-Windows box).
+function fGuiShow {
+	param(
+		[Parameter(Mandatory)][string]$Msg,
+		[ValidateSet("Error", "Warning", "Information")][string]$Icon = "Information",
+		[string]$Title = "Nemo Anywhere dogfood"
+	)
+	try {
+		Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+		[System.Windows.Forms.MessageBox]::Show(
+			$Msg, $Title,
+			[System.Windows.Forms.MessageBoxButtons]::OK,
+			[System.Windows.Forms.MessageBoxIcon]::$Icon) | Out-Null
+	} catch { }
 }
 
 
@@ -656,11 +783,87 @@ function fSelfHealMotw {
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-fMain -PassArgs $args
+## Problems worth surfacing at the end (a failed copy etc.), shown in a dialog when
+## launched from a shortcut. Must exist before any fWarn -Gui / fFail can run.
+$script:RunWarnings = @()
+
+## Consume our own flags; forward everything else to the app.
+##   --admin  run the WHOLE launcher elevated (self-elevates below) - copy, log and
+##            the launched app all get admin rights. Windows only.
+##   --gui    force the end-of-run / failure dialog on (auto-on for a shortcut click).
+## Single-dash spellings are accepted too: '-admin' is what a PowerShell user types,
+## and it collides with nothing in the app's own option set.
+$wantAdmin = $false
+$forceGui  = $false
+$passArgs  = @()
+foreach ($arg in $args) {
+	switch -Regex ($arg) {
+		'^--?admin$' { $wantAdmin = $true; continue }
+		'^--?gui$'   { $forceGui  = $true; continue }
+		default      { $passArgs += $arg }
+	}
+}
+
+$script:GuiFeedback = $forceGui -or (fLaunchedFromShortcut)
+
+## Refuse a flag the app doesn't know before anything else happens - ahead of the
+## UAC prompt in particular, so a typo can't cost a consent click and a copy first.
+fCheckPassArgs -PassArgs $passArgs
+
+if ($wantAdmin -and -not $IsWindows) {
+	fWarn "--admin is Windows-only; ignoring (running a file manager as root is a footgun)"
+	$wantAdmin = $false
+}
+
+## Self-elevate: with '--admin' but not already elevated, relaunch the whole script
+## elevated and hand off. Everything then runs high-integrity, so it no longer
+## matters whether the target dir grants a normal user write - the real fix for
+## "a shortcut click launches a stale build". The relaunch carries the original args
+## plus '--gui' (its parent is the UAC broker, not Explorer, so it can't re-detect
+## the shortcut). If consent is declined we DON'T abort - we fall through and run
+## non-elevated so the user still gets a file manager, with a dialog saying it may
+## be stale.
+if ($wantAdmin -and -not (fIsElevated)) {
+	$self = (Get-Process -Id $PID).Path      # the pwsh.exe hosting this script
+	$fwd  = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath) + $args + "--gui"
+	$fwd  = @($fwd | ForEach-Object { fQuoteArg $_ })
+	try {
+		Start-Process -FilePath $self -Verb RunAs -ArgumentList $fwd -ErrorAction Stop | Out-Null
+		exit 0
+	} catch {
+		fWarn "elevation declined; running without admin (a newer build may not copy)"
+		if ($script:GuiFeedback) {
+			fGuiShow -Icon Warning -Title "Nemo Anywhere dogfood - not elevated" -Msg (
+				"Administrator access was declined.`n`nRunning without it - a newer " +
+				"build may not copy in, so an older one could launch.")
+		}
+	}
+}
+
+## Elevated (self- or from an elevated shell): also launch the app elevated.
+if ($wantAdmin) { $RunAsAdmin = $true }
+
+## Kick everything off, passing through whatever's left.
+fMain -PassArgs $passArgs
+
+## Surface any real problems (a failed copy etc.) for the shortcut case.
+if ($script:GuiFeedback -and $script:RunWarnings.Count) {
+	fGuiShow -Icon Warning -Title "Nemo Anywhere dogfood" -Msg (
+		"Launched, but with issues:`n`n - " + ($script:RunWarnings -join "`n - "))
+}
+
 exit 0
 
 
 ##	History:
+##		- 2026-08-19: '--admin' self-elevates the whole launcher and launches the app
+##		  elevated, matching n8runterm. Report failures in a dialog for the shortcut
+##		  case (the console flashes shut); new '--gui' flag, auto-on when double-
+##		  clicked. Log the pass-through args, and refuse an option the app doesn't
+##		  know rather than forwarding it - the packed exe is GUI-subsystem, so its
+##		  parse error goes nowhere and an unknown flag just looked like a no-op. Drop
+##		  the second round of arg quoting at the call sites (fStartApp already does
+##		  it), which was wrapping any path with a space in literal quotes.
 ##		- 2026-08-15: A source on a network share is given 1.5s to answer and then
 ##		  written off, instead of blocking the launch for the SMB timeout. Windows
 ##		  also retires copies left by the old app\+mingw64\ layout, which the
