@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Windows-7
+Comment=Windows 7 style
+X-Nemo-Style=Windows 7
+X-Nemo-Modes=light
+
+[X-GNOME-Metatheme]
+GtkTheme=Windows-7

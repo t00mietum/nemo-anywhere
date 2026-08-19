@@ -52,6 +52,7 @@ NemoConfigGroup *nemo_plugin_preferences;
 NemoConfigGroup *nemo_menu_config_preferences;
 NemoConfigGroup *nemo_search_preferences;
 NemoConfigGroup *nemo_media_handling_preferences;
+NemoConfigGroup *nemo_appearance_preferences;
 
 GTimeZone      *prefs_current_timezone;
 gboolean        prefs_current_24h_time_format;
@@ -341,6 +342,7 @@ nemo_global_preferences_init (void)
 	nemo_menu_config_preferences    = nemo_config_get_group ("preferences.menu-config");
 	nemo_search_preferences         = nemo_config_get_group ("search");
 	nemo_media_handling_preferences = nemo_config_get_group ("media-handling");
+	nemo_appearance_preferences     = nemo_config_get_group ("appearance");
 
     setup_cached_pref_keys ();
     setup_cached_time_data ();

@@ -70,6 +70,14 @@ endif
 
 glib_version = '>=2.45.7'
 is_windows = host_machine.system() == 'windows'
+is_macos = host_machine.system() == 'darwin'
+
+# Targets unlikely to have a GTK theme installed carry their own set; Linux and
+# the BSDs use whatever the desktop already provides.
+bundledThemes = get_option('bundled_themes')
+if bundledThemes == 'auto'
+  bundledThemes = (is_windows or is_macos) ? 'true' : 'false'
+endif
 
 math    = cc.find_library('m', required: true)
 

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=macOS
+Comment=macOS style
+X-Nemo-Style=macOS
+X-Nemo-Modes=light;dark
+
+[X-GNOME-Metatheme]
+GtkTheme=macOS

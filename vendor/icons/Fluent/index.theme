@@ -1,16 +1,25 @@
 [Icon Theme]
 Name=Fluent
-Comment=Windows 11 style (nemo-anywhere subset)
+Comment=Windows 11 style, trimmed for nemo-anywhere
+X-Nemo-Style=Windows 11
+X-Nemo-Modes=light
+X-Nemo-Counterpart=Fluent-dark
 Inherits=Adwaita,hicolor
 Example=folder
+Directories=scalable/devices,scalable/emblems,scalable/mimetypes,scalable/places,symbolic/actions,symbolic/devices,symbolic/places,symbolic/status
 
-Directories=scalable/places,scalable/mimetypes,scalable/devices,symbolic/places,symbolic/devices,symbolic/emblems
-
-[scalable/places]
+[scalable/devices]
 Size=48
 MinSize=8
 MaxSize=512
-Context=Places
+Context=Devices
+Type=Scalable
+
+[scalable/emblems]
+Size=48
+MinSize=8
+MaxSize=512
+Context=Emblems
 Type=Scalable
 
 [scalable/mimetypes]
@@ -20,8 +29,22 @@ MaxSize=512
 Context=MimeTypes
 Type=Scalable
 
-[scalable/devices]
+[scalable/places]
 Size=48
+MinSize=8
+MaxSize=512
+Context=Places
+Type=Scalable
+
+[symbolic/actions]
+Size=16
+MinSize=8
+MaxSize=512
+Context=Actions
+Type=Scalable
+
+[symbolic/devices]
+Size=16
 MinSize=8
 MaxSize=512
 Context=Devices
@@ -34,17 +57,10 @@ MaxSize=512
 Context=Places
 Type=Scalable
 
-[symbolic/devices]
+[symbolic/status]
 Size=16
 MinSize=8
 MaxSize=512
-Context=Devices
-Type=Scalable
-
-[symbolic/emblems]
-Size=16
-MinSize=8
-MaxSize=512
-Context=Emblems
+Context=Status
 Type=Scalable
 

@@ -89,13 +89,22 @@ for d in icons themes thumbnailers; do
 	[[ -d "${MINGW}/share/${d}" ]] && cp -r "${MINGW}/share/${d}" "${DEST}/mingw64/share/"
 done
 
-## Vendored Windows-11 (Fluent) theme + icons - the native look. Adwaita/hicolor
-## above stay as the fallback the Fluent icon theme Inherits from.
-[[ -d "${REPO}/vendor/themes/Fluent" ]] && cp -r "${REPO}/vendor/themes/Fluent" "${DEST}/mingw64/share/themes/"
-[[ -d "${REPO}/vendor/icons/Fluent" ]]  && cp -r "${REPO}/vendor/icons/Fluent"  "${DEST}/mingw64/share/icons/"
-if [[ -x "${MINGW}/bin/gtk-update-icon-cache.exe" && -d "${DEST}/mingw64/share/icons/Fluent" ]]; then
-	"${MINGW}/bin/gtk-update-icon-cache.exe" -q -t -f "${DEST}/mingw64/share/icons/Fluent" 2>/dev/null || true
-fi
+## The bundled theme set: vendored upstream themes plus our own Luna and Aero
+## icon sets. They go into share/themes and share/icons rather than a folder of
+## our own, because that is where GTK resolves a theme by name and the exe's own
+## share/ is already one of win32's system data dirs. Adwaita and hicolor above
+## stay as the fallback every bundled icon theme Inherits from.
+for src in "${REPO}/vendor/themes"/*/; do
+	[[ -d "$src" ]] && cp -r "$src" "${DEST}/mingw64/share/themes/"
+done
+for src in "${REPO}/vendor/icons"/*/ "${REPO}/assets/icons"/*/; do
+	[[ -d "$src" ]] || continue
+	cp -r "$src" "${DEST}/mingw64/share/icons/"
+	if [[ -x "${MINGW}/bin/gtk-update-icon-cache.exe" ]]; then
+		"${MINGW}/bin/gtk-update-icon-cache.exe" -q -t -f \
+			"${DEST}/mingw64/share/icons/$(basename "$src")" 2>/dev/null || true
+	fi
+done
 
 ## etc: fontconfig + gtk settings the runtime reads relative to the prefix.
 for d in fonts gtk-3.0; do

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Windows-10-dark
+Comment=Windows 10 style
+X-Nemo-Style=Windows 10
+X-Nemo-Modes=dark
+X-Nemo-Counterpart=Windows-10
+
+[X-GNOME-Metatheme]
+GtkTheme=Windows-10-dark

@@ -2,7 +2,8 @@
 Type=X-GNOME-Metatheme
 Name=Fluent
 Comment=Windows 11 style
+X-Nemo-Style=Windows 11
+X-Nemo-Modes=light;dark
 
 [X-GNOME-Metatheme]
 GtkTheme=Fluent
-IconTheme=Fluent

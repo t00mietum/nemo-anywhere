@@ -1,0 +1,29 @@
+[Icon Theme]
+Name=Luna
+Comment=Warm, chunky, saturated - the Windows XP look
+X-Nemo-Style=Windows XP
+X-Nemo-Modes=light;dark
+Inherits=Adwaita,hicolor
+Example=folder
+Directories=scalable/devices,scalable/mimetypes,scalable/places
+
+[scalable/devices]
+Size=48
+MinSize=8
+MaxSize=512
+Context=Devices
+Type=Scalable
+
+[scalable/mimetypes]
+Size=48
+MinSize=8
+MaxSize=512
+Context=MimeTypes
+Type=Scalable
+
+[scalable/places]
+Size=48
+MinSize=8
+MaxSize=512
+Context=Places
+Type=Scalable
