@@ -10,6 +10,22 @@ field: favorites-root-metadata
 	type: string-array
 	desc: Metadata for the favorites root
 
+field: appearance.gtk-theme
+	type: string
+	default: 
+	desc: Widget theme to use, or empty to leave it to the platform
+
+field: appearance.icon-theme
+	type: string
+	default: 
+	desc: Icon theme to use, or empty to leave it to the platform
+
+field: appearance.mode
+	type: string
+	allowed: system, light, dark
+	default: system
+	desc: Light or dark appearance, or follow the system
+
 field: compact-view.all-columns-have-same-width
 	type: bool
 	default: false

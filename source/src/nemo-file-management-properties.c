@@ -35,6 +35,7 @@
 
 #include <eel/eel-glib-extensions.h>
 
+#include <libnemo-private/nemo-appearance.h>
 #include <libnemo-private/nemo-column-chooser.h>
 #include <libnemo-private/nemo-column-utilities.h>
 #include <libnemo-private/nemo-global-preferences.h>
@@ -157,6 +158,14 @@ static const char * const date_format_values[] = {
 	"locale",
 	"iso",
 	"informal",
+	NULL
+};
+
+/* Order matches the rows appended to appearance_mode_combobox. */
+static const char * const appearance_mode_values[] = {
+	"system",
+	"light",
+	"dark",
 	NULL
 };
 
@@ -473,6 +482,104 @@ nemo_file_management_properties_dialog_setup_templates_page (GtkBuilder *builder
     gtk_box_pack_start (GTK_BOX (box),
                         GTK_WIDGET (nemo_template_config_widget_new ()),
                         TRUE, TRUE, 0);
+}
+
+/* ---- Appearance page ----
+ *
+ * Only the themes drawn for the mode in force are offered, so the two lists
+ * change as the mode does. Each row remembers the theme's directory name in a
+ * parallel array; row 0 is always "system default", stored as an empty string.
+ */
+
+#define APPEARANCE_ROW_NAMES	"nemo-appearance-row-names"
+
+static void
+appearance_combo_changed (GtkComboBox *combo, gpointer user_data)
+{
+	const char *key = user_data;
+	GPtrArray  *names;
+	int         active;
+
+	if (g_object_get_data (G_OBJECT (combo), "nemo-appearance-filling") != NULL) {
+		return;
+	}
+
+	names = g_object_get_data (G_OBJECT (combo), APPEARANCE_ROW_NAMES);
+	active = gtk_combo_box_get_active (combo);
+
+	if (names == NULL || active < 0 || active >= (int) names->len) {
+		return;
+	}
+
+	nemo_config_set_string (nemo_appearance_preferences, key,
+				g_ptr_array_index (names, active));
+}
+
+static void
+fill_appearance_combo (GtkComboBoxText *combo,
+		       NemoThemeKind    kind,
+		       const char      *key)
+{
+	GList     *themes;
+	GList     *node;
+	GPtrArray *names;
+	char      *stored;
+	char      *resolved = NULL;
+	guint      fits;
+	int        row = 0;
+	int        active = 0;
+
+	fits = nemo_appearance_is_dark () ? NEMO_THEME_FITS_DARK : NEMO_THEME_FITS_LIGHT;
+	themes = nemo_appearance_list_themes (kind, fits);
+
+	stored = nemo_config_get_string (nemo_appearance_preferences, key);
+	if (stored != NULL && stored[0] != '\0') {
+		resolved = nemo_appearance_theme_for_mode (kind, stored);
+	}
+
+	names = g_ptr_array_new_with_free_func (g_free);
+
+	g_object_set_data (G_OBJECT (combo), "nemo-appearance-filling", GINT_TO_POINTER (1));
+
+	gtk_combo_box_text_remove_all (combo);
+	gtk_combo_box_text_append_text (combo, _("System default"));
+	g_ptr_array_add (names, g_strdup (""));
+
+	for (node = themes; node != NULL; node = node->next) {
+		NemoThemeInfo *info = node->data;
+
+		row++;
+		gtk_combo_box_text_append_text (combo,
+						info->style != NULL ? info->style : info->display);
+		g_ptr_array_add (names, g_strdup (info->name));
+
+		if (resolved != NULL && strcmp (resolved, info->name) == 0) {
+			active = row;
+		}
+	}
+
+	g_object_set_data_full (G_OBJECT (combo), APPEARANCE_ROW_NAMES,
+				names, (GDestroyNotify) g_ptr_array_unref);
+	gtk_combo_box_set_active (GTK_COMBO_BOX (combo), active);
+
+	g_object_set_data (G_OBJECT (combo), "nemo-appearance-filling", NULL);
+
+	g_free (stored);
+	g_free (resolved);
+	g_list_free_full (themes, (GDestroyNotify) nemo_theme_info_free);
+}
+
+static void
+appearance_mode_changed (NemoConfigGroup *group,
+			 const char      *key,
+			 gpointer         user_data)
+{
+	GtkBuilder *builder = user_data;
+
+	fill_appearance_combo (GTK_COMBO_BOX_TEXT (gtk_builder_get_object (builder, "appearance_style_combobox")),
+			       NEMO_THEME_KIND_WIDGET, NEMO_PREFERENCES_APPEARANCE_GTK_THEME);
+	fill_appearance_combo (GTK_COMBO_BOX_TEXT (gtk_builder_get_object (builder, "appearance_icon_combobox")),
+			       NEMO_THEME_KIND_ICON, NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
 }
 
 static void
@@ -834,6 +941,58 @@ set_gtk_filechooser_sort_first (GObject *object,
 						   gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (object)));
 }
 
+static void
+nemo_file_management_properties_dialog_setup_appearance_page (GtkBuilder *builder)
+{
+	GtkComboBoxText     *mode;
+	GtkWidget           *style_combo;
+	GtkWidget           *icon_combo;
+	GtkWidget           *note;
+	const char * const  *roots;
+	char                *dir;
+	char                *text;
+
+	mode = GTK_COMBO_BOX_TEXT (gtk_builder_get_object (builder, "appearance_mode_combobox"));
+	gtk_combo_box_text_append_text (mode, _("Follow the system"));
+	gtk_combo_box_text_append_text (mode, _("Light"));
+	gtk_combo_box_text_append_text (mode, _("Dark"));
+
+	bind_builder_enum (builder, nemo_appearance_preferences,
+			   "appearance_mode_combobox",
+			   NEMO_PREFERENCES_APPEARANCE_MODE,
+			   (const char **) appearance_mode_values);
+
+	style_combo = GTK_WIDGET (gtk_builder_get_object (builder, "appearance_style_combobox"));
+	icon_combo = GTK_WIDGET (gtk_builder_get_object (builder, "appearance_icon_combobox"));
+
+	fill_appearance_combo (GTK_COMBO_BOX_TEXT (style_combo),
+			       NEMO_THEME_KIND_WIDGET, NEMO_PREFERENCES_APPEARANCE_GTK_THEME);
+	fill_appearance_combo (GTK_COMBO_BOX_TEXT (icon_combo),
+			       NEMO_THEME_KIND_ICON, NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
+
+	g_signal_connect (style_combo, "changed", G_CALLBACK (appearance_combo_changed),
+			  (gpointer) NEMO_PREFERENCES_APPEARANCE_GTK_THEME);
+	g_signal_connect (icon_combo, "changed", G_CALLBACK (appearance_combo_changed),
+			  (gpointer) NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
+
+	/* Refilter as the mode changes - including a change made outside the
+	 * dialog. Tied to the builder so it goes when the dialog does. */
+	g_signal_connect_object (nemo_appearance_preferences,
+				 "changed::" NEMO_PREFERENCES_APPEARANCE_MODE,
+				 G_CALLBACK (appearance_mode_changed), builder, 0);
+
+	note = GTK_WIDGET (gtk_builder_get_object (builder, "appearance_dropin_label"));
+	roots = nemo_appearance_get_theme_roots ();
+	if (roots != NULL && roots[0] != NULL) {
+		dir = g_build_filename (roots[0], "themes", NULL);
+		text = g_strdup_printf (_("Themes placed in %s and the icons folder beside it "
+					  "are offered here too."), dir);
+		gtk_label_set_text (GTK_LABEL (note), text);
+		g_free (text);
+		g_free (dir);
+	}
+}
+
 static  void
 nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
                                               GtkWindow   *window,
@@ -1096,6 +1255,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     setup_quick_renames(builder);
     connect_quick_renames(builder);
 
+	nemo_file_management_properties_dialog_setup_appearance_page (builder);
 	nemo_file_management_properties_dialog_setup_icon_caption_page (builder);
 	nemo_file_management_properties_dialog_setup_list_column_page (builder);
     nemo_file_management_properties_dialog_setup_plugin_page (builder);

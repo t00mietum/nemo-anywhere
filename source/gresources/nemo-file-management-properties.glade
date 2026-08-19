@@ -2241,6 +2241,218 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   </packing>
                 </child>
                 <child>
+                  <object class="GtkScrolledWindow" id="appearance_scrolledwindow">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="border-width">6</property>
+                    <child>
+                      <object class="GtkViewport" id="appearance_viewport">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <child>
+                          <object class="GtkBox" id="appearance_page_box">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkBox" id="appearance_mode_box">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="border-width">6</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel" id="appearance_mode_heading">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Light and Dark&lt;/b&gt;</property>
+                                    <property name="use-markup">True</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkAlignment" id="appearance_mode_alignment">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="left-padding">40</property>
+                                    <child>
+                                      <object class="GtkBox" id="appearance_mode_hbox">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="spacing">12</property>
+                                        <child>
+                                          <object class="GtkLabel" id="appearance_mode_label">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="label" translatable="yes">_Mode:</property>
+                                            <property name="use-underline">True</property>
+                                            <property name="mnemonic-widget">appearance_mode_combobox</property>
+                                            <property name="xalign">0</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">0</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkComboBoxText" id="appearance_mode_combobox">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkBox" id="appearance_theme_box">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="border-width">6</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel" id="appearance_theme_heading">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Theme&lt;/b&gt;</property>
+                                    <property name="use-markup">True</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkAlignment" id="appearance_theme_alignment">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="left-padding">40</property>
+                                    <child>
+                                      <object class="GtkGrid" id="appearance_theme_grid">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="row-spacing">6</property>
+                                        <property name="column-spacing">12</property>
+                                        <child>
+                                          <object class="GtkLabel" id="appearance_style_label">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="label" translatable="yes">_Style:</property>
+                                            <property name="use-underline">True</property>
+                                            <property name="mnemonic-widget">appearance_style_combobox</property>
+                                            <property name="xalign">0</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">0</property>
+                                            <property name="top-attach">0</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkComboBoxText" id="appearance_style_combobox">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="hexpand">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">1</property>
+                                            <property name="top-attach">0</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="appearance_icon_label">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="label" translatable="yes">_Icons:</property>
+                                            <property name="use-underline">True</property>
+                                            <property name="mnemonic-widget">appearance_icon_combobox</property>
+                                            <property name="xalign">0</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">0</property>
+                                            <property name="top-attach">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkComboBoxText" id="appearance_icon_combobox">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="hexpand">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="left-attach">1</property>
+                                            <property name="top-attach">1</property>
+                                          </packing>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="appearance_dropin_label">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="wrap">True</property>
+                                    <property name="xalign">0</property>
+                                    <property name="margin-top">6</property>
+                                    <property name="margin-start">40</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">2</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="name">appearance</property>
+                    <property name="title" translatable="yes">Appearance</property>
+                    <property name="icon-name">preferences-desktop-theme-symbolic</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
                   <object class="GtkScrolledWindow" id="scrolledwindow4">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
@@ -2328,7 +2540,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                     <property name="name">list-columns</property>
                     <property name="title" translatable="yes">List Columns</property>
                     <property name="icon-name">view-list-symbolic</property>
-                    <property name="position">3</property>
+                    <property name="position">4</property>
                   </packing>
                 </child>
                 <child>
@@ -2814,7 +3026,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                     <property name="name">preview</property>
                     <property name="title" translatable="yes">Preview</property>
                     <property name="icon-name">xapp-prefs-preview-symbolic</property>
-                    <property name="position">4</property>
+                    <property name="position">5</property>
                   </packing>
                 </child>
                 <child>
@@ -3446,7 +3658,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                     <property name="name">toolbar</property>
                     <property name="title" translatable="yes">Toolbar</property>
                     <property name="icon-name">xapp-prefs-toolbar-symbolic</property>
-                    <property name="position">5</property>
+                    <property name="position">6</property>
                   </packing>
                 </child>
                 <child>
@@ -4236,7 +4448,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                     <property name="name">page0</property>
                     <property name="title" translatable="yes">Context Menus</property>
                     <property name="icon-name">open-menu-symbolic</property>
-                    <property name="position">6</property>
+                    <property name="position">7</property>
                   </packing>
                 </child>
                 <child>
@@ -4266,7 +4478,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                     <property name="name">templates</property>
                     <property name="title" translatable="yes">Document Templates</property>
                     <property name="icon-name">folder-templates-symbolic</property>
-                    <property name="position">7</property>
+                    <property name="position">8</property>
                   </packing>
                 </child>
                 <child>
@@ -4295,7 +4507,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                     <property name="name">plugins</property>
                     <property name="title" translatable="yes">Plugins</property>
                     <property name="icon-name">xapp-prefs-plugins-symbolic</property>
-                    <property name="position">8</property>
+                    <property name="position">9</property>
                   </packing>
                 </child>
               </object>

@@ -43,6 +43,11 @@ G_BEGIN_DECLS
 #define NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR                "desktop-is-home-dir"
 
 /* Display  */
+/* Appearance: light/dark mode plus the chosen widget and icon themes. */
+#define NEMO_PREFERENCES_APPEARANCE_MODE		"mode"
+#define NEMO_PREFERENCES_APPEARANCE_GTK_THEME	"gtk-theme"
+#define NEMO_PREFERENCES_APPEARANCE_ICON_THEME	"icon-theme"
+
 #define NEMO_PREFERENCES_SHOW_HIDDEN_FILES			"show-hidden-files"
 #define NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS		"show-advanced-permissions"
 #define NEMO_PREFERENCES_DATE_FORMAT            "date-format"
@@ -305,6 +310,7 @@ extern NemoConfigGroup *nemo_plugin_preferences;
 extern NemoConfigGroup *nemo_menu_config_preferences;
 extern NemoConfigGroup *nemo_search_preferences;
 extern NemoConfigGroup *nemo_media_handling_preferences;
+extern NemoConfigGroup *nemo_appearance_preferences;
 
 /* Cached for fast access and used in nemo-file.c for constructing date/time strings */
 extern GTimeZone      *prefs_current_timezone;

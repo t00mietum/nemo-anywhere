@@ -13,6 +13,13 @@ static const NemoConfigEnumValue enum_ActivationChoice[] = {
 	{ NULL, 0 }
 };
 
+static const NemoConfigEnumValue enum_AppearanceMode[] = {
+	{ "system", 0 },
+	{ "light", 1 },
+	{ "dark", 2 },
+	{ NULL, 0 }
+};
+
 static const NemoConfigEnumValue enum_ClickPolicy[] = {
 	{ "single", 0 },
 	{ "double", 1 },
@@ -98,6 +105,9 @@ static const char *const deflist_thumbnailers_disable[] = { NULL };
 static const NemoConfigKey nemo_config_keys[] = {
 	{ "", "favorites", NEMO_CONFIG_STRING_LIST, NULL, deflist__favorites, NULL, "Favorite files and folders" },
 	{ "", "favorites-root-metadata", NEMO_CONFIG_STRING_LIST, NULL, deflist__favorites_root_metadata, NULL, "Metadata for the favorites root" },
+	{ "appearance", "gtk-theme", NEMO_CONFIG_STRING, "", NULL, NULL, "Widget theme to use, or empty to leave it to the platform" },
+	{ "appearance", "icon-theme", NEMO_CONFIG_STRING, "", NULL, NULL, "Icon theme to use, or empty to leave it to the platform" },
+	{ "appearance", "mode", NEMO_CONFIG_ENUM, "system", NULL, enum_AppearanceMode, "Light or dark appearance, or follow the system" },
 	{ "compact-view", "all-columns-have-same-width", NEMO_CONFIG_BOOL, "false", NULL, NULL, "All columns have same width" },
 	{ "compact-view", "default-zoom-level", NEMO_CONFIG_ENUM, "standard", NULL, enum_ZoomLevel, "Default compact view zoom level" },
 	{ "interface", "clock-use-24h", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
