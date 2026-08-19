@@ -246,8 +246,10 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 Settings are ours, in a file we own, in a format a person can read. There is no
 settings daemon, no compiled schema, and no per-platform store to keep in step.
 
-- One file, `settings.shcl`, in the user's config directory, in the same place
-  and format on Linux, Windows and anywhere else the app builds.
+- One file, `settings.shcl`, in the same format everywhere, in whichever
+  directory the platform holds per-user configuration in: `~/.config` on Linux
+  and BSD, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS. A
+  folder left behind by an older build is moved to the new place on first run.
 - The declared shape of every setting - type, default, allowed values,
   description - lives in a table in the code, and is mirrored by a schema file
   shipped with the app for validating a hand-edited config.
@@ -262,7 +264,7 @@ because nothing remains that can read the old store.
 
 Three separate stores, each with its own lifetime.
 
-- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) live in one plain-text SHCL file, `settings.shcl`, in the user's config directory - the same file and the same format on every platform. Neither the Linux desktop settings database nor the Windows registry is involved any more.
+- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) live in one plain-text SHCL file, `settings.shcl`, in the user's config directory - the same file and the same format on every platform, in whichever directory that platform keeps configuration in. Neither the Linux desktop settings database nor the Windows registry is involved any more.
 	- The file is meant to be read and edited by hand. It holds only what was actually chosen: a value equal to its default is dropped, the way per-folder view state already worked, so the file stays short and a later change to a default still reaches the user. Each key carries its one-line description as a comment.
 	- Edits made while the app is running are picked up straight away, so hand-editing behaves like changing the setting in the UI.
 	- Types, defaults and allowed values live in a table in the code, and a matching schema ships beside the app so `shcl check --schema` can validate a hand-edited file and catch typos.

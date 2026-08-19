@@ -1,6 +1,6 @@
 /* Exercises the settings store: typed reads and writes, defaults, the
  * detailed changed signal, property binding, and the on-disk round trip.
- * Runs against a throwaway XDG_CONFIG_HOME. */
+ * Runs against a throwaway config root. */
 
 #include <config.h>
 
@@ -424,6 +424,7 @@ main (int argc, char *argv[])
 
 	tmp = g_dir_make_tmp ("nemo-config-test-XXXXXX", NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
+	g_setenv ("APPDATA", tmp, TRUE);		/* the config root on Windows */
 	g_setenv ("HOME", tmp, TRUE);
 
 	gtk_init (&argc, &argv);

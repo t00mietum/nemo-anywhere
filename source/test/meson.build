@@ -54,6 +54,17 @@ test('Metadata store test',
   args: []
 )
 
+# Needs the slug define: the point of the test is the path the app really builds.
+test('Config root test',
+  executable('test-nemo-config-root',
+    [ 'test-nemo-config-root.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('User input parse test',
   executable('test-eel-user-input',
     [ 'test-eel-user-input.c' ],

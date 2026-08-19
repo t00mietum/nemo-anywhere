@@ -1,6 +1,6 @@
 /* Exercises the app-owned metadata store: set/unset, GFileInfo overlay,
  * move re-keying (including directory descendants), and the on-disk
- * round trip. Runs against a throwaway XDG_CONFIG_HOME. */
+ * round trip. Runs against a throwaway config root. */
 
 #include <config.h>
 
@@ -50,6 +50,7 @@ main (int argc, char *argv[])
 	tmpdir = g_dir_make_tmp ("nemo-metastore-test-XXXXXX", NULL);
 	g_assert (tmpdir != NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmpdir, TRUE);
+	g_setenv ("APPDATA", tmpdir, TRUE);		/* the config root on Windows */
 
 	/* set / read back */
 	nemo_metadata_store_set_string ("file:///tmp/a", "test-key", "hello");

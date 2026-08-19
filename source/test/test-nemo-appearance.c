@@ -1,7 +1,7 @@
 /* Exercises theme discovery and the light/dark filtering behind the Appearance
  * settings: which themes are offered for the mode in force, how a theme that
  * never declared a mode is judged, and which variant is actually applied.
- * Runs against a throwaway XDG_CONFIG_HOME holding hand-built theme folders. */
+ * Runs against a throwaway config root holding hand-built theme folders. */
 
 #include <config.h>
 
@@ -270,6 +270,7 @@ main (int argc, char *argv[])
 
 	tmp = g_dir_make_tmp ("nemo-appearance-test-XXXXXX", NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
+	g_setenv ("APPDATA", tmp, TRUE);		/* the config root on Windows */
 	g_setenv ("HOME", tmp, TRUE);
 
 	if (!gtk_init_check (&argc, &argv)) {
