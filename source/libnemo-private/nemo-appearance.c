@@ -48,6 +48,15 @@
  * which is exactly where a theme belongs. */
 #define DROPIN_THEME_PRIORITY	GTK_STYLE_PROVIDER_PRIORITY_SETTINGS
 
+/* GTK resolves gtk-theme-name against its own search path and nothing else. A
+ * theme we load ourselves is not on that path, so leaving the name pointing at
+ * it makes GTK fall back to its packaged default sheet - and that fallback
+ * drops the dark variant. The base layer under our sheet then comes up light,
+ * and everything the sheet does not itself style reads light in dark mode: the
+ * breadcrumb buttons and any checked toolbar button, most visibly. Naming a
+ * theme GTK really has keeps that base following the mode. */
+#define BASE_WIDGET_THEME	"Adwaita"
+
 /* The bundled set rides inside the binary as one resource rather than as a
  * couple of thousand loose files, which the packed Windows exe would charge
  * for at every launch. Three prefixes, laid out by
@@ -63,6 +72,12 @@
 #define BUNDLE_ICONS	"/org/nemo/themes/icontheme"
 #define BUNDLE_WIDGETS	"/org/nemo/themes/widgettheme"
 #define BUNDLE_CATALOG	"/org/nemo/themes/catalog"
+
+/* Nemo's own art, in the main resource rather than the theme bundle - it is not
+ * a theme and is never picked. Installed as loose files too, but the portable
+ * Windows bundle stages only the GTK stack's own hicolor, so without this every
+ * nemo-* name misses there. See the note in gresources/nemo.gresource.xml. */
+#define APP_ICONS	"/org/nemo/appicons"
 
 /* Under whatever the user picked, in this order - Adwaita stopped drawing the
  * emblems and the colour mimetypes, and the legacy set is where they went. */
@@ -81,7 +96,7 @@ static gboolean         desktop_dark;
 
 /* What the platform had chosen before we touched anything - the Windows bundle
  * names both in its settings.ini, a desktop names them in its own settings.
- * "System default" in the picker means going back to exactly these, which
+ * The "Nemo Anywhere" row in the picker means going back to exactly these,
  * without keeping them would leave the last explicit choice in place until the
  * next launch. */
 static char            *platform_gtk_theme;
@@ -334,8 +349,12 @@ scan_add (ScanState  *state,
 	}
 
 	/* A widget theme carrying gtk-dark.css covers both on its own - GTK swaps
-	 * sheets on gtk-application-prefer-dark-theme without changing the name. */
-	if (has_dark_css) {
+	 * sheets on gtk-application-prefer-dark-theme without changing the name.
+	 * A theme that stated its own modes is not second-guessed, same rule as
+	 * infer_fits: a dropped-in theme can carry a dark sheet and still be half
+	 * of a declared pair, and taking the sheet's word for it would put both
+	 * halves in the dark list under one name. */
+	if (has_dark_css && !info->declared) {
 		info->fits = NEMO_THEME_FITS_BOTH;
 		info->declared = TRUE;
 		g_clear_pointer (&info->counterpart, g_free);
@@ -744,6 +763,54 @@ nemo_appearance_theme_for_mode (NemoThemeKind kind, const char *name)
 	return out != NULL ? out : g_strdup (name);
 }
 
+/* Both kinds carry X-Nemo-Style, so pairing them is a lookup rather than a
+ * table that would go stale every time a theme is added. */
+char *
+nemo_appearance_icons_for_widget_theme (const char *widget_name)
+{
+	GList *themes;
+	GList *node;
+	char  *style = NULL;
+	char  *out = NULL;
+	guint  fits;
+
+	if (widget_name == NULL || widget_name[0] == '\0') {
+		return NULL;
+	}
+
+	themes = nemo_appearance_list_themes (NEMO_THEME_KIND_WIDGET, NEMO_THEME_FITS_BOTH);
+	for (node = themes; node != NULL; node = node->next) {
+		NemoThemeInfo *info = node->data;
+
+		if (g_strcmp0 (info->name, widget_name) == 0 && info->style != NULL) {
+			style = g_strdup (info->style);
+			break;
+		}
+	}
+	g_list_free_full (themes, (GDestroyNotify) nemo_theme_info_free);
+
+	if (style == NULL) {
+		return NULL;
+	}
+
+	/* Only what suits the mode in force, so the answer is one the picker is
+	 * actually offering rather than the other half of a light/dark pair. */
+	fits = nemo_appearance_is_dark () ? NEMO_THEME_FITS_DARK : NEMO_THEME_FITS_LIGHT;
+	themes = nemo_appearance_list_themes (NEMO_THEME_KIND_ICON, fits);
+	for (node = themes; node != NULL; node = node->next) {
+		NemoThemeInfo *info = node->data;
+
+		if (g_strcmp0 (info->style, style) == 0) {
+			out = g_strdup (info->name);
+			break;
+		}
+	}
+	g_list_free_full (themes, (GDestroyNotify) nemo_theme_info_free);
+	g_free (style);
+
+	return out;
+}
+
 /* ---- Applying ---- */
 
 /* TRUE once GTK can resolve @name by itself, so we can hand it the name and
@@ -919,7 +986,7 @@ apply_appearance (void)
 
 	g_object_set (settings, "gtk-application-prefer-dark-theme", dark, NULL);
 
-	/* "System default" is not "do nothing": the Windows bundle names a theme
+	/* The app's own default is not "do nothing": the Windows bundle names a theme
 	 * of its own in settings.ini, and that theme lives inside the binary. So
 	 * the platform's answer goes through exactly the same loaders as an
 	 * explicit choice - on a desktop that already has its theme installed the
@@ -942,7 +1009,14 @@ apply_appearance (void)
 	} else if (load_bundled_widget_theme (resolved, dark)) {
 		widget_theme_source = "bundled";
 	} else {
+		/* Without this the sheet from the last choice that did resolve
+		 * stays on screen, so a bad name looks like nothing happened. */
+		clear_dropin_provider ();
 		g_warning ("appearance: widget theme \"%s\" not found", resolved);
+	}
+
+	if (strcmp (widget_theme_source, "installed") != 0) {
+		g_object_set (settings, "gtk-theme-name", BASE_WIDGET_THEME, NULL);
 	}
 	g_free (resolved);
 	g_free (wanted);
@@ -1042,6 +1116,10 @@ nemo_appearance_init (void)
 	g_signal_connect (gtk_settings_get_default (),
 			  "notify::gtk-application-prefer-dark-theme",
 			  G_CALLBACK (prefer_dark_notify_cb), NULL);
+
+	/* Goes on once and stays under whatever the user picks: a later resource
+	 * path only wins for a name both carry, and every name here is nemo-*. */
+	gtk_icon_theme_add_resource_path (gtk_icon_theme_get_default (), APP_ICONS);
 
 	/* Icon themes need no special loader - GTK searches whatever it is told. */
 	for (r = 0; theme_roots != NULL && theme_roots[r] != NULL; r++) {

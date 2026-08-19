@@ -488,16 +488,50 @@ nemo_file_management_properties_dialog_setup_templates_page (GtkBuilder *builder
  *
  * Only the themes drawn for the mode in force are offered, so the two lists
  * change as the mode does. Each row remembers the theme's directory name in a
- * parallel array; row 0 is always "system default", stored as an empty string.
+ * parallel array; row 0 is the app's own default - whatever the platform picked,
+ * which on the bundled targets is the theme the app ships with - and is stored
+ * as an empty string.
  */
 
 #define APPEARANCE_ROW_NAMES	"nemo-appearance-row-names"
+#define APPEARANCE_KEY		"nemo-appearance-key"
+
+static void fill_appearance_combo (GtkComboBoxText *combo,
+				   NemoThemeKind    kind,
+				   const char      *key);
+
+/* Picking a look should bring its icons with it - a Windows 11 window frame
+ * full of macOS icons is nobody's intent. Only when the style has an icon set
+ * of its own; where it has none (Windows 10 today) the icons stay put rather
+ * than jumping to something unrelated. */
+static void
+match_icons_to_style (GtkBuilder *builder, const char *widget_name)
+{
+	char *icons;
+
+	if (widget_name != NULL && widget_name[0] == '\0') {
+		/* Back to the platform's own answer for both halves. */
+		icons = g_strdup ("");
+	} else {
+		icons = nemo_appearance_icons_for_widget_theme (widget_name);
+		if (icons == NULL) {
+			return;
+		}
+	}
+
+	nemo_config_set_string (nemo_appearance_preferences,
+				NEMO_PREFERENCES_APPEARANCE_ICON_THEME, icons);
+	fill_appearance_combo (GTK_COMBO_BOX_TEXT (gtk_builder_get_object (builder, "appearance_icon_combobox")),
+			       NEMO_THEME_KIND_ICON, NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
+	g_free (icons);
+}
 
 static void
 appearance_combo_changed (GtkComboBox *combo, gpointer user_data)
 {
-	const char *key = user_data;
+	const char *key = g_object_get_data (G_OBJECT (combo), APPEARANCE_KEY);
 	GPtrArray  *names;
+	const char *chosen;
 	int         active;
 
 	if (g_object_get_data (G_OBJECT (combo), "nemo-appearance-filling") != NULL) {
@@ -511,8 +545,12 @@ appearance_combo_changed (GtkComboBox *combo, gpointer user_data)
 		return;
 	}
 
-	nemo_config_set_string (nemo_appearance_preferences, key,
-				g_ptr_array_index (names, active));
+	chosen = g_ptr_array_index (names, active);
+	nemo_config_set_string (nemo_appearance_preferences, key, chosen);
+
+	if (g_strcmp0 (key, NEMO_PREFERENCES_APPEARANCE_GTK_THEME) == 0) {
+		match_icons_to_style (GTK_BUILDER (user_data), chosen);
+	}
 }
 
 static void
@@ -542,7 +580,7 @@ fill_appearance_combo (GtkComboBoxText *combo,
 	g_object_set_data (G_OBJECT (combo), "nemo-appearance-filling", GINT_TO_POINTER (1));
 
 	gtk_combo_box_text_remove_all (combo);
-	gtk_combo_box_text_append_text (combo, _("System default"));
+	gtk_combo_box_text_append_text (combo, _("Nemo Anywhere"));
 	g_ptr_array_add (names, g_strdup (""));
 
 	for (node = themes; node != NULL; node = node->next) {
@@ -970,10 +1008,12 @@ nemo_file_management_properties_dialog_setup_appearance_page (GtkBuilder *builde
 	fill_appearance_combo (GTK_COMBO_BOX_TEXT (icon_combo),
 			       NEMO_THEME_KIND_ICON, NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
 
-	g_signal_connect (style_combo, "changed", G_CALLBACK (appearance_combo_changed),
-			  (gpointer) NEMO_PREFERENCES_APPEARANCE_GTK_THEME);
-	g_signal_connect (icon_combo, "changed", G_CALLBACK (appearance_combo_changed),
-			  (gpointer) NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
+	g_object_set_data (G_OBJECT (style_combo), APPEARANCE_KEY,
+			   (gpointer) NEMO_PREFERENCES_APPEARANCE_GTK_THEME);
+	g_object_set_data (G_OBJECT (icon_combo), APPEARANCE_KEY,
+			   (gpointer) NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
+	g_signal_connect (style_combo, "changed", G_CALLBACK (appearance_combo_changed), builder);
+	g_signal_connect (icon_combo, "changed", G_CALLBACK (appearance_combo_changed), builder);
 
 	/* Refilter as the mode changes - including a change made outside the
 	 * dialog. Tied to the builder so it goes when the dialog does. */

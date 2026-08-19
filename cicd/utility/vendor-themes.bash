@@ -550,7 +550,17 @@ fBuildWidgetTheme(){
 	[[ -f "$dest/gtk-3.0/gtk.css" ]] || { fEcho "SKIPPED: $outName produced no gtk.css"; rm -rf "$dest"; return 0; }
 
 	## A theme with its own dark sheet needs no counterpart - GTK swaps for it.
-	if [[ -f "$dest/gtk-3.0/gtk-dark.css" ]]; then modes="light;dark"; counterpart=""; fi
+	## Where the catalog names one anyway the pair wins, because that dark half
+	## is a theme upstream drew in its own right rather than the light one's
+	## variant sheet - and the redundant sheet goes, or both halves claim dark
+	## and the picker lists the style twice.
+	if [[ -f "$dest/gtk-3.0/gtk-dark.css" ]]; then
+		if [[ -n "$counterpart" ]]; then
+			rm -f "$dest/gtk-3.0/gtk-dark.css"
+		else
+			modes="light;dark"
+		fi
+	fi
 
 	fCopyLicense "$repo" "$dest"
 

@@ -21,6 +21,65 @@
     <file alias="icons/knob.png">knob.png</file>
     <file alias="icons/thumbnail_frame.png">thumbnail_frame.png</file>
 
+
+    <!-- Nemo's own art - the sidebar and location glyphs, the sort-menu icons,
+         the eject icon and the progress ring. Installed as loose files in the
+         prefix, which the portable Windows bundle never carries: it stages only
+         the GTK stack's own hicolor, so every nemo-* name missed and the status
+         bar and location toggle drew image-missing. Riding inside the binary
+         answers that everywhere and costs the packed exe no files.
+
+         gtk_icon_theme_add_resource_path treats what it finds as part of
+         hicolor, so the aliases flip the on-disk <context>/<size> layout round
+         to the <size>/<context> hicolor's index.theme actually names.
+
+         Keep in step with publicIcons in source/data/icons/meson.build. -->
+    <file alias="appicons/16x16/apps/nemo-anywhere.png">hicolor/apps/16x16/nemo-anywhere.png</file>
+    <file alias="appicons/22x22/apps/nemo-anywhere.png">hicolor/apps/22x22/nemo-anywhere.png</file>
+    <file alias="appicons/24x24/apps/nemo-anywhere.png">hicolor/apps/24x24/nemo-anywhere.png</file>
+    <file alias="appicons/32x32/apps/nemo-anywhere.png">hicolor/apps/32x32/nemo-anywhere.png</file>
+    <file alias="appicons/scalable/apps/nemo-anywhere.svg">hicolor/apps/scalable/nemo-anywhere.svg</file>
+    <file alias="appicons/16x16/actions/nemo-eject.png">hicolor/actions/16x16/nemo-eject.png</file>
+    <file alias="appicons/16x16/actions/menu-bullet.png">hicolor/actions/16x16/menu-bullet.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-up.png">hicolor/actions/16x16/menu-sort-up.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-up-free.png">hicolor/actions/16x16/menu-sort-up-free.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-down.png">hicolor/actions/16x16/menu-sort-down.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-down-free.png">hicolor/actions/16x16/menu-sort-down-free.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-right.png">hicolor/actions/16x16/menu-sort-right.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-right-free.png">hicolor/actions/16x16/menu-sort-right-free.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-left.png">hicolor/actions/16x16/menu-sort-left.png</file>
+    <file alias="appicons/16x16/actions/menu-sort-left-free.png">hicolor/actions/16x16/menu-sort-left-free.png</file>
+    <file alias="appicons/16x16/actions/menu-none.png">hicolor/actions/16x16/menu-none.png</file>
+    <file alias="appicons/32x32/actions/nemo-eject.png">hicolor/actions/32x32/nemo-eject.png</file>
+    <file alias="appicons/scalable/actions/nemo-location-symbolic.svg">hicolor/actions/scalable/nemo-location-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-location-symbolic-rtl.svg">hicolor/actions/scalable/nemo-location-symbolic-rtl.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-hide-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-hide-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-hide-symbolic-rtl.svg">hicolor/actions/scalable/nemo-sidebar-hide-symbolic-rtl.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-show-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-show-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-show-symbolic-rtl.svg">hicolor/actions/scalable/nemo-sidebar-show-symbolic-rtl.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-tree-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-tree-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-tree-symbolic-rtl.svg">hicolor/actions/scalable/nemo-sidebar-tree-symbolic-rtl.svg</file>
+    <file alias="appicons/scalable/actions/nemo-sidebar-places-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-places-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-auto-arrange-symbolic.svg">hicolor/actions/scalable/nemo-auto-arrange-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-desktop-scale-symbolic.svg">hicolor/actions/scalable/nemo-desktop-scale-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-horizontal-layout-symbolic.svg">hicolor/actions/scalable/nemo-horizontal-layout-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-horizontal-layout-wide-symbolic.svg">hicolor/actions/scalable/nemo-horizontal-layout-wide-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-vertical-layout-symbolic.svg">hicolor/actions/scalable/nemo-vertical-layout-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-vertical-layout-wide-symbolic.svg">hicolor/actions/scalable/nemo-vertical-layout-wide-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-recursive-search-symbolic.svg">hicolor/actions/scalable/nemo-recursive-search-symbolic.svg</file>
+    <file alias="appicons/scalable/actions/nemo-recursive-search-symbolic-rtl.svg">hicolor/actions/scalable/nemo-recursive-search-symbolic-rtl.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-0-symbolic.svg">hicolor/status/scalable/nemo-progress-0-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-10-symbolic.svg">hicolor/status/scalable/nemo-progress-10-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-20-symbolic.svg">hicolor/status/scalable/nemo-progress-20-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-30-symbolic.svg">hicolor/status/scalable/nemo-progress-30-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-40-symbolic.svg">hicolor/status/scalable/nemo-progress-40-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-50-symbolic.svg">hicolor/status/scalable/nemo-progress-50-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-60-symbolic.svg">hicolor/status/scalable/nemo-progress-60-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-70-symbolic.svg">hicolor/status/scalable/nemo-progress-70-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-80-symbolic.svg">hicolor/status/scalable/nemo-progress-80-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-90-symbolic.svg">hicolor/status/scalable/nemo-progress-90-symbolic.svg</file>
+    <file alias="appicons/scalable/status/nemo-progress-100-symbolic.svg">hicolor/status/scalable/nemo-progress-100-symbolic.svg</file>
+
     <file>nemo-style-fallback.css</file>
     <file>nemo-style-fallback-mandatory.css</file>
     <file>nemo-style-application.css</file>
