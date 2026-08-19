@@ -1619,7 +1619,6 @@
 		<file alias="widgettheme/Windows-10/gtk-3.0/assets/slider-vert-left@2.png">vendor/themes/Windows-10/gtk-3.0/assets/slider-vert-left@2.png</file>
 		<file alias="widgettheme/Windows-10/gtk-3.0/assets/slider-vert.png">vendor/themes/Windows-10/gtk-3.0/assets/slider-vert.png</file>
 		<file alias="widgettheme/Windows-10/gtk-3.0/assets/slider-vert@2.png">vendor/themes/Windows-10/gtk-3.0/assets/slider-vert@2.png</file>
-		<file alias="widgettheme/Windows-10/gtk-3.0/gtk-dark.css" compressed="true">vendor/themes/Windows-10/gtk-3.0/gtk-dark.css</file>
 		<file alias="widgettheme/Windows-10/gtk-3.0/gtk.css" compressed="true">vendor/themes/Windows-10/gtk-3.0/gtk.css</file>
 		<file alias="widgettheme/Windows-10/gtk-3.0/settings.ini">vendor/themes/Windows-10/gtk-3.0/settings.ini</file>
 		<file alias="catalog/themes/Windows-10/index.theme" compressed="true">vendor/themes/Windows-10/index.theme</file>
@@ -2222,7 +2221,6 @@
 		<file alias="widgettheme/macOS/gtk-3.0/assets/radio-unchecked.png">vendor/themes/macOS/gtk-3.0/assets/radio-unchecked.png</file>
 		<file alias="widgettheme/macOS/gtk-3.0/assets/radio-unchecked@2.png">vendor/themes/macOS/gtk-3.0/assets/radio-unchecked@2.png</file>
 		<file alias="widgettheme/macOS/gtk-3.0/assets/unfocused.svg" compressed="true">vendor/themes/macOS/gtk-3.0/assets/unfocused.svg</file>
-		<file alias="widgettheme/macOS/gtk-3.0/gtk-dark.css" compressed="true">vendor/themes/macOS/gtk-3.0/gtk-dark.css</file>
 		<file alias="widgettheme/macOS/gtk-3.0/gtk-solid-dark.css" compressed="true">vendor/themes/macOS/gtk-3.0/gtk-solid-dark.css</file>
 		<file alias="widgettheme/macOS/gtk-3.0/gtk-solid.css" compressed="true">vendor/themes/macOS/gtk-3.0/gtk-solid.css</file>
 		<file alias="widgettheme/macOS/gtk-3.0/gtk.css" compressed="true">vendor/themes/macOS/gtk-3.0/gtk.css</file>

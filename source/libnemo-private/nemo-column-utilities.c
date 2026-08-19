@@ -58,13 +58,27 @@ get_builtin_columns (void)
 					       "label", _("Type"),
 					       "description", _("The general type of the file."),
 					       NULL));
-    columns = g_list_append (columns,
-                 g_object_new (NEMO_TYPE_COLUMN,
-                           "name", "detailed_type",
-                           "attribute", "detailed_type",
-                           "label", _("Detailed Type"),
-                           "description", _("The specific type of the file."),
-                           NULL));
+#if NEMO_COLUMNS_SHOW_DETAILED_TYPE
+	columns = g_list_append (columns,
+				 g_object_new (NEMO_TYPE_COLUMN,
+					       "name", "detailed_type",
+					       "attribute", "detailed_type",
+					       "label", _("Detailed Type"),
+					       "description", _("The specific type of the file."),
+					       NULL));
+#endif
+	/* Three dates, the same three on every platform. The times themselves
+	 * come from GIO, which reads whatever the OS keeps them in - statx birth
+	 * time on Linux, the Win32 creation time on Windows - so nothing here is
+	 * per-platform. The "- Time" twins these replaced showed the same instant
+	 * a second way and doubled the length of the column list. */
+	columns = g_list_append (columns,
+				 g_object_new (NEMO_TYPE_COLUMN,
+					       "name", "date_created",
+					       "attribute", "date_created",
+					       "label", _("Date Created"),
+					       "description", _("The date the file was created."),
+					       NULL));
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "date_modified",
@@ -72,36 +86,12 @@ get_builtin_columns (void)
 					       "label", _("Date Modified"),
 					       "description", _("The date the file was modified."),
 					       NULL));
-    columns = g_list_append (columns,
-                 g_object_new (NEMO_TYPE_COLUMN,
-                           "name", "date_modified_with_time",
-                           "attribute", "date_modified_with_time",
-                           "label", _("Modified - Time"),
-                           "description", _("The date the file was modified."),
-                           "xalign", 1.0,
-                           NULL));
-
-    columns = g_list_append (columns,
-                 g_object_new (NEMO_TYPE_COLUMN,
-                           "name", "date_created",
-                           "attribute", "date_created",
-                           "label", _("Date Created"),
-                           "description", _("The date the file was created."),
-                           NULL));
-    columns = g_list_append (columns,
-                 g_object_new (NEMO_TYPE_COLUMN,
-                           "name", "date_created_with_time",
-                           "attribute", "date_created_with_time",
-                           "label", _("Created - Time"),
-                           "description", _("The date the file was created."),
-                           NULL));
-
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "date_accessed",
 					       "attribute", "date_accessed",
-					       "label", _("Date Accessed"),
-					       "description", _("The date the file was accessed."),
+					       "label", _("Date Read"),
+					       "description", _("The date the file was last read."),
 					       NULL));
 
 #ifndef G_OS_WIN32
@@ -139,6 +129,7 @@ get_builtin_columns (void)
 					       NULL));
 #endif
 
+#if NEMO_COLUMNS_SHOW_MIME_TYPE
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "mime_type",
@@ -146,6 +137,7 @@ get_builtin_columns (void)
 					       "label", _("MIME Type"),
 					       "description", _("The mime type of the file."),
 					       NULL));
+#endif
 #ifdef HAVE_SELINUX
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,

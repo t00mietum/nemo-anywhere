@@ -1,6 +1,9 @@
+# ../data/icons is on the search list so the manifest can name nemo's own art
+# by its own repo-relative path and alias it into the resource under a hicolor
+# layout - see the note in nemo.gresource.xml.
 gresources = gnome.compile_resources(
   'nemo-resources', 'nemo.gresource.xml',
-  source_dir: '.',
+  source_dir: ['.', '../data/icons'],
   c_name: 'nemo',
   install_header: false,
   install: false

@@ -185,7 +185,7 @@ field: list-view.default-zoom-level
 
 field: list-view.enable-folder-expansion
 	type: bool
-	default: false
+	default: true
 	desc: If true, allow folders with content to be expanded in the current view.
 
 field: plugins.disabled-actions
@@ -322,7 +322,7 @@ field: preferences.inherit-folder-viewer
 
 field: preferences.inherit-show-thumbnails
 	type: bool
-	default: false
+	default: true
 	desc: Inherit thumbnail visibility from parent
 
 field: preferences.last-server-connect-method
@@ -480,7 +480,7 @@ field: preferences.show-up-icon-toolbar
 field: preferences.size-prefixes
 	type: string
 	allowed: base-10, base-10-full, base-2, base-2-full
-	default: base-10
+	default: base-2
 	desc: Prefixes used for file sizes
 
 field: preferences.sort-directories-first

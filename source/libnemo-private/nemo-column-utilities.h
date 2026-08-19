@@ -28,6 +28,14 @@
 #include <libnemo-extension/nemo-column.h>
 #include <libnemo-private/nemo-file.h>
 
+/* Two type columns nobody outside a terminal wants to read: the raw mime type
+ * ("application/vnd.oasis.opendocument.text") and the long-form description
+ * beside the plain Type column that already says the same thing shorter. Off
+ * here rather than deleted, because the attributes behind them are still what
+ * the properties window and the sort menu use. Flip to 1 to offer them again. */
+#define NEMO_COLUMNS_SHOW_MIME_TYPE		0
+#define NEMO_COLUMNS_SHOW_DETAILED_TYPE		0
+
 GList *nemo_get_all_columns       (void);
 GList *nemo_get_common_columns    (void);
 GList *nemo_get_columns_for_file (NemoFile *file);

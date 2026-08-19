@@ -169,6 +169,19 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Bugs
 
+- ✅ In dark mode the breadcrumb bar and the checked view buttons kept a light background, unreadable against everything around them.
+	- Cause: a bundled theme is loaded as a stylesheet of our own, but the theme *name* was left pointing at it. GTK cannot resolve a name it has never seen on disk, falls back to its packaged sheet, and drops the dark half while doing so - so the layer under ours was the light one. Anything our sheet did not itself paint showed it through.
+	- Fixed: the name now points at a theme GTK really has, so the base follows light/dark while our sheet sits on top. Confirmed by eye, and by reproducing it the other way first.
+	- Also fixed alongside: choosing a theme that cannot be found left the previous one on screen, so a bad name looked like nothing had happened.
+
+- ✅ The three view buttons at the bottom left drew as broken-image placeholders.
+	- Cause: none of the app's own artwork was in the Windows bundle at all. Only the toolkit's icons were packaged, so every one of our own icon names missed - the location button in the toolbar was the same failure.
+	- Fixed: the app's artwork now rides inside the executable, the same way the bundled themes do. Costs no extra files, so nothing is added to startup time, and it works on every platform including a relocated install.
+
+- ✅ The theme picker offered "macOS" and "Windows 10" twice in dark mode, and one of each was the light theme.
+	- Cause: those two themes ship a dark sheet of their own upstream *and* have a separately drawn dark half that we also bundle, so both halves claimed dark.
+	- Fixed: where a light/dark pair is named, the pair wins and the redundant sheet is dropped. A theme that states which modes it suits is no longer second-guessed either, so a hand-dropped theme cannot bring the fault back.
+
 - ✅ On Windows a drive root is named `\` everywhere except the sidebar - the window title reads `\` and the breadcrumb reads `(C:) Windows` while the sidebar has `Windows (C:)`. Seen on this box browsing `C:\`.
 	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
 	- Three different sources were in play: the basename, which is `\` for every drive alike; the volume monitor, which says `(C:) Windows`; and the sidebar's own string.
@@ -833,11 +846,25 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Default settings changed: folder expanders on in list view, binary size prefixes (KiB/MiB), and thumbnail visibility inherited from the parent folder.
+
+- ✅ List columns trimmed to one row per idea.
+	- Three dates, the same three everywhere: Date Created, Date Modified (on by default) and Date Read. The "- Time" twins of the first two are gone; they showed the same instant a second way. The times themselves come from whatever each OS keeps them in, so nothing here is per-platform.
+	- MIME Type and Detailed Type are no longer offered - neither reads as anything but debug output beside the plain Type column. Off behind a named switch in the source rather than deleted, since the underlying values are still what the properties window and the sort menu use.
+
+- ✅ Appearance page: picking a Style now moves the Icons choice to match it, so a Windows 11 window frame no longer comes with macOS icons. Where a style has no icon set of its own the icons stay put. The note about drop-in theme folders sits further down the page, clear of the two pickers.
+
+- ✅ "System default" in both theme pickers now reads "Nemo Anywhere" - on the bundled targets it is the app's own look, not the platform's.
+
+- 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
+
+- 🔘 Search options: Flat [ ]  Hierarchical [ ]
+
 - ✅ Settings belong where each platform keeps them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS. Linux and BSD keep `~/.config`. Themes stay where they were.
 	- A folder left in the old place is moved across on first run, so nobody starts from defaults.
 	- Covered by a test that sandboxes both roots and watches the move happen; it fails without the fix.
 
-- ✅ The Windows executable takes far too long to start. **14.2s to 3.4s**, and the executable shrank from 39.8 MB to 33.5 MB.
+- ✅ The Windows executable takes too long to start. **14.2s to 3.4s**, and the executable shrank from 39.8 MB to 33.5 MB.
 	- Measured first: the packed single exe reached even `--version` in 14.2s against 0.9s for the same build as a plain folder, and all of the difference is spent before our own code runs. The packer charges about 2.8 ms for every file it carries, and the bundled themes were a couple of thousand of them. The packer's own compression and mapping settings were measured and change nothing.
 	- The bundled themes now ride inside the executable as one compiled-in resource instead of ~2,200 loose files. The sysroot's full Adwaita and its legacy set - 2,693 files to answer the ~180 names we ask of them, plus 33 X11 cursors that do nothing on Windows - are replaced by our own trimmed copies. The whole folder went from 4,840 files to 152.
 	- Trimming Adwaita turned up three faults in the theme resolver that had been quietly costing every bundled theme icons, `emblem-symbolic-link` among them - the one every symlinked file in the view wears. All the bundled themes were rebuilt.
@@ -887,7 +914,7 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 - 🔘 Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
 	- 🔘 '~' should work on Windows too.
-	- 🔘 Allow environment variables in bookmarks, pathnames, etc.
+	- 🔘 Allow environment variables in bookmarks, pathnames, command-line, etc.
 		- E.g. $HOME on Linux, %USERPROFILE% on Windows.
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.

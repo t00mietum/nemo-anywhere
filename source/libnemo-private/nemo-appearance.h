@@ -88,6 +88,12 @@ void     nemo_theme_info_free      (NemoThemeInfo *info);
  * Newly allocated; NULL in, NULL out. */
 char    *nemo_appearance_theme_for_mode (NemoThemeKind kind, const char *name);
 
+/* The icon theme drawn to match widget theme @widget_name. Both kinds record
+ * the look they imitate, so Fluent's window frames pair with Fluent's icons.
+ * NULL when the style has no icon set of its own, or @widget_name is unknown.
+ * Newly allocated. */
+char    *nemo_appearance_icons_for_widget_theme (const char *widget_name);
+
 /* Where drop-in themes go, user first, NULL-terminated. Owned by us. */
 const char * const *nemo_appearance_get_theme_roots (void);
 
