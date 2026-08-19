@@ -197,14 +197,23 @@ nemo_main_application_close_all_windows (NemoApplication *self)
 /* The splash stands in until the window is not merely up but finished - the
  * view in place and the folder listed to the end. */
 
-/* Nothing may keep it up indefinitely: a location that never answers would
- * otherwise leave it sitting over a window that is perfectly usable. */
-#define SPLASH_MAX_SECONDS	25
+/* Whichever comes first: the folder listed to the end, or a second after the
+ * view is on screen. A big folder takes far longer to list than it does to be
+ * worth looking at - C:\Windows\System32 measured 21 seconds, all of it spent
+ * covering a window that was already usable. */
+#define SPLASH_VIEW_GRACE_US	(1 * G_USEC_PER_SEC)
 #define SPLASH_POLL_MS		100
+
+/* And nothing may keep it up indefinitely, for the case where the view never
+ * arrives at all because the location never answers. */
+#define SPLASH_MAX_SECONDS	25
 
 /* Weak, so a window closed while still loading cannot leave the watch holding
  * a freed pointer. */
 static NemoWindow *splash_watch_window;
+
+/* Monotonic microseconds at the first poll that had the view on screen. */
+static gint64      splash_view_seen;
 
 static gboolean
 drop_splash_idle (gpointer data)
@@ -221,6 +230,7 @@ splash_watch_stop (void)
 					      (gpointer *) &splash_watch_window);
 		splash_watch_window = NULL;
 	}
+	splash_view_seen = 0;
 }
 
 /* Polled rather than hung off the window's draw signal: nothing guarantees a
@@ -250,7 +260,17 @@ splash_watch_cb (gpointer data)
 	}
 
 	view = nemo_window_slot_get_current_view (slot);
-	if (view == NULL || nemo_view_get_loading (view)) {
+	if (view == NULL) {
+		return G_SOURCE_CONTINUE;
+	}
+
+	/* The first poll with the view on screen starts its last second. */
+	if (splash_view_seen == 0) {
+		splash_view_seen = g_get_monotonic_time ();
+	}
+
+	if (nemo_view_get_loading (view) &&
+	    g_get_monotonic_time () - splash_view_seen < SPLASH_VIEW_GRACE_US) {
 		return G_SOURCE_CONTINUE;
 	}
 
