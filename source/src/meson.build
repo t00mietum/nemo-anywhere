@@ -68,6 +68,10 @@ nemoCommon_sources = [
 nemoWindow_sources = [
   'nemo-main-application.c',
   'nemo-main.c',
+  # Win32 only inside; compiles to nothing elsewhere. Its own file because
+  # windows.h defines DELETE, which collides with identifiers in nemo-view.c
+  # and would spread that problem into whatever included it.
+  'nemo-splash-win32.c',
 ]
 nemoWindow_headers = [
   'nemo-main-application.h',
@@ -114,7 +118,7 @@ endif
 # static and the linker would otherwise drop the self-registering resource object.
 nemo = executable('nemo-anywhere',
   nemoCommon_sources + nemoWindow_sources + nemo_win_res +
-    (is_windows ? gresources : []),
+    (is_windows ? gresources + themeGresources : []),
   include_directories: [ rootInclude ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,

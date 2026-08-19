@@ -48,6 +48,26 @@
  * which is exactly where a theme belongs. */
 #define DROPIN_THEME_PRIORITY	GTK_STYLE_PROVIDER_PRIORITY_SETTINGS
 
+/* The bundled set rides inside the binary as one resource rather than as a
+ * couple of thousand loose files, which the packed Windows exe would charge
+ * for at every launch. Three prefixes, laid out by
+ * cicd/utility/gen-theme-resources.py:
+ *
+ *	icontheme/<name>/...	pointed at with gtk_icon_theme_add_resource_path
+ *	widgettheme/<name>/...	CSS we load ourselves, same as a drop-in
+ *	catalog/<kind>/<name>/index.theme
+ *
+ * The catalog exists because GTK never reads index.theme off a resource path -
+ * it treats what it finds there as part of hicolor - and ours carry the style,
+ * the modes and the light/dark counterpart the picker needs. */
+#define BUNDLE_ICONS	"/org/nemo/themes/icontheme"
+#define BUNDLE_WIDGETS	"/org/nemo/themes/widgettheme"
+#define BUNDLE_CATALOG	"/org/nemo/themes/catalog"
+
+/* Under whatever the user picked, in this order - Adwaita stopped drawing the
+ * emblems and the colour mimetypes, and the legacy set is where they went. */
+static const char *fallback_icon_themes[] = { "AdwaitaLegacy", "Adwaita", NULL };
+
 static char           **theme_roots;		/* user first, NULL-terminated */
 static GtkCssProvider  *dropin_provider;
 static gboolean         initialized;
@@ -66,6 +86,10 @@ static gboolean         desktop_dark;
  * next launch. */
 static char            *platform_gtk_theme;
 static char            *platform_icon_theme;
+
+/* Where the widget theme in force came from - installed, drop-in, or inside
+ * the binary. Reported in the one debug line this box can check a launch by. */
+static const char      *widget_theme_source = "none";
 
 /* ---- Roots ---- */
 
@@ -321,6 +345,153 @@ scan_add (ScanState  *state,
 	g_ptr_array_add (state->order, info);
 }
 
+/* ---- The bundled set, out of the binary ---- */
+
+static const char *
+catalog_dir (NemoThemeKind kind)
+{
+	return kind == NEMO_THEME_KIND_ICON
+		? BUNDLE_CATALOG "/icons" : BUNDLE_CATALOG "/themes";
+}
+
+static gboolean
+resource_exists (const char *path)
+{
+	return g_resources_get_info (path, G_RESOURCE_LOOKUP_FLAGS_NONE,
+				     NULL, NULL, NULL);
+}
+
+static gboolean
+bundled_theme_exists (NemoThemeKind kind, const char *name)
+{
+	char     *path;
+	gboolean  found;
+
+	if (name == NULL || name[0] == '\0') {
+		return FALSE;
+	}
+
+	path = g_strconcat (catalog_dir (kind), "/", name, "/index.theme", NULL);
+	found = resource_exists (path);
+	g_free (path);
+
+	return found;
+}
+
+static GKeyFile *
+bundled_theme_index (NemoThemeKind kind, const char *name)
+{
+	GKeyFile *keys;
+	GBytes   *bytes;
+	char     *path;
+
+	path = g_strconcat (catalog_dir (kind), "/", name, "/index.theme", NULL);
+	bytes = g_resources_lookup_data (path, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+	g_free (path);
+
+	if (bytes == NULL) {
+		return NULL;
+	}
+
+	keys = g_key_file_new ();
+	if (!g_key_file_load_from_bytes (keys, bytes, G_KEY_FILE_NONE, NULL)) {
+		g_clear_pointer (&keys, g_key_file_free);
+	}
+	g_bytes_unref (bytes);
+
+	return keys;
+}
+
+/* Nothing at all on a build with no bundled set - the resource simply is not
+ * there, and every caller here degrades to the filesystem. */
+static void
+scan_bundled (ScanState *state)
+{
+	char **children;
+	int    i;
+
+	children = g_resources_enumerate_children (catalog_dir (state->kind),
+						   G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+
+	for (i = 0; children != NULL && children[i] != NULL; i++) {
+		char     *name = g_strdup (children[i]);
+		gsize     len  = strlen (name);
+		gboolean  has_dark_css = FALSE;
+		GKeyFile *keys;
+
+		/* A directory child comes back with its separator still on. */
+		if (len > 0 && name[len - 1] == '/') {
+			name[len - 1] = '\0';
+		}
+
+		/* The legacy set is a shim carrying the two dozen names Adwaita
+		 * dropped, not something anyone would choose to look at. */
+		if (state->kind == NEMO_THEME_KIND_ICON &&
+		    g_strcmp0 (name, "AdwaitaLegacy") == 0) {
+			g_free (name);
+			continue;
+		}
+
+		if (state->kind == NEMO_THEME_KIND_WIDGET) {
+			char *css = g_strconcat (BUNDLE_WIDGETS "/", name,
+						 "/gtk-3.0/gtk-dark.css", NULL);
+			has_dark_css = resource_exists (css);
+			g_free (css);
+		}
+
+		keys = bundled_theme_index (state->kind, name);
+		scan_add (state, NULL, name, keys, has_dark_css, TRUE);
+
+		if (keys != NULL) {
+			g_key_file_free (keys);
+		}
+		g_free (name);
+	}
+
+	g_strfreev (children);
+}
+
+/* Point GTK at the bundled icon themes, fallbacks first and the chosen theme
+ * last. GTK offers no way to take a resource path back off the list, but the
+ * most recently added one wins a lookup, so re-pushing the whole order on each
+ * apply is what makes switching themes behave. */
+static void
+push_bundled_icon_paths (const char *chosen)
+{
+	static char     *pushed;		/* what the list already ends with */
+	static gboolean  pushed_once;		/* NULL is a real answer, so track it */
+	GtkIconTheme    *theme = gtk_icon_theme_get_default ();
+	char            *path;
+	int              i;
+
+	/* Nothing to re-order when the answer has not moved, and apply_appearance
+	 * runs for a mode change too. Without this the list would grow by three
+	 * every time the desktop flipped between light and dark. */
+	if (pushed_once && g_strcmp0 (pushed, chosen) == 0) {
+		return;
+	}
+	pushed_once = TRUE;
+	g_free (pushed);
+	pushed = g_strdup (chosen);
+
+	for (i = 0; fallback_icon_themes[i] != NULL; i++) {
+		if (!bundled_theme_exists (NEMO_THEME_KIND_ICON, fallback_icon_themes[i])) {
+			continue;
+		}
+		path = g_strconcat (BUNDLE_ICONS "/", fallback_icon_themes[i], NULL);
+		gtk_icon_theme_add_resource_path (theme, path);
+		g_free (path);
+	}
+
+	if (!bundled_theme_exists (NEMO_THEME_KIND_ICON, chosen)) {
+		return;
+	}
+
+	path = g_strconcat (BUNDLE_ICONS "/", chosen, NULL);
+	gtk_icon_theme_add_resource_path (theme, path);
+	g_free (path);
+}
+
 static void
 scan_dir (ScanState *state, const char *dir, gboolean bundled)
 {
@@ -515,6 +686,7 @@ nemo_appearance_list_themes (NemoThemeKind kind, guint fits)
 		g_free (dir);
 	}
 
+	scan_bundled (&state);
 	scan_gtk_dirs (&state);
 	infer_fits (&state);
 
@@ -669,6 +841,38 @@ load_dropin_widget_theme (const char *name, gboolean dark)
 	return FALSE;
 }
 
+/* Same idea as a drop-in, out of the binary instead of off disk. GTK resolves
+ * a sheet's own url() references against wherever it was loaded from, so the
+ * theme's assets come along with no rewriting. */
+static gboolean
+load_bundled_widget_theme (const char *name, gboolean dark)
+{
+	char *path;
+
+	path = g_strconcat (BUNDLE_WIDGETS "/", name, "/gtk-3.0/",
+			    dark ? "gtk-dark.css" : "gtk.css", NULL);
+
+	if (dark && !resource_exists (path)) {
+		g_free (path);
+		path = g_strconcat (BUNDLE_WIDGETS "/", name, "/gtk-3.0/gtk.css", NULL);
+	}
+
+	if (!resource_exists (path)) {
+		g_free (path);
+		return FALSE;
+	}
+
+	clear_dropin_provider ();
+	dropin_provider = gtk_css_provider_new ();
+	gtk_css_provider_load_from_resource (dropin_provider, path);
+	g_free (path);
+
+	gtk_style_context_add_provider_for_screen (gdk_screen_get_default (),
+						   GTK_STYLE_PROVIDER (dropin_provider),
+						   DROPIN_THEME_PRIORITY);
+	return TRUE;
+}
+
 static gboolean
 system_prefers_dark (void)
 {
@@ -715,36 +919,45 @@ apply_appearance (void)
 
 	g_object_set (settings, "gtk-application-prefer-dark-theme", dark, NULL);
 
+	/* "System default" is not "do nothing": the Windows bundle names a theme
+	 * of its own in settings.ini, and that theme lives inside the binary. So
+	 * the platform's answer goes through exactly the same loaders as an
+	 * explicit choice - on a desktop that already has its theme installed the
+	 * first of them matches and nothing changes. */
 	wanted = nemo_config_get_string (nemo_appearance_preferences,
 					 NEMO_PREFERENCES_APPEARANCE_GTK_THEME);
-	if (wanted != NULL && wanted[0] != '\0') {
-		resolved = nemo_appearance_theme_for_mode (NEMO_THEME_KIND_WIDGET, wanted);
+	resolved = (wanted != NULL && wanted[0] != '\0')
+		? nemo_appearance_theme_for_mode (NEMO_THEME_KIND_WIDGET, wanted)
+		: g_strdup (platform_gtk_theme);
 
-		if (gtk_knows_widget_theme (resolved)) {
-			clear_dropin_provider ();
-			g_object_set (settings, "gtk-theme-name", resolved, NULL);
-		} else if (!load_dropin_widget_theme (resolved, dark)) {
-			g_warning ("appearance: widget theme \"%s\" not found", resolved);
-		}
-
-		g_free (resolved);
-	} else {
+	widget_theme_source = "none";
+	if (resolved == NULL || resolved[0] == '\0') {
 		clear_dropin_provider ();
-		if (platform_gtk_theme != NULL) {
-			g_object_set (settings, "gtk-theme-name", platform_gtk_theme, NULL);
-		}
+	} else if (gtk_knows_widget_theme (resolved)) {
+		clear_dropin_provider ();
+		g_object_set (settings, "gtk-theme-name", resolved, NULL);
+		widget_theme_source = "installed";
+	} else if (load_dropin_widget_theme (resolved, dark)) {
+		widget_theme_source = "drop-in";
+	} else if (load_bundled_widget_theme (resolved, dark)) {
+		widget_theme_source = "bundled";
+	} else {
+		g_warning ("appearance: widget theme \"%s\" not found", resolved);
 	}
+	g_free (resolved);
 	g_free (wanted);
 
 	wanted = nemo_config_get_string (nemo_appearance_preferences,
 					 NEMO_PREFERENCES_APPEARANCE_ICON_THEME);
-	if (wanted != NULL && wanted[0] != '\0') {
-		resolved = nemo_appearance_theme_for_mode (NEMO_THEME_KIND_ICON, wanted);
+	resolved = (wanted != NULL && wanted[0] != '\0')
+		? nemo_appearance_theme_for_mode (NEMO_THEME_KIND_ICON, wanted)
+		: g_strdup (platform_icon_theme);
+
+	push_bundled_icon_paths (resolved);
+	if (resolved != NULL && resolved[0] != '\0') {
 		g_object_set (settings, "gtk-icon-theme-name", resolved, NULL);
-		g_free (resolved);
-	} else if (platform_icon_theme != NULL) {
-		g_object_set (settings, "gtk-icon-theme-name", platform_icon_theme, NULL);
 	}
+	g_free (resolved);
 	g_free (wanted);
 
 	applying = FALSE;
@@ -759,10 +972,10 @@ apply_appearance (void)
 			      "gtk-theme-name", &gtk_theme,
 			      "gtk-icon-theme-name", &icon_theme,
 			      NULL);
-		g_debug ("appearance: %s, widget theme \"%s\"%s, icon theme \"%s\"",
+		g_debug ("appearance: %s, widget theme \"%s\" (%s), icon theme \"%s\"",
 			 dark ? "dark" : "light",
 			 gtk_theme != NULL ? gtk_theme : "",
-			 dropin_provider != NULL ? " (loaded from a drop-in folder)" : "",
+			 widget_theme_source,
 			 icon_theme != NULL ? icon_theme : "");
 		g_free (gtk_theme);
 		g_free (icon_theme);

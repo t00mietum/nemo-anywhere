@@ -253,6 +253,102 @@ test_theme_for_mode (void)
 	check (nemo_appearance_theme_for_mode (NEMO_THEME_KIND_ICON, NULL) == NULL);
 }
 
+/* The bundled set is compiled into the binary rather than installed as files.
+ * Three things have to hold or it silently stops working: the catalog the
+ * picker reads has to be there, the widget sheets have to be reachable by the
+ * path the loader builds, and every icon has to sit under a directory name
+ * hicolor defines - GTK reads a resource path as part of hicolor and knows
+ * nothing about a symbolic/ folder, so anything left in one is invisible.
+ * A build with no bundled set (Linux) has nothing to check. */
+#define BUNDLE_ICONS	"/org/nemo/themes/icontheme"
+#define BUNDLE_WIDGETS	"/org/nemo/themes/widgettheme"
+#define BUNDLE_CATALOG	"/org/nemo/themes/catalog"
+
+static gboolean
+resource_exists (const char *path)
+{
+	return g_resources_get_info (path, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL, NULL, NULL);
+}
+
+/* Every file under @path, recursively, as full resource paths. */
+static void
+collect_resources (const char *path, GPtrArray *out)
+{
+	char **children = g_resources_enumerate_children (path, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+	int i;
+
+	for (i = 0; children != NULL && children[i] != NULL; i++) {
+		char *child = g_strconcat (path, "/", children[i], NULL);
+
+		if (g_str_has_suffix (children[i], "/")) {
+			child[strlen (child) - 1] = '\0';
+			collect_resources (child, out);
+			g_free (child);
+		} else {
+			g_ptr_array_add (out, child);
+		}
+	}
+
+	g_strfreev (children);
+}
+
+static void
+test_bundled_set (void)
+{
+	char      **names;
+	GList      *themes, *node;
+	GPtrArray  *files;
+	gboolean    listed = FALSE;
+	guint       i;
+	int         symbolic_under_scalable = 0;
+
+	names = g_resources_enumerate_children (BUNDLE_CATALOG "/icons",
+						G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+	if (names == NULL || names[0] == NULL) {
+		g_print ("no bundled theme set in this build - skipping\n");
+		g_strfreev (names);
+		return;
+	}
+	g_strfreev (names);
+
+	/* The catalog reaches the picker, carrying what the picker needs. */
+	themes = nemo_appearance_list_themes (NEMO_THEME_KIND_ICON, NEMO_THEME_FITS_BOTH);
+	for (node = themes; node != NULL; node = node->next) {
+		NemoThemeInfo *info = node->data;
+
+		if (g_strcmp0 (info->name, "Fluent") == 0) {
+			listed = TRUE;
+			check (info->bundled);
+			check (info->dir == NULL);		/* not a directory anywhere */
+			check (info->style != NULL && info->style[0] != '\0');
+		}
+
+		/* The legacy shim is a fallback, never something to choose. */
+		check (g_strcmp0 (info->name, "AdwaitaLegacy") != 0);
+	}
+	check (listed);
+	g_list_free_full (themes, (GDestroyNotify) nemo_theme_info_free);
+
+	/* A bundled widget theme's sheet, at exactly the path the loader builds. */
+	check (resource_exists (BUNDLE_WIDGETS "/Fluent/gtk-3.0/gtk.css"));
+
+	/* No icon may be left in a symbolic/ folder, and the monochrome ones
+	 * still have to be there under their own name. */
+	files = g_ptr_array_new_with_free_func (g_free);
+	collect_resources (BUNDLE_ICONS "/Fluent", files);
+	check (files->len > 0);
+	for (i = 0; i < files->len; i++) {
+		const char *path = g_ptr_array_index (files, i);
+
+		check (strstr (path, "/symbolic/") == NULL);
+		if (strstr (path, "-symbolic.") != NULL && strstr (path, "/scalable/") != NULL) {
+			symbolic_under_scalable++;
+		}
+	}
+	check (symbolic_under_scalable > 0);
+	g_ptr_array_unref (files);
+}
+
 static void
 test_mode_resolution (void)
 {
@@ -300,6 +396,7 @@ main (int argc, char *argv[])
 	test_declared_modes ();
 	test_widget_dark_sheet ();
 	test_theme_for_mode ();
+	test_bundled_set ();
 
 	g_free (root);
 	g_free (tmp);

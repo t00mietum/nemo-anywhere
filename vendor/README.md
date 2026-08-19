@@ -18,17 +18,19 @@ they are first-party art in `assets/icons`, built by `gen-icon-theme.py`.
 | Theme | Kind | Style | Upstream | Commit |
 | :-- | :-- | :-- | :-- | :-- |
 | `Fluent` | Widget | Windows 11 | https://github.com/vinceliuice/Fluent-gtk-theme | `7a49a464b0188c340101c52965c18190b1c694cf` |
-| `Windows-10-dark` | Widget | Windows 10 | https://github.com/B00merang-Project/Windows-10-Dark | `10e4bd54b8ca14f5efb741c891d19090493ff476` |
-| `Windows-10` | Widget | Windows 10 | https://github.com/B00merang-Project/Windows-10 | `3a4116603b66a9adcb78f3987d7ea6f01de1cbce` |
-| `Windows-7` | Widget | Windows 7 | https://github.com/B00merang-Project/Windows-7 | `943b5307b349d3526068be0fa32f7549ee37ab45` |
-| `Windows-XP-dark` | Widget | Windows XP | https://github.com/B00merang-Project/Windows-XP | `7637830906823af40a3cd7e7079be753d8b7d679` |
-| `Windows-XP` | Widget | Windows XP | https://github.com/B00merang-Project/Windows-XP | `7637830906823af40a3cd7e7079be753d8b7d679` |
-| `macOS-dark` | Widget | macOS | https://github.com/B00merang-Project/macOS-Dark | `85f6339b864d40299c2a250131ae56b3940cb59f` |
 | `macOS` | Widget | macOS | https://github.com/B00merang-Project/macOS | `3951a4224ebab3c6a37b7abcf8690a1de9a42914` |
-| `Colloid-dark` | Icon | Rounded | https://github.com/vinceliuice/Colloid-icon-theme | `fa07485895a2443f7cfbceefe9dcdde798a05215` |
+| `macOS-dark` | Widget | macOS | https://github.com/B00merang-Project/macOS-Dark | `85f6339b864d40299c2a250131ae56b3940cb59f` |
+| `Windows-10` | Widget | Windows 10 | https://github.com/B00merang-Project/Windows-10 | `3a4116603b66a9adcb78f3987d7ea6f01de1cbce` |
+| `Windows-10-dark` | Widget | Windows 10 | https://github.com/B00merang-Project/Windows-10-Dark | `10e4bd54b8ca14f5efb741c891d19090493ff476` |
+| `Windows-7` | Widget | Windows 7 | https://github.com/B00merang-Project/Windows-7 | `943b5307b349d3526068be0fa32f7549ee37ab45` |
+| `Windows-XP` | Widget | Windows XP | https://github.com/B00merang-Project/Windows-XP | `7637830906823af40a3cd7e7079be753d8b7d679` |
+| `Windows-XP-dark` | Widget | Windows XP | https://github.com/B00merang-Project/Windows-XP | `7637830906823af40a3cd7e7079be753d8b7d679` |
+| `Adwaita` | Icon | Adwaita | https://gitlab.gnome.org/GNOME/adwaita-icon-theme | `e58656b901e8366f20b74ae33755ac7d8026fa4c` |
+| `AdwaitaLegacy` | Icon | Adwaita | https://gitlab.gnome.org/GNOME/adwaita-icon-theme-legacy | `7642b102c4a7c4088f170f548ae37960f2443522` |
 | `Colloid` | Icon | Rounded | https://github.com/vinceliuice/Colloid-icon-theme | `fa07485895a2443f7cfbceefe9dcdde798a05215` |
-| `Fluent-dark` | Icon | Windows 11 | https://github.com/vinceliuice/Fluent-icon-theme | `ad627380aa452aa5e18fd5fbab94291f409af710` |
+| `Colloid-dark` | Icon | Rounded | https://github.com/vinceliuice/Colloid-icon-theme | `fa07485895a2443f7cfbceefe9dcdde798a05215` |
 | `Fluent` | Icon | Windows 11 | https://github.com/vinceliuice/Fluent-icon-theme | `ad627380aa452aa5e18fd5fbab94291f409af710` |
+| `Fluent-dark` | Icon | Windows 11 | https://github.com/vinceliuice/Fluent-icon-theme | `ad627380aa452aa5e18fd5fbab94291f409af710` |
 | `Papirus` | Icon | Flat | https://github.com/PapirusDevelopmentTeam/papirus-icon-theme | `5f8b701d7521e27b4859d7e4f9b0da4c423c036c` |
 | `Qogir` | Icon | Soft | https://github.com/vinceliuice/Qogir-icon-theme | `c633057ba0d27a504b3255144071c9691ed0264a` |
 | `Tela` | Icon | Circles | https://github.com/vinceliuice/Tela-icon-theme | `a1fffc5bfab716bd022dd228ee96fe3965cdb33d` |

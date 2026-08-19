@@ -29,7 +29,11 @@ read_file (void)
 	char *path = nemo_config_get_path ();
 	char *text = NULL;
 
-	g_file_get_contents (path, &text, NULL, NULL);
+	/* A read that fails leaves text NULL, which every caller already reads
+	 * as "the file said nothing" - the point is not to pretend otherwise. */
+	if (!g_file_get_contents (path, &text, NULL, NULL)) {
+		text = NULL;
+	}
 	g_free (path);
 
 	return text ? text : g_strdup ("");
@@ -277,8 +281,8 @@ test_external_edit (NemoConfigGroup *prefs)
 	g_signal_connect (prefs, "changed::show-hidden-files",
 	                  G_CALLBACK (on_changed), NULL);
 
-	g_file_set_contents (path,
-	                     "preferences:\n\tshow-hidden-files: true\n", -1, NULL);
+	check (g_file_set_contents (path,
+	                           "preferences:\n\tshow-hidden-files: true\n", -1, NULL));
 
 	/* the monitor is async; give it a bounded chance to fire */
 	while (changed_count == 0 && spins++ < 200) {
@@ -293,8 +297,8 @@ test_external_edit (NemoConfigGroup *prefs)
 	 * diff has to compare the values, not just notice a key appear or go. */
 	changed_count = 0;
 	spins = 0;
-	g_file_set_contents (path,
-	                     "preferences:\n\tshow-hidden-files: false\n", -1, NULL);
+	check (g_file_set_contents (path,
+	                           "preferences:\n\tshow-hidden-files: false\n", -1, NULL));
 
 	while (changed_count == 0 && spins++ < 200) {
 		g_main_context_iteration (NULL, FALSE);
@@ -366,7 +370,7 @@ test_nul_survives_save (NemoConfigGroup *window_state)
 	g_signal_connect (window_state, "changed::sidebar-width",
 	                  G_CALLBACK (on_changed), NULL);
 
-	g_file_set_contents (path, before, sizeof (before) - 1, NULL);
+	check (g_file_set_contents (path, before, sizeof (before) - 1, NULL));
 	while (changed_count == 0 && spins++ < 200) {
 		g_main_context_iteration (NULL, FALSE);
 		g_usleep (10000);
@@ -376,7 +380,7 @@ test_nul_survives_save (NemoConfigGroup *window_state)
 	nemo_config_set_int (window_state, "sidebar-width", 445);
 	nemo_config_flush ();
 
-	g_file_get_contents (path, &text, &len, NULL);
+	check (g_file_get_contents (path, &text, &len, NULL));
 	check (text != NULL && memchr (text, '\0', len) != NULL);
 	check (text != NULL && buf_contains (text, len, "sidebar-width"));
 	g_free (text);
@@ -398,7 +402,7 @@ test_oversized_file_refused (NemoConfigGroup *prefs)
 
 	blob = g_malloc (n);
 	memset (blob, 'x', n);
-	g_file_set_contents (path, blob, n, NULL);
+	check (g_file_set_contents (path, blob, n, NULL));
 	g_free (blob);
 
 	/* let the monitor fire and hit load_locked's cap */

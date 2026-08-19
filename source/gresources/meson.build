@@ -6,6 +6,23 @@ gresources = gnome.compile_resources(
   install: false
 )
 
+# The bundled theme set, on the targets that carry one. Loose theme files cost
+# real launch time in the packed Windows exe - about 2.8 ms each, and the icon
+# sets alone are a couple of thousand - so they ride inside the binary instead.
+# Regenerate the manifest with cicd/utility/gen-theme-resources.py after
+# changing anything under vendor/icons, vendor/themes or assets/icons.
+if bundledThemes == 'true'
+  themeGresources = gnome.compile_resources(
+    'nemo-theme-resources', 'nemo-themes.gresource.xml',
+    source_dir: '../..',
+    c_name: 'nemo_themes',
+    install_header: false,
+    install: false
+  )
+else
+  themeGresources = []
+endif
+
 layout_editor_gresources = gnome.compile_resources(
   'nemo-action-layout-editor-resources', 'nemo-action-layout-editor.gresource.xml',
   source_dir: '.',

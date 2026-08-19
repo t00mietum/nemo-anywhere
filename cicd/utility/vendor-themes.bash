@@ -54,7 +54,7 @@ fEcho_Clean(){ echo "$@"; }
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ##	The catalog. One record per line, pipe separated:
 ##
-##		id | outName | style | modes | counterpart | url | ref | roots | darkFrom | fetch
+##		id | outName | style | modes | counterpart | url | ref | roots | darkFrom | fetch | inherits
 ##
 ##	roots       repo-relative dirs to search, space separated, best first. Also the
 ##	            sparse-checkout set, so naming Papirus's size buckets rather than
@@ -72,11 +72,22 @@ fEcho_Clean(){ echo "$@"; }
 ##	            blobs one batch at a time and measured nine times slower than
 ##	            one shallow packfile on a 38 MB repo. It only pays on Papirus,
 ##	            which is 350 MB.
+##	inherits    the whole Inherits value, when the default "Adwaita,hicolor"
+##	            is wrong - Adwaita is the tail of that chain itself.
 ##
 ##	A dark icon theme carries ONLY the files that actually differ and inherits
 ##	the rest from its light half, so a paired variant costs a few KB.
+##
+##	Adwaita is here for the same reason as the rest. The sysroot ships it whole,
+##	AdwaitaLegacy beside it (1810 png at six sizes) and 33 X11 cursors we cannot
+##	use on Windows - 2693 files to answer the ~140 names we ask of it. Adwaita
+##	stopped drawing emblems and the colour mimetypes, so the legacy set stays as
+##	its own theme behind it, trimmed the same way, for the couple of dozen names
+##	that live nowhere else.
 
 iconThemes=(
+	"adwaita|Adwaita|Adwaita|light;dark||https://gitlab.gnome.org/GNOME/adwaita-icon-theme|HEAD|Adwaita/scalable Adwaita/symbolic Adwaita/16x16||full|AdwaitaLegacy,hicolor"
+	"adwaitalegacy|AdwaitaLegacy|Adwaita|light;dark||https://gitlab.gnome.org/GNOME/adwaita-icon-theme-legacy|HEAD|AdwaitaLegacy/48x48 AdwaitaLegacy/32x32 AdwaitaLegacy/24x24 AdwaitaLegacy/22x22 AdwaitaLegacy/16x16||full|hicolor"
 	"fluent|Fluent|Windows 11|light|Fluent-dark|https://github.com/vinceliuice/Fluent-icon-theme|HEAD|src links|suffix:-dark|full"
 	"whitesur|WhiteSur|macOS|light;dark||https://github.com/vinceliuice/WhiteSur-icon-theme|HEAD|src links||full"
 	"colloid|Colloid|Rounded|light|Colloid-dark|https://github.com/vinceliuice/Colloid-icon-theme|HEAD|src links|roots:dark|full"
@@ -197,8 +208,10 @@ fContextPattern(){
 		places)    echo 'places|filesystems' ;;
 		devices)   echo 'devices|apps/devices' ;;
 		emblems)   echo 'emblems|emotes' ;;
-		actions)   echo 'actions' ;;
-		status)    echo 'status|animations' ;;
+		## Adwaita files its widget glyphs under ui/ and its stock ones under
+		## legacy/, and puts a few of what we call actions under categories/.
+		actions)   echo 'actions|ui|legacy|categories' ;;
+		status)    echo 'status|animations|ui' ;;
 		*)         echo "$1" ;;
 	esac
 }
@@ -239,7 +252,7 @@ fScore(){
 ## Resolve one wanted name to a real file. Echoes an absolute path or nothing.
 fResolve(){
 	local repo="$1" ctx="$2" file="$3" wantSymbolic="$4"
-	local pattern best bestScore path hops=0
+	local pattern best bestScore path isSymbolic hops=0
 	local -n idx="${6:-iconIndex}"
 
 	scoreBias="${5:-large}"
@@ -250,11 +263,13 @@ fResolve(){
 		best=""; bestScore=-9999
 		while IFS= read -r path; do
 			[[ -n "$path" ]] || continue
-			if [[ "$wantSymbolic" == "1" ]]; then
-				[[ "$path" == *symbolic* ]] || continue
-			else
-				[[ "$path" == *symbolic* ]] && continue
-			fi
+			## A monochrome glyph is one in a symbolic/ directory or named
+			## <name>-symbolic. Matching "symbolic" anywhere in the path threw
+			## away emblem-symbolic-link, which is a colour emblem for a
+			## symlink and the one every symlinked file in the view wears.
+			isSymbolic=0
+			[[ "$path" == */symbolic/* || "${path##*/}" == *-symbolic.* ]] && isSymbolic=1
+			[[ "$isSymbolic" == "$wantSymbolic" ]] || continue
 			[[ -z "$pattern" ]] || [[ "$path" =~ /($pattern)/ ]] || continue
 			fScore "$path"
 			if (( scored > bestScore )); then bestScore=$scored; best="$path"; fi
@@ -301,8 +316,7 @@ fWriteIconIndex(){
 	)
 	(( ${#dirs[@]} )) || return 0
 
-	inherits="Adwaita,hicolor"
-	[[ -n "$inheritExtra" ]] && inherits="$inheritExtra,$inherits"
+	inherits="${inheritExtra:-Adwaita,hicolor}"
 
 	{
 		printf '[Icon Theme]\n'
@@ -341,8 +355,8 @@ fIconContext(){
 
 fBuildIconTheme(){
 	local record="$1"
-	local id outName style modes counterpart url ref roots darkFrom fetch
-	IFS='|' read -r id outName style modes counterpart url ref roots darkFrom fetch <<< "$record"
+	local id outName style modes counterpart url ref roots darkFrom fetch inherits
+	IFS='|' read -r id outName style modes counterpart url ref roots darkFrom fetch inherits <<< "$record"
 
 	fWanted "$id" || return 0
 
@@ -369,9 +383,25 @@ fBuildIconTheme(){
 
 		symbolic=0
 		[[ "$name" == *-symbolic ]] && symbolic=1
-		out="$staged/$([[ $symbolic == 1 ]] && echo symbolic || echo scalable)/$ctx/$name.svg"
 
 		src="$(fResolve "$repo" "$ctx" "$name.svg" "$symbolic" || true)"
+
+		## Themes disagree about which context an icon belongs to - Adwaita
+		## files folder-open under status, inode-directory under mimetypes and
+		## media-eject under actions. The basename is unique enough on its own,
+		## so a context miss retries with the filter off rather than giving up.
+		if [[ -z "$src" ]]; then
+			src="$(fResolve "$repo" any "$name.svg" "$symbolic" || true)"
+		fi
+
+		## Some names were never redrawn as vector - Adwaita's emblems and the
+		## whole legacy set are bitmap only. Better a bitmap than a hole.
+		if [[ -z "$src" ]]; then
+			src="$(fResolve "$repo" "$ctx" "$name.png" "$symbolic" || true)"
+		fi
+		if [[ -z "$src" ]]; then
+			src="$(fResolve "$repo" any "$name.png" "$symbolic" || true)"
+		fi
 
 		## Not every theme has a symbolic set - Papirus has none at all, only
 		## size buckets - so a miss retries the plain name at a toolbar size.
@@ -385,6 +415,10 @@ fBuildIconTheme(){
 
 		if [[ -z "$src" ]]; then missing=$(( missing + 1 )); continue; fi
 
+		## Keep the source extension: a handful of names exist only as bitmaps
+		## upstream, and a png under an .svg name renders as nothing.
+		out="$staged/$([[ $symbolic == 1 ]] && echo symbolic || echo scalable)/$ctx/$name.${src##*.}"
+
 		mkdir -p "$(dirname "$out")"
 		cp -f "$src" "$out"
 		found=$(( found + 1 ))
@@ -397,7 +431,7 @@ fBuildIconTheme(){
 				darkSrc="$(fResolve "$repo" "$ctx" "$name${darkFrom#suffix:}.svg" "$symbolic" || true)"
 			fi
 			if [[ -n "$darkSrc" ]]; then
-				darkOut="$darkStaged/$([[ $symbolic == 1 ]] && echo symbolic || echo scalable)/$ctx/$name.svg"
+				darkOut="$darkStaged/$([[ $symbolic == 1 ]] && echo symbolic || echo scalable)/$ctx/$name.${darkSrc##*.}"
 				mkdir -p "$(dirname "$darkOut")"
 				cp -f "$darkSrc" "$darkOut"
 				darkFound=$(( darkFound + 1 ))
@@ -411,20 +445,20 @@ fBuildIconTheme(){
 	rm -rf "$dest"; mkdir -p "$dest"
 	"$python" "$svgMin" --tree "$staged" "$dest" >/dev/null
 	fCopyLicense "$repo" "$dest"
-	fWriteIconIndex "$dest" "$outName" "$style" "$modes" "$counterpart" ""
+	fWriteIconIndex "$dest" "$outName" "$style" "$modes" "$counterpart" "$inherits"
 
-	fEcho_Clean "    $found icons ($borrowed borrowed for a missing symbolic set), $missing fell back to Adwaita, $(fSize "$dest")"
+	fEcho_Clean "    $found icons ($borrowed borrowed for a missing symbolic set), $missing left to the fallback chain, $(fSize "$dest")"
 
 	if (( darkFound > 0 )); then
 		local darkDest="$vendor/icons/$counterpart"
 		rm -rf "$darkDest"; mkdir -p "$darkDest"
 		"$python" "$svgMin" --tree "$darkStaged" "$darkDest" >/dev/null
 		fCopyLicense "$repo" "$darkDest"
-		fWriteIconIndex "$darkDest" "$counterpart" "$style" "dark" "$outName" "$outName"
+		fWriteIconIndex "$darkDest" "$counterpart" "$style" "dark" "$outName" "$outName,Adwaita,hicolor"
 		fEcho_Clean "    $counterpart: $darkFound tuned icons over $outName, $(fSize "$darkDest")"
 	elif [[ -n "$counterpart" ]]; then
 		## Nothing was drawn for dark, so the one theme serves both after all.
-		fWriteIconIndex "$dest" "$outName" "$style" "light;dark" "" ""
+		fWriteIconIndex "$dest" "$outName" "$style" "light;dark" "" "$inherits"
 		fEcho_Clean "    no dark art upstream - $outName covers both modes"
 	fi
 }
@@ -582,6 +616,14 @@ if (( ${#wanted[@]} == 0 )); then
 	} > "$vendor/README.md.new"
 	mv -f "$vendor/README.md.new" "$vendor/README.md"
 fi
+
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+## The manifest that carries all of this inside the binary. Regenerated here so
+## it cannot drift from what is actually in vendor/ - a theme added and not
+## listed would simply be missing from the build with nothing to say so.
+
+fEcho_Clean ""
+"$python" "$here/gen-theme-resources.py" "$root" | while read -r line; do fEcho_Clean "    $line"; done
 
 fEcho_Clean ""
 fEcho "Totals: icons $(fSize "$vendor/icons"), widgets $(fSize "$vendor/themes")"

@@ -234,8 +234,10 @@ if is_windows
 endif
 
 test('Appearance themes test',
+  # The theme resource is linked into the app, not into libnemo-private, so a
+  # test that checks it has to carry its own copy.
   executable('test-nemo-appearance',
-    [ 'test-nemo-appearance.c' ],
+    [ 'test-nemo-appearance.c' ] + themeGresources,
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private ],
   ),

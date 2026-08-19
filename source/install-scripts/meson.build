@@ -17,8 +17,5 @@ meson.add_install_script('meson_update_mime_database.py')
 # Update the Gtk icon cache
 meson.add_install_script('meson_update_icon_cache.py')
 
-# The bundled theme set, where the target calls for one (see bundled_themes).
-meson.add_install_script('meson_install_themes.py',
-  join_paths(meson.project_source_root(), '..'),
-  bundledThemes
-)
+# The bundled theme set is not installed as files any more - it is compiled
+# into the binary as a resource. See source/gresources/meson.build.

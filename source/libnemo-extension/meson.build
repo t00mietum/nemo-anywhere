@@ -56,7 +56,7 @@ if is_windows
   )
 else
   nemo_extension_lib = shared_library('nemo-anywhere-extension',
-    nemo_extension_sources + nemo_i18n_header + gresources,
+    nemo_extension_sources + nemo_i18n_header + gresources + themeGresources,
     dependencies: nemo_extension_deps,
     include_directories: [ rootInclude, ],
     install: true,
