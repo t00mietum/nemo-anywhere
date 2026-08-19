@@ -128,8 +128,17 @@ struct NemoWindowDetails
 
 #define NEMO_WINDOW_MIN_WIDTH		200
 #define NEMO_WINDOW_MIN_HEIGHT		200
-#define NEMO_WINDOW_DEFAULT_WIDTH		800
-#define NEMO_WINDOW_DEFAULT_HEIGHT		550
+/* These are the CONTENT area, which is what gtk_window_set_default_size takes.
+ * Sized so the whole window - title bar and borders included - lands on
+ * 1280x720: a Windows frame adds 2px of width and 32px of height.
+ */
+#define NEMO_WINDOW_DEFAULT_WIDTH		1278
+#define NEMO_WINDOW_DEFAULT_HEIGHT		688
+
+/* The side pane default that goes with these is "sidebar-width" in
+ * nemo-config-keys.h: 240px, ~19% of the default width. Change the two
+ * together, or a first run gets a sidebar out of proportion to its window.
+ */
 
 typedef void (*NemoBookmarkFailedCallback) (NemoWindow *window,
                                                 NemoBookmark *bookmark);
