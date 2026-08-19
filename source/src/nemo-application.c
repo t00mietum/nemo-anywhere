@@ -29,6 +29,7 @@
 #include <config.h>
 
 #include "nemo-application.h"
+#include "nemo-splash.h"
 
 #if (defined(ENABLE_EMPTY_VIEW) && ENABLE_EMPTY_VIEW)
 #include "nemo-empty-view.h"
@@ -564,6 +565,7 @@ nemo_application_startup (GApplication *app)
 	self->undo_manager = nemo_undo_manager_new ();
 
 	/* initialize preferences and open the config store */
+	nemo_splash_note (_("Reading settings"));
 	nemo_global_preferences_init ();
 
 	/* register the favorites:/// scheme before anything queries for it
@@ -584,10 +586,12 @@ nemo_application_startup (GApplication *app)
 	nemo_image_properties_page_register ();
 
 	/* initialize theming */
+	nemo_splash_note (_("Loading themes and icons"));
 	init_icons_and_styles ();
 	init_gtk_accels ();
 
 	/* initialize nemo modules */
+	nemo_splash_note (_("Loading extensions"));
 	nemo_module_setup ();
 
 	/* attach menu-provider module callback */

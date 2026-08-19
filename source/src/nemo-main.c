@@ -31,6 +31,7 @@
 #include <config.h>
 
 #include "nemo-main-application.h"
+#include "nemo-splash.h"
 
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-debug.h>
@@ -58,12 +59,34 @@
 #include <exempi/xmp.h>
 #endif
 
+/* A flag that answers and exits rather than opening a window. Showing a splash
+ * for one would flash a panel on screen for no reason. */
+static gboolean
+prints_and_exits (int argc, char *argv[])
+{
+	static const char *quiet[] = {
+		"--version", "--help", "--help-all", "--help-gtk",
+		"--quit", "-q", "--check", "-c", "--fix-cache", "-?", NULL
+	};
+	int i, q;
+
+	for (i = 1; i < argc; i++) {
+		for (q = 0; quiet[q] != NULL; q++) {
+			if (strcmp (argv[i], quiet[q]) == 0) {
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+
 int
 main (int argc, char *argv[])
 {
 	gint retval;
 	NemoApplication *application;
-	
+
 #if defined (HAVE_MALLOPT) && defined(M_MMAP_THRESHOLD)
 	/* Nemo uses lots and lots of small and medium size allocations,
 	 * and then a few large ones for the desktop background. By default
@@ -99,6 +122,15 @@ main (int argc, char *argv[])
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 
+	/* As early as anything can be said in the user's own language, and well
+	 * before gtk_init: on Windows the packed single exe takes a noticeable
+	 * moment to get a window up, and an icon that does nothing for several
+	 * seconds reads as a failed launch. No-op on every other platform. */
+	if (!prints_and_exits (argc, argv)) {
+		nemo_splash_show ();
+		nemo_splash_note (_("Starting"));
+	}
+
 	g_set_prgname (NEMO_APP_SLUG);
 
 #ifdef HAVE_EXEMPI
@@ -115,6 +147,11 @@ main (int argc, char *argv[])
 
 	retval = g_application_run (G_APPLICATION (application),
 				    argc, argv);
+
+	/* Normally the window's first draw takes it down. This catches the runs
+	 * that never get one: a second instance handing its arguments to the
+	 * copy already running, or an option that fails to parse. */
+	nemo_splash_hide ();
 
 	/* don't lose a save still sitting in its debounce window */
 	nemo_metadata_store_flush ();

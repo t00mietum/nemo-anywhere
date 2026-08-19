@@ -43,6 +43,7 @@
 #include <gio/gio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #ifdef G_OS_WIN32
 #include <windows.h>
@@ -140,6 +141,84 @@ nemo_compute_search_title_for_location (GFile *location)
 }
 
 /**
+ * nemo_get_user_config_root:
+ *
+ * The per-user directory our own config directory lives in.
+ *
+ * GLib answers XDG everywhere, which is right on Linux and BSD but is a poor
+ * fit elsewhere: on Windows it points at the local, machine-bound AppData, and
+ * on macOS at a hidden dotfile dir. Settings are small, portable and worth
+ * carrying between a user's machines, so Windows gets roaming AppData and
+ * macOS its Application Support dir.
+ *
+ * Return value: the directory path, owned by the callee.
+ **/
+const char *
+nemo_get_user_config_root (void)
+{
+#if defined(G_OS_WIN32)
+	static char *root = NULL;
+	static gsize once = 0;
+
+	if (g_once_init_enter (&once)) {
+		const char *roaming = g_getenv ("APPDATA");
+
+		root = (roaming != NULL && *roaming != '\0')
+			? g_strdup (roaming)
+			: g_strdup (g_get_user_config_dir ());
+		g_once_init_leave (&once, 1);
+	}
+
+	return root;
+#elif defined(__APPLE__)
+	static char *root = NULL;
+	static gsize once = 0;
+
+	if (g_once_init_enter (&once)) {
+		root = g_build_filename (g_get_home_dir (), "Library", "Application Support", NULL);
+		g_once_init_leave (&once, 1);
+	}
+
+	return root;
+#else
+	return g_get_user_config_dir ();
+#endif
+}
+
+/* Windows and macOS used to keep the config dir wherever GLib's XDG answer
+ * landed. Move a dir left there by an older build rather than silently
+ * starting from defaults; a partial or failed move leaves the old one alone. */
+static void
+migrate_legacy_user_directory (const char *user_directory)
+{
+	g_autofree char *legacy = NULL;
+	g_autofree char *parent = NULL;
+
+	if (g_strcmp0 (nemo_get_user_config_root (), g_get_user_config_dir ()) == 0)
+		return;
+
+	legacy = g_build_filename (g_get_user_config_dir (),
+				   NEMO_USER_DIRECTORY_NAME,
+				   NULL);
+
+	if (!g_file_test (legacy, G_FILE_TEST_IS_DIR))
+		return;
+
+	/* rename(2) wants somewhere to rename into. The real config roots always
+	 * exist, but a fresh profile or a redirected one need not. */
+	parent = g_path_get_dirname (user_directory);
+	g_mkdir_with_parents (parent, DEFAULT_NEMO_DIRECTORY_MODE);
+
+	if (g_rename (legacy, user_directory) != 0) {
+		g_warning ("could not move settings from %s to %s: %s",
+			   legacy, user_directory, g_strerror (errno));
+		return;
+	}
+
+	g_message ("moved settings from %s to %s", legacy, user_directory);
+}
+
+/**
  * nemo_get_user_directory:
  *
  * Get the path for the directory containing nemo settings.
@@ -151,11 +230,12 @@ nemo_get_user_directory (void)
 {
 	char *user_directory = NULL;
 
-	user_directory = g_build_filename (g_get_user_config_dir (),
+	user_directory = g_build_filename (nemo_get_user_config_root (),
 					   NEMO_USER_DIRECTORY_NAME,
 					   NULL);
 
 	if (!g_file_test (user_directory, G_FILE_TEST_EXISTS)) {
+		migrate_legacy_user_directory (user_directory);
 		g_mkdir_with_parents (user_directory, DEFAULT_NEMO_DIRECTORY_MODE);
 		/* FIXME bugzilla.gnome.org 41286:
 		 * How should we handle the case where this mkdir fails?

@@ -94,11 +94,18 @@ def main(argv):
 		kept = 0
 		for base, _dirs, files in os.walk(src_root):
 			for name in files:
-				if not name.endswith(".svg"):
-					continue
 				src = os.path.join(base, name)
 				dst = os.path.join(dst_root, os.path.relpath(src, src_root))
 				os.makedirs(os.path.dirname(dst), exist_ok=True)
+				# A few names exist only as bitmaps upstream (Adwaita's
+				# emblems). Nothing to minify - pass them through.
+				if not name.endswith(".svg"):
+					with open(src, "rb") as fh:
+						data = fh.read()
+					with open(dst, "wb") as fh:
+						fh.write(data)
+					kept += 1
+					continue
 				try:
 					minify(src, dst)
 				except Exception:

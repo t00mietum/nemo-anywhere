@@ -37,6 +37,7 @@
 #include "nemo-previewer.h"
 #include "nemo-progress-ui-handler.h"
 #include "nemo-self-check-functions.h"
+#include "nemo-splash.h"
 #include "nemo-window.h"
 #include "nemo-window-bookmarks.h"
 #include "nemo-window-manage-views.h"
@@ -193,6 +194,26 @@ nemo_main_application_close_all_windows (NemoApplication *self)
 	g_list_free (list_copy);
 }
 
+/* The splash stands in only until there is something real to look at, and the
+ * real thing is not "mapped", it is "painted". Off the draw handler rather
+ * than out of it: tearing the splash down waits on its thread, and the frame
+ * being drawn should not be the one that waits. */
+static gboolean
+drop_splash_idle (gpointer data)
+{
+	nemo_splash_hide ();
+	return G_SOURCE_REMOVE;
+}
+
+static gboolean
+window_first_draw_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+	g_idle_add (drop_splash_idle, NULL);
+	g_signal_handlers_disconnect_by_func (widget, window_first_draw_cb, data);
+
+	return GDK_EVENT_PROPAGATE;
+}
+
 static NemoWindow *
 nemo_main_application_create_window (NemoApplication *application,
                                      GdkScreen       *screen)
@@ -234,8 +255,13 @@ nemo_main_application_create_window (NemoApplication *application,
 
     nemo_undo_manager_attach (application->undo_manager, G_OBJECT (window));
 
+	if (nemo_splash_is_up ()) {
+		g_signal_connect_after (window, "draw",
+					G_CALLBACK (window_first_draw_cb), NULL);
+	}
+
 	DEBUG ("Creating a new navigation window");
-	
+
 	return window;
 }
 
@@ -334,6 +360,31 @@ mount_removed_callback (GVolumeMonitor *monitor,
 	g_list_free (close_list);
 }
 
+/* Put the frame on screen at the size and place it will keep, without waiting
+ * for the first folder to resolve - the panes stay hidden until their views are
+ * ready (nemo_window_view_visible), so what appears is the window and its
+ * chrome. That is the difference between a launch that looks stalled and one
+ * that looks busy.
+ *
+ * Called once the window has somewhere to be, and not before: realising the
+ * chrome makes it ask its slot where it is, and a slot with neither a location
+ * nor a pending one has no answer. It also has to come after any --geometry has
+ * been applied, which is only honoured while the window is still hidden.
+ */
+static void
+show_window_early (NemoWindow *window)
+{
+	NemoWindowSlot *slot = nemo_window_get_active_slot (window);
+
+	if (slot == NULL ||
+	    (slot->location == NULL && slot->pending_location == NULL)) {
+		return;
+	}
+
+	nemo_splash_note (_("Opening the window"));
+	gtk_widget_show (GTK_WIDGET (window));
+}
+
 static void
 open_window (NemoMainApplication *application,
 	     GFile *location, GdkScreen *screen, const char *geometry)
@@ -362,6 +413,8 @@ open_window (NemoMainApplication *application,
 								 APPLICATION_WINDOW_MIN_HEIGHT,
 								 FALSE);
 	}
+
+	show_window_early (window);
 
 	g_free (uri);
 }
@@ -408,6 +461,8 @@ open_tabs (NemoMainApplication *application,
                                  APPLICATION_WINDOW_MIN_HEIGHT,
                                  FALSE);
     }
+
+    show_window_early (window);
 }
 
 static void
@@ -527,6 +582,8 @@ nemo_main_application_open_location (NemoApplication     *application,
 	if (sel_list != NULL) {
 		nemo_file_list_free (sel_list);
 	}
+
+	show_window_early (window);
 }
 
 static void

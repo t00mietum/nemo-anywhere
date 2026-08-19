@@ -1,0 +1,148 @@
+/* Where our config directory lives. GLib answers XDG on every platform, which
+ * is right on Linux and BSD but puts Windows settings in the local, machine-
+ * bound AppData and macOS settings in a hidden dotfile dir. This covers the
+ * platform answer and the one-time move of a directory an older build left
+ * behind. Env is set before the first call because both GLib and we cache. */
+
+#include <config.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <gio/gio.h>
+#include <glib/gstdio.h>
+
+#include <libnemo-private/nemo-file-utilities.h>
+
+static int failures = 0;
+
+#define check(expr) \
+	do { \
+		if (!(expr)) { \
+			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
+			failures++; \
+		} \
+	} while (0)
+
+static void
+write_marker (const char *dir, const char *name)
+{
+	char *path = g_build_filename (dir, name, NULL);
+
+	g_mkdir_with_parents (dir, 0755);
+	if (!g_file_set_contents (path, "marker", -1, NULL)) {
+		g_printerr ("could not write %s - the test cannot mean anything\n", path);
+		exit (EXIT_FAILURE);
+	}
+	g_free (path);
+}
+
+static gboolean
+has_marker (const char *dir, const char *name)
+{
+	char *path = g_build_filename (dir, name, NULL);
+	gboolean found = g_file_test (path, G_FILE_TEST_IS_REGULAR);
+
+	g_free (path);
+	return found;
+}
+
+static void
+remove_tree (const char *path)
+{
+	GFile *file = g_file_new_for_path (path);
+	GFileEnumerator *children;
+
+	children = g_file_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
+					      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
+	if (children != NULL) {
+		GFileInfo *info;
+
+		while ((info = g_file_enumerator_next_file (children, NULL, NULL)) != NULL) {
+			char *child = g_build_filename (path, g_file_info_get_name (info), NULL);
+
+			remove_tree (child);
+			g_free (child);
+			g_object_unref (info);
+		}
+		g_object_unref (children);
+	}
+
+	g_remove (path);
+	g_object_unref (file);
+}
+
+int
+main (int argc, char *argv[])
+{
+	char *sandbox;
+	char *xdg;
+	char *roaming;
+	char *legacy;
+	char *expected;
+	char *user_dir;
+	const char *root;
+
+	sandbox = g_build_filename (g_get_tmp_dir (), "nemo-config-root-test", NULL);
+	remove_tree (sandbox);
+
+	xdg     = g_build_filename (sandbox, "xdg", NULL);
+	roaming = g_build_filename (sandbox, "roaming", NULL);
+
+	/* Before the first call: GLib caches its XDG answer, and so do we. */
+	g_setenv ("XDG_CONFIG_HOME", xdg, TRUE);
+	g_setenv ("APPDATA", roaming, TRUE);
+
+	root = nemo_get_user_config_root ();
+	check (root != NULL && *root != '\0');
+
+#if defined(G_OS_WIN32)
+	/* Roaming AppData, not the local one GLib hands out - settings are small
+	 * and worth following a user between machines. */
+	check (g_strcmp0 (root, roaming) == 0);
+	check (g_strcmp0 (root, g_get_user_config_dir ()) != 0);
+#elif defined(__APPLE__)
+	{
+		char *support = g_build_filename (g_get_home_dir (), "Library", "Application Support", NULL);
+
+		check (g_strcmp0 (root, support) == 0);
+		g_free (support);
+	}
+#else
+	/* Linux and BSD: XDG is the native answer, so nothing changes there. */
+	check (g_strcmp0 (root, g_get_user_config_dir ()) == 0);
+	check (g_strcmp0 (root, xdg) == 0);
+#endif
+
+	/* A directory an older build left in the XDG location moves across
+	 * rather than being ignored, which would read as settings lost. */
+	legacy = g_build_filename (g_get_user_config_dir (), NEMO_APP_SLUG, NULL);
+	write_marker (legacy, "settings.shcl");
+
+	expected = g_build_filename (root, NEMO_APP_SLUG, NULL);
+	user_dir = nemo_get_user_directory ();
+
+	check (g_strcmp0 (user_dir, expected) == 0);
+	check (g_file_test (user_dir, G_FILE_TEST_IS_DIR));
+	check (has_marker (user_dir, "settings.shcl"));
+
+	/* On a platform where the two are the same place, "moving" it must be a
+	 * no-op and not lose the directory it was handed. */
+	if (g_strcmp0 (root, g_get_user_config_dir ()) == 0) {
+		check (g_strcmp0 (user_dir, legacy) == 0);
+	} else {
+		check (!g_file_test (legacy, G_FILE_TEST_EXISTS));
+	}
+
+	g_free (user_dir);
+	g_free (expected);
+	g_free (legacy);
+	remove_tree (sandbox);
+	g_free (roaming);
+	g_free (xdg);
+	g_free (sandbox);
+
+	if (failures == 0) {
+		g_print ("config-root: all checks passed\n");
+	}
+	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}

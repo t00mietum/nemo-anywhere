@@ -26,10 +26,10 @@
  * a desktop that already told GTK, GTK's own answer - so it is a no-op where
  * the desktop is already in charge.
  *
- * Themes come from three places, searched user-first: the user's own drop-in
- * folder, the folder installed beside the app, and whatever GTK already knows
- * about. Each is offered to the picker only for the backgrounds it was drawn
- * for; see nemo_appearance_list_themes.
+ * Themes come from four places, searched user-first: the user's own drop-in
+ * folder, the folder installed beside the app, the set compiled into the
+ * binary, and whatever GTK already knows about. Each is offered to the picker
+ * only for the backgrounds it was drawn for; see nemo_appearance_list_themes.
  */
 
 #ifndef NEMO_APPEARANCE_H
@@ -65,9 +65,9 @@ typedef struct {
 	char     *counterpart;		/* theme to swap to when the mode flips */
 	guint     fits;			/* NemoThemeFit bits */
 	gboolean  declared;		/* @fits is the theme's own answer, not a guess */
-	/* Found in nemo's own folder beside the app rather than anywhere GTK
-	 * looks. Note the bundled set installs into share/themes and share/icons
-	 * so GTK can resolve it by name, so this is FALSE for most of it. */
+	/* Shipped with the app rather than found anywhere GTK looks - either
+	 * compiled into the binary, or dropped beside it. Bundled themes sort
+	 * ahead of the rest in the picker. */
 	gboolean  bundled;
 } NemoThemeInfo;
 

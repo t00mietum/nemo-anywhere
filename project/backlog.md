@@ -833,6 +833,17 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Settings belong where each platform keeps them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS. Linux and BSD keep `~/.config`. Themes stay where they were.
+	- A folder left in the old place is moved across on first run, so nobody starts from defaults.
+	- Covered by a test that sandboxes both roots and watches the move happen; it fails without the fix.
+
+- 🛠️ The Windows executable takes far too long to start.
+	- Measured first: the packed single exe reaches even `--version` in 14s against 0.9s for the same build as a folder, and it is all spent before our own code runs. The packer charges about 2.8 ms for every file it carries, and the bundled themes were a couple of thousand of them.
+	- The bundled themes now ride inside the executable as one compiled-in resource instead. The sysroot's full Adwaita and its legacy set - 2,693 files for the ~180 names we ask of them - are replaced by our own trimmed copies.
+	- A splash appears while it starts, drawn with the platform's own toolkit because it has to be up before GTK is. It lists what startup is doing in a ten-line window that scrolls smoothly, and leaves the moment the real window has drawn.
+	- The window itself is now shown at its remembered size and place as soon as it exists, rather than after the first folder resolves.
+	- Open: the numbers above need re-measuring on the finished build, and the splash has not been looked at by eye.
+
 - ✅ Dimmer highlight of mouseover line. It can easily get confused with line selection.
 	- App CSS dims file-pane/tree row :hover to 0.035 alpha (theme was 0.08), scoped `:not(:selected)`; confirmed by eyeball.
 

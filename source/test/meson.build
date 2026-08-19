@@ -54,6 +54,17 @@ test('Metadata store test',
   args: []
 )
 
+# Needs the slug define: the point of the test is the path the app really builds.
+test('Config root test',
+  executable('test-nemo-config-root',
+    [ 'test-nemo-config-root.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('User input parse test',
   executable('test-eel-user-input',
     [ 'test-eel-user-input.c' ],
@@ -223,8 +234,10 @@ if is_windows
 endif
 
 test('Appearance themes test',
+  # The theme resource is linked into the app, not into libnemo-private, so a
+  # test that checks it has to carry its own copy.
   executable('test-nemo-appearance',
-    [ 'test-nemo-appearance.c' ],
+    [ 'test-nemo-appearance.c' ] + themeGresources,
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private ],
   ),

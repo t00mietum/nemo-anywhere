@@ -84,27 +84,22 @@ cp "${MINGW}/share/glib-2.0/schemas/"*.gschema.xml "${DEST}/mingw64/share/glib-2
 cp "${MINGW}/share/glib-2.0/schemas/gschema.dtd"   "${DEST}/mingw64/share/glib-2.0/schemas/" 2>/dev/null || true
 glib-compile-schemas "${DEST}/mingw64/share/glib-2.0/schemas" >/dev/null 2>&1 || true
 
-## Data: icons (Adwaita + hicolor fallbacks), themes, and the thumbnailer descriptors.
-for d in icons themes thumbnailers; do
+## Data: themes and the thumbnailer descriptors.
+for d in themes thumbnailers; do
 	[[ -d "${MINGW}/share/${d}" ]] && cp -r "${MINGW}/share/${d}" "${DEST}/mingw64/share/"
 done
 
-## The bundled theme set: vendored upstream themes plus our own Luna and Aero
-## icon sets. They go into share/themes and share/icons rather than a folder of
-## our own, because that is where GTK resolves a theme by name and the exe's own
-## share/ is already one of win32's system data dirs. Adwaita and hicolor above
-## stay as the fallback every bundled icon theme Inherits from.
-for src in "${REPO}/vendor/themes"/*/; do
-	[[ -d "$src" ]] && cp -r "$src" "${DEST}/mingw64/share/themes/"
-done
-for src in "${REPO}/vendor/icons"/*/ "${REPO}/assets/icons"/*/; do
-	[[ -d "$src" ]] || continue
-	cp -r "$src" "${DEST}/mingw64/share/icons/"
-	if [[ -x "${MINGW}/bin/gtk-update-icon-cache.exe" ]]; then
-		"${MINGW}/bin/gtk-update-icon-cache.exe" -q -t -f \
-			"${DEST}/mingw64/share/icons/$(basename "$src")" 2>/dev/null || true
-	fi
-done
+## Icons: hicolor only. The sysroot's Adwaita and AdwaitaLegacy are 2693 files
+## (including 33 X11 cursors that do nothing on Windows) to answer the ~180
+## names we ask of them, and the packed exe pays for every file it carries at
+## every launch. Our own trimmed Adwaita is in vendor/icons with the rest.
+mkdir -p "${DEST}/mingw64/share/icons"
+[[ -d "${MINGW}/share/icons/hicolor" ]] && cp -r "${MINGW}/share/icons/hicolor" "${DEST}/mingw64/share/icons/"
+
+## The bundled theme set is NOT staged here - it is compiled into the exe as a
+## resource (source/gresources/nemo-themes.gresource.xml). It used to be a
+## couple of thousand loose files under share/, and the packed exe charges
+## about 2.8 ms of launch time for every file it carries.
 
 ## etc: fontconfig + gtk settings the runtime reads relative to the prefix.
 for d in fonts gtk-3.0; do

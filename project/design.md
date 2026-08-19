@@ -246,8 +246,10 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 Settings are ours, in a file we own, in a format a person can read. There is no
 settings daemon, no compiled schema, and no per-platform store to keep in step.
 
-- One file, `settings.shcl`, in the user's config directory, in the same place
-  and format on Linux, Windows and anywhere else the app builds.
+- One file, `settings.shcl`, in the same format everywhere, in whichever
+  directory the platform holds per-user configuration in: `~/.config` on Linux
+  and BSD, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS. A
+  folder left behind by an older build is moved to the new place on first run.
 - The declared shape of every setting - type, default, allowed values,
   description - lives in a table in the code, and is mirrored by a schema file
   shipped with the app for validating a hand-edited config.
@@ -262,7 +264,7 @@ because nothing remains that can read the old store.
 
 Three separate stores, each with its own lifetime.
 
-- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) live in one plain-text SHCL file, `settings.shcl`, in the user's config directory - the same file and the same format on every platform. Neither the Linux desktop settings database nor the Windows registry is involved any more.
+- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) live in one plain-text SHCL file, `settings.shcl`, in the user's config directory - the same file and the same format on every platform, in whichever directory that platform keeps configuration in. Neither the Linux desktop settings database nor the Windows registry is involved any more.
 	- The file is meant to be read and edited by hand. It holds only what was actually chosen: a value equal to its default is dropped, the way per-folder view state already worked, so the file stays short and a later change to a default still reaches the user. Each key carries its one-line description as a comment.
 	- Edits made while the app is running are picked up straight away, so hand-editing behaves like changing the setting in the UI.
 	- Types, defaults and allowed values live in a table in the code, and a matching schema ships beside the app so `shcl check --schema` can validate a hand-edited file and catch typos.
@@ -285,6 +287,7 @@ The window is a menu and toolbar, a sidebar, a path bar, and a view - and the vi
 - The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Everything that could be slow to answer - free space, mount state - is fetched off the main loop and folded in when it arrives.
 - Extensions can add context-menu items, list columns, property pages and file attributes; nothing in the shipped UI depends on one being present.
 - Look and feel follows the platform: the desktop's theme and font on Linux, a bundled theme set with Segoe UI and the system light/dark preference on Windows. See Appearance and themes below.
+- **A launch shows something at every stage.** The window is put on screen at its remembered size and place as soon as it exists, before the first folder resolves, with its panes still empty. On Windows, where getting that far takes measurably longer, a small panel appears first - drawn with the platform's own toolkit, since it has to be up before GTK is - listing what startup is doing and leaving as soon as the real window has drawn.
 
 ### Appearance and themes
 
@@ -296,6 +299,7 @@ Two settings decide how the app looks: a light/dark mode, and the widget and ico
 - **Targets unlikely to have GTK themes installed carry their own set.** That is Windows and macOS; Linux and the BSDs use what the desktop already provides. Each bundled icon theme is trimmed to the icon names a file manager actually asks for - roughly 180 - which is what keeps a theme to a few hundred KB instead of tens of MB. Anything not shipped falls through the standard `Inherits` chain to Adwaita and then hicolor, so a gap is a mismatched glyph, never a missing one.
 - **The Windows XP and Windows 7 icon sets are our own artwork.** No cleanly-licensed set of either exists; what circulates is Microsoft's shell art extracted and repackaged, which this project will not ship. The two sets are drawn from a shared vocabulary of shapes and glyphs and carry the project's own license. Every other bundled theme is an upstream open-source theme, unmodified apart from the trim, keeping its own license file and a pinned source commit.
 - **Themes can be dropped in on any platform**, bundled set or not, by putting an ordinary GTK theme folder in `themes` or an icon theme in `icons` beside the settings file. Drop-ins are searched before the bundled set, so a same-named theme shadows it.
+- **The bundled set lives inside the binary rather than as files beside it.** It was a couple of thousand small files, and the Windows single-file build was spending nearly all of its startup unpacking them - the cost there is per file, not per byte. As one compiled-in resource it costs a few MB of binary and nothing at launch. The trade is that a bundled theme cannot be edited in place any more, which is what the drop-in folders are for; and one small icon theme still ships as files, because it is where the directory conventions the resource is matched against are defined.
 
 ### Testing
 

@@ -36,6 +36,10 @@
 #define DEFAULT_NEMO_DIRECTORY_MODE (0755)
 #define DEFAULT_DESKTOP_DIRECTORY_MODE (0755)
 
+/* The per-user dir our config dir sits in - roaming AppData on Windows,
+ * Application Support on macOS, XDG elsewhere. Not freed by the caller. */
+const char *nemo_get_user_config_root            (void);
+
 /* These functions all return something something that needs to be
  * freed with g_free, is not NULL, and is guaranteed to exist.
  */

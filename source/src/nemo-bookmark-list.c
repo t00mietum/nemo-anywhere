@@ -268,7 +268,6 @@ clear_bookmarks (NemoBookmarkList *bookmarks, GList *list)
 {
 	g_list_foreach (list, stop_monitoring_one, bookmarks);
 	g_list_free_full (list, g_object_unref);
-	list = NULL;
 }
 
 static void
@@ -700,7 +699,7 @@ load_bookmark_metadata_file (NemoBookmarkList *list)
 
     gchar *filename;
 
-    filename = g_build_filename (g_get_user_config_dir (),
+    filename = g_build_filename (nemo_get_user_config_root (),
                                  NEMO_APP_SLUG,
                                  "bookmark-metadata",
                                  NULL);
@@ -871,7 +870,7 @@ save_bookmark_metadata_file (NemoBookmarkList *list)
 
     gchar *filename;
 
-    filename = g_build_filename (g_get_user_config_dir (),
+    filename = g_build_filename (nemo_get_user_config_root (),
                                  NEMO_APP_SLUG,
                                  "bookmark-metadata",
                                  NULL);
