@@ -194,10 +194,18 @@ nemo_main_application_close_all_windows (NemoApplication *self)
 	g_list_free (list_copy);
 }
 
-/* The splash stands in until there is something real to look at, and the real
- * thing is not "mapped", it is "painted with the view in it". Off the draw
- * handler rather than out of it: tearing the splash down waits on its thread,
- * and the frame being drawn should not be the one that waits. */
+/* The splash stands in until the window is not merely up but finished - the
+ * view in place and the folder listed to the end. */
+
+/* Nothing may keep it up indefinitely: a location that never answers would
+ * otherwise leave it sitting over a window that is perfectly usable. */
+#define SPLASH_MAX_SECONDS	25
+#define SPLASH_POLL_MS		100
+
+/* Weak, so a window closed while still loading cannot leave the watch holding
+ * a freed pointer. */
+static NemoWindow *splash_watch_window;
+
 static gboolean
 drop_splash_idle (gpointer data)
 {
@@ -205,29 +213,63 @@ drop_splash_idle (gpointer data)
 	return G_SOURCE_REMOVE;
 }
 
-/* Nothing may keep the splash up indefinitely - a location that never answers
- * would otherwise leave it on screen with the window behind it. */
-#define SPLASH_MAX_SECONDS	25
-
-static gboolean
-window_drawn_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
+static void
+splash_watch_stop (void)
 {
-	NemoWindowSlot *slot = nemo_window_get_active_slot (NEMO_WINDOW (widget));
+	if (splash_watch_window != NULL) {
+		g_object_remove_weak_pointer (G_OBJECT (splash_watch_window),
+					      (gpointer *) &splash_watch_window);
+		splash_watch_window = NULL;
+	}
+}
 
-	/* The frame goes up before the first folder resolves, so the earliest
-	 * frames are of an empty window - taking the splash down then just shows
-	 * a blank one. The pane is what holds the view, and it stays hidden
-	 * until the view is ready (nemo_window_view_visible), so this is the
-	 * first frame with the file list actually in it. */
-	if (slot == NULL || slot->pane == NULL ||
-	    !gtk_widget_get_visible (GTK_WIDGET (slot->pane))) {
-		return GDK_EVENT_PROPAGATE;
+/* Polled rather than hung off the window's draw signal: nothing guarantees a
+ * frame arrives at the moment loading flips false, since the last rows may
+ * already have been painted, and a splash that outlives the load by a frame
+ * that never comes is worse than one checked ten times a second. */
+static gboolean
+splash_watch_cb (gpointer data)
+{
+	NemoWindowSlot *slot;
+	NemoView       *view;
+
+	if (!nemo_splash_is_up () || splash_watch_window == NULL) {
+		splash_watch_stop ();
+		nemo_splash_hide ();
+		return G_SOURCE_REMOVE;
 	}
 
-	g_idle_add (drop_splash_idle, NULL);
-	g_signal_handlers_disconnect_by_func (widget, window_drawn_cb, data);
+	/* The frame goes up before the folder resolves, so an empty window is
+	 * not the thing to hand over to. The pane holds the view and stays
+	 * hidden until it is ready; the view keeps its own loading flag set
+	 * until every file in the folder has been seen. */
+	slot = nemo_window_get_active_slot (splash_watch_window);
+	if (slot == NULL || slot->pane == NULL ||
+	    !gtk_widget_get_visible (GTK_WIDGET (slot->pane))) {
+		return G_SOURCE_CONTINUE;
+	}
 
-	return GDK_EVENT_PROPAGATE;
+	view = nemo_window_slot_get_current_view (slot);
+	if (view == NULL || nemo_view_get_loading (view)) {
+		return G_SOURCE_CONTINUE;
+	}
+
+	splash_watch_stop ();
+
+	/* One hop, so the frame holding the finished listing is painted before
+	 * the splash over it goes away. */
+	g_idle_add (drop_splash_idle, NULL);
+
+	return G_SOURCE_REMOVE;
+}
+
+static gboolean
+splash_deadline_cb (gpointer data)
+{
+	splash_watch_stop ();
+	nemo_splash_hide ();
+
+	return G_SOURCE_REMOVE;
 }
 
 static NemoWindow *
@@ -271,10 +313,14 @@ nemo_main_application_create_window (NemoApplication *application,
 
     nemo_undo_manager_attach (application->undo_manager, G_OBJECT (window));
 
-	if (nemo_splash_is_up ()) {
-		g_signal_connect_after (window, "draw",
-					G_CALLBACK (window_drawn_cb), NULL);
-		g_timeout_add_seconds (SPLASH_MAX_SECONDS, drop_splash_idle, NULL);
+	/* First window only - the splash belongs to the launch, not to every
+	 * window the launch happens to open. */
+	if (nemo_splash_is_up () && splash_watch_window == NULL) {
+		splash_watch_window = window;
+		g_object_add_weak_pointer (G_OBJECT (window),
+					   (gpointer *) &splash_watch_window);
+		g_timeout_add (SPLASH_POLL_MS, splash_watch_cb, NULL);
+		g_timeout_add_seconds (SPLASH_MAX_SECONDS, splash_deadline_cb, NULL);
 	}
 
 	DEBUG ("Creating a new navigation window");
