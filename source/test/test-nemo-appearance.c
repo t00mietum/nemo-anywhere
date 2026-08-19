@@ -316,7 +316,11 @@ test_bundled_set (void)
 	for (node = themes; node != NULL; node = node->next) {
 		NemoThemeInfo *info = node->data;
 
-		if (g_strcmp0 (info->name, "Fluent") == 0) {
+		/* Adwaita is the sample deliberately: it is the tail of the fallback
+		 * chain, so it is the one icon set that cannot be dropped from the
+		 * bundle by a change of mind about which themes to ship. This check
+		 * used to name Fluent, and went red the day that set was dropped. */
+		if (g_strcmp0 (info->name, "Adwaita") == 0) {
 			listed = TRUE;
 			check (info->bundled);
 			check (info->dir == NULL);		/* not a directory anywhere */
@@ -335,7 +339,7 @@ test_bundled_set (void)
 	/* No icon may be left in a symbolic/ folder, and the monochrome ones
 	 * still have to be there under their own name. */
 	files = g_ptr_array_new_with_free_func (g_free);
-	collect_resources (BUNDLE_ICONS "/Fluent", files);
+	collect_resources (BUNDLE_ICONS "/Adwaita", files);
 	check (files->len > 0);
 	for (i = 0; i < files->len; i++) {
 		const char *path = g_ptr_array_index (files, i);

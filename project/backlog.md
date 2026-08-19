@@ -846,6 +846,29 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colours, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
+	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
+	- Three new fetch shapes were needed: a repository that keeps one theme family per branch, six themes out of one sparse checkout, and two that ship the icons as a tar committed inside a repository of something else.
+	- **Buuf is deliberately not included.** It is CC BY-NC-SA, and the NonCommercial term rules it out of anything shipped and out of the repository. It is worth having, so `filesystem/` explains where to drop it and gives a one-line fetch for it.
+	- Three of the twelve carry no licence file upstream and are shipped on weaker evidence than the rest. Each one is named, with what it rests on, in `vendor/README.md` - worth a look before a release.
+
+- ✅ A gallery of every icon set in the README, four icons each on a light and a dark background, plus how to drop your own in. Rendered by `cicd/utility/icon-gallery.py`; re-run it when the set list changes.
+	- Each icon is rasterised on its own before being placed. Several sets colour themselves through a stylesheet keyed on a class name they all spell the same way, so pasting their markup into one sheet made six differently coloured sets come out identical - and renaming the classes apart made them all come out black.
+
+- ✅ `filesystem/` - a tree mirroring where things land on disk, so a folder can be copied straight across. Carries the icon and widget drop-in folders, what they are called on each platform, and the two optional `index.theme` keys that tell the picker which modes a theme suits.
+
+- ✅ Windows icon sets: one per Windows generation, all with yellow folders.
+	- Luna (XP) and Aero (7) were already ours; Metro (10) and Mica (11) are new, so every bundled Windows widget theme now has icons drawn to match it. The picker pairs them automatically.
+	- Folders are yellow in all four. Aero's were blue, which is not what Windows 7 shipped, and a yellow folder is the one colour that reads on a light background and a dark one alike.
+	- The XP and 7 folders were too shallow to read as folders at a glance; the body is taller in every era now.
+	- The folder itself is drawn per era rather than shared - chunky and outlined for XP and 7, flat and square for 10, rounded with the front panel falling away for 11. It is the icon a Windows generation is recognised by.
+	- The vendored Fluent icon set is gone with them: it drew blue folders and looked nothing like Windows 11, and Mica now covers that style. The Fluent *widget* theme stays. About 390 KB and 179 files lighter.
+
+- ✅ Every bundled SVG run through a size pass: 2.1 MB of icon art down to 1.8 MB, and nemo's own artwork from 142 KB to 50 KB.
+	- Numbers in path data are rounded to a step finer than a two-thousandth of the icon, which is under a tenth of a pixel at any size one is drawn. Colours fold to their short form and unreferenced ids go.
+	- Multipliers - transform matrices, gradient vectors - are deliberately left alone: rounding a scale factor moves everything it touches, which is visible where rounding a coordinate is not.
+	- Checked by rendering all 983 icons before and after and comparing pixels. One icon differs at all, by an amount invisible side by side. Doing that caught a real fault first time round: an arc's two flags can be written with nothing between them, and reading path data as a plain run of numbers swallows one and silently reshapes the glyph.
+
 - ✅ Default settings changed: folder expanders on in list view, binary size prefixes (KiB/MiB), and thumbnail visibility inherited from the parent folder.
 
 - ✅ List columns trimmed to one row per idea.

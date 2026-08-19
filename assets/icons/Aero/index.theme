@@ -1,6 +1,6 @@
 [Icon Theme]
 Name=Aero
-Comment=Cool, glassy, softly lit - the Windows 7 look
+Comment=Glassy and softly lit - the Windows 7 look
 X-Nemo-Style=Windows 7
 X-Nemo-Modes=light;dark
 Inherits=Adwaita,hicolor
