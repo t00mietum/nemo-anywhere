@@ -466,6 +466,13 @@ show_window_early (NemoWindow *window)
 
 	nemo_splash_note (_("Opening the window"));
 	gtk_widget_show (GTK_WIDGET (window));
+
+	/* Showing a window maps it but does not activate it, so it lands one
+	 * place behind whatever the user was looking at - which, with a splash
+	 * covering the moment it appears, reads as nothing having opened at all
+	 * until the taskbar button is noticed. Present it, as launching an app
+	 * is supposed to. */
+	gtk_window_present (GTK_WINDOW (window));
 }
 
 static void
