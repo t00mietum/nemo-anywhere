@@ -88,6 +88,11 @@ gmodule = dependency('gmodule-no-export-2.0',       version: glib_version)
 gobject = dependency('gobject-2.0',                 version: '>=2.0')
 json    = dependency('json-glib-1.0',               version: '>=1.6')
 
+# Archive creation. libarchive writes the tar, zip and 7z families; rar, and the
+# options libarchive has no write support for (split volumes, solid blocks,
+# encrypted headers), go out to a 7z or rar command when one is installed.
+archive = dependency('libarchive',                  version: '>=3.2.0')
+
 gail    = dependency('gail-3.0')
 
 # Unix/X11-only deps, absent from the Windows (mingw) sysroot. Empty placeholders on

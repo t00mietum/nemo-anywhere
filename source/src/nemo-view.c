@@ -32,6 +32,7 @@
 #include "nemo-view.h"
 
 #include "nemo-actions.h"
+#include "nemo-archive-dialog.h"
 #include "nemo-error-reporting.h"
 #include "nemo-list-view.h"
 #include "nemo-mime-actions.h"
@@ -6850,6 +6851,43 @@ action_location_copy_path_callback (GtkAction *action,
 	g_list_free (files);
 }
 
+/* The dialog asks for the rest; all it needs from here is what to compress and
+   where to offer to put it. */
+static void
+action_compress_callback (GtkAction *action,
+			  gpointer callback_data)
+{
+	NemoView *view;
+	GList *selection;
+	GList *locations = NULL;
+	GList *l;
+	GFile *directory;
+	char *uri;
+
+	view = NEMO_VIEW (callback_data);
+
+	selection = nemo_view_get_selection (view);
+	if (selection == NULL) {
+		return;
+	}
+
+	for (l = selection; l != NULL; l = l->next) {
+		locations = g_list_prepend (locations, nemo_file_get_location (NEMO_FILE (l->data)));
+	}
+	locations = g_list_reverse (locations);
+
+	uri = nemo_view_get_backing_uri (view);
+	directory = uri != NULL ? g_file_new_for_uri (uri) : NULL;
+
+	nemo_archive_dialog_show (GTK_WINDOW (nemo_view_get_nemo_window (view)),
+				  locations, directory);
+
+	g_clear_object (&directory);
+	g_free (uri);
+	g_list_free_full (locations, g_object_unref);
+	nemo_file_list_free (selection);
+}
+
 static void
 move_copy_selection_to_next_pane (NemoView *view,
 				  int copy_action)
@@ -8480,6 +8518,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Copy _Path"), "",
   /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
 				 G_CALLBACK (action_background_copy_path_callback) },
+  /* name, stock id */         { NEMO_ACTION_COMPRESS, "package-x-generic",
+  /* label, accelerator */       N_("Co_mpress..."), "",
+  /* tooltip */                  N_("Create an archive holding the selected items"),
+				 G_CALLBACK (action_compress_callback) },
   /* name, stock id */         { "Paste", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste"), "<control>V",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command"),
@@ -10206,6 +10248,11 @@ real_update_menus (NemoView *view)
 	g_object_set (action, "label",
 		      ngettext ("Copy _Path", "Copy _Paths", selection_count),
 		      NULL);
+
+	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_COMPRESS);
+	gtk_action_set_sensitive (action, selection_count > 0 && can_copy_files);
+	gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
 
 	real_update_paste_menu (view, selection, selection_count);
 
