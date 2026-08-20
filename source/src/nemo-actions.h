@@ -85,6 +85,9 @@
 #define NEMO_ACTION_LOCATION_CUT "LocationCut"
 #define NEMO_ACTION_COPY "Copy"
 #define NEMO_ACTION_LOCATION_COPY "LocationCopy"
+#define NEMO_ACTION_COPY_PATH "CopyPath"
+#define NEMO_ACTION_BACKGROUND_COPY_PATH "BackgroundCopyPath"
+#define NEMO_ACTION_LOCATION_COPY_PATH "LocationCopyPath"
 #define NEMO_ACTION_PASTE "Paste"
 #define NEMO_ACTION_PASTE_FILES_INTO "Paste Files Into"
 #define NEMO_ACTION_COPY_TO_NEXT_PANE "Copy to next pane"
@@ -198,6 +201,9 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
     { NEMO_ACTION_COPY, "selection_menu__copy_check",
      "/selection/File Clipboard Actions/Copy", "selection-menu-copy" },
 
+    { NEMO_ACTION_COPY_PATH, "selection_menu__copy_path_check",
+     "/selection/File Clipboard Actions/CopyPath", "selection-menu-copy-path" },
+
     { NEMO_ACTION_PASTE_FILES_INTO, "selection_menu__paste_check",
      "/selection/File Clipboard Actions/Paste Files Into", "selection-menu-paste" },
 
@@ -251,6 +257,9 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_OPEN_AS_ROOT, "background_menu__open_as_root_check",
      "/background/Before Zoom Items/OpenAsRoot", "background-menu-open-as-root" },
+
+    { NEMO_ACTION_BACKGROUND_COPY_PATH, "background_menu__copy_path_check",
+     "/background/Before Zoom Items/File Clipboard Actions/BackgroundCopyPath", "background-menu-copy-path" },
 
     { NEMO_ACTION_SHOW_HIDDEN_FILES, "background_menu__show_hidden_files_check",
      "/background/Before Zoom Items/Show Hidden Files", "background-menu-show-hidden-files" },

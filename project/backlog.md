@@ -916,9 +916,12 @@ Observations and suggestions rather than defects. Not individually reproduced.
 - 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.
 	- Using a reusable tooltip mechanism
 
-- 🔘 Ship with "Copy path(s)" script from current nemo install.
-	- Works like current script used by current nemo install.
-	- Except hard-coded.
+- ✅ Ship with "Copy path(s)" script from current nemo install.
+	- Built in rather than shipped as a script, so it needs no interpreter, no clipboard helper and no per-platform install step.
+	- On the selection menu, the background menu (the folder being viewed) and a breadcrumb segment; also on the Edit menu, with Ctrl+Shift+C.
+	- Copies the native path of each selected item, one per line, unquoted, with no trailing newline - the line ending being the local one, so a paste into cmd or notepad lands as separate lines.
+	- Anything with no local path (a remote share) contributes its uri instead, and a recent or favorites entry resolves to the file it stands for rather than copying a virtual uri.
+	- Label follows the count: "Copy Path" for one, "Copy Paths" for several. Show/hide checkboxes in Preferences like the other context-menu items.
 
 - 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
 	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."

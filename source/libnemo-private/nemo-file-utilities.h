@@ -139,4 +139,5 @@ gboolean nemo_path_is_network_safe (const gchar *path);
    the sidebar, the breadcrumb and the title agree. Always FALSE/NULL off win32. */
 gboolean nemo_location_is_drive_root (GFile *location);
 gchar *nemo_get_drive_root_name (GFile *location);
+gchar *nemo_build_path_list_text (GList *locations);
 #endif /* NEMO_FILE_UTILITIES_H */

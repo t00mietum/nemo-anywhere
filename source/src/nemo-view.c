@@ -6747,6 +6747,109 @@ action_copy_files_callback (GtkAction *action,
 	nemo_file_list_free (selection);
 }
 
+/* Puts the paths of @files on the clipboard as plain text, one per line. A
+   recent or favorites item names itself with a virtual uri, so those resolve to
+   the file they stand for rather than copying a uri nothing else understands. */
+static void
+copy_paths_to_clipboard (NemoView *view,
+			 GList    *files)
+{
+	GtkClipboard *clipboard;
+	GList *locations = NULL;
+	GList *l;
+	guint count;
+	char *text;
+	char *status_string;
+
+	for (l = files; l != NULL; l = l->next) {
+		NemoFile *file = NEMO_FILE (l->data);
+		GFile *location;
+
+		if (nemo_file_is_in_recent (file) || nemo_file_is_in_favorites (file)) {
+			location = nemo_file_get_activation_location (file);
+		} else {
+			location = nemo_file_get_location (file);
+		}
+
+		if (location != NULL) {
+			locations = g_list_prepend (locations, location);
+		}
+	}
+
+	locations = g_list_reverse (locations);
+	count = g_list_length (locations);
+	text = nemo_build_path_list_text (locations);
+	g_list_free_full (locations, g_object_unref);
+
+	if (text == NULL) {
+		return;
+	}
+
+	clipboard = nemo_clipboard_get (GTK_WIDGET (view));
+	gtk_clipboard_set_text (clipboard, text, -1);
+	/* Let a clipboard manager keep the text once nemo is gone. */
+	gtk_clipboard_set_can_store (clipboard, NULL, 0);
+
+	status_string = g_strdup_printf (ngettext ("Copied the path to the clipboard",
+						   "Copied %'d paths to the clipboard",
+						   count),
+					 count);
+	nemo_window_slot_set_status (view->details->slot, status_string, NULL, FALSE);
+
+	g_free (status_string);
+	g_free (text);
+}
+
+static void
+action_copy_path_callback (GtkAction *action,
+			   gpointer callback_data)
+{
+	NemoView *view;
+	GList *selection;
+
+	view = NEMO_VIEW (callback_data);
+
+	selection = nemo_view_get_selection (view);
+	copy_paths_to_clipboard (view, selection);
+	nemo_file_list_free (selection);
+}
+
+static void
+action_background_copy_path_callback (GtkAction *action,
+				      gpointer callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	GList *files;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = nemo_view_get_directory_as_file (view);
+	g_return_if_fail (file != NULL);
+
+	files = g_list_append (NULL, file);
+	copy_paths_to_clipboard (view, files);
+	g_list_free (files);
+}
+
+static void
+action_location_copy_path_callback (GtkAction *action,
+				    gpointer callback_data)
+{
+	NemoView *view;
+	NemoFile *file;
+	GList *files;
+
+	view = NEMO_VIEW (callback_data);
+
+	file = view->details->location_popup_directory_as_file;
+	g_return_if_fail (file != NULL);
+
+	files = g_list_append (NULL, file);
+	copy_paths_to_clipboard (view, files);
+	g_list_free (files);
+}
+
 static void
 move_copy_selection_to_next_pane (NemoView *view,
 				  int copy_action)
@@ -8369,6 +8472,14 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Copy"), "<control>C",
   /* tooltip */                  N_("Prepare the selected files to be copied with a Paste command"),
 				 G_CALLBACK (action_copy_files_callback) },
+  /* name, stock id */         { NEMO_ACTION_COPY_PATH, "edit-copy-symbolic",
+  /* label, accelerator */       N_("Copy _Path"), "<control><shift>C",
+  /* tooltip */                  N_("Copy the full path of each selected item to the clipboard"),
+				 G_CALLBACK (action_copy_path_callback) },
+  /* name, stock id */         { NEMO_ACTION_BACKGROUND_COPY_PATH, "edit-copy-symbolic",
+  /* label, accelerator */       N_("Copy _Path"), "",
+  /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
+				 G_CALLBACK (action_background_copy_path_callback) },
   /* name, stock id */         { "Paste", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste"), "<control>V",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command"),
@@ -8534,6 +8645,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Copy"), "",
   /* tooltip */                  N_("Prepare this folder to be copied with a Paste command"),
 				 G_CALLBACK (action_location_copy_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_COPY_PATH, "edit-copy-symbolic",
+  /* label, accelerator */       N_("Copy _Path"), "",
+  /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
+				 G_CALLBACK (action_location_copy_path_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_PASTE_FILES_INTO, "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste Into Folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into this folder"),
@@ -10084,6 +10199,13 @@ real_update_menus (NemoView *view)
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_COPY);
 	gtk_action_set_sensitive (action, can_copy_files);
+
+	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_COPY_PATH);
+	gtk_action_set_sensitive (action, selection_count > 0);
+	g_object_set (action, "label",
+		      ngettext ("Copy _Path", "Copy _Paths", selection_count),
+		      NULL);
 
 	real_update_paste_menu (view, selection, selection_count);
 
