@@ -227,6 +227,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences.menu-config", "desktop-menu-customize", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the background context menu's Customize item (new-style desktop only)." },
 	{ "preferences.menu-config", "iconview-menu-arrange-items", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the background context menu's Arrange Items submenu (icon view only)." },
 	{ "preferences.menu-config", "iconview-menu-organize-by-name", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the background context menu's Organize by Name item (icon view only)." },
+	{ "preferences.menu-config", "selection-menu-compress", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Compress item." },
 	{ "preferences.menu-config", "selection-menu-copy", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Copy item." },
 	{ "preferences.menu-config", "selection-menu-copy-path", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Copy Path item." },
 	{ "preferences.menu-config", "selection-menu-copy-to", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Copy To submenu." },

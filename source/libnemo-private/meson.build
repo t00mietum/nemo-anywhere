@@ -11,6 +11,7 @@ nemo_private_sources = [
   'nemo-action-manager.c',
   'nemo-appearance.c',
   'nemo-action.c',
+  'nemo-archive.c',
   'nemo-bookmark.c',
   'nemo-cell-renderer-disk.c',
   'nemo-centered-placement-grid.c',
@@ -90,7 +91,7 @@ nemo_private_sources = [
 ]
 
 nemo_private_deps = [
-  eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, win_shell, x11
+  archive, eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, win_shell, x11
 ]
 
 if libexif_enabled

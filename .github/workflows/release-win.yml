@@ -48,6 +48,7 @@ jobs:
           install: >-
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-libarchive
             mingw-w64-x86_64-json-glib
             mingw-w64-x86_64-libexif
             mingw-w64-x86_64-libgsf

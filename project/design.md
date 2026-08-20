@@ -121,6 +121,7 @@ Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable 
 	- `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`
 	- `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`
 	- `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`
+	- `libarchive-dev`
 	- `libx11-dev libxext-dev libxrender-dev`
 - Configure and build:
 	- `meson setup build source`
@@ -131,7 +132,7 @@ Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable 
 
 Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt MSYS2 packages unpacked into a sysroot. All of it lives in a dedicated `nemo-winbuild` container so neither the host nor the repo carries the Windows binaries.
 
-- `cicd/win/fetch-sysroot.bash` - resolves the transitive dependency closure of a few root packages (gtk3, json-glib, libexif, libgsf) from the MSYS2 pacman database and unpacks each `.pkg.tar.zst` into `/opt/win-sysroot`. No pacman needed; the `.db` is just a tarball of `desc` files we parse ourselves.
+- `cicd/win/fetch-sysroot.bash` - resolves the transitive dependency closure of a few root packages (gtk3, json-glib, libarchive, libexif, libgsf) from the MSYS2 pacman database and unpacks each `.pkg.tar.zst` into `/opt/win-sysroot`. No pacman needed; the `.db` is just a tarball of `desc` files we parse ourselves.
 - `cicd/win/win64.cross.txt` - meson cross file: mingw-w64 binaries, `wine` as the exe wrapper, `PKG_CONFIG_SYSROOT_DIR` pointed at the sysroot (the `.pc` files keep `prefix=/mingw64`).
 - `cicd/win/Dockerfile` - builds `nemo-winbuild`: mingw toolchain + native glib codegen tools (run on the build host) + wine + the baked sysroot.
 - Configure/build (source mounted at `/src`):
@@ -193,6 +194,12 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 
 - Desktop management is removed, not made optional. Nemo Anywhere is a file manager, not a desktop shell - drawing/owning the root desktop is inherently a Linux/Cinnamon-session concern and pulls in the deepest coupling (the `nemo-desktop` binary, the `org.Cinnamon` proxy, the per-monitor `x-nemo-desktop://` directory model). Cutting it outright is the cleanest de-Cinnamon step and benefits every target. Kept: the `.desktop` launcher-file properties editor and the multi-monitor geometry helper, both of which are ordinary file-manager features despite their "desktop" names.
 
+- Archives are written by libarchive, with the 7z and rar commands used as optional extras rather than as the primary route. Among the options - shelling out to whatever archiver is installed, vendoring a compressor, or linking a library - it was decided to link libarchive, because it needs nothing installed on the user's machine, writes the tar, zip and 7z families natively, and reports real per-file progress through the ordinary job queue. What it cannot do on the write side is the reason the commands are still reached for: it writes no rar at all, and has no support for split volumes, solid blocks, storing duplicates as references, or encrypting a 7z. Where an installed `7z` or `rar` can honour one of those, it is used; where nothing can, the option is greyed out rather than hidden, so a dialog does not change shape between machines.
+
+	- Which writer gets a job follows from what was asked for, not from the format alone. Encryption and splitting are treated as requirements - a backend that cannot do them is not a candidate, because quietly writing a readable archive when one was asked to be locked is the worst possible outcome. Everything else (solid, duplicate references, storing links, a recovery record, locking) is a preference: honoured where a writer can, dropped where none can, rather than failing the job. A preference no writer for that format can honour is dropped before matching, so an option left on by default does not steer a plain tar away from the writer that suits it.
+
+	- Following symlinked and junctioned folders is off by default and is ours, not the archiver's, because the file tree is walked through GIO before anything is handed to a writer. A link loop would otherwise pull in the whole disk; the walk remembers the directories it has been through by file id, so a loop terminates even when following is switched on.
+
 - Settings moved off GSettings entirely, onto SHCL, rather than keeping the GSettings API over a SHCL-backed store. Both were on the table: a storage backend would have been a fraction of the work and left every call site untouched, but it would have kept a compiled schema to install and ship on every platform. Among these options it was decided to take the full replacement, so that configuration is one plain file the user can open, with no build-time or install-time artifact behind it. The costs are real and were accepted: roughly three hundred call sites moved, and change notification, property binding and enum mapping are now ours to maintain. Notification and binding kept the shapes they had (a detailed `changed::key` signal, a `bind` with optional mappings), so the call sites read as they did before.
 
 	- Defaults stayed central, in one table, instead of being restated at each call site as SHCL's own guidance suggests. With a hundred and sixty-eight settings, many read from several places, a restated default is a bug waiting to happen - two call sites disagreeing about what a setting means when it is absent.
@@ -238,7 +245,7 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 - **Language**: C, built with meson and ninja. No C++ and no additional language runtime.
 - **Toolkit**: GTK 3 with GLib/GObject/GIO. GTK 3 rather than 4 because the fork inherits a large GTK 3 codebase and GTK 3 still has the better Windows story; the deprecated pieces still in use (the status icon, a few stock dialogs) are isolated and marked.
 - **Filesystem access**: GIO everywhere, with native backends filling the gaps that have no portable answer - the Windows Recycle Bin, Windows network browsing, and Windows shell shortcuts.
-- **Other libraries**: json-glib for the metadata store, libexif/libgsf/exempi for file property extraction, and a single vendored header for the settings format. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
+- **Other libraries**: json-glib for the metadata store, libarchive for writing archives, libexif/libgsf/exempi for file property extraction, and a single vendored header for the settings format. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
 - **Optional at runtime**: gvfs on Linux, for network shares, trash and remote mounts. Absent, the affected entries hide themselves rather than fail.
 
 ### Configuration model

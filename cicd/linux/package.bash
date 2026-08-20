@@ -143,7 +143,7 @@ deb_depends(){
 
 	if [[ -z "$line" ]]; then
 		fEcho "WARNING: could not read dependencies from ${CONTAINER}; using a conservative list" >&2
-		line="libc6, libglib2.0-0, libgtk-3-0, libgdk-pixbuf-2.0-0, libpango-1.0-0, libcairo2, libjson-glib-1.0-0, libexif12, libgsf-1-114"
+		line="libc6, libglib2.0-0, libgtk-3-0, libgdk-pixbuf-2.0-0, libpango-1.0-0, libcairo2, libjson-glib-1.0-0, libarchive13, libexif12, libgsf-1-114"
 	fi
 	printf '%s' "$line"
 }

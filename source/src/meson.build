@@ -9,6 +9,7 @@ dbusBuiltSources = gnome.gdbus_codegen(
 nemoCommon_sources = [
   dbusBuiltSources,
   'nemo-action-config-widget.c',
+  'nemo-archive-dialog.c',
   'nemo-application.c',
   'nemo-bookmark-list.c',
   'nemo-bookmarks-window.c',

@@ -21,7 +21,7 @@ PFX="mingw-w64-x86_64-"
 ##	Roots: gtk3 drags in the bulk of the stack (glib2, atk, cairo, gdk-pixbuf2, pango,
 ##	json-glib, libepoxy, gettext, icon theme). The rest are our extra meson deps.
 ##	Exempi (XMP) is not packaged for mingw - we cross-build with -Dxmp=false instead.
-ROOTS=(gtk3 json-glib libexif libgsf)
+ROOTS=(gtk3 json-glib libexif libgsf libarchive)
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
