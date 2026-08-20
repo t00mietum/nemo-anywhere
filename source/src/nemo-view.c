@@ -6851,12 +6851,13 @@ action_location_copy_path_callback (GtkAction *action,
 	g_list_free (files);
 }
 
-/* The dialog asks for the rest; all it needs from here is what to compress and
-   where to offer to put it. */
+/* The dialog asks for the rest; all it needs from here is what to compress,
+   where to offer to put it, and whether that is the whole folder. */
 static void
 compress_files (NemoView *view,
 		GList *files,
-		GFile *default_dir)
+		GFile *default_dir,
+		gboolean whole_folder)
 {
 	GList *locations = NULL;
 	GList *l;
@@ -6871,9 +6872,37 @@ compress_files (NemoView *view,
 	locations = g_list_reverse (locations);
 
 	nemo_archive_dialog_show (GTK_WINDOW (nemo_view_get_nemo_window (view)),
-				  locations, default_dir);
+				  locations, default_dir, whole_folder);
 
 	g_list_free_full (locations, g_object_unref);
+}
+
+/* Whether a selection of several is everything the folder is showing, which is
+   what lets the archive take the folder's name. Counting is enough: a selection
+   is always a subset of what is displayed. A search result set has no folder to
+   be named after, so it never counts. */
+static gboolean
+selection_is_whole_folder (NemoView *view,
+			   GList *selection)
+{
+	GList *file_list;
+	GList *l;
+	guint shown = 0;
+
+	if (view->details->model == NULL ||
+	    NEMO_IS_SEARCH_DIRECTORY (view->details->model)) {
+		return FALSE;
+	}
+
+	file_list = nemo_directory_get_file_list (view->details->model);
+	for (l = file_list; l != NULL; l = l->next) {
+		if (nemo_view_should_show_file (view, NEMO_FILE (l->data))) {
+			shown++;
+		}
+	}
+	nemo_file_list_free (file_list);
+
+	return shown > 0 && shown == g_list_length (selection);
 }
 
 /* Compressing one folder offers to put the archive beside it rather than inside
@@ -6893,7 +6922,7 @@ compress_one_folder (NemoView *view,
 	parent = g_file_get_parent (location);
 
 	files = g_list_append (NULL, file);
-	compress_files (view, files, parent != NULL ? parent : location);
+	compress_files (view, files, parent != NULL ? parent : location, FALSE);
 	g_list_free (files);
 
 	g_clear_object (&parent);
@@ -6919,7 +6948,8 @@ action_compress_callback (GtkAction *action,
 	uri = nemo_view_get_backing_uri (view);
 	directory = uri != NULL ? g_file_new_for_uri (uri) : NULL;
 
-	compress_files (view, selection, directory);
+	compress_files (view, selection, directory,
+			selection_is_whole_folder (view, selection));
 
 	g_clear_object (&directory);
 	g_free (uri);

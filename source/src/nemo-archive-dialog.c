@@ -56,7 +56,10 @@ typedef struct {
 	GtkWidget *recovery_check;
 	GtkWidget *lock_check;
 
+	GtkWidget *compress_button;
+
 	GList     *files;		/* GFile *, owned */
+	gboolean   whole_folder;	/* the selection is all the folder shows */
 	gboolean   name_edited;		/* the user typed, so stop rewriting it */
 } ArchiveDialog;
 
@@ -82,6 +85,17 @@ set_row_sensitive (GtkWidget *widget,
 {
 	if (widget != NULL) {
 		gtk_widget_set_sensitive (widget, sensitive);
+	}
+}
+
+/* Part of a folder gets no suggested name, so the field starts empty and there
+   is nothing to compress into until it is filled in. */
+static void
+update_name_validity (ArchiveDialog *self)
+{
+	if (self->compress_button != NULL) {
+		gtk_widget_set_sensitive (self->compress_button,
+					  gtk_entry_get_text_length (GTK_ENTRY (self->name_entry)) > 0);
 	}
 }
 
@@ -125,19 +139,24 @@ update_for_format (ArchiveDialog *self)
 			   (caps & NEMO_ARCHIVE_CAP_STORE_LINKS) == 0);
 
 	if (!self->name_edited) {
-		name = nemo_archive_suggest_name (self->files, format);
+		name = nemo_archive_suggest_name (self->files, self->whole_folder, format);
 	} else {
-		name = nemo_archive_apply_extension (gtk_entry_get_text (GTK_ENTRY (self->name_entry)),
-						     format);
+		const char *typed = gtk_entry_get_text (GTK_ENTRY (self->name_entry));
+
+		/* An emptied field stays empty rather than becoming a bare
+		   extension the user would have to delete again. */
+		name = typed[0] != '\0' ? nemo_archive_apply_extension (typed, format) : NULL;
 	}
 
 	/* Setting the text counts as a change, so the guard has to be up first. */
 	g_object_set_data (G_OBJECT (self->name_entry), "nemo-archive-programmatic",
 			   GINT_TO_POINTER (1));
-	gtk_entry_set_text (GTK_ENTRY (self->name_entry), name);
+	gtk_entry_set_text (GTK_ENTRY (self->name_entry), name != NULL ? name : "");
 	g_object_set_data (G_OBJECT (self->name_entry), "nemo-archive-programmatic", NULL);
 
 	g_free (name);
+
+	update_name_validity (self);
 }
 
 static void
@@ -176,6 +195,8 @@ name_changed (GtkEditable *editable,
 	if (g_object_get_data (G_OBJECT (editable), "nemo-archive-programmatic") == NULL) {
 		self->name_edited = TRUE;
 	}
+
+	update_name_validity (self);
 }
 
 /* One labelled row in the options grid. */
@@ -359,7 +380,8 @@ dialog_free (ArchiveDialog *self)
 void
 nemo_archive_dialog_show (GtkWindow *parent_window,
 			  GList     *files,
-			  GFile     *default_dir)
+			  GFile     *default_dir,
+			  gboolean   whole_folder)
 {
 	ArchiveDialog *self;
 	GtkWidget *content;
@@ -379,6 +401,7 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 		self->files = g_list_prepend (self->files, g_object_ref (G_FILE (l->data)));
 	}
 	self->files = g_list_reverse (self->files);
+	self->whole_folder = whole_folder;
 
 	self->dialog = gtk_dialog_new_with_buttons (_("Compress"), parent_window,
 						    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -439,6 +462,7 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 		   rows would silently make the button do nothing. */
 		gtk_widget_set_sensitive (compress_button, FALSE);
 	} else {
+		self->compress_button = compress_button;
 		gtk_combo_box_set_active (GTK_COMBO_BOX (self->format_combo), 0);
 	}
 
