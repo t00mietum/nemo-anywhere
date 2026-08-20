@@ -84,6 +84,76 @@ check_extensions (void)
 	g_free (text);
 }
 
+/* Builds a list of GFile * from uris. */
+static GList *
+files_for_uris (const char * const *uris)
+{
+	GList *files = NULL;
+	int i;
+
+	for (i = 0; uris[i] != NULL; i++) {
+		files = g_list_prepend (files, g_file_new_for_uri (uris[i]));
+	}
+
+	return g_list_reverse (files);
+}
+
+/* The name offered for a selection. One item is named after itself; several
+ * borrow the folder's name only when they are the whole folder. */
+static void
+check_names (void)
+{
+	static const char * const one[] = { "file:///tmp/photos/holiday.jpg", NULL };
+	static const char * const one_folder[] = { "file:///tmp/photos", NULL };
+	static const char * const several[] = {
+		"file:///tmp/photos/one.jpg", "file:///tmp/photos/two.jpg", NULL
+	};
+	static const char * const root[] = { "file:///", NULL };
+	GList *files;
+	char *text;
+
+	/* A single file, extension and all, keeps its whole name - "holiday.jpg"
+	   compresses to "holiday.jpg.zip", not "holiday.zip". */
+	files = files_for_uris (one);
+	text = nemo_archive_suggest_name (files, FALSE, NEMO_ARCHIVE_FORMAT_ZIP);
+	check (g_strcmp0 (text, "holiday.jpg.zip") == 0);
+	g_free (text);
+	g_list_free_full (files, g_object_unref);
+
+	/* A single folder is named after itself, and the two-part suffix is
+	   carried whole. */
+	files = files_for_uris (one_folder);
+	text = nemo_archive_suggest_name (files, FALSE, NEMO_ARCHIVE_FORMAT_TAR_GZ);
+	check (g_strcmp0 (text, "photos.tar.gz") == 0);
+	g_free (text);
+	g_list_free_full (files, g_object_unref);
+
+	/* Everything in the folder: the archive takes the folder's name. */
+	files = files_for_uris (several);
+	text = nemo_archive_suggest_name (files, TRUE, NEMO_ARCHIVE_FORMAT_ZIP);
+	check (g_strcmp0 (text, "photos.zip") == 0);
+	g_free (text);
+
+	/* The same files as a part of the folder: no name, so the user picks
+	   one rather than getting the folder's by accident. */
+	text = nemo_archive_suggest_name (files, FALSE, NEMO_ARCHIVE_FORMAT_ZIP);
+	check (text == NULL);
+	g_free (text);
+	g_list_free_full (files, g_object_unref);
+
+	/* A root has no name to borrow. */
+	files = files_for_uris (root);
+	text = nemo_archive_suggest_name (files, FALSE, NEMO_ARCHIVE_FORMAT_ZIP);
+	check (text == NULL);
+	g_free (text);
+	g_list_free_full (files, g_object_unref);
+
+	/* Nothing selected cannot be compressed, so there is nothing to call it. */
+	text = nemo_archive_suggest_name (NULL, TRUE, NEMO_ARCHIVE_FORMAT_ZIP);
+	check (text == NULL);
+	g_free (text);
+}
+
 static void
 check_sizes (void)
 {
@@ -302,6 +372,7 @@ int
 main (int argc, char *argv[])
 {
 	check_extensions ();
+	check_names ();
 	check_sizes ();
 	check_backends ();
 	check_commands ();

@@ -111,11 +111,15 @@ NemoArchiveBackend nemo_archive_pick_backend     (NemoArchiveFormat         form
 						  const NemoArchiveOptions *options);
 
 /* Name handling for the dialog: the extension follows the format, and a
- * selection suggests a name. */
+ * selection suggests a name - or, when the selection is part of a folder rather
+ * than one item or all of it, no name at all, which leaves the field for the
+ * user to fill in. whole_folder says the selection is everything the folder is
+ * showing. */
 char    *nemo_archive_strip_extension (const char *name);
 char    *nemo_archive_apply_extension (const char       *name,
 				       NemoArchiveFormat format);
 char    *nemo_archive_suggest_name    (GList            *files,
+				       gboolean          whole_folder,
 				       NemoArchiveFormat format);
 
 /* The command line a 7z or rar backend would be run with, in the base folder

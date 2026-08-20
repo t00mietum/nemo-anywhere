@@ -538,10 +538,12 @@ nemo_archive_apply_extension (const char        *name,
 	return result;
 }
 
-/* One item names the archive after itself; several after the folder holding
-   them, which is what a user would have typed anyway. */
+/* One item names the archive after itself, whether it is a file or a folder.
+   Several only borrow the folder's name when they are the whole folder; a part
+   of one has no name a user would agree with, so none is offered. */
 char *
 nemo_archive_suggest_name (GList             *files,
+			   gboolean           whole_folder,
 			   NemoArchiveFormat  format)
 {
 	char *base = NULL;
@@ -550,10 +552,12 @@ nemo_archive_suggest_name (GList             *files,
 	g_return_val_if_fail (format_is_valid (format), NULL);
 
 	if (files == NULL) {
-		base = g_strdup (_("Archive"));
-	} else if (files->next == NULL) {
+		return NULL;
+	}
+
+	if (files->next == NULL) {
 		base = g_file_get_basename (G_FILE (files->data));
-	} else {
+	} else if (whole_folder) {
 		GFile *parent = g_file_get_parent (G_FILE (files->data));
 
 		if (parent != NULL) {
@@ -562,10 +566,12 @@ nemo_archive_suggest_name (GList             *files,
 		}
 	}
 
+	/* A root has no basename worth using, and neither does anything that
+	   came back as "." or a bare separator. */
 	if (base == NULL || base[0] == '\0' ||
 	    g_strcmp0 (base, ".") == 0 || g_strcmp0 (base, G_DIR_SEPARATOR_S) == 0) {
 		g_free (base);
-		base = g_strdup (_("Archive"));
+		return NULL;
 	}
 
 	result = nemo_archive_apply_extension (base, format);
