@@ -53,6 +53,7 @@
 		<placeholder name="Clipboard Actions">
 			<menuitem name="Cut" action="Cut"/>
 			<menuitem name="Copy" action="Copy"/>
+			<menuitem name="CopyPath" action="CopyPath"/>
 			<menuitem name="Paste" action="Paste"/>
 		</placeholder>
 		<placeholder name="Undostack Actions">
@@ -133,6 +134,7 @@
 		<separator name="Clipboard separator"/>
 		<placeholder name="File Clipboard Actions">
 			<menuitem name="Paste" action="Paste"/>
+			<menuitem name="BackgroundCopyPath" action="BackgroundCopyPath"/>
 		</placeholder>
 	</placeholder>
 
@@ -174,6 +176,7 @@
 	<placeholder name="File Clipboard Actions">
 		<menuitem name="Cut" action="Cut"/>
 		<menuitem name="Copy" action="Copy"/>
+		<menuitem name="CopyPath" action="CopyPath"/>
 		<menuitem name="Paste Files Into" action="Paste Files Into"/>
         <menuitem name="Duplicate" action="Duplicate"/>
 	</placeholder>
@@ -252,6 +255,7 @@
 	<placeholder name="Clipboard Actions">
 		<menuitem name="Cut" action="LocationCut"/>
 		<menuitem name="Copy" action="LocationCopy"/>
+		<menuitem name="LocationCopyPath" action="LocationCopyPath"/>
 		<menuitem name="LocationPasteFilesInto" action="LocationPasteFilesInto"/>
 	</placeholder>
 	<separator name="Location After Clipboard Separator"/>

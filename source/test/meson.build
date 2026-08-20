@@ -243,3 +243,12 @@ test('Appearance themes test',
   ),
   args: []
 )
+
+test('Path list text test',
+  executable('test-nemo-path-list',
+    [ 'test-nemo-path-list.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)

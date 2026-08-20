@@ -2085,6 +2085,58 @@ nemo_get_drive_root_name (GFile *location)
 #endif
 }
 
+/* One path per line, with the line ending the local shells and editors expect.
+   A path pasted into cmd.exe or notepad has to carry CRLF to land as separate
+   lines. */
+#ifdef G_OS_WIN32
+#define PATH_LIST_SEPARATOR "\r\n"
+#else
+#define PATH_LIST_SEPARATOR "\n"
+#endif
+
+/* Text for a list of locations (GFile *), one per line, for the clipboard.
+   Anything with no local path - a remote uri - contributes its uri instead, so
+   the text is never silently shorter than what was selected. Returns NULL when
+   nothing at all could be named. */
+gchar *
+nemo_build_path_list_text (GList *locations)
+{
+    GString *text;
+    GList *l;
+    guint count = 0;
+
+    text = g_string_new (NULL);
+
+    for (l = locations; l != NULL; l = l->next) {
+        g_autofree gchar *path = NULL;
+
+        if (l->data == NULL) {
+            continue;
+        }
+
+        path = g_file_get_path (G_FILE (l->data));
+        if (path == NULL) {
+            path = g_file_get_uri (G_FILE (l->data));
+        }
+        if (path == NULL) {
+            continue;
+        }
+
+        if (count > 0) {
+            g_string_append (text, PATH_LIST_SEPARATOR);
+        }
+        g_string_append (text, path);
+        count++;
+    }
+
+    if (count == 0) {
+        g_string_free (text, TRUE);
+        return NULL;
+    }
+
+    return g_string_free (text, FALSE);
+}
+
 #if !defined (NEMO_OMIT_SELF_CHECK)
 
 void
