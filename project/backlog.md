@@ -924,7 +924,9 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- Label follows the count: "Copy Path" for one, "Copy Paths" for several. Show/hide checkboxes in Preferences like the other context-menu items.
 
 - ✅ Right-click "Compress...": a cross-platform way to archive the selected files and folders.
+	- On the selection menu, the background menu (the folder being viewed) and a breadcrumb segment; also on the Edit menu.
 	- A dialog asks for the name, the format and the folder to put it in, prefilled from the selection and the folder being viewed. The name follows the format, so switching from zip to tar.xz swaps the suffix instead of stacking one on top of the other.
+	- Compressing one folder - from the background menu or a breadcrumb - names the archive after that folder and offers to put it beside the folder rather than inside it, which is where a person would look for it. A drive root, having no beside, keeps itself.
 	- Formats: zip, tar, tar.gz, tar.xz and 7z are written by the built-in library, so they need nothing installed; rar is offered where the rar command is found, and 7z falls back to the 7z command for anything the library cannot write.
 	- Options, each offered only where the chosen format and the programs present can honour it: compression level, password (with the option to encrypt the file names too), splitting into volumes with an editable list of the usual sizes, solid archives, storing duplicate files once, storing symlinks and junctions as links, following linked folders (off by default, so a link loop cannot pull in the whole disk), and for rar a recovery record (on by default) and locking.
 	- An option nothing can honour is shown greyed rather than hidden, so the dialog does not change shape from one machine to the next.

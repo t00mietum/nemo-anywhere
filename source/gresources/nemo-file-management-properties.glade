@@ -4278,6 +4278,25 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="can-focus">True</property>
                                                 <property name="selectable">False</property>
                                                 <child>
+                                                  <object class="GtkCheckButton" id="background_menu__compress_check">
+                                                    <property name="label" translatable="yes">Co_mpress...</property>
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">True</property>
+                                                    <property name="receives-default">False</property>
+                                                    <property name="margin-left">2</property>
+                                                    <property name="margin-right">2</property>
+                                                    <property name="use-underline">True</property>
+                                                    <property name="draw-indicator">True</property>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                            </child>
+                                            <child>
+                                              <object class="GtkListBoxRow">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">True</property>
+                                                <property name="selectable">False</property>
+                                                <child>
                                                   <object class="GtkCheckButton" id="background_menu__copy_path_check">
                                                     <property name="label" translatable="yes">Copy _Path</property>
                                                     <property name="visible">True</property>

@@ -6854,13 +6854,58 @@ action_location_copy_path_callback (GtkAction *action,
 /* The dialog asks for the rest; all it needs from here is what to compress and
    where to offer to put it. */
 static void
+compress_files (NemoView *view,
+		GList *files,
+		GFile *default_dir)
+{
+	GList *locations = NULL;
+	GList *l;
+
+	if (files == NULL) {
+		return;
+	}
+
+	for (l = files; l != NULL; l = l->next) {
+		locations = g_list_prepend (locations, nemo_file_get_location (NEMO_FILE (l->data)));
+	}
+	locations = g_list_reverse (locations);
+
+	nemo_archive_dialog_show (GTK_WINDOW (nemo_view_get_nemo_window (view)),
+				  locations, default_dir);
+
+	g_list_free_full (locations, g_object_unref);
+}
+
+/* Compressing one folder offers to put the archive beside it rather than inside
+   it, which is where a person would look for it - and a drive root, which has
+   no beside, keeps itself. */
+static void
+compress_one_folder (NemoView *view,
+		     NemoFile *file)
+{
+	GFile *location;
+	GFile *parent;
+	GList *files;
+
+	g_return_if_fail (file != NULL);
+
+	location = nemo_file_get_location (file);
+	parent = g_file_get_parent (location);
+
+	files = g_list_append (NULL, file);
+	compress_files (view, files, parent != NULL ? parent : location);
+	g_list_free (files);
+
+	g_clear_object (&parent);
+	g_object_unref (location);
+}
+
+static void
 action_compress_callback (GtkAction *action,
 			  gpointer callback_data)
 {
 	NemoView *view;
 	GList *selection;
-	GList *locations = NULL;
-	GList *l;
 	GFile *directory;
 	char *uri;
 
@@ -6871,21 +6916,36 @@ action_compress_callback (GtkAction *action,
 		return;
 	}
 
-	for (l = selection; l != NULL; l = l->next) {
-		locations = g_list_prepend (locations, nemo_file_get_location (NEMO_FILE (l->data)));
-	}
-	locations = g_list_reverse (locations);
-
 	uri = nemo_view_get_backing_uri (view);
 	directory = uri != NULL ? g_file_new_for_uri (uri) : NULL;
 
-	nemo_archive_dialog_show (GTK_WINDOW (nemo_view_get_nemo_window (view)),
-				  locations, directory);
+	compress_files (view, selection, directory);
 
 	g_clear_object (&directory);
 	g_free (uri);
-	g_list_free_full (locations, g_object_unref);
 	nemo_file_list_free (selection);
+}
+
+static void
+action_background_compress_callback (GtkAction *action,
+				     gpointer callback_data)
+{
+	NemoView *view;
+
+	view = NEMO_VIEW (callback_data);
+
+	compress_one_folder (view, nemo_view_get_directory_as_file (view));
+}
+
+static void
+action_location_compress_callback (GtkAction *action,
+				   gpointer callback_data)
+{
+	NemoView *view;
+
+	view = NEMO_VIEW (callback_data);
+
+	compress_one_folder (view, view->details->location_popup_directory_as_file);
 }
 
 static void
@@ -8522,6 +8582,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Co_mpress..."), "",
   /* tooltip */                  N_("Create an archive holding the selected items"),
 				 G_CALLBACK (action_compress_callback) },
+  /* name, stock id */         { NEMO_ACTION_BACKGROUND_COMPRESS, "package-x-generic",
+  /* label, accelerator */       N_("Co_mpress..."), "",
+  /* tooltip */                  N_("Create an archive holding this folder"),
+				 G_CALLBACK (action_background_compress_callback) },
   /* name, stock id */         { "Paste", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste"), "<control>V",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command"),
@@ -8691,6 +8755,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Copy _Path"), "",
   /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
 				 G_CALLBACK (action_location_copy_path_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_COMPRESS, "package-x-generic",
+  /* label, accelerator */       N_("Co_mpress..."), "",
+  /* tooltip */                  N_("Create an archive holding this folder"),
+				 G_CALLBACK (action_location_compress_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_PASTE_FILES_INTO, "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste Into Folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into this folder"),
@@ -9768,6 +9836,11 @@ real_update_location_menu (NemoView *view)
 		!is_desktop_or_home_dir;
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_LOCATION_COMPRESS);
+	gtk_action_set_visible (action, !is_recent && !nemo_file_is_in_trash (file));
+	gtk_action_set_sensitive (action, info_ready && nemo_file_can_read (file));
+
+	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_LOCATION_CUT);
     gtk_action_set_sensitive (action, !is_recent && can_delete_file);
     gtk_action_set_visible (action, !is_recent);
@@ -10017,6 +10090,21 @@ real_update_menus (NemoView *view)
 					      NEMO_ACTION_NEW_FOLDER);
 	gtk_action_set_sensitive (action, can_create_files);
     gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
+
+	{
+		NemoFile *directory_file = view->details->directory_as_file;
+		gboolean can_compress_directory =
+			directory_file != NULL &&
+			!nemo_file_is_in_recent (directory_file) &&
+			!nemo_file_is_in_favorites (directory_file) &&
+			!nemo_file_is_in_trash (directory_file);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_BACKGROUND_COMPRESS);
+		gtk_action_set_visible (action, can_compress_directory);
+		gtk_action_set_sensitive (action, can_compress_directory &&
+					  nemo_file_can_read (directory_file));
+	}
 
 	can_open = show_app = selection_count != 0;
 

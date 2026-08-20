@@ -137,6 +137,10 @@
 			<menuitem name="Paste" action="Paste"/>
 			<menuitem name="BackgroundCopyPath" action="BackgroundCopyPath"/>
 		</placeholder>
+		<separator name="Background file actions separator"/>
+		<placeholder name="File Actions">
+			<menuitem name="BackgroundCompress" action="BackgroundCompress"/>
+		</placeholder>
 	</placeholder>
 
 	<separator name="Folder Items separator"/>
@@ -261,6 +265,10 @@
 		<menuitem name="LocationPasteFilesInto" action="LocationPasteFilesInto"/>
 	</placeholder>
 	<separator name="Location After Clipboard Separator"/>
+	<placeholder name="Location File Actions">
+		<menuitem name="LocationCompress" action="LocationCompress"/>
+	</placeholder>
+	<separator name="Location After File Actions Separator"/>
 	<placeholder name="Dangerous File Actions">
 		<menuitem name="Trash" action="LocationTrash"/>
 		<menuitem name="Delete" action="LocationDelete"/>
