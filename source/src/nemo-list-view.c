@@ -3904,7 +3904,11 @@ nemo_list_view_start_renaming_file (NemoView *view,
         int start_offset = 0;
         int end_offset = -1;
 
-        if (!select_all) {
+        /* 0..-1 is the whole name; the helper trims it back to the part before
+           the extension for anyone who has asked for that. */
+        if (!select_all &&
+            !nemo_config_get_boolean (nemo_preferences,
+                                      NEMO_PREFERENCES_RENAME_SELECTS_WHOLE_NAME)) {
             eel_filename_get_rename_region (list_view->details->original_name,
                            &start_offset, &end_offset);
         }

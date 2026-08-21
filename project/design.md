@@ -220,6 +220,8 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 
 		- Every switch the Compress dialog can turn on has a marker of its own - the level, the password, splitting, solid blocks, duplicate references, the recovery record, locking, how links are stored - so an edited line keeps the dialog working instead of freezing it at whatever was typed. Leave one out and the app says which control has gone quiet, rather than letting a checkbox sit there doing nothing.
 
+		- How much of the machine a compression may use is one setting under `performance`, a percentage of the cores found, rather than a number of threads written into each line - a percentage still means something on a machine with a different core count, and one answer covers the two programs and the built-in writer alike. It is the one marker that does not stand for a Compress dialog control, so leaving it out of an edited line is not remarked on: the program simply picks for itself. 50% is the default because a hyperthreaded core is not a whole core, and taking every logical processor slows the rest of the machine for no gain in the archive.
+
 		- A password is a value we hand the program, never part of the line, so it is not written to the settings file. It is still visible in the process list while the program runs, which is true of every archiver and has no fix short of not using one.
 
 		- The line is split into arguments before the markers are filled in, never after. That is what makes a file named with a space, a quote or a backslash stay one argument: nothing a user supplies is ever re-read as part of the command, so it cannot turn into a switch or a second file name.
@@ -286,6 +288,7 @@ settings daemon, no compiled schema, and no per-platform store to keep in step.
   shipped with the app for validating a hand-edited config.
 - Values the desktop owns rather than us are read from the desktop where it
   publishes them, and fall back to ours where it does not.
+- A few settings are deliberately file-only, with nothing in Preferences: what a rename starts out with selected is one of them. The default selects the whole name, extension included, on the grounds that a person pressing F2 usually means to replace the name outright and an extension typed back is cheaper than an extension silently kept. Anyone who wants the other behaviour has a line to change, but it does not earn a control.
 - Where a setting is a command line for some other program, the parts we fill in are written `{{LIKE_THIS}}`, in capitals between double braces, and that is the convention for any setting that grows one later. Braces because nothing expands them: the same line pasted into a command prompt or a shell to try it out comes back unchanged, where `%NAME%` would quietly vanish on Windows and `${NAME}` would on Linux. Only the markers a setting declares are replaced, so anything else in braces is passed on as itself and there is nothing to escape.
 
 The trade accepted here: reading and writing settings is now our code rather

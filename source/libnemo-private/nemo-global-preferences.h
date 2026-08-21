@@ -33,6 +33,10 @@
 
 G_BEGIN_DECLS
 
+/* Machine-wide, not per-feature: how much of this computer a job may use. */
+#define NEMO_PERFORMANCE_GROUP			"performance"
+#define NEMO_PREFERENCES_CPU_PERCENT	"cpu-percent"
+
 /* Trash options */
 #define NEMO_PREFERENCES_CONFIRM_MOVE_TO_TRASH	"confirm-move-to-trash"
 #define NEMO_PREFERENCES_CONFIRM_TRASH			"confirm-trash"
@@ -75,6 +79,10 @@ typedef enum
 
 /* Single/Double click preference  */
 #define NEMO_PREFERENCES_CLICK_POLICY			"click-policy"
+
+/* What a rename starts out with selected: the whole name, or just the part
+ * before the extension */
+#define NEMO_PREFERENCES_RENAME_SELECTS_WHOLE_NAME "rename-selects-whole-name"
 
 /* Quick renames with two single clicks and pause in-between*/
 #define NEMO_PREFERENCES_CLICK_TO_RENAME "quick-renames-with-pause-in-between"
@@ -294,6 +302,7 @@ gboolean nemo_global_preferences_get_inherit_folder_viewer_preference (void);
 gboolean nemo_global_preferences_get_inherit_show_thumbnails_preference (void);
 gboolean nemo_global_preferences_get_ignore_view_metadata (void);
 int nemo_global_preferences_get_size_prefix_preference (void);
+int nemo_global_preferences_get_cpu_thread_count (void);
 char *nemo_global_preferences_get_desktop_iid (void);
 gint nemo_global_preferences_get_tooltip_flags (void);
 gboolean nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key);

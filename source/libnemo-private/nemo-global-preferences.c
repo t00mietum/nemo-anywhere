@@ -128,6 +128,27 @@ nemo_global_preferences_get_size_prefix_preference (void)
     return 0;
 }
 
+/* How many worker threads a job on this machine should ask for: a share of the
+ * cores, as a percentage, rounded up so the answer is never nothing. Kept in
+ * one place rather than per-format, so anything else that can be spread over
+ * cores later reads the same number instead of inventing one of its own.
+ * Compression is the only caller today. */
+int
+nemo_global_preferences_get_cpu_thread_count (void)
+{
+    int cores = (int) g_get_num_processors ();
+    int percent = 50;
+
+    if (nemo_config_is_ready ()) {
+        percent = nemo_config_get_int (nemo_config_get_group (NEMO_PERFORMANCE_GROUP),
+                                       NEMO_PREFERENCES_CPU_PERCENT);
+    }
+
+    percent = CLAMP (percent, 1, 100);
+
+    return MAX (1, (cores * percent + 99) / 100);
+}
+
 char *
 nemo_global_preferences_get_desktop_iid (void)
 {

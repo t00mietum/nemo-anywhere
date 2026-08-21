@@ -169,6 +169,10 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Bugs
 
+- 🔘 The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
+	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
+	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
+
 - ✅ In dark mode the breadcrumb bar and the checked view buttons kept a light background, unreadable against everything around them.
 	- Cause: a bundled theme is loaded as a stylesheet of our own, but the theme *name* was left pointing at it. GTK cannot resolve a name it has never seen on disk, falls back to its packaged sheet, and drops the dark half while doing so - so the layer under ours was the light one. Anything our sheet did not itself paint showed it through.
 	- Fixed: the name now points at a theme GTK really has, so the base follows light/dark while our sheet sits on top. Confirmed by eye, and by reproducing it the other way first.
@@ -202,7 +206,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
 
 - 🔘 The Windows executable carries no application manifest, so it is not marked long-path aware. With long paths switched on in Windows - as they are on this box - anything past the old 260-character limit is still out of reach for us while Explorer handles it fine.
-	- The same manifest is where DPI awareness would be declared, so it is worth deciding both together rather than twice.
+	- The same manifest is where DPI awareness is declared, and that is now decided - per-monitor, under Features and enhancements. The two land together.
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
 
@@ -846,6 +850,28 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ One setting for how much of the machine's CPU any compression may use, as a percentage of the cores it finds. Default 50% - the best balance on a hyperthreaded CPU.
+	- `performance.cpu-percent`, global rather than per-format, so a later job that can be spread over cores reads the same number instead of inventing one of its own.
+	- Reaches the 7z and rar create lines through a `{{THREADS}}` marker of their own, and tar.xz through the library that writes it. Zip, gzip and the built-in 7z have no such option, so they are left alone rather than handed one they would refuse.
+	- It is the one marker that does not stand for a control in the Compress dialog, so a line edited past it says nothing - the program simply picks for itself.
+	- Rounds up, so a single-core machine still gets one thread and the answer is never nothing.
+	- Verified: each program is handed the switch it spells its own way, and both checks fail with the marker taken back out.
+
+- 🔘 Per-monitor DPI aware where the platform offers it, and DPI aware at minimum everywhere else.
+	- On Windows this is declared in the application manifest - the same file the long-path bug under Bugs needs - so the two land together.
+	- The toolkit scales in whole steps only, so a display at 125% or 150% would come out at 100% and read smaller than every other window on that screen. Text is scaled to the monitor's real DPI on top of that, and follows the window when it is dragged to a monitor at a different scale.
+
+- 🛠️ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
+	- Both views. A folder was already selected whole; a file now is too.
+	- `preferences.rename-selects-whole-name`, a file-only setting with no control in Preferences.
+	- Built and lint-clean; awaiting a look at the running window.
+
+- 🔘 List view columns should use the window as it is resized, instead of being pushed off the end of it or leaving a gap.
+	- Narrowing: Type is the first to give, down to about three characters, and after that every visible column - Name included - gives ground together, each in proportion to how wide it already is.
+	- Widening: columns take the new space equally until one can show the longest value in it, and then that one stops. Name is the only column that keeps growing without limit.
+	- A column whose values have no natural limit either - Type, Location, Owner, Group, Description - stops at a third of the Name column's width, so long as nothing is being pushed off the window.
+	- Refines the earlier "Name column always as large as possible" work under Done, which only made Name take the slack; this is the rule for all of them.
+
 - ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colours, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
 	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
 	- Three new fetch shapes were needed: a repository that keeps one theme family per branch, six themes out of one sparse checkout, and two that ship the icons as a tar committed inside a repository of something else.
@@ -911,6 +937,7 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 - In "find" mode:
 	- 🔘 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
+		- Sits under the column auto-sizing rules above: Location is the column with no natural limit here, so the third-of-Name cap is what holds it in check.
 	- 🔘 Instead of showing a filename selected in the status bar, show the entire path.
 
 - 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.
