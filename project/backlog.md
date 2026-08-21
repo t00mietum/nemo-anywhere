@@ -881,11 +881,16 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- `preferences.rename-selects-whole-name`, a file-only setting with no control in Preferences.
 	- Verified in the running window: F2 on a `.md` file opens the box with the suffix inside the selection.
 
-- 🔘 List view columns should use the window as it is resized, instead of being pushed off the end of it or leaving a gap.
-	- Narrowing: Type is the first to give, down to about three characters, and after that every visible column - Name included - gives ground together, each in proportion to how wide it already is.
-	- Widening: columns take the new space equally until one can show the longest value in it, and then that one stops. Name is the only column that keeps growing without limit.
-	- A column whose values have no natural limit either - Type, Location, Owner, Group, Description - stops at a third of the Name column's width, so long as nothing is being pushed off the window.
+- ✅ List view columns use the window as it is resized, instead of being pushed off the end of it or leaving a gap.
+	- Widening: columns take the new space until one can show the longest value in it, and then that one stops. Name is the only column that keeps growing without limit, so once everything else has what it needs the rest is Name's.
+	- Narrowing, which is the same thing read backwards: Name gives its surplus back first, having had all of it. When every column is down to the longest value it holds and it still does not fit, Type gives next, on its own, to about three characters - it is the one least missed that short, where a date or a size that short says nothing. Only then does everything else give ground together, each in proportion to how wide it is, Name included.
+	- A column whose values have no natural limit either - Type, Location, Owner, Group - stops at a third of the Name column rather than taking the window for one long value. The cap and Name's width have to agree with each other, so the answer is found rather than guessed, and it does not depend on the order the columns are in.
+	- Narrower than the floors add up to and the view scrolls sideways, which is the honest answer to a window narrower than its own contents.
+	- Every value that no longer fits now says so with an ellipsis instead of being cut off mid-letter. Only Name and Location did before.
+	- Widths follow the contents: each row is measured as it arrives and as its details fill in, and the widest seen is what a column aims for. Measured against a five thousand item folder, it costs nothing that can be told apart from the noise.
+	- A column dragged wider by hand keeps that width until the window changes shape or the folder does.
 	- Refines the earlier "Name column always as large as possible" work under Done, which only made Name take the slack; this is the rule for all of them.
+	- Verified by eye at half a dozen widths on two folders, and the rule itself has a test of its own that fails on the obvious ways to get it wrong.
 
 - ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colours, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
 	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
@@ -952,7 +957,7 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 - In "find" mode:
 	- 🔘 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
-		- Sits under the column auto-sizing rules above: Location is the column with no natural limit here, so the third-of-Name cap is what holds it in check.
+		- Half answered by the column auto-sizing above: Location has no natural limit, so the third-of-Name cap already holds it in check and Name already gives way. What is left is the deliberate part - Location taking as much as it can while a search is on, and everything going back afterwards.
 	- 🔘 Instead of showing a filename selected in the status bar, show the entire path.
 
 - 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.

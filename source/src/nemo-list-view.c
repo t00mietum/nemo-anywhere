@@ -62,6 +62,8 @@
 #include <libnemo-private/nemo-tree-view-drag-dest.h>
 #include <libnemo-private/nemo-clipboard.h>
 
+#include "nemo-column-layout.h"
+
 #define DEBUG_FLAG NEMO_DEBUG_LIST_VIEW
 #include <libnemo-private/nemo-debug.h>
 
@@ -108,6 +110,16 @@ struct NemoListViewDetails {
 	GHashTable *columns;
 	GtkWidget *column_editor;
 
+	/* Column auto-sizing. natural_widths holds, per column id, the widest cell
+	 * seen so far - grown a row at a time as the model fills in, never walked
+	 * whole, and thrown away when the folder changes. laid_out_width is the
+	 * width the current widths were worked out for, so a column dragged wider
+	 * by hand survives until something really changes. */
+	GHashTable *natural_widths;
+	guint resize_columns_id;
+	gint column_floor;
+	gint laid_out_width;
+
 	char *original_name;
 
 	NemoFile *renaming_file;
@@ -141,6 +153,10 @@ struct SelectionForeachData {
  */
 #define LIST_VIEW_MINIMUM_ROW_HEIGHT	28
 
+/* Name never goes below this. It is the column a person reads the row by, so it
+   keeps more than the three characters the others fall back to. */
+#define NAME_COLUMN_FLOOR 100
+
 /* We wait two seconds after row is collapsed to unload the subdirectory */
 #define COLLAPSE_TO_UNLOAD_DELAY 2
 
@@ -154,6 +170,8 @@ static GdkCursor *              hand_cursor = NULL;
 
 static GtkTargetList *          source_target_list = NULL;
 
+static void   resize_columns_soon                            (NemoListView *view);
+static void   forget_natural_widths                          (NemoListView *view);
 static GList *nemo_list_view_get_selection                   (NemoView   *view);
 static void   nemo_list_view_update_selection                (NemoView *view);
 static GList *nemo_list_view_get_selection_for_file_transfer (NemoView   *view);
@@ -2260,6 +2278,10 @@ apply_columns_settings (NemoListView *list_view,
     }
 
     g_list_free (view_columns);
+
+    /* A column arriving or leaving changes what the rest have to fit into. */
+    list_view->details->laid_out_width = -1;
+    resize_columns_soon (list_view);
 }
 
 static void
@@ -2432,6 +2454,324 @@ on_treeview_realized (GtkWidget *widget,
                       view);
 }
 
+/* About three characters of the view's own font - the floor a column shrinks to
+   rather than vanishing. Measured once and kept, since it only changes with the
+   font, which takes the whole view down with it. */
+static gint
+column_floor_width (NemoListView *view)
+{
+	PangoLayout *layout;
+	gint width = 0;
+
+	if (view->details->column_floor > 0) {
+		return view->details->column_floor;
+	}
+
+	layout = gtk_widget_create_pango_layout (GTK_WIDGET (view->details->tree_view), "MMM");
+	pango_layout_get_pixel_size (layout, &width, NULL);
+	g_object_unref (layout);
+
+	/* Plus what the cell puts either side of its text. */
+	view->details->column_floor = MAX (16, width + 10);
+
+	return view->details->column_floor;
+}
+
+/* The gap the tree view leaves either side of a cell. Cached with the floor,
+   for the same reason: it only moves with the theme. */
+static gint
+column_separator (NemoListView *view)
+{
+	gint separator = 0;
+
+	gtk_widget_style_get (GTK_WIDGET (view->details->tree_view),
+			      "horizontal-separator", &separator,
+			      NULL);
+
+	return separator;
+}
+
+static const char *
+column_id (GtkTreeViewColumn *column)
+{
+	return g_object_get_data (G_OBJECT (column), "column-id");
+}
+
+/* The widest this column has had to be, cell contents and its own heading both.
+   A heading wider than everything under it still gets to be readable. */
+static gint
+natural_width_for (NemoListView      *view,
+		   GtkTreeViewColumn *column)
+{
+	gpointer seen;
+	gint content = 0;
+	gint heading = 0;
+	GtkWidget *button;
+
+	if (g_hash_table_lookup_extended (view->details->natural_widths,
+					  column_id (column), NULL, &seen)) {
+		content = GPOINTER_TO_INT (seen);
+	}
+
+	button = gtk_tree_view_column_get_button (column);
+	if (button != NULL) {
+		gtk_widget_get_preferred_width (button, NULL, &heading);
+	}
+
+	return MAX (content, heading);
+}
+
+/* TRUE when this is wider than anything seen in the column before. */
+static gboolean
+note_natural_width (NemoListView      *view,
+		    GtkTreeViewColumn *column,
+		    gint               width)
+{
+	const char *id = column_id (column);
+	gpointer seen;
+
+	if (id == NULL) {
+		return FALSE;
+	}
+
+	if (g_hash_table_lookup_extended (view->details->natural_widths, id, NULL, &seen) &&
+	    GPOINTER_TO_INT (seen) >= width) {
+		return FALSE;
+	}
+
+	g_hash_table_insert (view->details->natural_widths, g_strdup (id),
+			     GINT_TO_POINTER (width));
+	return TRUE;
+}
+
+static void
+forget_natural_widths (NemoListView *view)
+{
+	if (view->details->natural_widths != NULL) {
+		g_hash_table_remove_all (view->details->natural_widths);
+	}
+
+	/* So the next allocation is not mistaken for one that changed nothing. */
+	view->details->laid_out_width = -1;
+}
+
+/* What the expanders push the name over by on this row. Part of how wide the
+   Name column has to be, and it is the deepest row that decides. */
+static gint
+name_indent_for (NemoListView *view,
+		 GtkTreePath  *path)
+{
+	gint expander_size, horizontal_separator;
+
+	if (path == NULL ||
+	    !gtk_tree_view_get_show_expanders (view->details->tree_view)) {
+		return 0;
+	}
+
+	gtk_widget_style_get (GTK_WIDGET (view->details->tree_view),
+			      "expander-size", &expander_size,
+			      "horizontal-separator", &horizontal_separator,
+			      NULL);
+	expander_size += 4;
+
+	return (horizontal_separator / 2) + gtk_tree_path_get_depth (path) * expander_size;
+}
+
+/* What this column would want to be to show this row whole.
+ *
+ * Deliberately NOT gtk_tree_view_column_cell_get_size, which answers with the
+ * cell's MINIMUM width - and a cell that may ellipsize has almost none, so
+ * every column measured that way collapses to a few pixels. The renderers are
+ * asked for their natural widths instead, which is the full text either way. */
+static gint
+row_width_for_column (NemoListView      *view,
+		      GtkTreeViewColumn *column,
+		      GtkTreeModel      *model,
+		      GtkTreeIter       *iter)
+{
+	GList *cells, *c;
+	gint total = 0;
+	gint shown = 0;
+
+	gtk_tree_view_column_cell_set_cell_data (column, model, iter, FALSE, FALSE);
+
+	cells = gtk_cell_layout_get_cells (GTK_CELL_LAYOUT (column));
+
+	for (c = cells; c != NULL; c = c->next) {
+		gint natural = 0;
+
+		if (!gtk_cell_renderer_get_visible (c->data)) {
+			continue;
+		}
+
+		gtk_cell_renderer_get_preferred_width (c->data,
+						       GTK_WIDGET (view->details->tree_view),
+						       NULL, &natural);
+		total += natural;
+		shown++;
+	}
+
+	g_list_free (cells);
+
+	if (shown > 1) {
+		total += gtk_tree_view_column_get_spacing (column) * (shown - 1);
+	}
+
+	/* What the tree view itself puts between one column and the next. */
+	return total + column_separator (view);
+}
+
+/* One row through every visible column, folded into the running widest. Called
+   as rows arrive and as their details fill in, which is a handful of cells at a
+   time rather than a walk of the whole folder. */
+static void
+measure_row (GtkTreeModel *model,
+	     GtkTreePath  *path,
+	     GtkTreeIter  *iter,
+	     gpointer      user_data)
+{
+	NemoListView *view = NEMO_LIST_VIEW (user_data);
+	GList *columns, *l;
+	gboolean grew = FALSE;
+
+	if (view->details->tree_view == NULL) {
+		return;
+	}
+
+	columns = gtk_tree_view_get_columns (view->details->tree_view);
+
+	for (l = columns; l != NULL; l = l->next) {
+		GtkTreeViewColumn *column = l->data;
+		gint width;
+
+		if (!gtk_tree_view_column_get_visible (column)) {
+			continue;
+		}
+
+		width = row_width_for_column (view, column, model, iter);
+
+		if (column == view->details->file_name_column) {
+			width += name_indent_for (view, path);
+		}
+
+		if (note_natural_width (view, column, width)) {
+			grew = TRUE;
+		}
+	}
+
+	g_list_free (columns);
+
+	if (grew) {
+		resize_columns_soon (view);
+	}
+}
+
+/* Hand every visible column a width, so that between them they come to exactly
+   what the view has to give. The rule itself is in nemo-column-layout.c. */
+static void
+resize_columns_now (NemoListView *view)
+{
+	NemoColumnLayoutItem *items;
+	GtkTreeViewColumn **columns;
+	gint *widths;
+	GList *all, *l;
+	GtkAllocation allocation;
+	gint n_columns = 0;
+	gint shrink_first = -1;
+	gint i = 0;
+
+	if (view->details->tree_view == NULL ||
+	    !gtk_widget_get_realized (GTK_WIDGET (view->details->tree_view))) {
+		return;
+	}
+
+	gtk_widget_get_allocation (GTK_WIDGET (view->details->tree_view), &allocation);
+	if (allocation.width <= 1) {
+		return;
+	}
+
+	all = gtk_tree_view_get_columns (view->details->tree_view);
+
+	for (l = all; l != NULL; l = l->next) {
+		if (gtk_tree_view_column_get_visible (l->data)) {
+			n_columns++;
+		}
+	}
+
+	if (n_columns == 0) {
+		g_list_free (all);
+		return;
+	}
+
+	items = g_new0 (NemoColumnLayoutItem, n_columns);
+	columns = g_new0 (GtkTreeViewColumn *, n_columns);
+	widths = g_new0 (gint, n_columns);
+
+	for (l = all; l != NULL; l = l->next) {
+		GtkTreeViewColumn *column = l->data;
+		const char *id;
+
+		if (!gtk_tree_view_column_get_visible (column)) {
+			continue;
+		}
+
+		id = column_id (column);
+		columns[i] = column;
+		items[i].natural_width = natural_width_for (view, column);
+		items[i].unbounded = g_object_get_data (G_OBJECT (column), "unbounded") != NULL;
+		items[i].is_name = (column == view->details->file_name_column);
+		items[i].floor_width = items[i].is_name
+			? NAME_COLUMN_FLOOR
+			: column_floor_width (view);
+
+		/* Type is the one asked to give before the others: it is the least
+		   missed at three characters, where a date or a size at three
+		   characters says nothing at all. */
+		if (g_strcmp0 (id, "type") == 0) {
+			shrink_first = i;
+		}
+
+		i++;
+	}
+
+	nemo_column_layout_distribute (items, n_columns, shrink_first,
+				       allocation.width, widths);
+
+	for (i = 0; i < n_columns; i++) {
+		if (gtk_tree_view_column_get_fixed_width (columns[i]) != widths[i]) {
+			gtk_tree_view_column_set_fixed_width (columns[i], widths[i]);
+		}
+	}
+
+	view->details->laid_out_width = allocation.width;
+
+	g_free (items);
+	g_free (columns);
+	g_free (widths);
+	g_list_free (all);
+}
+
+static gboolean
+resize_columns_cb (gpointer user_data)
+{
+	NemoListView *view = NEMO_LIST_VIEW (user_data);
+
+	view->details->resize_columns_id = 0;
+	resize_columns_now (view);
+
+	return G_SOURCE_REMOVE;
+}
+
+/* Never from inside an allocation - setting a width asks for another one. */
+static void
+resize_columns_soon (NemoListView *view)
+{
+	if (view->details->resize_columns_id == 0) {
+		view->details->resize_columns_id =
+			g_idle_add_full (G_PRIORITY_HIGH_IDLE, resize_columns_cb, view, NULL);
+	}
+}
+
 static void
 on_size_allocation_changed (GtkWidget    *widget,
                             GdkRectangle *allocation,
@@ -2453,6 +2793,14 @@ on_size_allocation_changed (GtkWidget    *widget,
     }
     else {
         gtk_widget_set_margin_bottom (GTK_WIDGET (view->details->tree_view), 0);
+    }
+
+    /* Only when the width really moved: a column dragged wider by hand should
+       survive until the window changes shape or the folder does, and every
+       width we set here comes straight back round as another allocation. */
+    if (allocation->width != view->details->laid_out_width) {
+        view->details->laid_out_width = allocation->width;
+        resize_columns_soon (view);
     }
 
     gtk_widget_queue_allocate (widget);
@@ -2485,6 +2833,12 @@ create_and_set_up_tree_view (NemoListView *view)
 							g_str_equal,
 							(GDestroyNotify) g_free,
 							NULL);
+
+	view->details->natural_widths = g_hash_table_new_full (g_str_hash,
+							       g_str_equal,
+							       (GDestroyNotify) g_free,
+							       NULL);
+	view->details->laid_out_width = -1;
 
 	gtk_tree_view_set_enable_search (view->details->tree_view, TRUE);
 
@@ -2564,6 +2918,14 @@ create_and_set_up_tree_view (NemoListView *view)
 	nemo_list_model_set_drag_view (NEMO_LIST_MODEL (view->details->model),
 				     view->details->tree_view,  0, 0);
 
+	/* Widths follow the contents, so every row that arrives or changes is
+	 * folded into the widest seen. One row through a handful of columns, never
+	 * a walk of the whole folder. */
+	g_signal_connect_object (view->details->model, "row-inserted",
+				 G_CALLBACK (measure_row), view, 0);
+	g_signal_connect_object (view->details->model, "row-changed",
+				 G_CALLBACK (measure_row), view, 0);
+
 	g_signal_connect_object (view->details->model, "sort_column_changed",
 				 G_CALLBACK (sort_column_changed_callback), view, 0);
 
@@ -2586,6 +2948,7 @@ create_and_set_up_tree_view (NemoListView *view)
 		float xalign;
         gint width_chars;
         gboolean ellipsize;
+        gboolean unbounded;
 
 
 		nemo_column = NEMO_COLUMN (l->data);
@@ -2595,7 +2958,8 @@ create_and_set_up_tree_view (NemoListView *view)
 			      "label", &label,
 			      "xalign", &xalign,
                   "width-chars", &width_chars,
-                  "ellipsize", &ellipsize, NULL);
+                  "ellipsize", &ellipsize,
+                  "unbounded", &unbounded, NULL);
 
 		column_num = nemo_list_model_add_column (view->details->model,
 						       nemo_column);
@@ -2631,7 +2995,14 @@ create_and_set_up_tree_view (NemoListView *view)
 			gtk_tree_view_column_set_sort_column_id (view->details->file_name_column, column_num);
 			gtk_tree_view_column_set_title (view->details->file_name_column, _("Name"));
 			gtk_tree_view_column_set_resizable (view->details->file_name_column, TRUE);
-            gtk_tree_view_column_set_min_width (view->details->file_name_column, 100);
+            /* Widths are worked out for the whole row at once, so every column
+             * is fixed and nothing here is left to the tree view. No min-width:
+             * it would clamp a width we meant, and the floors are in the layout.
+             * Name stays the expanding column so a pixel lost to rounding lands
+             * somewhere sensible rather than as a gap after the last column. */
+            gtk_tree_view_column_set_sizing (view->details->file_name_column,
+                                             GTK_TREE_VIEW_COLUMN_FIXED);
+            gtk_tree_view_column_set_min_width (view->details->file_name_column, -1);
             gtk_tree_view_column_set_reorderable (view->details->file_name_column, TRUE);
             gtk_tree_view_column_set_expand (view->details->file_name_column, TRUE);
 
@@ -2667,11 +3038,15 @@ create_and_set_up_tree_view (NemoListView *view)
 								 view, NULL);
 		} else {
 			cell = gtk_cell_renderer_text_new ();
+            /* Every column can be narrowed now, so a value that no longer fits
+             * says so rather than being cut off mid-letter. A column that asked
+             * for a particular ellipsis keeps it. */
             g_object_set (cell,
                           "xalign", xalign,
                           "xpad", 5,
                           "width-chars", width_chars,
-                          "ellipsize", ellipsize,
+                          "ellipsize", ellipsize == PANGO_ELLIPSIZE_NONE
+                                        ? PANGO_ELLIPSIZE_END : ellipsize,
                           NULL);
 
 			view->details->cells = g_list_append (view->details->cells,
@@ -2693,7 +3068,16 @@ create_and_set_up_tree_view (NemoListView *view)
                                                  NULL);
 
             gtk_tree_view_append_column (view->details->tree_view, column);
-            gtk_tree_view_column_set_min_width (column, 30);
+            gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
+            gtk_tree_view_column_set_min_width (column, -1);
+
+            /* Values with no length anyone would call normal - a type, a path,
+             * an owner - are held to a share of the Name column instead of
+             * being allowed to take the window for one long one. */
+            if (unbounded) {
+                g_object_set_data (G_OBJECT (column), "unbounded", GINT_TO_POINTER (TRUE));
+            }
+
 			gtk_tree_view_column_set_sort_column_id (column, column_num);
 
             g_hash_table_insert (view->details->columns,
@@ -3075,6 +3459,9 @@ nemo_list_view_clear (NemoView *view)
 		stop_cell_editing (list_view);
 		nemo_list_model_clear (list_view->details->model);
 	}
+
+	/* The widest name in the last folder says nothing about this one. */
+	forget_natural_widths (list_view);
 
     g_signal_handlers_unblock_by_func (tree_selection, list_selection_changed_callback, view);
 }
@@ -3771,6 +4158,11 @@ nemo_list_view_set_zoom_level (NemoListView *view,
 
 	nemo_view_update_menus (NEMO_VIEW (view));
 
+	/* Everything measured was measured in the old font at the old icon size. */
+	view->details->column_floor = 0;
+	forget_natural_widths (view);
+	resize_columns_soon (view);
+
 	/* FIXME: https://bugzilla.gnome.org/show_bug.cgi?id=641518 */
 	gtk_tree_view_columns_autosize (view->details->tree_view);
 }
@@ -4113,6 +4505,11 @@ nemo_list_view_dispose (GObject *object)
         list_view->details->update_visible_icons_id = 0;
     }
 
+    if (list_view->details->resize_columns_id > 0) {
+        g_source_remove (list_view->details->resize_columns_id);
+        list_view->details->resize_columns_id = 0;
+    }
+
 	if (list_view->details->clipboard_handler_id != 0) {
 		g_signal_handler_disconnect (nemo_clipboard_monitor_get (),
 		                             list_view->details->clipboard_handler_id);
@@ -4144,6 +4541,7 @@ nemo_list_view_finalize (GObject *object)
 
 	g_list_free (list_view->details->cells);
 	g_hash_table_destroy (list_view->details->columns);
+	g_hash_table_destroy (list_view->details->natural_widths);
 
 	if (list_view->details->hover_path != NULL) {
 		gtk_tree_path_free (list_view->details->hover_path);
