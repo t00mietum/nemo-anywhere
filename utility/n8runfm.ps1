@@ -64,7 +64,9 @@ if ($IsWindows) {
 	$SourceTag     = "win"
 	$CopyIsFile    = $true         # a held copy is one .exe file, not a dir tree
 	$CopyExt       = ".exe"
-	$TargetDir     = Join-Path $env:LOCALAPPDATA "nemo-anywhere-dogfood"
+	## The pool sits in the LOCAL (not synced) by-self folder, beside n8runterm's -
+	## stamped copies are per-box churn and must not ride the sync. Created if absent.
+	$TargetDir     = "C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64"
 } else {
 	$SourceCandidates = @(
 		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/linux/nemo-anywhere.app")
