@@ -256,6 +256,16 @@ test('Appearance themes test',
   args: []
 )
 
+test('Column layout test',
+  executable('test-nemo-column-layout',
+    [ 'test-nemo-column-layout.c', '../src/nemo-column-layout.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Command template test',
   executable('test-nemo-command-template',
     [ 'test-nemo-command-template.c' ],

@@ -36,6 +36,7 @@ enum {
 	PROP_XALIGN,
     PROP_WIDTH_CHARS,
     PROP_ELLIPSIZE,
+    PROP_UNBOUNDED,
 	LAST_PROP
 };
 
@@ -48,6 +49,7 @@ typedef struct
     float xalign;
     gint width_chars;
     gboolean ellipsize;
+    gboolean unbounded;
  } NemoColumnPrivate;
 
 struct _NemoColumn
@@ -179,6 +181,9 @@ nemo_column_get_property (GObject *object,
     case PROP_ELLIPSIZE :
         g_value_set_enum (value, column->details->ellipsize);
         break;
+    case PROP_UNBOUNDED :
+        g_value_set_boolean (value, column->details->unbounded);
+        break;
     
 	default :
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, param_id, pspec);
@@ -228,6 +233,10 @@ nemo_column_set_property (GObject *object,
     case PROP_ELLIPSIZE :
         column->details->ellipsize = g_value_get_enum (value);
         g_object_notify (object, "ellipsize");
+        break;
+    case PROP_UNBOUNDED :
+        column->details->unbounded = g_value_get_boolean (value);
+        g_object_notify (object, "unbounded");
         break;
 
 	default :
@@ -327,6 +336,18 @@ nemo_column_class_init (NemoColumnClass *class)
                                 "Pango ellipsize mode when text won't fit",
                                 PANGO_TYPE_ELLIPSIZE_MODE,
                                 PANGO_ELLIPSIZE_NONE,
+                                G_PARAM_READWRITE));
+    /* Says the values in this column have no length anyone would call normal -
+       a type name, a path, an owner. The list view stops such a column at a
+       share of the Name column rather than letting one long value take the
+       window. Columns whose values are a shape - a size, a date - leave it
+       alone and simply grow to fit. */
+    g_object_class_install_property (G_OBJECT_CLASS (class),
+                     PROP_UNBOUNDED,
+                     g_param_spec_boolean ("unbounded",
+                                "Values have no natural width",
+                                "Values have no natural width",
+                                FALSE,
                                 G_PARAM_READWRITE));
 }
 

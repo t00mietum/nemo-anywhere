@@ -13,6 +13,7 @@ nemoCommon_sources = [
   'nemo-application.c',
   'nemo-bookmark-list.c',
   'nemo-bookmarks-window.c',
+  'nemo-column-layout.c',
   'nemo-config-base-widget.c',
   'nemo-connect-server-dialog-nonmain.c',
   'nemo-connect-server-dialog.c',

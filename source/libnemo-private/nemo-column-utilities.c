@@ -57,6 +57,7 @@ get_builtin_columns (void)
 					       "attribute", "type",
 					       "label", _("Type"),
 					       "description", _("The general type of the file."),
+					       "unbounded", TRUE,
 					       NULL));
 #if NEMO_COLUMNS_SHOW_DETAILED_TYPE
 	columns = g_list_append (columns,
@@ -65,6 +66,7 @@ get_builtin_columns (void)
 					       "attribute", "detailed_type",
 					       "label", _("Detailed Type"),
 					       "description", _("The specific type of the file."),
+					       "unbounded", TRUE,
 					       NULL));
 #endif
 	/* Three dates, the same three on every platform. The times themselves
@@ -102,6 +104,7 @@ get_builtin_columns (void)
 					       "attribute", "owner",
 					       "label", _("Owner"),
 					       "description", _("The owner of the file."),
+					       "unbounded", TRUE,
 					       NULL));
 
 	columns = g_list_append (columns,
@@ -110,6 +113,7 @@ get_builtin_columns (void)
 					       "attribute", "group",
 					       "label", _("Group"),
 					       "description", _("The group of the file."),
+					       "unbounded", TRUE,
 					       NULL));
 
 	columns = g_list_append (columns,
@@ -136,6 +140,7 @@ get_builtin_columns (void)
 					       "attribute", "mime_type",
 					       "label", _("MIME Type"),
 					       "description", _("The mime type of the file."),
+					       "unbounded", TRUE,
 					       NULL));
 #endif
 #ifdef HAVE_SELINUX
@@ -145,6 +150,7 @@ get_builtin_columns (void)
 					       "attribute", "selinux_context",
 					       "label", _("SELinux Context"),
 					       "description", _("The SELinux security context of the file."),
+					       "unbounded", TRUE,
 					       NULL));
 #endif
 	columns = g_list_append (columns,
@@ -153,7 +159,7 @@ get_builtin_columns (void)
 					       "attribute", "where",
 					       "label", _("Location"),
 					       "description", _("The location of the file."),
-                           "width-chars", 60,
+					       "unbounded", TRUE,
                            "ellipsize", PANGO_ELLIPSIZE_END,
 					       NULL));
 
