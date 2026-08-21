@@ -39,8 +39,10 @@
 typedef struct {
 	GtkWidget *dialog;
 	GtkWidget *name_entry;
+	GtkWidget *name_label;
 	GtkWidget *format_combo;
 	GtkWidget *folder_button;
+	GtkWidget *each_check;
 
 	GtkWidget *level_scale;
 	GtkWidget *level_label;
@@ -88,13 +90,29 @@ set_row_sensitive (GtkWidget *widget,
 	}
 }
 
+/* One archive per item, each named after its item. */
+static gboolean
+compressing_each (ArchiveDialog *self)
+{
+	return self->each_check != NULL &&
+	       gtk_widget_get_sensitive (self->each_check) &&
+	       gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->each_check));
+}
+
 /* Part of a folder gets no suggested name, so the field starts empty and there
-   is nothing to compress into until it is filled in. */
+   is nothing to compress into until it is filled in. Separate archives take
+   their names from the items, so an empty field stops nothing. */
 static void
 update_name_validity (ArchiveDialog *self)
 {
+	gboolean each = compressing_each (self);
+
+	gtk_widget_set_sensitive (self->name_entry, !each);
+	set_row_sensitive (self->name_label, !each);
+
 	if (self->compress_button != NULL) {
 		gtk_widget_set_sensitive (self->compress_button,
+					  each ||
 					  gtk_entry_get_text_length (GTK_ENTRY (self->name_entry)) > 0);
 	}
 }
@@ -184,6 +202,15 @@ password_changed (GtkEditable *editable,
 	(void) editable;
 
 	update_for_format (user_data);
+}
+
+static void
+each_toggled (GtkToggleButton *button,
+	      gpointer         user_data)
+{
+	(void) button;
+
+	update_name_validity (user_data);
 }
 
 static void
@@ -344,30 +371,86 @@ collect_options (ArchiveDialog      *self,
 		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->lock_check));
 }
 
+/* Asked once for the lot: with a selection compressed separately there can be
+   any number of them, and answering one at a time before anything has started
+   is worse than seeing the count. */
 static gboolean
 confirm_overwrite (ArchiveDialog *self,
-		   GFile         *destination)
+		   GList         *destinations)
 {
-	char *name;
+	GList *existing = NULL;
+	GList *l;
+	guint count;
 	char *primary;
 	int response;
 
-	if (!g_file_query_exists (destination, NULL)) {
+	for (l = destinations; l != NULL; l = l->next) {
+		if (g_file_query_exists (G_FILE (l->data), NULL)) {
+			existing = g_list_prepend (existing, l->data);
+		}
+	}
+
+	if (existing == NULL) {
 		return TRUE;
 	}
 
-	name = g_file_get_basename (destination);
-	primary = g_strdup_printf (_("A file named \"%s\" already exists. Replace it?"), name);
+	count = g_list_length (existing);
+
+	if (count == 1) {
+		char *name = g_file_get_basename (G_FILE (existing->data));
+
+		primary = g_strdup_printf (_("A file named \"%s\" already exists. Replace it?"), name);
+		g_free (name);
+	} else {
+		primary = g_strdup_printf (_("%d of the archives already exist. Replace them?"), count);
+	}
 
 	response = eel_run_simple_dialog (self->dialog, TRUE, GTK_MESSAGE_QUESTION,
 					  primary,
-					  _("Replacing it overwrites its contents."),
+					  ngettext ("Replacing it overwrites its contents.",
+						    "Replacing them overwrites their contents.",
+						    count),
 					  GTK_STOCK_CANCEL, _("_Replace"), NULL);
 
 	g_free (primary);
-	g_free (name);
+	g_list_free (existing);
 
 	return response == 1;
+}
+
+/* The archives separate mode would write. Worked out here as well as in the
+   job so that what is already there can be asked about before it starts. */
+static GList *
+each_destinations (ArchiveDialog     *self,
+		   GFile             *folder,
+		   NemoArchiveFormat  format)
+{
+	GList *destinations = NULL;
+	GList *l;
+
+	for (l = self->files; l != NULL; l = l->next) {
+		GFile *destination;
+		char *basename;
+		char *name;
+
+		basename = g_file_get_basename (G_FILE (l->data));
+		name = nemo_archive_each_name (basename, format);
+		g_free (basename);
+
+		if (name == NULL) {
+			continue;
+		}
+
+		destination = g_file_get_child_for_display_name (folder, name, NULL);
+		if (destination == NULL) {
+			destination = g_file_get_child (folder, name);
+		}
+		g_free (name);
+
+		destinations = g_list_prepend (destinations, destination);
+	}
+
+	return g_list_reverse (destinations);
 }
 
 static void
@@ -428,7 +511,7 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 	self->name_entry = gtk_entry_new ();
 	gtk_entry_set_activates_default (GTK_ENTRY (self->name_entry), TRUE);
 	gtk_entry_set_width_chars (GTK_ENTRY (self->name_entry), 36);
-	add_row (grid, row++, _("_Name"), self->name_entry);
+	self->name_label = add_row (grid, row++, _("_Name"), self->name_entry);
 
 	self->format_combo = gtk_combo_box_text_new ();
 	for (i = 0; i < NEMO_ARCHIVE_N_FORMATS; i++) {
@@ -452,6 +535,15 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 	}
 	add_row (grid, row++, _("_Where"), self->folder_button);
 
+	/* Greyed rather than hidden with one item selected: it is the same
+	   dialog either way, and there is nothing to explain about why it is
+	   not offered. */
+	self->each_check = add_check (grid, row++, _("Compress each item se_parately"), FALSE);
+	gtk_widget_set_sensitive (self->each_check, files->next != NULL);
+	gtk_widget_set_tooltip_text (self->each_check,
+				     _("Each item becomes its own archive, named after it."));
+	g_signal_connect (self->each_check, "toggled", G_CALLBACK (each_toggled), self);
+
 	build_options (self, box);
 
 	g_signal_connect (self->format_combo, "changed", G_CALLBACK (format_changed), self);
@@ -474,15 +566,18 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 	while (TRUE) {
 		NemoArchiveOptions options;
 		GFile *folder;
-		GFile *destination;
+		GList *destinations;
+		gboolean each;
 		const char *name;
 
 		if (gtk_dialog_run (GTK_DIALOG (self->dialog)) != GTK_RESPONSE_OK) {
 			break;
 		}
 
+		each = compressing_each (self);
+
 		name = gtk_entry_get_text (GTK_ENTRY (self->name_entry));
-		if (name == NULL || name[0] == '\0') {
+		if (!each && (name == NULL || name[0] == '\0')) {
 			gtk_widget_grab_focus (self->name_entry);
 			continue;
 		}
@@ -492,25 +587,38 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 			continue;
 		}
 
-		destination = g_file_get_child_for_display_name (folder, name, NULL);
-		if (destination == NULL) {
-			destination = g_file_get_child (folder, name);
-		}
-		g_object_unref (folder);
+		if (each) {
+			destinations = each_destinations (self, folder, current_format (self));
+		} else {
+			GFile *destination = g_file_get_child_for_display_name (folder, name, NULL);
 
-		if (!confirm_overwrite (self, destination)) {
-			g_object_unref (destination);
+			if (destination == NULL) {
+				destination = g_file_get_child (folder, name);
+			}
+			destinations = g_list_append (NULL, destination);
+		}
+
+		if (destinations == NULL || !confirm_overwrite (self, destinations)) {
+			g_list_free_full (destinations, g_object_unref);
+			g_object_unref (folder);
 			continue;
 		}
 
 		collect_options (self, &options);
 
 		gtk_widget_hide (self->dialog);
-		nemo_archive_create (self->files, destination, &options,
-				     parent_window, NULL, NULL);
+
+		if (each) {
+			nemo_archive_create_each (self->files, folder, &options,
+						  parent_window, NULL, NULL);
+		} else {
+			nemo_archive_create (self->files, G_FILE (destinations->data), &options,
+					     parent_window, NULL, NULL);
+		}
 
 		nemo_archive_options_clear (&options);
-		g_object_unref (destination);
+		g_list_free_full (destinations, g_object_unref);
+		g_object_unref (folder);
 		break;
 	}
 

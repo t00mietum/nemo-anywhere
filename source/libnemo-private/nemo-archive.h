@@ -128,6 +128,11 @@ char    *nemo_archive_suggest_name    (GList            *files,
 				       gboolean          whole_folder,
 				       NemoArchiveFormat format);
 
+/* What one item's archive is called when a selection is compressed separately.
+   NULL for a name nothing can be built from, such as a drive root. */
+char    *nemo_archive_each_name       (const char       *item_name,
+				       NemoArchiveFormat format);
+
 /* The command line a 7z or rar backend would be run with, in the base folder
    holding the selection. Exposed so the switches can be checked without
    spawning anything. */
@@ -150,5 +155,15 @@ void nemo_archive_create (GList                    *sources,
 			  GtkWindow                *parent_window,
 			  NemoArchiveCallback       done_callback,
 			  gpointer                  done_callback_data);
+
+/* One archive per source instead, each named after its item and all written
+   into destination_dir, under one progress window and one cancel. The callback
+   is handed that folder rather than any one archive. */
+void nemo_archive_create_each (GList                    *sources,
+			       GFile                    *destination_dir,
+			       const NemoArchiveOptions *options,
+			       GtkWindow                *parent_window,
+			       NemoArchiveCallback       done_callback,
+			       gpointer                  done_callback_data);
 
 #endif /* NEMO_ARCHIVE_H */

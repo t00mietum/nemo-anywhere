@@ -253,6 +253,17 @@ test('Archive options test',
   args: []
 )
 
+# Reads the archives it wrote back with libarchive, so it needs that library.
+test('Archive job test',
+  executable('test-nemo-archive-job',
+    [ 'test-archive-job.c', 'test.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ archive, gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Extract naming test',
   executable('test-nemo-extract',
     [ 'test-nemo-extract.c' ],
