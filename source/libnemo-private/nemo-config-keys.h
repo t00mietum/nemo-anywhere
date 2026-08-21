@@ -5,6 +5,7 @@
 #define NEMO_CONFIG_KEYS_H
 
 #include "nemo-config.h"
+#include "nemo-archive-commands.h"
 
 static const NemoConfigEnumValue enum_ActivationChoice[] = {
 	{ "launch", 0 },
@@ -108,6 +109,10 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "appearance", "gtk-theme", NEMO_CONFIG_STRING, "", NULL, NULL, "Widget theme to use, or empty to leave it to the platform" },
 	{ "appearance", "icon-theme", NEMO_CONFIG_STRING, "", NULL, NULL, "Icon theme to use, or empty to leave it to the platform" },
 	{ "appearance", "mode", NEMO_CONFIG_ENUM, "system", NULL, enum_AppearanceMode, "Light or dark appearance, or follow the system" },
+	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_ARCHIVE_COMMAND_KEY_7Z, NEMO_CONFIG_STRING, NEMO_ARCHIVE_COMMAND_7Z_DEFAULT, NULL, NULL, "Command line 7-Zip is run with to create an archive. {{PROGRAM}} is the 7z it found, {{SOURCE_ITEMS}} the files and folders being packed, and the rest stand for what the Compress dialog was asked for - drop one and that option stops reaching the program. Empty this line to get the built-in one back." },
+	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_ARCHIVE_COMMAND_KEY_RAR, NEMO_CONFIG_STRING, NEMO_ARCHIVE_COMMAND_RAR_DEFAULT, NULL, NULL, "Command line rar is run with to create an archive. Same placeholders as the 7-Zip line, plus {{DEDUPE}}, {{RECOVERY}} and {{LOCK}}, which rar alone can do." },
+	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_EXTRACT_COMMAND_KEY_7Z, NEMO_CONFIG_STRING, NEMO_EXTRACT_COMMAND_7Z_DEFAULT, NULL, NULL, "Command line 7-Zip is run with to unpack an archive it was reached for. {{PASSWORD}} is answered either way, since a prompt would wait on a console that is not there." },
+	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_EXTRACT_COMMAND_KEY_RAR, NEMO_CONFIG_STRING, NEMO_EXTRACT_COMMAND_RAR_DEFAULT, NULL, NULL, "Command line rar or unrar is run with to unpack an archive. {{TARGET_FOLDER_WITH_SEPARATOR}} is the destination with a trailing separator, which is how rar tells it from an archive name." },
 	{ "compact-view", "all-columns-have-same-width", NEMO_CONFIG_BOOL, "false", NULL, NULL, "All columns have same width" },
 	{ "compact-view", "default-zoom-level", NEMO_CONFIG_ENUM, "standard", NULL, enum_ZoomLevel, "Default compact view zoom level" },
 	{ "interface", "clock-use-24h", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },

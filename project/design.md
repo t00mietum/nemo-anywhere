@@ -216,6 +216,14 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 
 	- Following symlinked and junctioned folders is off by default and is ours, not the archiver's, because the file tree is walked through GIO before anything is handed to a writer. A link loop would otherwise pull in the whole disk; the walk remembers the directories it has been through by file id, so a loop terminates even when following is switched on.
 
+	- The command lines the 7z and rar programs are run with live in the settings file rather than in the code, so a person can point one at a different build, add a switch we never thought to offer, or work around a version that spells something its own way. There are four - create and unpack, for each of the two programs - and each is one line with `{{PLACEHOLDER}}` markers standing for the parts we fill in. Editing one is meant to be an ordinary thing to do, so clearing it puts the line we ship back rather than running nothing.
+
+		- Every switch the Compress dialog can turn on has a marker of its own - the level, the password, splitting, solid blocks, duplicate references, the recovery record, locking, how links are stored - so an edited line keeps the dialog working instead of freezing it at whatever was typed. Leave one out and the app says which control has gone quiet, rather than letting a checkbox sit there doing nothing.
+
+		- A password is a value we hand the program, never part of the line, so it is not written to the settings file. It is still visible in the process list while the program runs, which is true of every archiver and has no fix short of not using one.
+
+		- The line is split into arguments before the markers are filled in, never after. That is what makes a file named with a space, a quote or a backslash stay one argument: nothing a user supplies is ever re-read as part of the command, so it cannot turn into a switch or a second file name.
+
 - Settings moved off GSettings entirely, onto SHCL, rather than keeping the GSettings API over a SHCL-backed store. Both were on the table: a storage backend would have been a fraction of the work and left every call site untouched, but it would have kept a compiled schema to install and ship on every platform. Among these options it was decided to take the full replacement, so that configuration is one plain file the user can open, with no build-time or install-time artifact behind it. The costs are real and were accepted: roughly three hundred call sites moved, and change notification, property binding and enum mapping are now ours to maintain. Notification and binding kept the shapes they had (a detailed `changed::key` signal, a `bind` with optional mappings), so the call sites read as they did before.
 
 	- Defaults stayed central, in one table, instead of being restated at each call site as SHCL's own guidance suggests. With a hundred and sixty-eight settings, many read from several places, a restated default is a bug waiting to happen - two call sites disagreeing about what a setting means when it is absent.
@@ -278,6 +286,7 @@ settings daemon, no compiled schema, and no per-platform store to keep in step.
   shipped with the app for validating a hand-edited config.
 - Values the desktop owns rather than us are read from the desktop where it
   publishes them, and fall back to ours where it does not.
+- Where a setting is a command line for some other program, the parts we fill in are written `{{LIKE_THIS}}`, in capitals between double braces, and that is the convention for any setting that grows one later. Braces because nothing expands them: the same line pasted into a command prompt or a shell to try it out comes back unchanged, where `%NAME%` would quietly vanish on Windows and `${NAME}` would on Linux. Only the markers a setting declares are replaced, so anything else in braces is passed on as itself and there is nothing to escape.
 
 The trade accepted here: reading and writing settings is now our code rather
 than a well-worn library's, and settings do not migrate from a pre-1.0 install

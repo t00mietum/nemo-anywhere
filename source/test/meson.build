@@ -244,6 +244,15 @@ test('Appearance themes test',
   args: []
 )
 
+test('Command template test',
+  executable('test-nemo-command-template',
+    [ 'test-nemo-command-template.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Archive options test',
   executable('test-nemo-archive',
     [ 'test-nemo-archive.c' ],

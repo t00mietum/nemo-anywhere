@@ -26,6 +26,26 @@ field: appearance.mode
 	default: system
 	desc: Light or dark appearance, or follow the system
 
+field: archive.create-with-7z
+	type: string
+	default: "{{PROGRAM}} a {{FORMAT}} {{LEVEL}} -y -bsp1 {{PASSWORD}} {{SPLIT}} {{SOLID}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
+	desc: Command line 7-Zip is run with to create an archive. {{PROGRAM}} is the 7z it found, {{SOURCE_ITEMS}} the files and folders being packed, and the rest stand for what the Compress dialog was asked for - drop one and that option stops reaching the program. Empty this line to get the built-in one back.
+
+field: archive.create-with-rar
+	type: string
+	default: "{{PROGRAM}} a {{LEVEL}} -r -y {{PASSWORD}} {{SPLIT}} {{SOLID}} {{DEDUPE}} {{RECOVERY}} {{LOCK}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
+	desc: Command line rar is run with to create an archive. Same placeholders as the 7-Zip line, plus {{DEDUPE}}, {{RECOVERY}} and {{LOCK}}, which rar alone can do.
+
+field: archive.extract-with-7z
+	type: string
+	default: "{{PROGRAM}} x -y -bsp1 {{PASSWORD}} -o{{TARGET_FOLDER}} -- {{SOURCE_ARCHIVE}}"
+	desc: Command line 7-Zip is run with to unpack an archive it was reached for. {{PASSWORD}} is answered either way, since a prompt would wait on a console that is not there.
+
+field: archive.extract-with-rar
+	type: string
+	default: "{{PROGRAM}} x -y {{PASSWORD}} -- {{SOURCE_ARCHIVE}} {{TARGET_FOLDER_WITH_SEPARATOR}}"
+	desc: Command line rar or unrar is run with to unpack an archive. {{TARGET_FOLDER_WITH_SEPARATOR}} is the destination with a trailing separator, which is how rar tells it from an archive name.
+
 field: compact-view.all-columns-have-same-width
 	type: bool
 	default: false

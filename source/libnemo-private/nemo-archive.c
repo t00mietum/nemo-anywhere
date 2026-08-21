@@ -33,6 +33,8 @@
 
 #include <eel/eel-stock-dialogs.h>
 
+#include "nemo-archive-commands.h"
+#include "nemo-command-template.h"
 #include "nemo-file-changes-queue.h"
 #include "nemo-job-queue.h"
 #include "nemo-progress-info.h"
@@ -1314,6 +1316,16 @@ rar_level (int level)
 	return steps[CLAMP (level, 0, NEMO_ARCHIVE_LEVEL_MAX)];
 }
 
+static void
+free_values (char **values)
+{
+	int i;
+
+	for (i = 0; values[i] != NULL; i++) {
+		g_free (values[i]);
+	}
+}
+
 char **
 nemo_archive_build_command (NemoArchiveBackend        backend,
 			    NemoArchiveFormat         format,
@@ -1322,7 +1334,24 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 			    const char               *archive_path,
 			    GList                    *names)
 {
-	GPtrArray *args;
+	/* One slot per switch a token stands for, plus the terminator. Only the
+	   password ever needs two, and only for 7-Zip. */
+	char *program_v[2]  = { NULL, NULL };
+	char *format_v[2]   = { NULL, NULL };
+	char *level_v[2]    = { NULL, NULL };
+	char *password_v[3] = { NULL, NULL, NULL };
+	char *split_v[2]    = { NULL, NULL };
+	char *solid_v[2]    = { NULL, NULL };
+	char *dedupe_v[2]   = { NULL, NULL };
+	char *recovery_v[2] = { NULL, NULL };
+	char *lock_v[2]     = { NULL, NULL };
+	char *links_v[2]    = { NULL, NULL };
+	char *archive_v[2]  = { NULL, NULL };
+	GPtrArray *sources;
+	const char *key, *fallback;
+	GError *error = NULL;
+	char **argv;
+	char *text;
 	GList *l;
 	gboolean has_password;
 	int level;
@@ -1334,86 +1363,126 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	has_password = options->password != NULL && options->password[0] != '\0';
 	level = CLAMP (options->level, 0, NEMO_ARCHIVE_LEVEL_MAX);
 
-	args = g_ptr_array_new ();
-	g_ptr_array_add (args, g_strdup (program));
-	g_ptr_array_add (args, g_strdup ("a"));
-
 	if (backend == NEMO_ARCHIVE_BACKEND_7Z) {
-		g_ptr_array_add (args, g_strdup (format == NEMO_ARCHIVE_FORMAT_7Z ? "-t7z" : "-tzip"));
-		g_ptr_array_add (args, g_strdup_printf ("-mx=%d", seven_zip_level (level)));
-		g_ptr_array_add (args, g_strdup ("-y"));
-		g_ptr_array_add (args, g_strdup ("-bsp1"));	/* percentages on stdout */
+		key = NEMO_ARCHIVE_COMMAND_KEY_7Z;
+		fallback = NEMO_ARCHIVE_COMMAND_7Z_DEFAULT;
+
+		format_v[0] = g_strdup (format == NEMO_ARCHIVE_FORMAT_7Z ? "-t7z" : "-tzip");
+		level_v[0] = g_strdup_printf ("-mx=%d", seven_zip_level (level));
 
 		if (has_password) {
 			/* A password on a command line is readable in the process
-			   list; there is no other way to hand it to either tool. */
-			g_ptr_array_add (args, g_strconcat ("-p", options->password, NULL));
+			   list; there is no other way to hand it to either tool.
+			   It is a value rather than part of the line, so it never
+			   reaches the config file. */
+			password_v[0] = g_strconcat ("-p", options->password, NULL);
 
 			if (format == NEMO_ARCHIVE_FORMAT_ZIP) {
-				g_ptr_array_add (args, g_strdup ("-mem=AES256"));
+				password_v[1] = g_strdup ("-mem=AES256");
 			} else if (options->encrypt_names) {
-				g_ptr_array_add (args, g_strdup ("-mhe=on"));
+				password_v[1] = g_strdup ("-mhe=on");
 			}
 		}
 		if (options->split_size > 0) {
-			g_ptr_array_add (args, g_strdup_printf ("-v%llub", (unsigned long long) options->split_size));
+			split_v[0] = g_strdup_printf ("-v%llub", (unsigned long long) options->split_size);
 		}
 		if (format == NEMO_ARCHIVE_FORMAT_7Z) {
-			g_ptr_array_add (args, g_strdup (options->solid ? "-ms=on" : "-ms=off"));
+			solid_v[0] = g_strdup (options->solid ? "-ms=on" : "-ms=off");
 		}
 #ifndef G_OS_WIN32
 		if (options->store_links) {
-			g_ptr_array_add (args, g_strdup ("-snl"));
+			links_v[0] = g_strdup ("-snl");
 		}
 #endif
 	} else if (backend == NEMO_ARCHIVE_BACKEND_RAR) {
-		g_ptr_array_add (args, g_strdup_printf ("-m%d", rar_level (level)));
-		g_ptr_array_add (args, g_strdup ("-r"));		/* named folders are recursed into */
-		g_ptr_array_add (args, g_strdup ("-y"));
+		key = NEMO_ARCHIVE_COMMAND_KEY_RAR;
+		fallback = NEMO_ARCHIVE_COMMAND_RAR_DEFAULT;
+
+		level_v[0] = g_strdup_printf ("-m%d", rar_level (level));
 
 		if (has_password) {
-			if (options->encrypt_names) {
-				g_ptr_array_add (args, g_strconcat ("-hp", options->password, NULL));
-			} else {
-				g_ptr_array_add (args, g_strconcat ("-p", options->password, NULL));
-			}
+			password_v[0] = options->encrypt_names
+				? g_strconcat ("-hp", options->password, NULL)
+				: g_strconcat ("-p", options->password, NULL);
 		}
 		if (options->split_size > 0) {
-			g_ptr_array_add (args, g_strdup_printf ("-v%llub", (unsigned long long) options->split_size));
+			split_v[0] = g_strdup_printf ("-v%llub", (unsigned long long) options->split_size);
 		}
-		g_ptr_array_add (args, g_strdup (options->solid ? "-s" : "-s-"));
+		solid_v[0] = g_strdup (options->solid ? "-s" : "-s-");
 
 		if (options->dedupe) {
-			g_ptr_array_add (args, g_strdup ("-oi"));
+			dedupe_v[0] = g_strdup ("-oi");
 		}
 		if (options->recovery_record) {
-			g_ptr_array_add (args, g_strdup ("-rr3p"));
+			recovery_v[0] = g_strdup ("-rr3p");
 		}
 		if (options->lock) {
-			g_ptr_array_add (args, g_strdup ("-k"));
+			lock_v[0] = g_strdup ("-k");
 		}
 
-		if (options->store_links) {
-			g_ptr_array_add (args, g_strdup ("-ol"));
-		} else {
-			g_ptr_array_add (args, g_strdup (options->follow_link_dirs ? "-ola" : "-ol-"));
-		}
+		links_v[0] = g_strdup (options->store_links ? "-ol"
+				       : (options->follow_link_dirs ? "-ola" : "-ol-"));
 	} else {
-		g_ptr_array_free (args, TRUE);
 		return NULL;
 	}
 
-	/* Stop switch parsing, so a file whose name starts with a dash is a file. */
-	g_ptr_array_add (args, g_strdup ("--"));
-	g_ptr_array_add (args, g_strdup (archive_path));
+	program_v[0] = g_strdup (program);
+	archive_v[0] = g_strdup (archive_path);
+
+	sources = g_ptr_array_new_with_free_func (g_free);
 
 	for (l = names; l != NULL; l = l->next) {
-		g_ptr_array_add (args, g_strdup (l->data));
+		g_ptr_array_add (sources, g_strdup (l->data));
+	}
+	g_ptr_array_add (sources, NULL);
+
+	{
+		const NemoCommandToken tokens[] = {
+			/* The last column marks the ones that stand for something
+			   the Compress dialog was asked for, so a line edited
+			   past one of them can say which control went quiet. */
+			{ "PROGRAM",        (const char *const *) program_v,     FALSE },
+			{ "FORMAT",         (const char *const *) format_v,      TRUE },
+			{ "LEVEL",          (const char *const *) level_v,       TRUE },
+			{ "PASSWORD",       (const char *const *) password_v,    TRUE },
+			{ "SPLIT",          (const char *const *) split_v,       TRUE },
+			{ "SOLID",          (const char *const *) solid_v,       TRUE },
+			{ "DEDUPE",         (const char *const *) dedupe_v,      TRUE },
+			{ "RECOVERY",       (const char *const *) recovery_v,    TRUE },
+			{ "LOCK",           (const char *const *) lock_v,        TRUE },
+			{ "LINKS",          (const char *const *) links_v,       TRUE },
+			{ "TARGET_ARCHIVE", (const char *const *) archive_v,     FALSE },
+			{ "SOURCE_ITEMS",   (const char *const *) sources->pdata, FALSE },
+			{ NULL, NULL, FALSE }
+		};
+
+		text = nemo_command_template_from_config (NEMO_ARCHIVE_COMMANDS_GROUP, key, fallback);
+		argv = nemo_command_template_expand (text, tokens, &error);
+
+		if (argv == NULL) {
+			g_warning ("The %s command line cannot be run as written (%s): %s",
+				   key, error->message, text);
+			g_clear_error (&error);
+		} else {
+			nemo_command_template_warn_unused (key, text, tokens);
+		}
 	}
 
-	g_ptr_array_add (args, NULL);
+	g_free (text);
+	g_ptr_array_free (sources, TRUE);
+	free_values (program_v);
+	free_values (format_v);
+	free_values (level_v);
+	free_values (password_v);
+	free_values (split_v);
+	free_values (solid_v);
+	free_values (dedupe_v);
+	free_values (recovery_v);
+	free_values (lock_v);
+	free_values (links_v);
+	free_values (archive_v);
 
-	return (char **) g_ptr_array_free (args, FALSE);
+	return argv;
 }
 
 /* Both tools write a running "NN%". The newest one in the buffer wins. */

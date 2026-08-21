@@ -939,6 +939,13 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- Encryption and splitting are treated as requirements - if nothing installed can do them the job is refused rather than quietly writing a readable archive. Everything else is a preference, honoured where possible and dropped where not.
 	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be cancelled, and a cancelled or failed run leaves no half-written archive behind.
 
+- ✅ The 7z and rar command lines are settings, not code, so a user can edit them.
+	- Four lines in `settings.shcl` under `archive` - create and unpack, for each of the two programs - each with `{{PLACEHOLDER}}` markers for the parts the app fills in. Point one at a different build, add a switch we do not offer, or work around a version that spells something its own way.
+	- Every switch the Compress dialog can turn on has a marker of its own, so an edited line keeps the dialog working. Leave one out and the app says which control has gone quiet.
+	- Clearing a line puts the shipped one back rather than running nothing, and a line that cannot be read is refused outright rather than half-run.
+	- A password is handed to the program as a value, never written into the settings file.
+	- `{{LIKE_THIS}}` is now the convention for any setting that needs a placeholder. Braces because no shell or command prompt expands them, so a line can be pasted somewhere to try it out and come back unchanged.
+
 - ✅ Right-click "Extract" for the archive formats we recognize, including shelling out to 7z or rar.
 	- Three items on the selection menu and the Edit menu, shown only when everything selected is an archive: "Extract Here", "Extract Each to Its Own Folder" (singular when one is selected) and "Extract To..." with a folder chooser. Show/hide them in Preferences like the other context-menu items.
 	- "Extract Here" unpacks exactly what the archive stores, so one made from a folder brings that folder with it and lands in one place. The folder-each item is the answer to an archive that would otherwise scatter its contents over the folder being viewed.
