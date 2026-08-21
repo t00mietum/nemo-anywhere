@@ -169,6 +169,12 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 
 ### Bugs
 
+- 🔘 Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
+	- Found while proving the long-path work above. The toolkit's own directory walk is what breaks; every other call on the same path is right, which is why nothing showed up until a folder that deep was actually opened.
+	- In the window it reads as an empty folder, because each name it hands back is then checked against the folder that was asked for and none of them are in it. That is the harmless case. The one to worry about is search, which walks folders itself and would follow the wrong tree.
+	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
+	- Not ours to fix in place. Either the walk is done ourselves on Windows, or it goes upstream - nothing was found already filed for it.
+
 - 🔘 The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
 	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
@@ -205,8 +211,9 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 - 🔘 The installer leaves the user PATH very slightly different from how it found it.
 	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
 
-- 🔘 The Windows executable carries no application manifest, so it is not marked long-path aware. With long paths switched on in Windows - as they are on this box - anything past the old 260-character limit is still out of reach for us while Explorer handles it fine.
-	- The same manifest is where DPI awareness is declared, and that is now decided - per-monitor, under Features and enhancements. The two land together.
+- 🛠️ The Windows executable carries no application manifest, so it is not marked long-path aware. With long paths switched on in Windows - as they are on this box - anything past the old 260-character limit is still out of reach for us while Explorer handles it fine.
+	- The manifest landed with the DPI work under Features and enhancements, and most of this went with it. Measured on a 427-character folder holding a 462-character file: without the manifest every call failed outright; with it, reading the file, asking for its details, testing that it exists and walking into the folder all work.
+	- What is left is listing a folder, and it is worse than a failure - see the bug below. Left open until that is answered.
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work above removes the whole launcher/dll-folder arrangement.
 
@@ -857,14 +864,22 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- Rounds up, so a single-core machine still gets one thread and the answer is never nothing.
 	- Verified: each program is handed the switch it spells its own way, and both checks fail with the marker taken back out.
 
-- 🔘 Per-monitor DPI aware where the platform offers it, and DPI aware at minimum everywhere else.
-	- On Windows this is declared in the application manifest - the same file the long-path bug under Bugs needs - so the two land together.
-	- The toolkit scales in whole steps only, so a display at 125% or 150% would come out at 100% and read smaller than every other window on that screen. Text is scaled to the monitor's real DPI on top of that, and follows the window when it is dragged to a monitor at a different scale.
+- ✅ Per-monitor DPI aware where the platform offers it, and DPI aware at minimum everywhere else.
+	- The Windows executable now carries an application manifest, which is where this is declared and where Windows reads it before any of our code runs. Per-monitor v2 where it exists, per-monitor v1 and then system-wide on older builds.
+	- Without it the whole window was stretched as a bitmap on a scaled display - blurry - and a second monitor at a different scale could not be followed at all.
+	- The toolkit scales in whole steps only, so a display at 125% or 150% would come out at 100% and read smaller than every other window on that screen. Text is scaled to the monitor's real DPI on top of that, which is not restricted to whole steps, and re-reads it whenever a window moves to a monitor at another scale or a monitor is plugged in. Widgets and icons stay on the whole step.
+	- Nothing was needed for Linux or BSD: X11 and Wayland desktops publish their own scaling and the toolkit already follows it.
+	- The manifest also declares the run level explicitly (unchanged - what we already had by having none) and the versions of Windows we have run on, so the version APIs stop reporting Windows 8 forever.
+	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test, which fails with the whole-step part taken back out. This box runs at 100%, so the fraction itself has been checked by arithmetic rather than by eye - worth a look on a scaled display.
 
-- 🛠️ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
+- 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
+	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
+	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
+
+- ✅ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
 	- Both views. A folder was already selected whole; a file now is too.
 	- `preferences.rename-selects-whole-name`, a file-only setting with no control in Preferences.
-	- Built and lint-clean; awaiting a look at the running window.
+	- Verified in the running window: F2 on a `.md` file opens the box with the suffix inside the selection.
 
 - 🔘 List view columns should use the window as it is resized, instead of being pushed off the end of it or leaving a gap.
 	- Narrowing: Type is the first to give, down to about three characters, and after that every visible column - Name included - gives ground together, each in proportion to how wide it already is.

@@ -187,6 +187,18 @@ if is_windows
 endif
 
 if is_windows
+  test('DPI win32 test',
+    executable('test-nemo-dpi-win32',
+      [ 'test-nemo-dpi-win32.c', '../src/nemo-dpi-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
+
+if is_windows
   test('Network win32 test',
     executable('test-nemo-network-win32',
       [ 'test-nemo-network-win32.c' ],

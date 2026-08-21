@@ -18,6 +18,7 @@ nemoCommon_sources = [
   'nemo-connect-server-dialog.c',
   'nemo-connect-server-operation.c',
   'nemo-desktop-item-properties.c',
+  'nemo-dpi-win32.c',
   'nemo-error-reporting.c',
   'nemo-extension-config-widget.c',
   'nemo-file-management-properties.c',
@@ -112,7 +113,12 @@ if is_windows
     output:        'nemo-anywhere.rc',
     configuration: rc_conf,
   )
-  nemo_win_res = winmod.compile_resources(nemo_rc)
+  # The .rc is generated into the build dir, so the manifest it names has to be
+  # findable from the source dir as well.
+  nemo_win_res = winmod.compile_resources(nemo_rc,
+    include_directories: include_directories('.'),
+    depend_files:        files('nemo-anywhere.manifest'),
+  )
 endif
 
 # gresources rides with the executable on Windows, where the extension library is
