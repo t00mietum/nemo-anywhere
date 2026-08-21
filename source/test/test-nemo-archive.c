@@ -11,6 +11,7 @@
 #include <gio/gio.h>
 
 #include <libnemo-private/nemo-archive.h>
+#include <libnemo-private/nemo-global-preferences.h>
 
 static int failures = 0;
 
@@ -337,6 +338,7 @@ check_commands (void)
 	check (g_strcmp0 (argv[1], "a") == 0);
 	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-m5"));
+	check (has_prefix_arg (argv, "-mt"));
 	/* Encrypted names means -hp, and -p would leave the list readable. */
 	check (has_arg (argv, "-hpsecret"));
 	check (!has_arg (argv, "-psecret"));
@@ -383,6 +385,7 @@ check_commands (void)
 	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-t7z"));
 	check (has_arg (argv, "-mx=9"));
+	check (has_prefix_arg (argv, "-mmt="));
 	check (has_arg (argv, "-psecret"));
 	check (has_arg (argv, "-mhe=on"));
 	check (has_arg (argv, "-ms=on"));
@@ -423,6 +426,21 @@ check_commands (void)
 	g_list_free (names);
 }
 
+/* The share of the machine any compression is allowed. Nothing has read the
+ * settings file here, so this is the shipped 50% - and the point of the check
+ * is the arithmetic around it: never zero on a single-core box, never more
+ * cores than the machine has, and rounded up rather than down. */
+static void
+check_cpu_share (void)
+{
+	int cores = (int) g_get_num_processors ();
+	int threads = nemo_global_preferences_get_cpu_thread_count ();
+
+	check (threads >= 1);
+	check (threads <= cores);
+	check (threads == MAX (1, (cores * 50 + 99) / 100));
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -432,6 +450,7 @@ main (int argc, char *argv[])
 	check_sizes ();
 	check_backends ();
 	check_commands ();
+	check_cpu_share ();
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

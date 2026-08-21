@@ -69,6 +69,11 @@ field: media-handling.automount-open
 	type: bool
 	default: true
 
+field: performance.cpu-percent
+	type: int
+	default: 50
+	desc: Percentage of the machine's CPU cores any compression may use. 50% is the best balance for hyperthreaded CPUs. Rounds up, so there is always at least one.
+
 field: privacy.remember-recent-files
 	type: bool
 	default: true
@@ -369,6 +374,11 @@ field: preferences.never-queue-file-ops
 	type: bool
 	default: false
 	desc: If true, all file operations will start immediately
+
+field: preferences.rename-selects-whole-name
+	type: bool
+	default: true
+	desc: Whether starting a rename selects the whole name. False selects only the part before the extension, which is what most file managers do.
 
 field: preferences.quick-renames-with-pause-in-between
 	type: bool

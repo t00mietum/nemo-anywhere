@@ -36,6 +36,7 @@
 #include "nemo-archive-commands.h"
 #include "nemo-command-template.h"
 #include "nemo-file-changes-queue.h"
+#include "nemo-global-preferences.h"
 #include "nemo-job-queue.h"
 #include "nemo-progress-info.h"
 
@@ -1014,7 +1015,11 @@ configure_writer (struct archive  *a,
 	case NEMO_ARCHIVE_FORMAT_TAR_XZ:
 		archive_write_set_format_pax_restricted (a);
 		archive_write_add_filter_xz (a);
-		opts = g_strdup_printf ("xz:compression-level=%d", level);
+		/* The only built-in format that can be spread over cores. Deflate and
+		   libarchive's own lzma2 have no such option, so they are left alone
+		   rather than handed one they would refuse. */
+		opts = g_strdup_printf ("xz:compression-level=%d,xz:threads=%d",
+					level, nemo_global_preferences_get_cpu_thread_count ());
 		break;
 	case NEMO_ARCHIVE_FORMAT_7Z:
 		archive_write_set_format_7zip (a);
@@ -1339,6 +1344,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	char *program_v[2]  = { NULL, NULL };
 	char *format_v[2]   = { NULL, NULL };
 	char *level_v[2]    = { NULL, NULL };
+	char *threads_v[2]  = { NULL, NULL };
 	char *password_v[3] = { NULL, NULL, NULL };
 	char *split_v[2]    = { NULL, NULL };
 	char *solid_v[2]    = { NULL, NULL };
@@ -1355,6 +1361,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	GList *l;
 	gboolean has_password;
 	int level;
+	int threads;
 
 	g_return_val_if_fail (options != NULL, NULL);
 	g_return_val_if_fail (program != NULL, NULL);
@@ -1362,6 +1369,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 
 	has_password = options->password != NULL && options->password[0] != '\0';
 	level = CLAMP (options->level, 0, NEMO_ARCHIVE_LEVEL_MAX);
+	threads = nemo_global_preferences_get_cpu_thread_count ();
 
 	if (backend == NEMO_ARCHIVE_BACKEND_7Z) {
 		key = NEMO_ARCHIVE_COMMAND_KEY_7Z;
@@ -1369,6 +1377,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 
 		format_v[0] = g_strdup (format == NEMO_ARCHIVE_FORMAT_7Z ? "-t7z" : "-tzip");
 		level_v[0] = g_strdup_printf ("-mx=%d", seven_zip_level (level));
+		threads_v[0] = g_strdup_printf ("-mmt=%d", threads);
 
 		if (has_password) {
 			/* A password on a command line is readable in the process
@@ -1399,6 +1408,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 		fallback = NEMO_ARCHIVE_COMMAND_RAR_DEFAULT;
 
 		level_v[0] = g_strdup_printf ("-m%d", rar_level (level));
+		threads_v[0] = g_strdup_printf ("-mt%d", threads);
 
 		if (has_password) {
 			password_v[0] = options->encrypt_names
@@ -1444,6 +1454,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 			{ "PROGRAM",        (const char *const *) program_v,     FALSE },
 			{ "FORMAT",         (const char *const *) format_v,      TRUE },
 			{ "LEVEL",          (const char *const *) level_v,       TRUE },
+			{ "THREADS",        (const char *const *) threads_v,     FALSE },
 			{ "PASSWORD",       (const char *const *) password_v,    TRUE },
 			{ "SPLIT",          (const char *const *) split_v,       TRUE },
 			{ "SOLID",          (const char *const *) solid_v,       TRUE },
@@ -1473,6 +1484,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	free_values (program_v);
 	free_values (format_v);
 	free_values (level_v);
+	free_values (threads_v);
 	free_values (password_v);
 	free_values (split_v);
 	free_values (solid_v);

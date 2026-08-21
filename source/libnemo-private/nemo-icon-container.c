@@ -6978,7 +6978,9 @@ nemo_icon_container_start_renaming_selected_item (NemoIconContainer *container,
 				     width, -1);
 	eel_editable_label_set_text (EEL_EDITABLE_LABEL (details->rename_widget),
 				     editable_text);
-	if (select_all) {
+	if (select_all ||
+	    nemo_config_get_boolean (nemo_preferences,
+				     NEMO_PREFERENCES_RENAME_SELECTS_WHOLE_NAME)) {
 		start_offset = 0;
 		end_offset = -1;
 	} else {
