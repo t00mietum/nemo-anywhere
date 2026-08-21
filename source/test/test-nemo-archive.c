@@ -154,6 +154,41 @@ check_names (void)
 	g_free (text);
 }
 
+/* The name each archive gets when a selection is compressed separately. */
+static void
+check_each_names (void)
+{
+	char *text;
+
+	/* Named after the item, extension and all, the same as a single
+	   selection would be offered. */
+	text = nemo_archive_each_name ("holiday.jpg", NEMO_ARCHIVE_FORMAT_ZIP);
+	check (g_strcmp0 (text, "holiday.jpg.zip") == 0);
+	g_free (text);
+
+	text = nemo_archive_each_name ("photos", NEMO_ARCHIVE_FORMAT_TAR_GZ);
+	check (g_strcmp0 (text, "photos.tar.gz") == 0);
+	g_free (text);
+
+	/* An archive suffix is kept rather than swapped. There is no name field
+	   to correct here, so swapping it would put the new archive on top of
+	   the file being read. */
+	text = nemo_archive_each_name ("old.zip", NEMO_ARCHIVE_FORMAT_ZIP);
+	check (g_strcmp0 (text, "old.zip.zip") == 0);
+	check (g_strcmp0 (text, "old.zip") != 0);
+	g_free (text);
+
+	text = nemo_archive_each_name ("notes.rar", NEMO_ARCHIVE_FORMAT_ZIP);
+	check (g_strcmp0 (text, "notes.rar.zip") == 0);
+	g_free (text);
+
+	/* Nothing an archive could be named after or written to. */
+	check (nemo_archive_each_name (NULL, NEMO_ARCHIVE_FORMAT_ZIP) == NULL);
+	check (nemo_archive_each_name ("", NEMO_ARCHIVE_FORMAT_ZIP) == NULL);
+	check (nemo_archive_each_name (".", NEMO_ARCHIVE_FORMAT_ZIP) == NULL);
+	check (nemo_archive_each_name ("photos/holiday.jpg", NEMO_ARCHIVE_FORMAT_ZIP) == NULL);
+}
+
 static void
 check_sizes (void)
 {
@@ -373,6 +408,7 @@ main (int argc, char *argv[])
 {
 	check_extensions ();
 	check_names ();
+	check_each_names ();
 	check_sizes ();
 	check_backends ();
 	check_commands ();

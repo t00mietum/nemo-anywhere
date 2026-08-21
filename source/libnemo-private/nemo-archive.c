@@ -117,15 +117,29 @@ typedef struct {
 	gboolean   as_link;
 } ArchiveEntry;
 
+/* One archive to write, and what goes in it. A plain compress has one of
+   these; compressing a selection separately has one per item. */
+typedef struct {
+	GList *sources;		/* GFile *, owned */
+	GFile *destination;	/* owned */
+} ArchiveUnit;
+
 typedef struct {
 	GtkWindow          *parent_window;
 	NemoProgressInfo   *progress;
 	GCancellable       *cancellable;
 	GIOSchedulerJob    *io_job;
 
+	GList              *units;		/* ArchiveUnit *, in order */
+	guint               unit_count;
+	guint               unit_index;		/* which one is being written */
+	GFile              *result_file;	/* what the callback is handed */
+
+	/* The unit in hand. sources and destination are borrowed from it. */
 	GList              *sources;		/* GFile * */
 	GFile              *destination;
 	GFile              *base_dir;
+
 	NemoArchiveOptions  options;
 	NemoArchiveBackend  backend;
 
@@ -580,6 +594,26 @@ nemo_archive_suggest_name (GList             *files,
 	return result;
 }
 
+/* Compressing a selection separately names each archive after the item it came
+   from, extension and all: "notes.rar" becomes "notes.rar.zip". The name field
+   strips a suffix it recognizes, which cannot be done here - re-zipping a zip
+   would then write the archive over the file being read. */
+char *
+nemo_archive_each_name (const char        *item_name,
+			NemoArchiveFormat  format)
+{
+	g_return_val_if_fail (format_is_valid (format), NULL);
+
+	if (item_name == NULL || item_name[0] == '\0' ||
+	    g_strcmp0 (item_name, ".") == 0 ||
+	    strchr (item_name, '/') != NULL ||
+	    strchr (item_name, G_DIR_SEPARATOR) != NULL) {
+		return NULL;
+	}
+
+	return g_strconcat (item_name, formats[format].extension, NULL);
+}
+
 /* Sizes are read the way archivers write them: k, m, g and t are 1024-based,
    and a bare number is bytes. */
 gboolean
@@ -679,6 +713,14 @@ nemo_archive_format_size (guint64 bytes)
 	}
 
 	return g_strdup_printf ("%llu", (unsigned long long) bytes);
+}
+
+static void
+archive_unit_free (ArchiveUnit *unit)
+{
+	g_list_free_full (unit->sources, g_object_unref);
+	g_clear_object (&unit->destination);
+	g_free (unit);
 }
 
 static void
@@ -1139,6 +1181,29 @@ job_fail_from_error (ArchiveJob *job,
 		  error != NULL ? error->message : NULL);
 }
 
+/* With several archives to write, which one is in hand says more than how much
+   is in it, so it takes the status line and the per-archive wording is dropped.
+   Takes ownership of that wording either way. */
+static void
+set_unit_status (ArchiveJob *job,
+		 char       *one_archive_form)
+{
+	char *name;
+
+	if (job->unit_count < 2) {
+		nemo_progress_info_take_status (job->progress, one_archive_form);
+		return;
+	}
+
+	g_free (one_archive_form);
+
+	name = g_file_get_basename (job->destination);
+	nemo_progress_info_take_status (job->progress,
+					g_strdup_printf (_("Compressing %s (%d of %d)"),
+							 name, job->unit_index + 1, job->unit_count));
+	g_free (name);
+}
+
 static gboolean
 run_libarchive (ArchiveJob *job)
 {
@@ -1185,11 +1250,10 @@ run_libarchive (ArchiveJob *job)
 	}
 
 	if (ok) {
-		nemo_progress_info_take_status (job->progress,
-						g_strdup_printf (ngettext ("Compressing %'d file",
-									   "Compressing %'d files",
-									   job->file_count),
-								 job->file_count));
+		set_unit_status (job, g_strdup_printf (ngettext ("Compressing %'d file",
+								 "Compressing %'d files",
+								 job->file_count),
+						       job->file_count));
 	}
 
 	for (l = job->entries; ok && l != NULL; l = l->next) {
@@ -1444,9 +1508,8 @@ run_command (ArchiveJob *job)
 		goto out;
 	}
 
-	nemo_progress_info_take_status (job->progress,
-					g_strdup_printf (_("Compressing with %s"),
-							 job->backend == NEMO_ARCHIVE_BACKEND_RAR ? "rar" : "7z"));
+	set_unit_status (job, g_strdup_printf (_("Compressing with %s"),
+					       job->backend == NEMO_ARCHIVE_BACKEND_RAR ? "rar" : "7z"));
 
 	tail = g_string_new (NULL);
 	out = g_subprocess_get_stdout_pipe (process);
@@ -1505,7 +1568,7 @@ archive_job_done (gpointer user_data)
 	}
 
 	if (job->done_callback != NULL) {
-		job->done_callback (job->success ? job->destination : NULL,
+		job->done_callback (job->success ? job->result_file : NULL,
 				    job->success, job->done_callback_data);
 	}
 
@@ -1517,8 +1580,8 @@ archive_job_done (gpointer user_data)
 	}
 
 	g_list_free_full (job->entries, (GDestroyNotify) archive_entry_free_full);
-	g_list_free_full (job->sources, g_object_unref);
-	g_clear_object (&job->destination);
+	g_list_free_full (job->units, (GDestroyNotify) archive_unit_free);
+	g_clear_object (&job->result_file);
 	g_clear_object (&job->base_dir);
 	g_clear_object (&job->progress);
 	g_clear_object (&job->cancellable);
@@ -1530,29 +1593,84 @@ archive_job_done (gpointer user_data)
 	return FALSE;
 }
 
+/* Per-archive state, taken up and put down around each unit so nothing from
+   one archive is still standing when the next starts. */
+static void
+start_unit (ArchiveJob  *job,
+	    ArchiveUnit *unit)
+{
+	job->sources = unit->sources;
+	job->destination = unit->destination;
+	job->base_dir = unit->sources != NULL ?
+		g_file_get_parent (G_FILE (unit->sources->data)) : NULL;
+
+	job->entries = NULL;
+	job->total_bytes = 0;
+	job->done_bytes = 0;
+	job->file_count = 0;
+
+	nemo_progress_info_take_details (job->progress,
+					 g_file_get_basename (unit->destination));
+}
+
+static void
+finish_unit (ArchiveJob *job)
+{
+	g_list_free_full (job->entries, (GDestroyNotify) archive_entry_free_full);
+	job->entries = NULL;
+
+	g_clear_object (&job->base_dir);
+	job->sources = NULL;
+	job->destination = NULL;
+}
+
 static gboolean
 archive_job (GIOSchedulerJob *io_job,
 	     GCancellable    *cancellable,
 	     gpointer         user_data)
 {
 	ArchiveJob *job = user_data;
+	GList *l;
 
 	(void) cancellable;
 
 	job->io_job = io_job;
+	job->success = TRUE;
 	nemo_progress_info_start (job->progress);
 
-	if (job->backend == NEMO_ARCHIVE_BACKEND_LIBARCHIVE) {
-		job->success = run_libarchive (job);
-	} else {
-		job->success = run_command (job);
+	for (l = job->units; l != NULL && !job_aborted (job); l = l->next) {
+		gboolean ok;
+
+		start_unit (job, l->data);
+
+		if (job->base_dir == NULL) {
+			job_fail (job, _("The archive could not be created."),
+				  _("The selection has no folder above it to compress from."));
+			ok = FALSE;
+		} else if (job->backend == NEMO_ARCHIVE_BACKEND_LIBARCHIVE) {
+			ok = run_libarchive (job);
+		} else {
+			ok = run_command (job);
+		}
+
+		/* A half-written archive is worse than none: it looks like a
+		   result. */
+		if (!ok) {
+			g_file_delete (job->destination, NULL, NULL);
+		} else {
+			nemo_file_changes_queue_file_added (job->destination);
+		}
+
+		/* One archive failing does not take the rest of them with it -
+		   the first thing that went wrong is what gets reported. */
+		job->success = job->success && ok;
+
+		finish_unit (job);
+		job->unit_index++;
 	}
 
-	/* A half-written archive is worse than none: it looks like a result. */
-	if (!job->success) {
-		g_file_delete (job->destination, NULL, NULL);
-	} else {
-		nemo_file_changes_queue_file_added (job->destination);
+	if (job_aborted (job)) {
+		job->success = FALSE;
 	}
 
 	g_io_scheduler_job_send_to_mainloop_async (io_job, archive_job_done, job, NULL);
@@ -1560,32 +1678,44 @@ archive_job (GIOSchedulerJob *io_job,
 	return FALSE;
 }
 
-void
-nemo_archive_create (GList                    *sources,
-		     GFile                    *destination,
-		     const NemoArchiveOptions *options,
-		     GtkWindow                *parent_window,
-		     NemoArchiveCallback       done_callback,
-		     gpointer                  done_callback_data)
+static ArchiveUnit *
+archive_unit_new (GList *sources,
+		  GFile *destination)
 {
-	ArchiveJob *job;
+	ArchiveUnit *unit = g_new0 (ArchiveUnit, 1);
 	GList *l;
 
-	g_return_if_fail (sources != NULL);
-	g_return_if_fail (G_IS_FILE (destination));
-	g_return_if_fail (options != NULL);
-
-	job = g_new0 (ArchiveJob, 1);
-
 	for (l = sources; l != NULL; l = l->next) {
-		job->sources = g_list_prepend (job->sources, g_object_ref (G_FILE (l->data)));
+		unit->sources = g_list_prepend (unit->sources, g_object_ref (G_FILE (l->data)));
 	}
-	job->sources = g_list_reverse (job->sources);
+	unit->sources = g_list_reverse (unit->sources);
+	unit->destination = g_object_ref (destination);
 
-	job->destination = g_object_ref (destination);
-	job->base_dir = g_file_get_parent (G_FILE (sources->data));
+	return unit;
+}
+
+/* Everything the two entry points share: the progress window, the backend that
+   writes every archive in the job, and the queueing. Takes the units. */
+static void
+start_job (ArchiveJob               *job,
+	   GList                    *units,
+	   GFile                    *result_file,
+	   const NemoArchiveOptions *options,
+	   GtkWindow                *parent_window,
+	   NemoArchiveCallback       done_callback,
+	   gpointer                  done_callback_data)
+{
+	char *initial_details;
+
+	job->units = units;
+	job->unit_count = g_list_length (units);
+	job->result_file = g_object_ref (result_file);
+
 	nemo_archive_options_copy (options, &job->options);
 	job->backend = nemo_archive_pick_backend (options->format, options);
+
+	job->done_callback = done_callback;
+	job->done_callback_data = done_callback_data;
 
 	job->parent_window = parent_window;
 	if (parent_window != NULL) {
@@ -1597,10 +1727,17 @@ nemo_archive_create (GList                    *sources,
 	g_object_ref (job->cancellable);
 
 	nemo_progress_info_set_status (job->progress, _("Preparing to compress"));
-	nemo_progress_info_take_initial_details (job->progress,
-						 g_file_get_basename (destination));
 
-	if (job->backend == NEMO_ARCHIVE_BACKEND_NONE || job->base_dir == NULL) {
+	if (job->unit_count > 1) {
+		initial_details = g_strdup_printf (ngettext ("%d archive", "%d archives",
+							     job->unit_count),
+						   job->unit_count);
+	} else {
+		initial_details = g_file_get_basename (((ArchiveUnit *) units->data)->destination);
+	}
+	nemo_progress_info_take_initial_details (job->progress, initial_details);
+
+	if (job->backend == NEMO_ARCHIVE_BACKEND_NONE) {
 		job_fail (job, _("The archive could not be created."),
 			  _("Nothing installed here can write this archive with the options chosen."));
 		archive_job_done (job);
@@ -1609,4 +1746,75 @@ nemo_archive_create (GList                    *sources,
 
 	nemo_job_queue_add_new_job (nemo_job_queue_get (), archive_job, job,
 				    job->cancellable, job->progress, TRUE);
+}
+
+void
+nemo_archive_create (GList                    *sources,
+		     GFile                    *destination,
+		     const NemoArchiveOptions *options,
+		     GtkWindow                *parent_window,
+		     NemoArchiveCallback       done_callback,
+		     gpointer                  done_callback_data)
+{
+	GList *units;
+
+	g_return_if_fail (sources != NULL);
+	g_return_if_fail (G_IS_FILE (destination));
+	g_return_if_fail (options != NULL);
+
+	units = g_list_append (NULL, archive_unit_new (sources, destination));
+
+	start_job (g_new0 (ArchiveJob, 1), units, destination, options,
+		   parent_window, done_callback, done_callback_data);
+}
+
+void
+nemo_archive_create_each (GList                    *sources,
+			  GFile                    *destination_dir,
+			  const NemoArchiveOptions *options,
+			  GtkWindow                *parent_window,
+			  NemoArchiveCallback       done_callback,
+			  gpointer                  done_callback_data)
+{
+	GList *units = NULL;
+	GList *l;
+
+	g_return_if_fail (sources != NULL);
+	g_return_if_fail (G_IS_FILE (destination_dir));
+	g_return_if_fail (options != NULL);
+
+	for (l = sources; l != NULL; l = l->next) {
+		GFile *source = G_FILE (l->data);
+		GList *one;
+		GFile *destination;
+		char *basename;
+		char *name;
+
+		basename = g_file_get_basename (source);
+		name = nemo_archive_each_name (basename, options->format);
+		g_free (basename);
+
+		/* Nothing worth naming an archive after - a root, say. */
+		if (name == NULL) {
+			continue;
+		}
+
+		destination = g_file_get_child_for_display_name (destination_dir, name, NULL);
+		if (destination == NULL) {
+			destination = g_file_get_child (destination_dir, name);
+		}
+		g_free (name);
+
+		one = g_list_append (NULL, source);
+		units = g_list_append (units, archive_unit_new (one, destination));
+		g_list_free (one);
+		g_object_unref (destination);
+	}
+
+	if (units == NULL) {
+		return;
+	}
+
+	start_job (g_new0 (ArchiveJob, 1), units, destination_dir, options,
+		   parent_window, done_callback, done_callback_data);
 }
