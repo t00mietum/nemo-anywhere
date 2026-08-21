@@ -34,6 +34,8 @@
 #include <eel/eel-stock-dialogs.h>
 
 #include "nemo-archive.h"
+#include "nemo-archive-commands.h"
+#include "nemo-command-template.h"
 #include "nemo-extract-conflict-dialog.h"
 #include "nemo-file-changes-queue.h"
 #include "nemo-job-queue.h"
@@ -310,7 +312,15 @@ nemo_extract_build_command (NemoExtractBackend  backend,
 			    const char         *destination_path,
 			    const char         *password)
 {
-	GPtrArray *args;
+	char *program_v[2]     = { NULL, NULL };
+	char *password_v[2]    = { NULL, NULL };
+	char *archive_v[2]     = { NULL, NULL };
+	char *folder_v[2]      = { NULL, NULL };
+	char *folder_sep_v[2]  = { NULL, NULL };
+	const char *key, *fallback;
+	GError *error = NULL;
+	char **argv;
+	char *text;
 	gboolean has_password;
 
 	g_return_val_if_fail (program != NULL, NULL);
@@ -319,41 +329,63 @@ nemo_extract_build_command (NemoExtractBackend  backend,
 
 	has_password = password != NULL && password[0] != '\0';
 
-	args = g_ptr_array_new ();
-	g_ptr_array_add (args, g_strdup (program));
-	g_ptr_array_add (args, g_strdup ("x"));		/* keep the stored paths */
-
 	if (backend == NEMO_EXTRACT_BACKEND_7Z) {
-		g_ptr_array_add (args, g_strdup ("-y"));
-		g_ptr_array_add (args, g_strdup ("-bsp1"));	/* percentages on stdout */
+		key = NEMO_EXTRACT_COMMAND_KEY_7Z;
+		fallback = NEMO_EXTRACT_COMMAND_7Z_DEFAULT;
 
 		/* Always answered, never asked: with no password switch at all
 		   an encrypted archive stops for one on a console we do not
 		   have, and the job would hang instead of failing. */
-		g_ptr_array_add (args, has_password ? g_strconcat ("-p", password, NULL)
-						    : g_strdup ("-p"));
-
-		g_ptr_array_add (args, g_strconcat ("-o", destination_path, NULL));
-		g_ptr_array_add (args, g_strdup ("--"));
-		g_ptr_array_add (args, g_strdup (archive_path));
+		password_v[0] = has_password ? g_strconcat ("-p", password, NULL)
+					    : g_strdup ("-p");
 	} else if (backend == NEMO_EXTRACT_BACKEND_RAR) {
-		g_ptr_array_add (args, g_strdup ("-y"));
-		g_ptr_array_add (args, has_password ? g_strconcat ("-p", password, NULL)
-						    : g_strdup ("-p-"));
-		g_ptr_array_add (args, g_strdup ("--"));
-		g_ptr_array_add (args, g_strdup (archive_path));
+		key = NEMO_EXTRACT_COMMAND_KEY_RAR;
+		fallback = NEMO_EXTRACT_COMMAND_RAR_DEFAULT;
 
-		/* Both tools read the last argument as the destination only
-		   when it ends in a separator. */
-		g_ptr_array_add (args, g_strconcat (destination_path, G_DIR_SEPARATOR_S, NULL));
+		password_v[0] = has_password ? g_strconcat ("-p", password, NULL)
+					    : g_strdup ("-p-");
 	} else {
-		g_ptr_array_free (args, TRUE);
 		return NULL;
 	}
 
-	g_ptr_array_add (args, NULL);
+	program_v[0] = g_strdup (program);
+	archive_v[0] = g_strdup (archive_path);
+	folder_v[0] = g_strdup (destination_path);
+	folder_sep_v[0] = g_strconcat (destination_path, G_DIR_SEPARATOR_S, NULL);
 
-	return (char **) g_ptr_array_free (args, FALSE);
+	{
+		const NemoCommandToken tokens[] = {
+			{ "PROGRAM",                      (const char *const *) program_v,    FALSE },
+			{ "PASSWORD",                     (const char *const *) password_v,   TRUE },
+			{ "SOURCE_ARCHIVE",               (const char *const *) archive_v,    FALSE },
+			{ "TARGET_FOLDER",                (const char *const *) folder_v,     FALSE },
+			{ "TARGET_FOLDER_WITH_SEPARATOR", (const char *const *) folder_sep_v, FALSE },
+			{ NULL, NULL, FALSE }
+		};
+
+		text = nemo_command_template_from_config (NEMO_ARCHIVE_COMMANDS_GROUP, key, fallback);
+		argv = nemo_command_template_expand (text, tokens, &error);
+
+		if (argv == NULL) {
+			g_warning ("The %s command line cannot be run as written (%s): %s",
+				   key, error->message, text);
+			g_clear_error (&error);
+		} else {
+			/* Dropping {{PASSWORD}} is the one that bites: with no
+			   switch at all an encrypted archive waits for a console
+			   that is not there, and the job hangs. */
+			nemo_command_template_warn_unused (key, text, tokens);
+		}
+	}
+
+	g_free (text);
+	g_free (program_v[0]);
+	g_free (password_v[0]);
+	g_free (archive_v[0]);
+	g_free (folder_v[0]);
+	g_free (folder_sep_v[0]);
+
+	return argv;
 }
 
 /* Which commands are worth trying, best first: a rar file goes to a rar tool

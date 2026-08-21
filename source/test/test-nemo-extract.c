@@ -23,6 +23,23 @@ static int failures = 0;
 		} \
 	} while (0)
 
+/* A placeholder that survived means a token name that does not match the one
+   the default command line was written with - which no switch check would
+   notice on its own, since the argument is still there. */
+static gboolean
+has_unexpanded (char **argv)
+{
+	int i;
+
+	for (i = 0; argv != NULL && argv[i] != NULL; i++) {
+		if (strstr (argv[i], "{{") != NULL) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 static gboolean
 has_arg (char       **argv,
 	 const char  *wanted)
@@ -197,6 +214,7 @@ check_commands (void)
 
 	argv = nemo_extract_build_command (NEMO_EXTRACT_BACKEND_7Z, "7z",
 					   "/tmp/photos.7z", "/tmp/out", NULL);
+	check (!has_unexpanded (argv));
 	check (g_strcmp0 (argv[0], "7z") == 0);
 	/* "x" and not "e": the paths stored in the archive are the point. */
 	check (g_strcmp0 (argv[1], "x") == 0);
@@ -216,6 +234,7 @@ check_commands (void)
 
 	argv = nemo_extract_build_command (NEMO_EXTRACT_BACKEND_RAR, "unrar",
 					   "/tmp/photos.rar", "/tmp/out", NULL);
+	check (!has_unexpanded (argv));
 	check (g_strcmp0 (argv[1], "x") == 0);
 	check (has_arg (argv, "-y"));
 	check (has_arg (argv, "-p-"));

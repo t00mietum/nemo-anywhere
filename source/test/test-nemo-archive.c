@@ -23,6 +23,23 @@ static int failures = 0;
 	} while (0)
 
 /* Does argv carry this exact switch? */
+/* A placeholder that survived means a token name that does not match the one
+   the default command line was written with - which no switch check would
+   notice on its own, since the argument is still there. */
+static gboolean
+has_unexpanded (char **argv)
+{
+	int i;
+
+	for (i = 0; argv != NULL && argv[i] != NULL; i++) {
+		if (strstr (argv[i], "{{") != NULL) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 static gboolean
 has_arg (char       **argv,
 	 const char  *wanted)
@@ -318,6 +335,7 @@ check_commands (void)
 
 	check (g_strcmp0 (argv[0], "rar") == 0);
 	check (g_strcmp0 (argv[1], "a") == 0);
+	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-m5"));
 	/* Encrypted names means -hp, and -p would leave the list readable. */
 	check (has_arg (argv, "-hpsecret"));
@@ -362,6 +380,7 @@ check_commands (void)
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
 					   "7z", "/tmp/out.7z", names);
+	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-t7z"));
 	check (has_arg (argv, "-mx=9"));
 	check (has_arg (argv, "-psecret"));
@@ -389,6 +408,7 @@ check_commands (void)
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
 					   "7z", "/tmp/out.zip", names);
+	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-tzip"));
 	check (has_arg (argv, "-v1024b"));
 	g_strfreev (argv);
