@@ -73,6 +73,9 @@
 			<menuitem name="Duplicate" action="Duplicate"/>
 			<menuitem name="Create Link" action="Create Link"/>
 			<menuitem name="Compress" action="Compress"/>
+			<menuitem name="ExtractHere" action="ExtractHere"/>
+			<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
+			<menuitem name="ExtractTo" action="ExtractTo"/>
 			<menuitem name="Rename" action="Rename"/>
 			<menu action="CopyToMenu">
 				<menuitem name="Copy to next pane" action="Copy to next pane"/>
@@ -193,6 +196,9 @@
         <menuitem name="Unpin File" action="Unpin File"/>
 		<menuitem name="Create Link" action="Create Link"/>
 		<menuitem name="Compress" action="Compress"/>
+		<menuitem name="ExtractHere" action="ExtractHere"/>
+		<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
+		<menuitem name="ExtractTo" action="ExtractTo"/>
 		<menuitem name="Rename" action="Rename"/>
 		<menu name="CopyToMenu" action="CopyToMenu">
 			<menuitem name="Copy to next pane" action="Copy to next pane"/>

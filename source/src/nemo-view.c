@@ -76,6 +76,7 @@
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-file-changes-queue.h>
 #include <libnemo-private/nemo-file-dnd.h>
+#include <libnemo-private/nemo-extract.h>
 #include <libnemo-private/nemo-file-operations.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file-private.h>
@@ -6978,6 +6979,196 @@ action_location_compress_callback (GtkAction *action,
 	compress_one_folder (view, view->details->location_popup_directory_as_file);
 }
 
+/* Whether every selected item is something we could unpack. All of them rather
+   than any: the menu acts on the whole selection, and having part of it quietly
+   ignored is worse than the items not being offered at all. */
+static gboolean
+selection_is_all_archives (GList *selection)
+{
+	GList *l;
+
+	if (selection == NULL) {
+		return FALSE;
+	}
+
+	for (l = selection; l != NULL; l = l->next) {
+		NemoFile *file = NEMO_FILE (l->data);
+		char *name;
+		gboolean recognized;
+
+		if (nemo_file_is_directory (file)) {
+			return FALSE;
+		}
+
+		name = nemo_file_get_name (file);
+		recognized = name != NULL && nemo_extract_is_archive_name (name);
+		g_free (name);
+
+		if (!recognized) {
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+
+static GList *
+selection_locations (GList *selection)
+{
+	GList *locations = NULL;
+	GList *l;
+
+	for (l = selection; l != NULL; l = l->next) {
+		locations = g_list_prepend (locations, nemo_file_get_location (NEMO_FILE (l->data)));
+	}
+
+	return g_list_reverse (locations);
+}
+
+static void
+extract_selection (NemoView          *view,
+		   GFile             *destination_dir,
+		   NemoExtractLayout  layout)
+{
+	GList *selection;
+	GList *locations;
+
+	if (destination_dir == NULL) {
+		return;
+	}
+
+	selection = nemo_view_get_selection (view);
+	if (selection == NULL) {
+		return;
+	}
+
+	locations = selection_locations (selection);
+
+	nemo_extract_files (locations, destination_dir, layout,
+			    GTK_WINDOW (nemo_view_get_nemo_window (view)), NULL, NULL);
+
+	g_list_free_full (locations, g_object_unref);
+	nemo_file_list_free (selection);
+}
+
+/* Into the folder being viewed, laid out the way the archive stores it - so one
+   made from a folder brings that folder with it rather than its contents. */
+static void
+action_extract_here_callback (GtkAction *action,
+			      gpointer callback_data)
+{
+	NemoView *view;
+	GFile *directory;
+	char *uri;
+
+	view = NEMO_VIEW (callback_data);
+
+	uri = nemo_view_get_backing_uri (view);
+	directory = uri != NULL ? g_file_new_for_uri (uri) : NULL;
+
+	extract_selection (view, directory, NEMO_EXTRACT_HERE);
+
+	g_clear_object (&directory);
+	g_free (uri);
+}
+
+/* A folder each, named after the archive. This is the answer to one that would
+   otherwise scatter its contents across the folder being viewed. */
+static void
+action_extract_to_folder_callback (GtkAction *action,
+				   gpointer callback_data)
+{
+	NemoView *view;
+	GFile *directory;
+	char *uri;
+
+	view = NEMO_VIEW (callback_data);
+
+	uri = nemo_view_get_backing_uri (view);
+	directory = uri != NULL ? g_file_new_for_uri (uri) : NULL;
+
+	extract_selection (view, directory, NEMO_EXTRACT_TO_SUBFOLDER);
+
+	g_clear_object (&directory);
+	g_free (uri);
+}
+
+static void
+extract_locations_free (gpointer data)
+{
+	g_list_free_full (data, g_object_unref);
+}
+
+static void
+browse_extract_to_response_cb (GtkDialog *dialog,
+			       int response,
+			       gpointer callback_data)
+{
+	NemoView *view;
+
+	view = NEMO_VIEW (callback_data);
+
+	if (response == GTK_RESPONSE_OK) {
+		GList *locations = g_object_get_data (G_OBJECT (dialog), "nemo-extract-files");
+		GFile *destination = gtk_file_chooser_get_file (GTK_FILE_CHOOSER (dialog));
+
+		if (locations != NULL && destination != NULL) {
+			nemo_extract_files (locations, destination, NEMO_EXTRACT_HERE,
+					    GTK_WINDOW (nemo_view_get_nemo_window (view)), NULL, NULL);
+		}
+
+		g_clear_object (&destination);
+	}
+
+	gtk_widget_destroy (GTK_WIDGET (dialog));
+}
+
+/* What to unpack is taken now rather than when the chooser is answered: the
+   chooser is not modal, so the selection can have moved on by then. */
+static void
+action_extract_to_callback (GtkAction *action,
+			    gpointer callback_data)
+{
+	NemoView *view;
+	GtkWidget *dialog;
+	GList *selection;
+	GList *locations;
+	char *uri;
+
+	view = NEMO_VIEW (callback_data);
+
+	selection = nemo_view_get_selection (view);
+	if (selection == NULL) {
+		return;
+	}
+
+	locations = selection_locations (selection);
+	nemo_file_list_free (selection);
+
+	dialog = gtk_file_chooser_dialog_new (_("Select Target Folder For Extraction"),
+					      nemo_view_get_containing_window (view),
+					      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+					      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					      GTK_STOCK_OPEN, GTK_RESPONSE_OK,
+					      NULL);
+
+	gtk_file_chooser_set_local_only (GTK_FILE_CHOOSER (dialog), FALSE);
+
+	uri = nemo_view_get_backing_uri (view);
+	if (uri != NULL) {
+		gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dialog), uri);
+		g_free (uri);
+	}
+
+	g_object_set_data_full (G_OBJECT (dialog), "nemo-extract-files", locations,
+				extract_locations_free);
+
+	g_signal_connect (dialog, "response",
+			  G_CALLBACK (browse_extract_to_response_cb), view);
+
+	gtk_widget_show (dialog);
+}
+
 static void
 move_copy_selection_to_next_pane (NemoView *view,
 				  int copy_action)
@@ -8616,6 +8807,18 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Co_mpress..."), "",
   /* tooltip */                  N_("Create an archive holding this folder"),
 				 G_CALLBACK (action_background_compress_callback) },
+  /* name, stock id */         { NEMO_ACTION_EXTRACT_HERE, "package-x-generic",
+  /* label, accelerator */       N_("E_xtract Here"), "",
+  /* tooltip */                  N_("Unpack the selected archives into this folder"),
+				 G_CALLBACK (action_extract_here_callback) },
+  /* name, stock id */         { NEMO_ACTION_EXTRACT_TO_FOLDER, "package-x-generic",
+  /* label, accelerator */       N_("Extract to _Folder"), "",
+  /* tooltip */                  N_("Unpack each selected archive into a folder named after it"),
+				 G_CALLBACK (action_extract_to_folder_callback) },
+  /* name, stock id */         { NEMO_ACTION_EXTRACT_TO, "package-x-generic",
+  /* label, accelerator */       N_("Extract _To..."), "",
+  /* tooltip */                  N_("Unpack the selected archives into a folder you choose"),
+				 G_CALLBACK (action_extract_to_callback) },
   /* name, stock id */         { "Paste", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste"), "<control>V",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command"),
@@ -10371,6 +10574,34 @@ real_update_menus (NemoView *view)
 					      NEMO_ACTION_COMPRESS);
 	gtk_action_set_sensitive (action, selection_count > 0 && can_copy_files);
 	gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
+
+	{
+		/* Shown only when the whole selection is something we could
+		   unpack, so for the ordinary selection holding no archive at
+		   all the items are absent rather than greyed. */
+		gboolean is_archives = selection_is_all_archives (selection);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_EXTRACT_HERE);
+		gtk_action_set_visible (action, is_archives);
+		gtk_action_set_sensitive (action, is_archives && can_create_files);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_EXTRACT_TO_FOLDER);
+		gtk_action_set_visible (action, is_archives);
+		gtk_action_set_sensitive (action, is_archives && can_create_files);
+		g_object_set (action, "label",
+			      ngettext ("Extract to _Folder", "Extract Each to Its Own _Folder",
+					selection_count),
+			      NULL);
+
+		/* This one writes wherever it is pointed, so the folder being
+		   viewed being read-only is not its problem. */
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_EXTRACT_TO);
+		gtk_action_set_visible (action, is_archives);
+		gtk_action_set_sensitive (action, is_archives);
+	}
 
 	real_update_paste_menu (view, selection, selection_count);
 

@@ -935,6 +935,16 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- Encryption and splitting are treated as requirements - if nothing installed can do them the job is refused rather than quietly writing a readable archive. Everything else is a preference, honoured where possible and dropped where not.
 	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be cancelled, and a cancelled or failed run leaves no half-written archive behind.
 
+- ✅ Right-click "Extract" for the archive formats we recognize, including shelling out to 7z or rar.
+	- Three items on the selection menu and the Edit menu, shown only when everything selected is an archive: "Extract Here", "Extract Each to Its Own Folder" (singular when one is selected) and "Extract To..." with a folder chooser. Show/hide them in Preferences like the other context-menu items.
+	- "Extract Here" unpacks exactly what the archive stores, so one made from a folder brings that folder with it and lands in one place. The folder-each item is the answer to an archive that would otherwise scatter its contents over the folder being viewed.
+	- Reading covers far more than writing does: the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors all open with nothing installed.
+	- A 7z or rar command is reached for when the built-in library will not open the file - a multi-volume set, or headers it cannot decrypt. Both are tried in turn, since a program being installed is no promise it can read the file.
+	- A protected archive asks for its password once, and reuses it for the rest of the selection.
+	- Collisions ask the same question copying asks, with the same answers - skip, duplicate, rename, replace, and applying that answer to everything after it. A folder arriving on a folder merges without asking. The prompt says which archive the incoming file came from, since several can be unpacked at once.
+	- An entry whose stored path climbs out of the folder being unpacked into, or names a drive, is put back inside it.
+	- Unpacking runs as a normal background job: it shows in the same progress popup as copying and can be cancelled.
+
 - 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
 	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 

@@ -103,6 +103,12 @@ gboolean           nemo_archive_format_from_id   (const char        *id,
 gboolean           nemo_archive_format_available (NemoArchiveFormat format);
 NemoArchiveCaps    nemo_archive_format_caps      (NemoArchiveFormat format);
 
+/* Looks a command up on PATH, and on win32 also under Program Files, since
+ * neither archiver's installer puts itself on PATH. Shared with the unpacking
+ * side, which goes looking for the same two programs under other names. */
+char    *nemo_archive_find_command (const char * const *names,
+				    const char         *win_subdir);
+
 /* Pure, so it can be reasoned about (and tested) without probing the box. */
 NemoArchiveCaps    nemo_archive_backend_caps     (NemoArchiveFormat  format,
 						  NemoArchiveBackend backend);
