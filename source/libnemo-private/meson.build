@@ -28,6 +28,8 @@ nemo_private_sources = [
   'nemo-directory.c',
   'nemo-dnd.c',
   'nemo-entry.c',
+  'nemo-extract.c',
+  'nemo-extract-conflict-dialog.c',
   'nemo-favorite-vfs-file.c',
   'nemo-favorite-vfs-file-enumerator.c',
   'nemo-favorite-vfs-file-monitor.c',

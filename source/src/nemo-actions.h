@@ -91,6 +91,9 @@
 #define NEMO_ACTION_COMPRESS "Compress"
 #define NEMO_ACTION_BACKGROUND_COMPRESS "BackgroundCompress"
 #define NEMO_ACTION_LOCATION_COMPRESS "LocationCompress"
+#define NEMO_ACTION_EXTRACT_HERE "ExtractHere"
+#define NEMO_ACTION_EXTRACT_TO_FOLDER "ExtractToFolder"
+#define NEMO_ACTION_EXTRACT_TO "ExtractTo"
 #define NEMO_ACTION_PASTE "Paste"
 #define NEMO_ACTION_PASTE_FILES_INTO "Paste Files Into"
 #define NEMO_ACTION_COPY_TO_NEXT_PANE "Copy to next pane"
@@ -209,6 +212,13 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_COMPRESS, "selection_menu__compress_check",
      "/selection/File Actions/Compress", "selection-menu-compress" },
+
+    { NEMO_ACTION_EXTRACT_HERE, "selection_menu__extract_check",
+     "/selection/File Actions/ExtractHere", "selection-menu-extract" },
+    { NEMO_ACTION_EXTRACT_TO_FOLDER, NULL,
+     "/selection/File Actions/ExtractToFolder", "selection-menu-extract" },
+    { NEMO_ACTION_EXTRACT_TO, NULL,
+     "/selection/File Actions/ExtractTo", "selection-menu-extract" },
 
     { NEMO_ACTION_PASTE_FILES_INTO, "selection_menu__paste_check",
      "/selection/File Clipboard Actions/Paste Files Into", "selection-menu-paste" },

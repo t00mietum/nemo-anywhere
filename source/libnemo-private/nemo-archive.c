@@ -210,9 +210,9 @@ static GMutex   probe_lock;
 static char    *probed_program[4];
 static gboolean probed[4];
 
-static char *
-find_command (const char * const *names,
-	      const char         *win_subdir)
+char *
+nemo_archive_find_command (const char * const *names,
+			   const char         *win_subdir)
 {
 	int i;
 	char *found;
@@ -272,9 +272,9 @@ backend_program (NemoArchiveBackend backend)
 
 	if (!probed[backend]) {
 		if (backend == NEMO_ARCHIVE_BACKEND_7Z) {
-			probed_program[backend] = find_command (seven_zip_names, "7-Zip");
+			probed_program[backend] = nemo_archive_find_command (seven_zip_names, "7-Zip");
 		} else {
-			probed_program[backend] = find_command (rar_names, "WinRAR");
+			probed_program[backend] = nemo_archive_find_command (rar_names, "WinRAR");
 		}
 		probed[backend] = TRUE;
 	}

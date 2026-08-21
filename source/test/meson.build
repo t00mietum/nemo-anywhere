@@ -253,6 +253,26 @@ test('Archive options test',
   args: []
 )
 
+test('Extract naming test',
+  executable('test-nemo-extract',
+    [ 'test-nemo-extract.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+# Writes its own zip with libarchive, so it needs the library the app links.
+test('Extract job test',
+  executable('test-nemo-extract-job',
+    [ 'test-extract-job.c', 'test.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ archive, gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Path list text test',
   executable('test-nemo-path-list',
     [ 'test-nemo-path-list.c' ],
