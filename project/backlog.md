@@ -857,6 +857,18 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Right-click properties wording: ours is plain "Properties" and sits first; the Windows sheet reads "Windows properties (Alt+Enter)" below it. Shortcuts themselves are unchanged.
+	- Seen in the running app; the breadcrumb menu says "Windows properties" without the hint, since Alt+Enter acts on the selection rather than a path segment.
+- ✅ New list columns.
+	- "File extension", on by default, between Name and Type, dot included the way Explorer shows it. Left empty when the tail after a dot is not really an extension - folders, dot-files, too long, all digits, or not letters and digits. The refusals have a test of their own that fails with the checks taken out.
+	- "Owner" now shows on Windows too and is on by default there - the platform reports the file's real owner, so the old fabricated-values reason to hide it no longer applied.
+	- Windows only: "Permissions source" - Inherited, Local or Mixed, read from the file's ACL - off by default, listed after Owner. Verified against files with disabled inheritance and added grants.
+	- Type now defaults to at most twice the File extension column's width.
+- ✅ Column widths remember the user's hand. Overrides the earlier auto-sizing rules where they disagree.
+	- A column with no natural width limit that the user resizes keeps that width as its ceiling from then on, through any window resizing in either direction, saved in settings.
+	- Name still takes all remaining space - except in find mode, where Name and Location split the row one-third/two-thirds by default, and an adjusted split is remembered forever and kept as the window resizes. Supersedes the find-mode column note below.
+	- Both were watched working in the running app: the dragged ceiling survives narrow-then-wide, and the find-mode split held at the adjusted ratio across sizes.
+
 - ✅ Properties on Windows opens the one Windows itself shows, instead of ours.
 	- Alt+Enter, Ctrl+I and every Properties item now hand the selection to the shell's own sheet - the same one Explorer shows, third-party tabs included. Only Windows; Linux, BSD and macOS are untouched.
 	- Ours stays on a second item, "Advanced properties" (Ctrl+Enter), because the Windows sheet has nowhere to put a custom icon, an emblem, an annotation or the image details page. It is hidden everywhere else, where both items would open the same window.
@@ -972,8 +984,8 @@ Observations and suggestions rather than defects. Not individually reproduced.
 - 🔘 Hit 'Esc' when focus is in the folder/file pane to completely remove selection. (E.g. to use menu key on background.) Esc again to return it to where it was.
 
 - In "find" mode:
-	- 🔘 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
-		- Half answered by the column auto-sizing above: Location has no natural limit, so the third-of-Name cap already holds it in check and Name already gives way. What is left is the deliberate part - Location taking as much as it can while a search is on, and everything going back afterwards.
+	- 🚫 Shrink the "Name" column to fit, and make the 'Location' column adjust as wide as possible as the window resizes. Then go back to the way it was, when exiting "find" mode.
+		- Superseded by the column-width item near the top: in find mode Name and Location split the row one-third/two-thirds, and an adjusted split is remembered.
 	- 🔘 Instead of showing a filename selected in the status bar, show the entire path.
 
 - 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.

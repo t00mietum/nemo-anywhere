@@ -74,7 +74,13 @@ struct NemoFileDetails
 	GRefString *owner;
 	GRefString *owner_real;
 	GRefString *group;
-	
+
+#ifdef G_OS_WIN32
+	/* NemoWin32PermSource, cached for the Permissions source column; 0 means
+	   not read yet, and an info reload clears it back to that. */
+	guint win32_perm_source : 3;
+#endif
+
 	time_t atime; /* 0 is unknown */
 	time_t mtime; /* 0 is unknown */
 	time_t ctime; /* 0 is unknown */

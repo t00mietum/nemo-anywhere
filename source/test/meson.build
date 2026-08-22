@@ -278,6 +278,15 @@ test('Column layout test',
   args: []
 )
 
+test('Filename extension test',
+  executable('test-nemo-filename-extension',
+    [ 'test-nemo-filename-extension.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Command template test',
   executable('test-nemo-command-template',
     [ 'test-nemo-command-template.c' ],

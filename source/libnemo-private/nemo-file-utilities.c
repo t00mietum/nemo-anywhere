@@ -2137,6 +2137,46 @@ nemo_build_path_list_text (GList *locations)
     return g_string_free (text, FALSE);
 }
 
+/* The extension for the File extension column: the tail of the name after the
+ * last dot, dot included, the way Explorer's own column shows it. A dot is
+ * often just part of a name, so the tail only counts when it looks the part -
+ * short, letters and digits only, at least one letter. NULL when there is not
+ * one worth showing. */
+gchar *
+nemo_filename_get_extension (const gchar *name)
+{
+	const gchar *tail;
+	const gchar *p;
+	gboolean has_alpha = FALSE;
+
+	if (name == NULL) {
+		return NULL;
+	}
+
+	tail = strrchr (name, '.');
+
+	/* No dot, only the hidden-file dot up front, or nothing after it. */
+	if (tail == NULL || tail == name || tail[1] == '\0') {
+		return NULL;
+	}
+
+	for (p = tail + 1; *p != '\0'; p++) {
+		if (!g_ascii_isalnum (*p)) {
+			return NULL;
+		}
+		if (g_ascii_isalpha (*p)) {
+			has_alpha = TRUE;
+		}
+	}
+
+	/* Too long to be an extension, or all digits (a version, a date). */
+	if (p - (tail + 1) > 10 || !has_alpha) {
+		return NULL;
+	}
+
+	return g_strdup (tail);
+}
+
 #if !defined (NEMO_OMIT_SELF_CHECK)
 
 void
