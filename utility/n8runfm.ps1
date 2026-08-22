@@ -11,11 +11,19 @@
 ##		  self-contained exe (a file); on Linux it's the whole prefix dir (a tree).
 ##		- Each run, in order: delete idle copies over 7 days old (in use = a running
 ##		  process that IS the copy exe, or on Linux whose image lives inside the copy
-##		  dir); refresh from the source if its build is newer than what we hold;
-##		  launch the newest. A source on a network share only gets a moment to
-##		  answer - an unreachable one must not hold up a launch a held copy can serve.
-##		- Sources per OS (tag in the copy name):
-##			lin  the synced dogfood prefix nemo-anywhere.app (Linux)
+##		  dir); probe every source and refresh from whichever holds the newest build;
+##		  launch the newest copy. Each step says what it found and what it decided.
+##		- Every source is probed, not just the first that answers - the newest build
+##		  wins wherever it happens to be sitting. In listing order:
+##			local build  this box's own repo build under cicd/artifacts, if the clone is here
+##			b23          the Linux box across the network (a UNC path from Windows; its
+##			             own local path when the launcher is running on b23 itself)
+##			dogfood      the synced by-self drop, whatever the sync layer last brought in
+##		  A source on a network share only gets a moment to answer - an unreachable
+##		  one must not hold up a launch a held copy can serve. Two sources holding
+##		  the same build are reported once, not counted twice.
+##		- The tag in the copy name is the platform the build is for:
+##			lin  the dogfood prefix nemo-anywhere.app (Linux)
 ##			win  the packed single exe from the native build (Windows)
 ##		- On Linux the launcher wires the runtime env itself (loader path, schemas,
 ##		  data dirs) at the stamped copy; on Windows the packed exe carries its whole
@@ -38,27 +46,51 @@
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Configuration
 
-## Source per OS. The 'main binary' relative path doubles as the reachability
-## probe and the build-stamp source (its mtime). Candidates are tried in order;
-## if none exist the first is kept so the copy step warn-skips it like any
-## other unreachable source (held copies still run).
+## Where builds come from. Every entry is probed each run and the newest build
+## wins - a source is not a fallback for the one above it. Each entry lists one or
+## more roots because a clone or a sync root sits in a different place per box;
+## the first root that answers is that source's build. Nothing here has to exist.
+##
+## The 'main binary' relative path below turns a root into the thing actually
+## looked at: the reachability probe, the build stamp (its mtime) and the size.
+## On Windows the root IS the packed exe, so there is no sub-path.
 
 ##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
 ##	Licensed under The MIT License (MIT). Full text at:
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
 if ($IsWindows) {
-	## Single self-contained exe now (extension + whole GTK runtime packed in), so a
+	## Single self-contained exe (extension + whole GTK runtime packed in), so a
 	## copy is one file, not a prefix tree - the same shape as silkterm's n8runterm.
-	## The freshest source is the local build's packed exe (cicd-win.ps1 produces it);
-	## the synced by-self drop is the fallback for a box without the repo. Clone root
-	## differs per host, so try candidates in order and take the first that exists.
-	$SourceCandidates = @(
-		"C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
-		"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
-		"C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
-		## Add the SMB path to a build host's packed exe here when it's shared, e.g.:
-		## "\\b23\...\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
+	$Sources = @(
+		@{
+			## This box's own build, straight out of the repo - what cicd-win.ps1
+			## packs. C:\opt\0-0 is a junction to C:\0-0 here, but another box may
+			## have only one of them, so both are listed and the duplicate is
+			## reported once rather than counted as a second build.
+			Label = "local build"
+			Roots = @(
+				"C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
+				"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
+			)
+		}
+		@{
+			## The Linux box's own drop, read straight off its share. Same file the
+			## sync layer eventually brings here, but reachable now rather than
+			## whenever the sync client next gets round to it - which is the whole
+			## point of probing it separately from the local copy below.
+			Label = "b23"
+			Roots = @(
+				"\\b23\home-collierjr\synced\0-0\common\exec\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
+			)
+		}
+		@{
+			## The synced by-self drop on this box, wherever it came from.
+			Label = "dogfood"
+			Roots = @(
+				"C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
+			)
+		}
 	)
 	$SourceMainBin = ""            # the source IS the exe (single file, no sub-path)
 	$SourceTag     = "win"
@@ -68,9 +100,32 @@ if ($IsWindows) {
 	## stamped copies are per-box churn and must not ride the sync. Created if absent.
 	$TargetDir     = "C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64"
 } else {
-	$SourceCandidates = @(
-		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/linux/nemo-anywhere.app")
-		(Join-Path $HOME "synced/0-0/common/exec/util/linux/nemo-anywhere.app")
+	$Sources = @(
+		@{
+			## A host-side prefix staged out of the repo by cicd/linux/stage-prefix.bash.
+			## The Linux dogfood stage is still disabled, so this is normally absent
+			## and warn-skips; the slot is here so it just works once it is enabled.
+			Label = "local build"
+			Roots = @(
+				"/opt/0-0/users/collierjr/data/prs/dev/github.com/t00mietum/nemo-anywhere/github/cicd/artifacts/dogfood/nemo-anywhere"
+				(Join-Path $HOME "data/prs/dev/github.com/t00mietum/nemo-anywhere/github/cicd/artifacts/dogfood/nemo-anywhere")
+			)
+		}
+		@{
+			## b23 IS the Linux box, so from here its drop is a local path; the /mnt
+			## spelling covers running from some other unix box with the share mounted.
+			Label = "b23"
+			Roots = @(
+				(Join-Path $HOME "synced/0-0/common/exec/util/linux/nemo-anywhere.app")
+				"/mnt/b23/home-collierjr/synced/0-0/common/exec/util/linux/nemo-anywhere.app"
+			)
+		}
+		@{
+			Label = "dogfood"
+			Roots = @(
+				(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/linux/nemo-anywhere.app")
+			)
+		}
 	)
 	$SourceMainBin = "bin/nemo-anywhere"
 	$SourceTag     = "lin"
@@ -78,14 +133,28 @@ if ($IsWindows) {
 	$CopyExt       = ""
 	$TargetDir     = Join-Path $HOME ".local/share/nemo-anywhere-dogfood"
 }
-## Resolved by fResolveSource at copy time - the probe it uses is defined further
-## down, and a function isn't callable before its definition runs.
-$SourceDir = $null
 
-## How long a candidate on a network share gets to answer the does-it-exist probe.
-## An unreachable share otherwise wedges Test-Path for the SMB stack's own timeout,
-## tens of seconds of nothing while a held copy sits ready to launch.
+## How long a source on a network share gets to answer the probe. An unreachable
+## share otherwise wedges the query for the SMB stack's own timeout, tens of
+## seconds of nothing while a held copy sits ready to launch.
 $ProbeTimeoutMs = 1500
+
+## What the probe asks of a path: is it there, when was it built, how big is it.
+## Held as text because the network case runs it in its own runspace, and the two
+## cases must not be allowed to drift apart.
+$ProbeScript = @'
+param($p)
+$item = Get-Item -LiteralPath $p -ErrorAction SilentlyContinue
+if (-not $item) { return $null }
+$len = 0
+if ($item -is [System.IO.FileInfo]) { $len = $item.Length }
+[pscustomobject]@{ Stamp = $item.LastWriteTime; Length = [int64]$len }
+'@
+
+## Filled in by fProbeBuild when a probe comes back empty for a reason worth
+## saying out loud (it timed out rather than simply not being there).
+$ProbeNote = ""
+
 
 ## Get-ChildItem item-type for the pool: files on Windows (single exe), dirs on Linux.
 $CopyGciType = if ($CopyIsFile) { @{ File = $true } } else { @{ Directory = $true } }
@@ -140,6 +209,10 @@ $AppLog = Join-Path $TargetDir "n8runfm-app.log"
 ## Stamp format shared by the copy name and every date comparison below.
 $StampFormat = "yyyyMMdd-HHmmss"
 
+## Same instant, spelled for a person - the report says when a build was made, the
+## copy name carries $StampFormat.
+$StampDisplay = "yyyy-MM-dd HH:mm:ss"
+
 ## Running-process image paths, filled in on first use (see fRunningExePaths).
 $RunningPaths = $null
 
@@ -161,33 +234,42 @@ function fMain {
 	fLog ("=== run: PS {0}, script {1}, admin {2}, args [{3}] ===" -f `
 		$PSVersionTable.PSVersion, $PSCommandPath, $RunAsAdmin, ($PassArgs -join " "))
 
-	## 0. Windows only: strip a synced-on mark-of-the-web so a later click can't
-	##    be policy-blocked.
-	if ($IsWindows) { fSelfHealMotw }
+	fBanner "n8runfm - Nemo Anywhere dogfood launcher"
 
-	## 1. Sweep stale partial copies, stale idle copies, and anything left by the
-	##    old layout.
+	## 1. Sweep stale partial copies, stale idle copies, anything left by the old
+	##    layout, and (Windows) a synced-on mark-of-the-web that would get a later
+	##    click policy-blocked.
+	fStep "Housekeeping"
+	if ($IsWindows) { fSelfHealMotw }
 	fDeleteStaleTmp
 	fDeleteOldBuilds
 	fRetireLegacyCopies
+	if (-not $script:StepRows) { fItem "-" "" "nothing to clean up" }
 
-	## 2. Refresh from the source if it has a newer build than we hold.
-	fCopyIfNewer
+	## 2. Ask every source what it is holding.
+	fStep "Sources"
+	$sources = fProbeSources
 
-	## 3. Launch the newest copy. The Process goes nowhere - it's there for a
+	## 3. Take a copy from whichever source has the newest build.
+	fStep "Build in hand"
+	fCopyIfNewer -Rows $sources
+
+	## 4. Launch the newest copy. The Process goes nowhere - it's there for a
 	##    test harness, and letting it reach the output stream would dump a
 	##    process table on the way out.
+	fStep "Launch"
 	$copy = fNewestCopy
 	if ($copy) {
-		fNote "running: $($copy.File.Name)"
 		$null = fLaunchNemo -CopyPath $copy.File.FullName -PassArgs $PassArgs
 		return
 	}
 
-	## 4. Nothing held and no source reachable - fall back to any file manager.
-	fWarn -Gui "no dogfood copy held and source not reachable; trying fallbacks"
+	## 5. Nothing held and no source reachable - fall back to any file manager.
+	fWarn -Gui "no dogfood copy held and no source reachable; trying fallbacks"
 	$null = fLaunchFallback -PassArgs $PassArgs
 }
+
+
 
 
 ## Refuse an option the app will reject, rather than forwarding it into a silent
@@ -221,59 +303,123 @@ function fCheckPassArgs {
 }
 
 
-## What to look at to decide a source candidate is really there: its main binary
-## on Linux, or the candidate itself on Windows, where the source IS the exe. Its
-## mtime is also the build stamp.
+## What to look at to decide a source root is really there: its main binary inside
+## the prefix on Linux, or the root itself on Windows, where the source IS the exe.
 function fSourceProbePath {
-	param([Parameter(Mandatory)][string]$Candidate)
-	if ($SourceMainBin) { return (Join-Path $Candidate $SourceMainBin) }
-	return $Candidate
+	param([Parameter(Mandatory)][string]$Root)
+	if ($SourceMainBin) { return (Join-Path $Root $SourceMainBin) }
+	return $Root
 }
 
 
-## Pick the first candidate that's actually there. Keeps the first as a placeholder
-## and returns false if none are, so the copy step warn-skips like any other
-## unreachable source - held copies still run.
-function fResolveSource {
-	foreach ($cand in $SourceCandidates) {
-		if (fPathExists (fSourceProbePath $cand)) {
-			$script:SourceDir = $cand
-			return $true
+## Ask every configured source what build it is holding, report each one as it
+## answers, and return a row per source:
+##   { Label, Root, Probe, Stamp(DateTime), Length, Reachable, Duplicate }
+##
+## A source's roots are alternate spellings of the same place (a clone root that
+## differs per box, a junction, a share mounted somewhere else), so the first root
+## that answers is that source's build and the rest are not tried.
+##
+## Two sources can legitimately hold the SAME build - the sync layer copies the
+## local drop to the other box and back. Sameness is decided on the build itself
+## (stamp plus size), not on the path, because a junction, a symlink and a UNC
+## spelling of one file all look like different paths and none of them is a second
+## build. The later one is flagged so the report says so once and the copy step
+## ignores it.
+function fProbeSources {
+	$rows = @()
+	$seen = @{}
+
+	foreach ($src in $Sources) {
+		$row = [pscustomobject]@{
+			Label     = $src.Label
+			Root      = $src.Roots[0]
+			Probe     = fSourceProbePath $src.Roots[0]
+			Stamp     = $null
+			Length    = [int64]0
+			Reachable = $false
+			Duplicate = $false
 		}
+
+		$why = "not there"
+		foreach ($root in $src.Roots) {
+			$probe = fSourceProbePath $root
+			$build = fProbeBuild $probe
+			if (-not $build) {
+				$row.Probe = $probe
+				if ($script:ProbeNote) { $why = $script:ProbeNote }
+				continue
+			}
+			$row.Root      = $root
+			$row.Probe     = $probe
+			## Truncate to the granularity the copy name is written at, right here,
+			## so the report, the sameness test, the sort and the name a copy ends
+			## up with can't disagree. They already did: a build handed over by the
+			## sync layer keeps whole seconds while the one it was copied from keeps
+			## ticks, which made one build look like two.
+			$row.Stamp     = fParseStamp $build.Stamp.ToString($StampFormat)
+			$row.Length    = $build.Length
+			$row.Reachable = $true
+			break
+		}
+
+		if (-not $row.Reachable) {
+			fItem "skip" $row.Label "${why}: $($row.Probe)"
+		} else {
+			$key = "{0}|{1}" -f $row.Stamp.Ticks, $row.Length
+			if ($seen.ContainsKey($key)) {
+				$row.Duplicate = $true
+				fItem "-" $row.Label "same build as $($seen[$key])"
+			} else {
+				$seen[$key] = $row.Label
+				fItem "ok" $row.Label ("{0}   {1}" -f $row.Stamp.ToString($StampDisplay), $row.Probe)
+			}
+		}
+
+		$rows += $row
 	}
-	$script:SourceDir = $SourceCandidates[0]
-	return $false
+
+	return $rows
 }
 
 
-## Does a path exist? Local paths answer from the filesystem straight away, so
-## they go through Test-Path as-is. A path on a network share gets a short leash
-## instead: a share that is down wedges Test-Path until the SMB stack gives up on
-## its own schedule, and a launcher with a perfectly good local copy in hand has
-## no business making the user wait that long. Past the deadline the probe is
-## abandoned - its thread unwinds whenever SMB is done with it - and the candidate
-## is treated as absent.
-function fPathExists {
+## What a source is holding: build stamp (mtime) and size, or $null when the path
+## isn't there. A local path answers from the filesystem straight away, so it is
+## asked directly. A path on a network share gets a short leash instead: a share
+## that is down wedges the query until the SMB stack gives up on its own schedule,
+## and a launcher with a perfectly good local copy in hand has no business making
+## the user wait that long. Past the deadline the probe is abandoned - its thread
+## unwinds whenever SMB is done with it - and the source is treated as absent.
+function fProbeBuild {
 	param([Parameter(Mandatory)][string]$Path)
 
-	if (-not (fIsRemotePath $Path)) { return [bool](Test-Path -LiteralPath $Path) }
+	## Why the last probe came back empty, for the caller's one-line report. Set
+	## here rather than printed here, so a source with several roots still gets a
+	## single row instead of one per root.
+	$script:ProbeNote = ""
+
+	if (-not (fIsRemotePath $Path)) {
+		return (& ([scriptblock]::Create($ProbeScript)) $Path)
+	}
 
 	$probe = [powershell]::Create()
-	$null  = $probe.AddScript('param($p) [bool](Test-Path -LiteralPath $p)').AddArgument($Path)
+	$null  = $probe.AddScript($ProbeScript).AddArgument($Path)
 	$async = $probe.BeginInvoke()
 
 	if ($async.AsyncWaitHandle.WaitOne($ProbeTimeoutMs)) {
-		$found = $false
-		try { $found = [bool]($probe.EndInvoke($async) | Select-Object -First 1) } catch { }
+		$build = $null
+		try { $build = $probe.EndInvoke($async) | Select-Object -First 1 } catch { }
 		$probe.Dispose()
-		return $found
+		return $build
 	}
 
 	## Dispose would block on the wedged probe, so hand it off and walk away.
 	$null = $probe.BeginStop($null, $null)
-	fNote "gave up on network source after ${ProbeTimeoutMs}ms: $Path"
-	return $false
+	$script:ProbeNote = "gave up after ${ProbeTimeoutMs}ms"
+	return $null
 }
+
+
 
 
 ## True for a path served over the network - a UNC name, or a drive letter mapped
@@ -292,47 +438,68 @@ function fIsRemotePath {
 }
 
 
-## Copy the source prefix in as '<prefix>_<stamp>_<tag>' when its build is newer
-## than the newest copy we hold. Copies to a .tmp name then renames, so an
-## interrupted copy can never pass for a complete one. No-op if the source is
-## unreachable or we're already current.
+## Copy in the newest source build as '<prefix>_<stamp>_<tag>' when it beats what
+## we already hold. Copies to a .tmp name then renames, so an interrupted copy can
+## never pass for a complete one. No-op when nothing is reachable, or when the copy
+## in hand already IS the newest build anyone is offering.
 function fCopyIfNewer {
-	if (-not (fResolveSource)) {
-		fWarn "source not reachable: $(fSourceProbePath $SourceDir)"
+	param($Rows)
+
+	$held = fNewestCopy
+	if ($held) { fItem "-" "held" ("{0}   {1}" -f $held.Stamp.ToString($StampDisplay), $held.Name) }
+	else       { fItem "-" "held" "nothing held yet" }
+
+	## Duplicates are the same build reached by another name, so they can't win.
+	## -Stable so an exact tie falls to listing order, which puts the local copy of
+	## a build ahead of the one across the network.
+	$best = @($Rows | Where-Object { $_.Reachable -and -not $_.Duplicate } |
+		Sort-Object Stamp -Descending -Stable)
+	$best = if ($best.Count) { $best[0] } else { $null }
+
+	if (-not $best) {
+		if ($held) { fItem "skip" "source" "none reachable - running the copy in hand" }
+		else       { fWarn -Gui "no source reachable and no copy held" }
 		return
 	}
-	$srcBin = fSourceProbePath $SourceDir
 
-	$stamp     = (Get-Item -LiteralPath $srcBin).LastWriteTime.ToString($StampFormat)
+	## Round-trip through the stamp text the copy is named with, so the comparison
+	## can't disagree with the name over sub-second precision.
+	$stamp     = $best.Stamp.ToString($StampFormat)
 	$stampTime = fParseStamp $stamp
-	$held      = fNewestCopy
 
 	if ($held -and $held.Stamp -ge $stampTime) {
-		fNote "already current (held $($held.Stamp.ToString($StampFormat)), src $stamp)"
+		fItem "ok" "newest" "$($best.Label) - already held, nothing to copy"
 		return
 	}
+	fItem "-" "newest" ("{0}   {1}" -f $best.Stamp.ToString($StampDisplay), $best.Label)
 
 	$dst = Join-Path $TargetDir "${DogfoodPrefix}_${stamp}_${SourceTag}${CopyExt}"
 	if (Test-Path -LiteralPath $dst) {
-		fNote "copy already present: $(Split-Path $dst -Leaf)"
+		fItem "ok" "copy" "already present: $(Split-Path $dst -Leaf)"
 		return
 	}
 
-	$tmp = "$dst.tmp"
+	$tmp   = "$dst.tmp"
+	$clock = [System.Diagnostics.Stopwatch]::StartNew()
+	fItem "-" "copy" "$($best.Root) -> $(Split-Path $dst -Leaf)"
 	try {
 		if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
-		if ($CopyIsFile) { Copy-Item -LiteralPath $SourceDir -Destination $tmp -Force -ErrorAction Stop }
-		else             { Copy-Item -LiteralPath $SourceDir -Destination $tmp -Recurse -Force -ErrorAction Stop }
+		if ($CopyIsFile) { Copy-Item -LiteralPath $best.Root -Destination $tmp -Force -ErrorAction Stop }
+		else             { Copy-Item -LiteralPath $best.Root -Destination $tmp -Recurse -Force -ErrorAction Stop }
 		Rename-Item -LiteralPath $tmp -NewName (Split-Path $dst -Leaf) -ErrorAction Stop
 		## A synced-sourced exe can carry a mark-of-the-web; clear it so the launch
 		## isn't SmartScreen-blocked. Best-effort, Windows-only (no-op for a dir).
 		if ($CopyIsFile) { try { Unblock-File -LiteralPath $dst -ErrorAction SilentlyContinue } catch { } }
-		fNote "copied -> $(Split-Path $dst -Leaf)"
+		$clock.Stop()
+		$size = if ($CopyIsFile) { " " + (fHumanSize (Get-Item -LiteralPath $dst).Length) } else { "" }
+		fItem "ok" "copy" ("done{0} in {1:n2}s" -f $size, $clock.Elapsed.TotalSeconds)
 	} catch {
-		fWarn -Gui "couldn't copy build ($($_.Exception.Message))"
+		fWarn -Gui "couldn't copy the build from $($best.Label) ($($_.Exception.Message))"
 		if (Test-Path -LiteralPath $tmp) { try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch { } }
 	}
 }
+
+
 
 
 ## Delete stamped copies whose build is older than $MaxAgeDays, skipping any
@@ -635,8 +802,8 @@ function fStartApp {
 		fFail "launch failed for $Exe ($($_.Exception.Message))"
 	}
 
-	$how = if ($IsWindows -and $RunAsAdmin) { " (as admin)" } else { "" }
-	fNote "launched$how pid $($proc.Id): $([System.IO.Path]::GetFileName($Exe))"
+	$how = if ($IsWindows -and $RunAsAdmin) { " as admin," } else { "" }
+	fItem "ok" "launched" ("{0}{1} pid {2}" -f [System.IO.Path]::GetFileName($Exe), $how, $proc.Id)
 	return $proc
 }
 
@@ -669,18 +836,71 @@ function fQuoteArg {
 }
 
 
-## Informational note to the host (and the run log).
-function fNote { param([string]$Msg); fLog $Msg; Write-Host "n8runfm: $Msg" }
+## Run header. Bracketed the way the cicd scripts do it, so a launcher run and a
+## pipeline run read the same.
+function fBanner {
+	param([string]$Msg)
+	fLog "=== $Msg ==="
+	Write-Host ""
+	Write-Host "[ $Msg ]" -ForegroundColor Cyan
+}
 
-## Non-fatal note to stderr (and the run log). Pass -Gui to also surface it in the
+
+## Start a step. Everything a step decides prints under it as an fItem row, so a
+## run reads as a short report rather than a stream of loose notes.
+function fStep {
+	param([string]$Msg)
+	fLog "-- $Msg"
+	$script:StepRows = 0
+	Write-Host ""
+	Write-Host "  $Msg" -ForegroundColor Cyan
+}
+
+
+## One row under a step: a status tag, an optional label column, then free text.
+## Only the tag is coloured - a whole coloured line is a wall of green.
+function fItem {
+	param([string]$Status = "-", [string]$Label = "", [string]$Detail = "")
+
+	$script:StepRows++
+	fLog ("{0,-5} {1,-12} {2}" -f $Status, $Label, $Detail).TrimEnd()
+
+	$colour = switch ($Status) {
+		"ok"   { "Green" }
+		"skip" { "Yellow" }
+		"warn" { "Yellow" }
+		"fail" { "Red" }
+		default { "DarkGray" }
+	}
+	Write-Host "    " -NoNewline
+	Write-Host ("{0,-5}" -f $Status) -NoNewline -ForegroundColor $colour
+	Write-Host (" {0,-12} {1}" -f $Label, $Detail).TrimEnd()
+}
+
+
+## Byte count for a human, one decimal. Only ever describes a copy we just made,
+## so no need to care about anything past GB.
+function fHumanSize {
+	param([Parameter(Mandatory)][int64]$Bytes)
+	if ($Bytes -ge 1GB) { return ("{0:n1} GB" -f ($Bytes / 1GB)) }
+	if ($Bytes -ge 1MB) { return ("{0:n1} MB" -f ($Bytes / 1MB)) }
+	if ($Bytes -ge 1KB) { return ("{0:n1} KB" -f ($Bytes / 1KB)) }
+	return "$Bytes B"
+}
+
+
+## Informational row (and the run log).
+function fNote { param([string]$Msg); fItem "-" "" $Msg }
+
+## Non-fatal problem (and the run log). Pass -Gui to also surface it in the
 ## end-of-run dialog (the shortcut case, where the console flashes shut) - reserved
 ## for real problems (a failed copy), not benign skips (an offline source).
 function fWarn {
 	param([string]$Msg, [switch]$Gui)
-	fLog "WARN: $Msg"
-	Write-Warning "n8runfm: $Msg"
+	fItem "warn" "" $Msg
 	if ($Gui) { $script:RunWarnings += $Msg }
 }
+
 
 ## Fatal error to stderr (and the run log), then stop. Pops a dialog first when GUI
 ## feedback is on, so a shortcut click shows WHY instead of a blank flash.
@@ -789,6 +1009,11 @@ $ErrorActionPreference = "Stop"
 ## launched from a shortcut. Must exist before any fWarn -Gui / fFail can run.
 $script:RunWarnings = @()
 
+## Rows printed under the current step, so a step that decided nothing can say so.
+## Must exist before the first fItem, which under StrictMode is not allowed to
+## increment a variable nobody has declared.
+$script:StepRows = 0
+
 ## Consume our own flags; forward everything else to the app.
 ##   --admin  run the WHOLE launcher elevated (self-elevates below) - copy, log and
 ##            the launched app all get admin rights. Windows only.
@@ -858,6 +1083,15 @@ exit 0
 
 
 ##	History:
+##		- 2026-08-21: Every source is probed now instead of taking the first that
+##		  answers, and the newest build wins wherever it sits: this box's own repo
+##		  build, b23 across the network, and the synced dogfood drop. Two sources
+##		  holding the same build (stamp plus size) are reported once rather than
+##		  counted twice, so a junction or a UNC spelling of one file no longer looks
+##		  like a second build. The probe reads mtime and size in the same guarded
+##		  call it used to spend on existence alone. Output is now a step-by-step
+##		  report - housekeeping, sources, build in hand, launch - with a status tag
+##		  per row, and the same lines go to the run log.
 ##		- 2026-08-19: '--admin' self-elevates the whole launcher and launches the app
 ##		  elevated, matching n8runterm. Report failures in a dialog for the shortcut
 ##		  case (the console flashes shut); new '--gui' flag, auto-on when double-
