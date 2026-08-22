@@ -171,9 +171,9 @@ editable_register_edit_undo (GtkEditable *editable)
 		 undo_data,
 		 (GDestroyNotify) free_editable_undo_data,
 		 _("Edit"),
-		 _("Undo Edit"),
+		 _("Undo edit"),
 		 _("Undo the edit"),
-		 _("Redo Edit"),
+		 _("Redo edit"),
 		 _("Redo the edit"));
 
 	undo_info->undo_registered = TRUE;

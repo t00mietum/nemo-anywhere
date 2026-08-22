@@ -644,9 +644,9 @@ report_broken_symbolic_link (GtkWindow *parent_window, NemoFile *file)
 
 	display_name = nemo_file_get_display_name (file);
 	if (nemo_file_is_in_trash (file)) {
-		prompt = g_strdup_printf (_("The Link \"%s\" is Broken."), display_name);
+		prompt = g_strdup_printf (_("The link \"%s\" is broken."), display_name);
 	} else {
-		prompt = g_strdup_printf (_("The Link \"%s\" is Broken. Move it to Trash?"), display_name);
+		prompt = g_strdup_printf (_("The link \"%s\" is broken. Move it to Trash?"), display_name);
 	}
 	g_free (display_name);
 
@@ -732,7 +732,7 @@ get_executable_text_file_action (GtkWindow *parent_window, NemoFile *file)
 
 	dialog = eel_create_question_dialog (prompt,
 					     detail,
-					     _("Run in _Terminal"), RESPONSE_RUN_IN_TERMINAL,
+					     _("Run in _terminal"), RESPONSE_RUN_IN_TERMINAL,
      					     _("_Display"), RESPONSE_DISPLAY,
 					     parent_window);
 	gtk_dialog_add_button (dialog, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
@@ -1255,7 +1255,7 @@ application_unhandled_uri (ActivateParameters *parameters, char *uri)
         secondary =
             g_strdup_printf (_("The file \"%s\" has no known programs associated with it.  "
                              "If you trust the source of this file, and have sufficient permissions, you can mark it executable and launch it.  "
-                             "Or, you can use the Open With dialog to pick a program to associate it with."
+                             "Or, you can use the Open with dialog to pick a program to associate it with."
                              ),
                              display_name);
 
@@ -1263,7 +1263,7 @@ application_unhandled_uri (ActivateParameters *parameters, char *uri)
                                _("Make executable and run"), RESPONSE_RUN);
     } else {
         secondary = g_strdup_printf (_("The file \"%s\" has no known programs associated with it.  "
-                                     "Use the Open With dialog to pick a program to open it with."),
+                                     "Use the Open with dialog to pick a program to open it with."),
                                      display_name);
     }
 
@@ -1383,10 +1383,10 @@ activate_desktop_file (ActivateParameters *parameters,
 			      NULL);
 
 		gtk_dialog_add_button (GTK_DIALOG (dialog),
-				       _("_Launch Anyway"), RESPONSE_RUN);
+				       _("_Launch anyway"), RESPONSE_RUN);
 		if (nemo_file_can_set_permissions (file)) {
 			gtk_dialog_add_button (GTK_DIALOG (dialog),
-					       _("Mark as _Trusted"), RESPONSE_MARK_TRUSTED);
+					       _("Mark as _trusted"), RESPONSE_MARK_TRUSTED);
 		}
 
 		gtk_dialog_add_button (GTK_DIALOG (dialog),

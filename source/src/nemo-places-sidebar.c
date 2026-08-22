@@ -891,7 +891,7 @@ update_places (NemoPlacesSidebar *sidebar)
 	volume_monitor = sidebar->volume_monitor;
 
     cat_iter = add_heading (sidebar, SECTION_COMPUTER,
-                                    _("My Computer"));
+                                    _("My computer"));
     /* add built in bookmarks */
 
     /* home folder */
@@ -1084,11 +1084,11 @@ update_places (NemoPlacesSidebar *sidebar)
     full = get_disk_full (sidebar, df_file, &tooltip_info);
     g_clear_object (&df_file);
 
-    tooltip = g_strdup_printf (_("Open the contents of the File System\n%s"), tooltip_info);
+    tooltip = g_strdup_printf (_("Open the contents of the file system\n%s"), tooltip_info);
     g_free (tooltip_info);
     cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                            SECTION_COMPUTER,
-                           _("File System"), icon,
+                           _("File system"), icon,
                            mount_uri, NULL, NULL, NULL, 0,
                            tooltip,
                            full, full > -1,
@@ -2614,21 +2614,21 @@ update_menu_states (NemoPlacesSidebar *sidebar)
 		switch (g_drive_get_start_stop_type (drive)) {
 		case G_DRIVE_START_STOP_TYPE_SHUTDOWN:
 			/* start() for type G_DRIVE_START_STOP_TYPE_SHUTDOWN is normally not used */
-			gtk_action_set_label (start_action, _("_Power On"));
-			gtk_action_set_label (stop_action, _("_Safely Remove Drive"));
+			gtk_action_set_label (start_action, _("_Power on"));
+			gtk_action_set_label (stop_action, _("_Safely remove drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_NETWORK:
-			gtk_action_set_label (start_action, _("_Connect Drive"));
-			gtk_action_set_label (stop_action, _("_Disconnect Drive"));
+			gtk_action_set_label (start_action, _("_Connect drive"));
+			gtk_action_set_label (stop_action, _("_Disconnect drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (start_action, _("_Start Multi-disk Device"));
-			gtk_action_set_label (stop_action, _("_Stop Multi-disk Device"));
+			gtk_action_set_label (start_action, _("_Start multi-disk device"));
+			gtk_action_set_label (stop_action, _("_Stop multi-disk device"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
 			/* stop() for type G_DRIVE_START_STOP_TYPE_PASSWORD is normally not used */
-			gtk_action_set_label (start_action, _("_Unlock Drive"));
-			gtk_action_set_label (stop_action, _("_Lock Drive"));
+			gtk_action_set_label (start_action, _("_Unlock drive"));
+			gtk_action_set_label (stop_action, _("_Lock drive"));
 			break;
 
 		default:
@@ -3746,15 +3746,15 @@ clear_ui (NemoPlacesSidebar *sidebar)
 
 static const GtkActionEntry bookmark_action_entries[] = {
     { NEMO_ACTION_OPEN,                    "folder-open-symbolic", N_("_Open"),                NULL, NULL, G_CALLBACK (open_shortcut_cb)               },
-    { NEMO_ACTION_OPEN_IN_NEW_TAB,         NULL,                   N_("Open in New _Tab"),     NULL, NULL, G_CALLBACK (open_shortcut_in_new_tab_cb)    },
-    { NEMO_ACTION_OPEN_ALTERNATE,          NULL,                   N_("Open in New _Window"),  NULL, NULL, G_CALLBACK (open_shortcut_in_new_window_cb) },
-    { NEMO_ACTION_ADD_BOOKMARK,            NULL,                   N_("_Add Bookmark"),        NULL, NULL, G_CALLBACK (add_shortcut_cb)                },
+    { NEMO_ACTION_OPEN_IN_NEW_TAB,         NULL,                   N_("Open in new _tab"),     NULL, NULL, G_CALLBACK (open_shortcut_in_new_tab_cb)    },
+    { NEMO_ACTION_OPEN_ALTERNATE,          NULL,                   N_("Open in new _window"),  NULL, NULL, G_CALLBACK (open_shortcut_in_new_window_cb) },
+    { NEMO_ACTION_ADD_BOOKMARK,            NULL,                   N_("_Add bookmark"),        NULL, NULL, G_CALLBACK (add_shortcut_cb)                },
     { NEMO_ACTION_SIDEBAR_REMOVE,          "list-remove-symbolic", N_("Remove"),               NULL, NULL, G_CALLBACK (remove_shortcut_cb)             },
     { NEMO_ACTION_RENAME,                  NULL,                   N_("_Rename..."),           NULL, NULL, G_CALLBACK (rename_shortcut_cb)             },
     { NEMO_ACTION_MOUNT_VOLUME,            NULL,                   N_("_Mount"),               NULL, NULL, G_CALLBACK (mount_shortcut_cb)              },
     { NEMO_ACTION_UNMOUNT_VOLUME,          NULL,                   N_("_Unmount"),             NULL, NULL, G_CALLBACK (unmount_shortcut_cb)            },
     { NEMO_ACTION_EJECT_VOLUME,            NULL,                   N_("_Eject"),               NULL, NULL, G_CALLBACK (eject_shortcut_cb)              },
-    { NEMO_ACTION_SIDEBAR_DETECT_MEDIA,    NULL,                   N_("_Detect Media"),        NULL, NULL, G_CALLBACK (rescan_shortcut_cb)             },
+    { NEMO_ACTION_SIDEBAR_DETECT_MEDIA,    NULL,                   N_("_Detect media"),        NULL, NULL, G_CALLBACK (rescan_shortcut_cb)             },
     { NEMO_ACTION_START_VOLUME,            NULL,                   N_("_Start"),               NULL, NULL, G_CALLBACK (start_shortcut_cb)              },
     { NEMO_ACTION_STOP_VOLUME,             NULL,                   N_("_Stop"),                NULL, NULL, G_CALLBACK (stop_shortcut_cb)               },
     { NEMO_ACTION_EMPTY_TRASH_CONDITIONAL, NULL,                   N_("_Empty _Trash"),        NULL, NULL, G_CALLBACK (empty_trash_cb)                 },

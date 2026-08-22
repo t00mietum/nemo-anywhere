@@ -2132,7 +2132,7 @@ column_header_clicked (GtkWidget *column_button,
 	menu_item = gtk_separator_menu_item_new ();
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
 
-	menu_item = gtk_menu_item_new_with_label (_("Use Default"));
+	menu_item = gtk_menu_item_new_with_label (_("Use default"));
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
 
 	g_signal_connect (menu_item,
@@ -3114,7 +3114,7 @@ create_and_set_up_tree_view (NemoListView *view)
 	gtk_container_add (GTK_CONTAINER (view), GTK_WIDGET (view->details->tree_view));
 
         atk_obj = gtk_widget_get_accessible (GTK_WIDGET (view->details->tree_view));
-        atk_object_set_name (atk_obj, _("List View"));
+        atk_object_set_name (atk_obj, _("List view"));
 
     gtk_widget_set_has_tooltip (GTK_WIDGET (view->details->tree_view), TRUE);
 
@@ -4859,7 +4859,7 @@ static NemoViewInfo nemo_list_view = {
 	(char *)NEMO_LIST_VIEW_ID,
 	/* translators: this is used in the view selection dropdown
 	 * of navigation windows and in the preferences dialog */
-	(char *)N_("List View"),
+	(char *)N_("List view"),
 	/* translators: this is used in the view menu */
 	(char *)N_("_List"),
 	(char *)N_("The list view encountered an error."),

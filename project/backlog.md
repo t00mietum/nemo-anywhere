@@ -864,9 +864,13 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- The sheet runs off the main loop, so the window behind it stays live while it is open, and it is waited out rather than abandoned - the extra threads go when it closes.
 	- Verified on Windows by eye and by test: the fallback rule has checks of its own, and the two that matter go red with the rule taken back out.
 
-- 🔘 Every piece of text in the interface reads as a sentence, not as a headline - only the first word capitalised, and anything that is a name left alone.
-	- Menus, buttons, tab and page titles, dialog titles, column headings, tooltips, preference labels.
-	- Nothing ships translated yet, so changing the English costs nothing downstream.
+- ✅ Every piece of text in the interface reads as a sentence, not as a headline - only the first word capitalised, and anything that is a name left alone.
+	- Menus, buttons, tab and page titles, dialog titles, column headings, tooltips, preference labels, and the bundled actions. About 330 labels in all.
+	- A mnemonic stays where it was, so the underlined letter does not move; it is simply lower case now. Keyboard shortcut text is untouched.
+	- Names keep their capital: the platforms, the toolkit, Trash and the other places in the sidebar, file and disc formats, acronyms. So does a sentence that names a menu item or a tab, since the item itself is still called that.
+	- Left alone on purpose: the licence text, which is quoted verbatim, and the name a new folder or document is given, which is written to disk rather than shown.
+	- It is checked rather than trusted, because a label copied from upstream arrives in Title Case: `cicd/utility/lint-ui-case.py` reads every translatable string in the tree and fails the lint step on any that is not a sentence. The whole exception list lives in that one file, each entry with its reason.
+	- The check found what a first pass by eye did not - the plural labels, where two spellings sit in one call, which is what had left "Copy Paths" and "Make Links" behind. Proven to go red on a label put back to Title Case.
 
 
 - ✅ One setting for how much of the machine's CPU any compression may use, as a percentage of the cores it finds. Default 50% - the best balance on a hyperthreaded CPU.

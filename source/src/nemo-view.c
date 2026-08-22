@@ -1749,7 +1749,7 @@ select_pattern (NemoView *view)
 	GtkWidget *entry;
 	char *example_pattern;
 
-	dialog = gtk_dialog_new_with_buttons (_("Select Items Matching"),
+	dialog = gtk_dialog_new_with_buttons (_("Select items matching"),
 					      nemo_view_get_containing_window (view),
 					      GTK_DIALOG_DESTROY_WITH_PARENT,
 					      GTK_STOCK_HELP,
@@ -2877,7 +2877,7 @@ nemo_view_init (NemoView *view)
 
 	/* Accessibility */
 	atk_object = gtk_widget_get_accessible (GTK_WIDGET (view));
-	atk_object_set_name (atk_object, _("Content View"));
+	atk_object_set_name (atk_object, _("Content view"));
 	atk_object_set_description (atk_object, _("View of the current folder"));
 
     view->details->action_manager = nemo_action_manager_new ();
@@ -3241,7 +3241,7 @@ nemo_view_display_selection_info (NemoView *view)
 		item_count_str = g_strdup_printf (ngettext ("%'u item", "%'u items", item_count), item_count);
 
 		if (free_space_str != NULL) {
-			status_string = g_strdup_printf (_("%s, Free space: %s"), item_count_str, free_space_str);
+			status_string = g_strdup_printf (_("%s, free space: %s"), item_count_str, free_space_str);
 			g_free (item_count_str);
 		} else {
 			status_string = item_count_str;
@@ -4752,7 +4752,7 @@ add_application_to_open_with_menu (NemoView *view,
 	if (submenu)
 		label = g_strdup_printf ("%s", escaped_app);
 	else
-		label = g_strdup_printf (_("Open With %s"), escaped_app);
+		label = g_strdup_printf (_("Open with %s"), escaped_app);
 
 	tip = g_strdup_printf (ngettext ("Use \"%s\" to open the selected item",
 					 "Use \"%s\" to open the selected items",
@@ -7188,7 +7188,7 @@ action_extract_to_callback (GtkAction *action,
 	locations = selection_locations (selection);
 	nemo_file_list_free (selection);
 
-	dialog = gtk_file_chooser_dialog_new (_("Select Target Folder For Extraction"),
+	dialog = gtk_file_chooser_dialog_new (_("Select target folder for extraction"),
 					      nemo_view_get_containing_window (view),
 					      GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
 					      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -7354,7 +7354,7 @@ action_browse_for_move_to_folder_callback (GtkAction *action, gpointer callback_
 
     view = NEMO_VIEW (callback_data);
 
-    dialog = gtk_file_chooser_dialog_new (_("Select Target Folder For Move"),
+    dialog = gtk_file_chooser_dialog_new (_("Select target folder for move"),
                                           nemo_view_get_containing_window (view),
                                           GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
                                           GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -7377,7 +7377,7 @@ action_browse_for_copy_to_folder_callback (GtkAction *action, gpointer callback_
 
     view = NEMO_VIEW (callback_data);
 
-    dialog = gtk_file_chooser_dialog_new (_("Select Target Folder For Copy"),
+    dialog = gtk_file_chooser_dialog_new (_("Select target folder for copy"),
                                           nemo_view_get_containing_window (view),
                                           GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
                                           GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -8441,7 +8441,7 @@ action_connect_to_server_link_callback (GtkAction *action,
 	name = nemo_file_get_display_name (file);
 
 	if (uri != NULL) {
-		title = g_strdup_printf (_("Connect to Server %s"), name);
+		title = g_strdup_printf (_("Connect to server %s"), name);
 		dialog = gtk_dialog_new_with_buttons (title,
 						      nemo_view_get_containing_window (view),
 						      0,
@@ -8755,8 +8755,8 @@ nemo_view_init_show_hidden_files (NemoView *view)
 }
 
 static const GtkActionEntry directory_view_entries[] = {
-  /* name, stock id, label */  { "New Documents", "document-new-symbolic", N_("Create New _Document") },
-  /* name, stock id, label */  { "Open With", NULL, N_("Open Wit_h"),
+  /* name, stock id, label */  { "New Documents", "document-new-symbolic", N_("Create new _document") },
+  /* name, stock id, label */  { "Open With", NULL, N_("Open wit_h"),
 				 NULL, N_("Choose a program with which to open the selected item") },
   /* name, stock id */         { "Properties", "document-properties-symbolic",
   /* label, accelerator */       N_("_Properties"), "<alt>Return",
@@ -8771,13 +8771,13 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("View or modify the properties of each selected item in this program's own window"),
 				 G_CALLBACK (action_advanced_properties_callback) },
   /* name, stock id */         { "New Folder", "folder-new-symbolic",
-  /* label, accelerator */       N_("Create New _Folder"), "<control><shift>N",
+  /* label, accelerator */       N_("Create new _folder"), "<control><shift>N",
   /* tooltip */                  N_("Create a new empty folder inside this folder"),
 				 G_CALLBACK (action_new_folder_callback) },
   /* name, stock id, label */  { "No Templates", NULL, N_("No templates installed") },
   /* name, stock id */         { "New Empty Document", NULL,
     /* translators: this is used to indicate that a document doesn't contain anything */
-  /* label, accelerator */       N_("_Empty Document"), NULL,
+  /* label, accelerator */       N_("_Empty document"), NULL,
   /* tooltip */                  N_("Create a new empty document inside this folder"),
 				 G_CALLBACK (action_new_empty_file_callback) },
   /* name, stock id */         { "Open", NULL,
@@ -8789,23 +8789,23 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  NULL,
 				 G_CALLBACK (action_open_callback) },
   /* name, stock id */         { "OpenAlternate", NULL,
-  /* label, accelerator */       N_("Open in Navigation Window"), "<control><shift>o",
+  /* label, accelerator */       N_("Open in navigation window"), "<control><shift>o",
   /* tooltip */                  N_("Open each selected item in a navigation window"),
 				 G_CALLBACK (action_open_alternate_callback) },
   /* name, stock id */         { "OpenInNewTab", NULL,
-  /* label, accelerator */       N_("Open in New _Tab"), "<control><shift>t",
+  /* label, accelerator */       N_("Open in new _tab"), "<control><shift>t",
   /* tooltip */                  N_("Open each selected item in a new tab"),
 				 G_CALLBACK (action_open_new_tab_callback) },
   /* name, stock id */         { NEMO_ACTION_OPEN_IN_TERMINAL, "utilities-terminal-symbolic",
-  /* label, accelerator */       N_("Open in Terminal"), "",
+  /* label, accelerator */       N_("Open in terminal"), "",
   /* tooltip */                  N_("Open terminal in the selected folder"),
 				 G_CALLBACK (action_open_in_terminal_callback) },
   /* name, stock id */         { NEMO_ACTION_OPEN_AS_ROOT, "dialog-password-symbolic",
 #ifdef G_OS_WIN32
-  /* label, accelerator */       N_("Open as Administrator"), "",
+  /* label, accelerator */       N_("Open as administrator"), "",
   /* tooltip */                  N_("Open the folder with administrator privileges"),
 #else
-  /* label, accelerator */       N_("Open as Root"), "",
+  /* label, accelerator */       N_("Open as root"), "",
   /* tooltip */                  N_("Open the folder with administration privileges"),
 #endif
 				 G_CALLBACK (action_open_as_root_callback) },
@@ -8819,11 +8819,11 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Navigate to the folder that the selected item is stored in"),
                  G_CALLBACK (action_open_containing_folder_callback) },
   /* name, stock id */         { "OtherApplication1", NULL,
-  /* label, accelerator */       N_("Other _Application..."), NULL,
+  /* label, accelerator */       N_("Other _application..."), NULL,
   /* tooltip */                  N_("Choose another application with which to open the selected item"),
 				 G_CALLBACK (action_other_application_callback) },
   /* name, stock id */         { "OtherApplication2", NULL,
-  /* label, accelerator */       N_("Open With Other _Application..."), NULL,
+  /* label, accelerator */       N_("Open with other _application..."), NULL,
   /* tooltip */                  N_("Choose another application with which to open the selected item"),
 				 G_CALLBACK (action_other_application_callback) },
   /* name, stock id */         { "Empty Trash", NULL,
@@ -8839,11 +8839,11 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Prepare the selected files to be copied with a Paste command"),
 				 G_CALLBACK (action_copy_files_callback) },
   /* name, stock id */         { NEMO_ACTION_COPY_PATH, "edit-copy-symbolic",
-  /* label, accelerator */       N_("Copy _Path"), "<control><shift>C",
+  /* label, accelerator */       N_("Copy _path"), "<control><shift>C",
   /* tooltip */                  N_("Copy the full path of each selected item to the clipboard"),
 				 G_CALLBACK (action_copy_path_callback) },
   /* name, stock id */         { NEMO_ACTION_BACKGROUND_COPY_PATH, "edit-copy-symbolic",
-  /* label, accelerator */       N_("Copy _Path"), "",
+  /* label, accelerator */       N_("Copy _path"), "",
   /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
 				 G_CALLBACK (action_background_copy_path_callback) },
   /* name, stock id */         { NEMO_ACTION_COMPRESS, "package-x-generic",
@@ -8855,15 +8855,15 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Create an archive holding this folder"),
 				 G_CALLBACK (action_background_compress_callback) },
   /* name, stock id */         { NEMO_ACTION_EXTRACT_HERE, "package-x-generic",
-  /* label, accelerator */       N_("E_xtract Here"), "",
+  /* label, accelerator */       N_("E_xtract here"), "",
   /* tooltip */                  N_("Unpack the selected archives into this folder"),
 				 G_CALLBACK (action_extract_here_callback) },
   /* name, stock id */         { NEMO_ACTION_EXTRACT_TO_FOLDER, "package-x-generic",
-  /* label, accelerator */       N_("Extract to _Folder"), "",
+  /* label, accelerator */       N_("Extract to _folder"), "",
   /* tooltip */                  N_("Unpack each selected archive into a folder named after it"),
 				 G_CALLBACK (action_extract_to_folder_callback) },
   /* name, stock id */         { NEMO_ACTION_EXTRACT_TO, "package-x-generic",
-  /* label, accelerator */       N_("Extract _To..."), "",
+  /* label, accelerator */       N_("Extract _to..."), "",
   /* tooltip */                  N_("Unpack the selected archives into a folder you choose"),
 				 G_CALLBACK (action_extract_to_callback) },
   /* name, stock id */         { "Paste", "edit-paste-symbolic",
@@ -8873,21 +8873,21 @@ static const GtkActionEntry directory_view_entries[] = {
   /* We make accelerator "" instead of null here to not inherit the stock
      accelerator for paste */
   /* name, stock id */         { "Paste Files Into", "edit-paste-symbolic",
-  /* label, accelerator */       N_("_Paste Into Folder"), "",
+  /* label, accelerator */       N_("_Paste into folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into the selected folder"),
 				 G_CALLBACK (action_paste_files_into_callback) },
   /* name, stock id, label */  { "CopyToMenu", NULL, N_("Cop_y to") },
   /* name, stock id, label */  { "MoveToMenu", NULL, N_("M_ove to") },
   /* name, stock id */         { "Select All", NULL,
-  /* label, accelerator */       N_("Select _All"), "<control>A",
+  /* label, accelerator */       N_("Select _all"), "<control>A",
   /* tooltip */                  N_("Select all items in this window"),
 				 G_CALLBACK (action_select_all_callback) },
   /* name, stock id */         { "Select Pattern", NULL,
-  /* label, accelerator */       N_("Select I_tems Matching..."), "<control>S",
+  /* label, accelerator */       N_("Select i_tems matching..."), "<control>S",
   /* tooltip */                  N_("Select items in this window matching a given pattern"),
 				 G_CALLBACK (action_select_pattern_callback) },
   /* name, stock id */         { "Invert Selection", NULL,
-  /* label, accelerator */       N_("_Invert Selection"), "<control><shift>I",
+  /* label, accelerator */       N_("_Invert selection"), "<control><shift>I",
   /* tooltip */                  N_("Select all and only the items that are not currently selected"),
 				 G_CALLBACK (action_invert_selection_callback) },
   /* name, stock id */         { "Duplicate", NULL,
@@ -8895,7 +8895,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Duplicate each selected item"),
 				 G_CALLBACK (action_duplicate_callback) },
   /* name, stock id */         { "Create Link", NULL,
-  /* label, accelerator */       N_("Ma_ke Link"), "<control>M",
+  /* label, accelerator */       N_("Ma_ke link"), "<control>M",
   /* tooltip */                  N_("Create a symbolic link for each selected item"),
 				 G_CALLBACK (action_create_link_callback) },
   /* name, stock id */         { "Rename", NULL,
@@ -8933,11 +8933,11 @@ static const GtkActionEntry directory_view_entries[] = {
    * it is a mixture of both ATM.
    */
   /* name, stock id */         { "Reset to Defaults", NULL,
-  /* label, accelerator */       N_("Reset View to _Defaults"), NULL,
+  /* label, accelerator */       N_("Reset view to _defaults"), NULL,
   /* tooltip */                  N_("Reset sorting order and zoom level to match preferences for this view"),
 				 G_CALLBACK (action_reset_to_defaults_callback) },
   /* name, stock id */         { "Connect To Server Link", NULL,
-  /* label, accelerator */       N_("Connect To This Server"), NULL,
+  /* label, accelerator */       N_("Connect to this server"), NULL,
   /* tooltip */                  N_("Make a permanent connection to this server"),
 				 G_CALLBACK (action_connect_to_server_link_callback) },
   /* name, stock id */         { "Mount Volume", "drive-removable-media-symbolic",
@@ -8961,7 +8961,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Stop the selected volume"),
 				 G_CALLBACK (action_stop_volume_callback) },
   /* name, stock id */         { "Poll", NULL,
-  /* label, accelerator */       N_("_Detect Media"), NULL,
+  /* label, accelerator */       N_("_Detect media"), NULL,
   /* tooltip */                  N_("Detect media in the selected drive"),
 				 G_CALLBACK (action_detect_media_callback) },
   /* name, stock id */         { "Self Mount Volume", "drive-removable-media-symbolic",
@@ -8985,20 +8985,20 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Stop the volume associated with the open folder"),
 				 G_CALLBACK (action_self_stop_volume_callback) },
   /* name, stock id */         { "Self Poll", NULL,
-  /* label, accelerator */       N_("_Detect Media"), NULL,
+  /* label, accelerator */       N_("_Detect media"), NULL,
   /* tooltip */                  N_("Detect media in the selected drive"),
 				 G_CALLBACK (action_self_detect_media_callback) },
   /* name, stock id */         { "OpenCloseParent", NULL,
-  /* label, accelerator */       N_("Open File and Close window"), "<alt><shift>Down",
+  /* label, accelerator */       N_("Open file and close window"), "<alt><shift>Down",
   /* tooltip */                  NULL,
 				 G_CALLBACK (action_open_close_parent_callback) },
   /* Location-specific actions */
   /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_ALTERNATE, NULL,
-  /* label, accelerator */       N_("Open in Navigation Window"), "",
+  /* label, accelerator */       N_("Open in navigation window"), "",
   /* tooltip */                  N_("Open this folder in a navigation window"),
 				 G_CALLBACK (action_location_open_alternate_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_IN_NEW_TAB, NULL,
-  /* label, accelerator */       N_("Open in New _Tab"), "",
+  /* label, accelerator */       N_("Open in new _tab"), "",
   /* tooltip */                  N_("Open this folder in a new tab"),
 				 G_CALLBACK (action_location_open_in_new_tab_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN, NULL,
@@ -9006,20 +9006,20 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Open this folder"),
 				 G_CALLBACK (action_location_open_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_IN_TERMINAL, "utilities-terminal-symbolic",
-  /* label, accelerator */       N_("Open in Terminal"), "",
+  /* label, accelerator */       N_("Open in terminal"), "",
   /* tooltip */                  N_("Open a terminal in this folder"),
 				 G_CALLBACK (action_location_open_in_terminal_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_OPEN_AS_ROOT, "dialog-password-symbolic",
 #ifdef G_OS_WIN32
-  /* label, accelerator */       N_("Open as Administrator"), "",
+  /* label, accelerator */       N_("Open as administrator"), "",
   /* tooltip */                  N_("Open this folder with administrator privileges"),
 #else
-  /* label, accelerator */       N_("Open as Root"), "",
+  /* label, accelerator */       N_("Open as root"), "",
   /* tooltip */                  N_("Open this folder with administration privileges"),
 #endif
 				 G_CALLBACK (action_location_open_as_root_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_NEW_FOLDER, "folder-new-symbolic",
-  /* label, accelerator */       N_("Create New _Folder"), "",
+  /* label, accelerator */       N_("Create new _folder"), "",
   /* tooltip */                  N_("Create a new empty folder inside this folder"),
 				 G_CALLBACK (action_location_new_folder_callback) },
 
@@ -9032,7 +9032,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Prepare this folder to be copied with a Paste command"),
 				 G_CALLBACK (action_location_copy_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_COPY_PATH, "edit-copy-symbolic",
-  /* label, accelerator */       N_("Copy _Path"), "",
+  /* label, accelerator */       N_("Copy _path"), "",
   /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
 				 G_CALLBACK (action_location_copy_path_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_COMPRESS, "package-x-generic",
@@ -9040,7 +9040,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Create an archive holding this folder"),
 				 G_CALLBACK (action_location_compress_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_PASTE_FILES_INTO, "edit-paste-symbolic",
-  /* label, accelerator */       N_("_Paste Into Folder"), "",
+  /* label, accelerator */       N_("_Paste into folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into this folder"),
 				 G_CALLBACK (action_location_paste_files_into_callback) },
 
@@ -9077,7 +9077,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Stop the volume associated with this folder"),
 				 G_CALLBACK (action_location_stop_volume_callback) },
   /* name, stock id */         { "Location Poll", NULL,
-  /* label, accelerator */       N_("_Detect Media"), NULL,
+  /* label, accelerator */       N_("_Detect media"), NULL,
   /* tooltip */                  N_("Detect media in the selected drive"),
 				 G_CALLBACK (action_location_detect_media_callback) },
 
@@ -9744,11 +9744,11 @@ real_update_menus_volumes (NemoView *view,
 			gtk_action_set_tooltip (action, _("Connect to the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (action, _("_Start Multi-disk Drive"));
+			gtk_action_set_label (action, _("_Start multi-disk drive"));
 			gtk_action_set_tooltip (action, _("Start the selected multi-disk drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
-			gtk_action_set_label (action, _("U_nlock Drive"));
+			gtk_action_set_label (action, _("U_nlock drive"));
 			gtk_action_set_tooltip (action, _("Unlock the selected drive"));
 			break;
 		}
@@ -9765,7 +9765,7 @@ real_update_menus_volumes (NemoView *view,
 			gtk_action_set_tooltip (action, _("Stop the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_SHUTDOWN:
-			gtk_action_set_label (action, _("_Safely Remove Drive"));
+			gtk_action_set_label (action, _("_Safely remove drive"));
 			gtk_action_set_tooltip (action, _("Safely remove the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_NETWORK:
@@ -9773,11 +9773,11 @@ real_update_menus_volumes (NemoView *view,
 			gtk_action_set_tooltip (action, _("Disconnect the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (action, _("_Stop Multi-disk Drive"));
+			gtk_action_set_label (action, _("_Stop multi-disk drive"));
 			gtk_action_set_tooltip (action, _("Stop the selected multi-disk drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
-			gtk_action_set_label (action, _("_Lock Drive"));
+			gtk_action_set_label (action, _("_Lock drive"));
 			gtk_action_set_tooltip (action, _("Lock the selected drive"));
 			break;
 		}
@@ -9831,11 +9831,11 @@ real_update_menus_volumes (NemoView *view,
 			gtk_action_set_tooltip (action, _("Connect to the drive associated with the open folder"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (action, _("_Start Multi-disk Drive"));
+			gtk_action_set_label (action, _("_Start multi-disk drive"));
 			gtk_action_set_tooltip (action, _("Start the multi-disk drive associated with the open folder"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
-			gtk_action_set_label (action, _("_Unlock Drive"));
+			gtk_action_set_label (action, _("_Unlock drive"));
 			gtk_action_set_tooltip (action, _("Unlock the drive associated with the open folder"));
 			break;
 		}
@@ -9852,7 +9852,7 @@ real_update_menus_volumes (NemoView *view,
 			gtk_action_set_tooltip (action, _("_Stop the drive associated with the open folder"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_SHUTDOWN:
-			gtk_action_set_label (action, _("_Safely Remove Drive"));
+			gtk_action_set_label (action, _("_Safely remove drive"));
 			gtk_action_set_tooltip (action, _("Safely remove the drive associated with the open folder"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_NETWORK:
@@ -9860,11 +9860,11 @@ real_update_menus_volumes (NemoView *view,
 			gtk_action_set_tooltip (action, _("Disconnect the drive associated with the open folder"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (action, _("_Stop Multi-disk Drive"));
+			gtk_action_set_label (action, _("_Stop multi-disk drive"));
 			gtk_action_set_tooltip (action, _("Stop the multi-disk drive associated with the open folder"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
-			gtk_action_set_label (action, _("_Lock Drive"));
+			gtk_action_set_label (action, _("_Lock drive"));
 			gtk_action_set_tooltip (action, _("Lock the drive associated with the open folder"));
 			break;
 		}
@@ -9935,11 +9935,11 @@ real_update_location_menu_volumes (NemoView *view)
 			gtk_action_set_tooltip (action, _("Connect to the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (action, _("_Start Multi-disk Drive"));
+			gtk_action_set_label (action, _("_Start multi-disk drive"));
 			gtk_action_set_tooltip (action, _("Start the selected multi-disk drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
-			gtk_action_set_label (action, _("_Unlock Drive"));
+			gtk_action_set_label (action, _("_Unlock drive"));
 			gtk_action_set_tooltip (action, _("Unlock the selected drive"));
 			break;
 		}
@@ -9956,7 +9956,7 @@ real_update_location_menu_volumes (NemoView *view)
 			gtk_action_set_tooltip (action, _("Stop the selected volume"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_SHUTDOWN:
-			gtk_action_set_label (action, _("_Safely Remove Drive"));
+			gtk_action_set_label (action, _("_Safely remove drive"));
 			gtk_action_set_tooltip (action, _("Safely remove the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_NETWORK:
@@ -9964,11 +9964,11 @@ real_update_location_menu_volumes (NemoView *view)
 			gtk_action_set_tooltip (action, _("Disconnect the selected drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_MULTIDISK:
-			gtk_action_set_label (action, _("_Stop Multi-disk Drive"));
+			gtk_action_set_label (action, _("_Stop multi-disk drive"));
 			gtk_action_set_tooltip (action, _("Stop the selected multi-disk drive"));
 			break;
 		case G_DRIVE_START_STOP_TYPE_PASSWORD:
-			gtk_action_set_label (action, _("_Lock Drive"));
+			gtk_action_set_label (action, _("_Lock drive"));
 			gtk_action_set_tooltip (action, _("Lock the selected drive"));
 			break;
 		}
@@ -10049,7 +10049,7 @@ real_update_location_menu (NemoView *view)
 					      NEMO_ACTION_LOCATION_OPEN_ALTERNATE);
 	gtk_action_set_visible (action, show_open_alternate);
 
-	label = _("Open in New _Window");
+	label = _("Open in new _window");
 	g_object_set (action,
 		      "label", label,
 		      NULL);
@@ -10058,7 +10058,7 @@ real_update_location_menu (NemoView *view)
 					      NEMO_ACTION_LOCATION_OPEN_IN_NEW_TAB);
 	gtk_action_set_visible (action, show_open_in_new_tab);
 
-	label = _("Open in New _Tab");
+	label = _("Open in new _tab");
 	g_object_set (action,
 		      "label", label,
 		      NULL);
@@ -10158,7 +10158,7 @@ real_update_location_menu (NemoView *view)
 			show_delete = FALSE;
 		}
 
-		label = _("_Delete Permanently");
+		label = _("_Delete permanently");
 		tip = _("Delete the open folder permanently");
 		show_separate_delete_command = FALSE;
 	} else {
@@ -10426,7 +10426,7 @@ real_update_menus (NemoView *view)
 		char *escaped_app;
 
 		escaped_app = eel_str_double_underscores (g_app_info_get_name (app));
-		label_with_underscore = g_strdup_printf (_("_Open With %s"),
+		label_with_underscore = g_strdup_printf (_("_Open with %s"),
 							 escaped_app);
 
 		app_icon = g_app_info_get_icon (app);
@@ -10473,10 +10473,10 @@ real_update_menus (NemoView *view)
 	gtk_action_set_visible (action, show_open_alternate);
 
 	if (selection_count == 0 || selection_count == 1) {
-		label_with_underscore = g_strdup (_("Open in New _Window"));
+		label_with_underscore = g_strdup (_("Open in new _window"));
 	} else {
-		label_with_underscore = g_strdup_printf (ngettext("Open in %'d New _Window",
-								  "Open in %'d New _Windows",
+		label_with_underscore = g_strdup_printf (ngettext("Open in %'d new _window",
+								  "Open in %'d new _windows",
 								  selection_count),
 							 selection_count);
 	}
@@ -10493,10 +10493,10 @@ real_update_menus (NemoView *view)
 	gtk_action_set_visible (action, show_open_in_new_tab);
 
 	if (selection_count == 0 || selection_count == 1) {
-		label_with_underscore = g_strdup (_("Open in New _Tab"));
+		label_with_underscore = g_strdup (_("Open in new _tab"));
 	} else {
-		label_with_underscore = g_strdup_printf (ngettext("Open in %'d New _Tab",
-								  "Open in %'d New _Tabs",
+		label_with_underscore = g_strdup_printf (ngettext("Open in %'d new _tab",
+								  "Open in %'d new _tabs",
 								  selection_count),
 							 selection_count);
 	}
@@ -10511,7 +10511,7 @@ real_update_menus (NemoView *view)
     reset_move_copy_to_menu (view);
 
 	if (selection_contains_trash) {
-		label = _("_Delete Permanently");
+		label = _("_Delete permanently");
 		tip = _("Delete all selected items permanently");
 		show_separate_delete_command = FALSE;
 	} else {
@@ -10565,8 +10565,8 @@ real_update_menus (NemoView *view)
 	gtk_action_set_sensitive (action, can_link_files);
     gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
 	g_object_set (action, "label",
-		      ngettext ("Ma_ke Link",
-			      	"Ma_ke Links",
+		      ngettext ("Ma_ke link",
+			      	"Ma_ke links",
 				selection_count),
 		      NULL);
 
@@ -10634,7 +10634,7 @@ real_update_menus (NemoView *view)
 					      NEMO_ACTION_COPY_PATH);
 	gtk_action_set_sensitive (action, selection_count > 0);
 	g_object_set (action, "label",
-		      ngettext ("Copy _Path", "Copy _Paths", selection_count),
+		      ngettext ("Copy _path", "Copy _paths", selection_count),
 		      NULL);
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
@@ -10658,7 +10658,7 @@ real_update_menus (NemoView *view)
 		gtk_action_set_visible (action, is_archives);
 		gtk_action_set_sensitive (action, is_archives && can_create_files);
 		g_object_set (action, "label",
-			      ngettext ("Extract to _Folder", "Extract Each to Its Own _Folder",
+			      ngettext ("Extract to _folder", "Extract each to its own _folder",
 					selection_count),
 			      NULL);
 

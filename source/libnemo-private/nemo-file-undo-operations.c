@@ -382,22 +382,22 @@ ext_strings_func (NemoFileUndoInfo *info,
 								       "Move %d items to '%s'", count),
 							     count, destination);
 
-			*undo_label = g_strdup_printf (ngettext ("_Undo Move %d item",
-								 "_Undo Move %d items", count),
+			*undo_label = g_strdup_printf (ngettext ("_Undo move %d item",
+								 "_Undo move %d items", count),
 						       count);
-			*redo_label = g_strdup_printf (ngettext ("_Redo Move %d item",
-								 "_Redo Move %d items", count),
+			*redo_label = g_strdup_printf (ngettext ("_Redo move %d item",
+								 "_Redo move %d items", count),
 						       count);
 		} else {
 			*undo_description = g_strdup_printf (_("Move '%s' back to '%s'"), name, source);
 			*redo_description = g_strdup_printf (_("Move '%s' to '%s'"), name, destination);
 
-			*undo_label = g_strdup (_("_Undo Move"));
-			*redo_label = g_strdup (_("_Redo Move"));
+			*undo_label = g_strdup (_("_Undo move"));
+			*redo_label = g_strdup (_("_Redo move"));
 		}
 	} else if (op_type == NEMO_FILE_UNDO_OP_RESTORE_FROM_TRASH)  {
-		*undo_label = g_strdup (_("_Undo Restore from Trash"));
-		*redo_label = g_strdup (_("_Redo Restore from Trash"));
+		*undo_label = g_strdup (_("_Undo restore from Trash"));
+		*redo_label = g_strdup (_("_Redo restore from Trash"));
 
 		if (count > 1) {
 			*undo_description = g_strdup_printf (ngettext ("Move %d item back to trash",
@@ -419,18 +419,18 @@ ext_strings_func (NemoFileUndoInfo *info,
 								       "Copy %d items to '%s'", count),
 							     count, destination);
 
-			*undo_label = g_strdup_printf (ngettext ("_Undo Copy %d item",
-								 "_Undo Copy %d items", count),
+			*undo_label = g_strdup_printf (ngettext ("_Undo copy %d item",
+								 "_Undo copy %d items", count),
 						       count);
-			*redo_label = g_strdup_printf (ngettext ("_Redo Copy %d item",
-								 "_Redo Copy %d items", count),
+			*redo_label = g_strdup_printf (ngettext ("_Redo copy %d item",
+								 "_Redo copy %d items", count),
 						       count);
 		} else {
 			*undo_description = g_strdup_printf (_("Delete '%s'"), name);
 			*redo_description = g_strdup_printf (_("Copy '%s' to '%s'"), name, destination);
 
-			*undo_label = g_strdup (_("_Undo Copy"));
-			*redo_label = g_strdup (_("_Redo Copy"));
+			*undo_label = g_strdup (_("_Undo copy"));
+			*redo_label = g_strdup (_("_Redo copy"));
 		}
 	} else if (op_type == NEMO_FILE_UNDO_OP_DUPLICATE) {
 		if (count > 1) {
@@ -441,19 +441,19 @@ ext_strings_func (NemoFileUndoInfo *info,
 								       "Duplicate %d items in '%s'", count),
 							     count, destination);
 
-			*undo_label = g_strdup_printf (ngettext ("_Undo Duplicate %d item",
-								 "_Undo Duplicate %d items", count),
+			*undo_label = g_strdup_printf (ngettext ("_Undo duplicate %d item",
+								 "_Undo duplicate %d items", count),
 						       count);
-			*redo_label = g_strdup_printf (ngettext ("_Redo Duplicate %d item",
-								 "_Redo Duplicate %d items", count),
+			*redo_label = g_strdup_printf (ngettext ("_Redo duplicate %d item",
+								 "_Redo duplicate %d items", count),
 						       count);
 		} else {
 			*undo_description = g_strdup_printf (_("Delete '%s'"), name);
 			*redo_description = g_strdup_printf (_("Duplicate '%s' in '%s'"),
 							   name, destination);
 
-			*undo_label = g_strdup (_("_Undo Duplicate"));
-			*redo_label = g_strdup (_("_Redo Duplicate"));
+			*undo_label = g_strdup (_("_Undo duplicate"));
+			*redo_label = g_strdup (_("_Redo duplicate"));
 		}
 	} else if (op_type == NEMO_FILE_UNDO_OP_CREATE_LINK) {
 		if (count > 1) {
@@ -467,8 +467,8 @@ ext_strings_func (NemoFileUndoInfo *info,
 			*undo_description = g_strdup_printf (_("Delete link to '%s'"), name);
 			*redo_description = g_strdup_printf (_("Create link to '%s'"), name);
 
-			*undo_label = g_strdup (_("_Undo Create Link"));
-			*redo_label = g_strdup (_("_Redo Create Link"));
+			*undo_label = g_strdup (_("_Undo create link"));
+			*redo_label = g_strdup (_("_Redo create link"));
 		}
 	} else {
 		g_assert_not_reached ();
@@ -686,18 +686,18 @@ create_strings_func (NemoFileUndoInfo *info,
 	if (op_type == NEMO_FILE_UNDO_OP_CREATE_EMPTY_FILE) {
 		*redo_description = g_strdup_printf (_("Create an empty file '%s'"), name);
 
-		*undo_label = g_strdup (_("_Undo Create Empty File"));
-		*redo_label = g_strdup (_("_Redo Create Empty File"));
+		*undo_label = g_strdup (_("_Undo create empty file"));
+		*redo_label = g_strdup (_("_Redo create empty file"));
 	} else if (op_type == NEMO_FILE_UNDO_OP_CREATE_FOLDER) {
 		*redo_description = g_strdup_printf (_("Create a new folder '%s'"), name);
 
-		*undo_label = g_strdup (_("_Undo Create Folder"));
-		*redo_label = g_strdup (_("_Redo Create Folder"));
+		*undo_label = g_strdup (_("_Undo create folder"));
+		*redo_label = g_strdup (_("_Redo create folder"));
 	} else if (op_type == NEMO_FILE_UNDO_OP_CREATE_FILE_FROM_TEMPLATE) {
 		*redo_description = g_strdup_printf (_("Create new file '%s' from template "), name);
 
-		*undo_label = g_strdup (_("_Undo Create from Template"));
-		*redo_label = g_strdup (_("_Redo Create from Template"));
+		*undo_label = g_strdup (_("_Undo create from template"));
+		*redo_label = g_strdup (_("_Redo create from template"));
 	} else {
 		g_assert_not_reached ();
 	}
@@ -882,8 +882,8 @@ rename_strings_func (NemoFileUndoInfo *info,
 	*undo_description = g_strdup_printf (_("Rename '%s' as '%s'"), new_name, old_name);
 	*redo_description = g_strdup_printf (_("Rename '%s' as '%s'"), old_name, new_name);
 
-	*undo_label = g_strdup (_("_Undo Rename"));
-	*redo_label = g_strdup (_("_Redo Rename"));
+	*undo_label = g_strdup (_("_Undo rename"));
+	*redo_label = g_strdup (_("_Redo rename"));
 
 	g_free (old_name);
 	g_free (new_name);
@@ -1318,8 +1318,8 @@ rec_permissions_strings_func (NemoFileUndoInfo *info,
 	*undo_description = g_strdup_printf (_("Restore original permissions of items enclosed in '%s'"), name);
 	*redo_description = g_strdup_printf (_("Set permissions of items enclosed in '%s'"), name);
 
-	*undo_label = g_strdup (_("_Undo Change Permissions"));
-	*redo_label = g_strdup (_("_Redo Change Permissions"));
+	*undo_label = g_strdup (_("_Undo change permissions"));
+	*redo_label = g_strdup (_("_Redo change permissions"));
 
 	g_free (name);
 }
@@ -1473,8 +1473,8 @@ permissions_strings_func (NemoFileUndoInfo *info,
 	*undo_description = g_strdup_printf (_("Restore original permissions of '%s'"), name);
 	*redo_description = g_strdup_printf (_("Set permissions of '%s'"), name);
 
-	*undo_label = g_strdup (_("_Undo Change Permissions"));
-	*redo_label = g_strdup (_("_Redo Change Permissions"));
+	*undo_label = g_strdup (_("_Undo change permissions"));
+	*redo_label = g_strdup (_("_Redo change permissions"));
 
 	g_free (name);
 }
@@ -1586,16 +1586,16 @@ ownership_strings_func (NemoFileUndoInfo *info,
 		*redo_description = g_strdup_printf (_("Set group of '%s' to '%s'"),
 						     name, self->priv->new_ownership);
 
-		*undo_label = g_strdup (_("_Undo Change Group"));
-		*redo_label = g_strdup (_("_Redo Change Group"));
+		*undo_label = g_strdup (_("_Undo change group"));
+		*redo_label = g_strdup (_("_Redo change group"));
 	} else if (op_type == NEMO_FILE_UNDO_OP_CHANGE_OWNER) {
 		*undo_description = g_strdup_printf (_("Restore owner of '%s' to '%s'"),
 						     name, self->priv->original_ownership);
 		*redo_description = g_strdup_printf (_("Set owner of '%s' to '%s'"),
 						     name, self->priv->new_ownership);
 
-		*undo_label = g_strdup (_("_Undo Change Owner"));
-		*redo_label = g_strdup (_("_Redo Change Owner"));
+		*undo_label = g_strdup (_("_Undo change owner"));
+		*redo_label = g_strdup (_("_Redo change owner"));
 	}
 
 	g_free (name);

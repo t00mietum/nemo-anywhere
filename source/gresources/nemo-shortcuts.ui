@@ -70,7 +70,7 @@
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
-                <property name="title" translatable="yes" context="shortcut window">Pin/Unpin selection</property>
+                <property name="title" translatable="yes" context="shortcut window">Pin/unpin selection</property>
                 <property name="accelerator">&lt;Primary&gt;&lt;shift&gt;D</property>
               </object>
             </child>
@@ -225,7 +225,7 @@
         <child>
           <object class="GtkShortcutsGroup">
             <property name="visible">True</property>
-            <property name="title" translatable="yes" context="shortcut window">Dual Pane</property>
+            <property name="title" translatable="yes" context="shortcut window">Dual pane</property>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>

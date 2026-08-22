@@ -9,6 +9,10 @@
 ##	- cppcheck findings (error/warning/portability) fail the gate. A missing
 ##	  cppcheck skips with a warning so an unprovisioned box can't hard-block a
 ##	  push; CPPCHECK_STRICT=1 turns that miss into a hard failure.
+##	- Then the UI-case check (cicd/utility/lint-ui-case.py), which is whole-tree
+##	  rather than diff-scoped: the tree is already clean, so there is no legacy
+##	  noise to drown in, and a Title Case label pasted from upstream is caught
+##	  wherever it lands. A missing python skips it the same way cppcheck does.
 ##	- Runs the same everywhere bash + git + cppcheck exist (Linux host, MSYS2).
 ##	- Syntax: lint-c.bash [base-branch]
 
@@ -35,6 +39,18 @@ if [[ "$(uname -o 2>/dev/null)" == "Msys" ]]; then
 fi
 ## Read-only use; keep eol-normalization advice out of the gate output.
 GIT+=(-c core.safecrlf=false)
+
+## UI case first, and unconditionally: the checks below bail early when nothing
+## C changed, and a label is just as wrong on a .glade-only change.
+PY=""
+for cand in python3 python; do
+	command -v "$cand" >/dev/null 2>&1 && { PY="$cand"; break; }
+done
+if [[ -n "$PY" ]]; then
+	"$PY" cicd/utility/lint-ui-case.py source
+else
+	fEcho "WARNING: UI case SKIPPED: no python" >&2
+fi
 
 if ! command -v cppcheck >/dev/null 2>&1; then
 	if [[ "$strict" == "1" ]]; then
@@ -90,6 +106,10 @@ fi
 ## The two nemo-dnd.c items are inherited-legacy noise in the gnome-icon-list
 ## drag encoder/parser, surfaced only because a change touched that big file.
 ## The nemo-mime-actions.c trio is the same story in the activation code path.
+## nemo-window-bookmarks.c and nemo-file-undo-operations.c joined that list when
+## a label sweep touched them: both were confirmed present on dev first, and the
+## undo-operations pair only shows at all in a whole-program run, never when the
+## file is linted on its own.
 fEcho "C lint (cppcheck, check-only) over ${#files[@]} changed file(s)..."
 cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=missingInclude --suppress=assertWithSideEffect \
@@ -113,5 +133,7 @@ cppcheck --enable=warning,portability --library=gtk --inline-suppr \
 	--suppress=ctunullpointer:*nemo-tree-sidebar.c \
 	--suppress=invalidPrintfArgType_sint:*nemo-icon-canvas-item.c \
 	--suppress=invalidPrintfArgType_sint:*nemo-properties-window.c \
+	--suppress=invalidPrintfArgType_sint:*nemo-window-bookmarks.c \
+	--suppress=memleak:*nemo-file-undo-operations.c \
 	--quiet --error-exitcode=2 "${files[@]}"
 fEcho "OK: C lint: no findings"

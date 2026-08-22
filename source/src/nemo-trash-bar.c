@@ -215,7 +215,7 @@ nemo_trash_bar_init (NemoTrashBar *bar)
 	gtk_container_add (GTK_CONTAINER (content_area), label);
 
 	w = gtk_info_bar_add_button (GTK_INFO_BAR (bar),
-				     _("Restore Selected Items"),
+				     _("Restore selected items"),
 				     TRASH_BAR_RESPONSE_RESTORE);
 	gtk_widget_set_tooltip_text (w,
 				     _("Restore selected items to their original position"));

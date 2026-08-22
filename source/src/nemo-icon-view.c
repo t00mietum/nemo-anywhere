@@ -132,42 +132,42 @@ static const SortCriterion sort_criteria[] = {
 		NEMO_FILE_SORT_BY_DISPLAY_NAME,
 		"name",
 		"Sort by Name",
-		N_("by _Name"),
+		N_("by _name"),
 		N_("Keep icons sorted by name in rows")
 	},
 	{
 		NEMO_FILE_SORT_BY_SIZE,
 		"size",
 		"Sort by Size",
-		N_("by _Size"),
+		N_("by _size"),
 		N_("Keep icons sorted by size in rows")
 	},
 	{
 		NEMO_FILE_SORT_BY_TYPE,
 		"type",
 		"Sort by Type",
-		N_("by _Type"),
+		N_("by _type"),
 		N_("Keep icons sorted by type in rows")
 	},
     {
         NEMO_FILE_SORT_BY_DETAILED_TYPE,
         "detailed_type",
         "Sort by Detailed Type",
-        N_("by _Detailed Type"),
+        N_("by _detailed type"),
         N_("Keep icons sorted by detailed type in rows")
     },
 	{
 		NEMO_FILE_SORT_BY_MTIME,
 		"modification date",
 		"Sort by Modification Date",
-		N_("by Modification _Date"),
+		N_("by modification _date"),
 		N_("Keep icons sorted by modification date in rows")
 	},
 	{
 		NEMO_FILE_SORT_BY_TRASHED_TIME,
 		"trashed",
 		"Sort by Trash Time",
-		N_("by T_rash Time"),
+		N_("by T_rash time"),
 		N_("Keep icons sorted by trash time in rows")
 	}
 };
@@ -588,7 +588,7 @@ update_layout_menus (NemoIconView *view)
 	gtk_action_set_sensitive (action, !is_auto_layout);
 
 	if (nemo_icon_view_is_desktop (view)) {
-		gtk_action_set_label (action, _("_Organize Desktop by Name"));
+		gtk_action_set_label (action, _("_Organize desktop by name"));
 	}
 
 	action = gtk_action_group_get_action (view->details->icon_action_group,
@@ -1382,9 +1382,9 @@ nemo_icon_view_start_renaming_file (NemoView *view,
 }
 
 static const GtkActionEntry icon_view_entries[] = {
-  /* name, stock id, label */  { "Arrange Items", NULL, N_("Arran_ge Items") },
+  /* name, stock id, label */  { "Arrange Items", NULL, N_("Arran_ge items") },
   /* name, stock id */         { "Clean Up", NULL,
-  /* label, accelerator */       N_("_Organize by Name"), NULL,
+  /* label, accelerator */       N_("_Organize by name"), NULL,
   /* tooltip */                  N_("Reposition icons to better fit in the window and avoid overlapping"),
                                  G_CALLBACK (action_clean_up_callback) },
 };
@@ -1392,12 +1392,12 @@ static const GtkActionEntry icon_view_entries[] = {
 static const GtkToggleActionEntry icon_view_toggle_entries[] = {
 
   /* name, stock id */      { "Reversed Order", NULL,
-  /* label, accelerator */    N_("Re_versed Order"), NULL,
+  /* label, accelerator */    N_("Re_versed order"), NULL,
   /* tooltip */               N_("Display icons in the opposite order"),
                               G_CALLBACK (action_reversed_order_callback),
                               0 },
   /* name, stock id */      { "Keep Aligned", NULL,
-  /* label, accelerator */    N_("_Keep Aligned"), NULL,
+  /* label, accelerator */    N_("_Keep aligned"), NULL,
   /* tooltip */               N_("Keep icons lined up on a grid"),
                               G_CALLBACK (action_keep_aligned_callback),
                               0 },
@@ -1409,27 +1409,27 @@ static const GtkRadioActionEntry arrange_radio_entries[] = {
     N_("Leave icons wherever they are dropped"),
     NEMO_FILE_SORT_NONE },
   { "Sort by Name", NULL,
-    N_("By _Name"), NULL,
+    N_("By _name"), NULL,
     N_("Keep icons sorted by name in rows"),
     NEMO_FILE_SORT_BY_DISPLAY_NAME },
   { "Sort by Size", NULL,
-    N_("By _Size"), NULL,
+    N_("By _size"), NULL,
     N_("Keep icons sorted by size in rows"),
     NEMO_FILE_SORT_BY_SIZE },
   { "Sort by Type", NULL,
-    N_("By _Type"), NULL,
+    N_("By _type"), NULL,
     N_("Keep icons sorted by type in rows"),
     NEMO_FILE_SORT_BY_TYPE },
   { "Sort by Detailed Type", NULL,
-    N_("By _Detailed Type"), NULL,
+    N_("By _detailed type"), NULL,
     N_("Keep icons sorted by detailed type in rows"),
     NEMO_FILE_SORT_BY_DETAILED_TYPE },
   { "Sort by Modification Date", NULL,
-    N_("By Modification _Date"), NULL,
+    N_("By modification _date"), NULL,
     N_("Keep icons sorted by modification date in rows"),
     NEMO_FILE_SORT_BY_MTIME },
   { "Sort by Trash Time", NULL,
-    N_("By T_rash Time"), NULL,
+    N_("By T_rash time"), NULL,
     N_("Keep icons sorted by trash time in rows"),
     NEMO_FILE_SORT_BY_TRASHED_TIME },
 };
@@ -2857,7 +2857,7 @@ static NemoViewInfo nemo_icon_view = {
 	(char *)NEMO_ICON_VIEW_ID,
 	/* translators: this is used in the view selection dropdown
 	 * of navigation windows and in the preferences dialog */
-	(char *)N_("Icon View"),
+	(char *)N_("Icon view"),
 	/* translators: this is used in the view menu */
 	(char *)N_("_Icons"),
 	(char *)N_("The icon view encountered an error."),
@@ -2871,7 +2871,7 @@ static NemoViewInfo nemo_compact_view = {
 	(char *)FM_COMPACT_VIEW_ID,
 	/* translators: this is used in the view selection dropdown
 	 * of navigation windows and in the preferences dialog */
-	(char *)N_("Compact View"),
+	(char *)N_("Compact view"),
 	/* translators: this is used in the view menu */
 	(char *)N_("_Compact"),
 	(char *)N_("The compact view encountered an error."),

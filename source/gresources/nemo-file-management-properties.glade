@@ -112,13 +112,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
     </columns>
     <data>
       <row>
-        <col id="0" translatable="yes">Icon View</col>
+        <col id="0" translatable="yes">Icon view</col>
       </row>
       <row>
-        <col id="0" translatable="yes">List View</col>
+        <col id="0" translatable="yes">List view</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Compact View</col>
+        <col id="0" translatable="yes">Compact view</col>
       </row>
     </data>
   </object>
@@ -132,7 +132,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
         <col id="0" translatable="yes">Always</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Local Files Only</col>
+        <col id="0" translatable="yes">Local files only</col>
       </row>
       <row>
         <col id="0" translatable="yes">Never</col>
@@ -166,25 +166,25 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
     </columns>
     <data>
       <row>
-        <col id="0" translatable="yes">By Name</col>
+        <col id="0" translatable="yes">By name</col>
       </row>
       <row>
-        <col id="0" translatable="yes">By Size</col>
+        <col id="0" translatable="yes">By size</col>
       </row>
       <row>
-        <col id="0" translatable="yes">By Type</col>
+        <col id="0" translatable="yes">By type</col>
       </row>
       <row>
-        <col id="0" translatable="yes">By Detailed Type</col>
+        <col id="0" translatable="yes">By detailed type</col>
       </row>
       <row>
-        <col id="0" translatable="yes">By Modification Date</col>
+        <col id="0" translatable="yes">By modification date</col>
       </row>
       <row>
-        <col id="0" translatable="yes">By Access Date</col>
+        <col id="0" translatable="yes">By access date</col>
       </row>
       <row>
-        <col id="0" translatable="yes">By Trashed Date</col>
+        <col id="0" translatable="yes">By trashed date</col>
       </row>
     </data>
   </object>
@@ -285,7 +285,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
         <col id="0" translatable="yes">Always</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Local Files Only</col>
+        <col id="0" translatable="yes">Local files only</col>
       </row>
       <row>
         <col id="0" translatable="yes">Never</col>
@@ -352,7 +352,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
         <col id="0" translatable="yes">Yes</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Local Files Only</col>
+        <col id="0" translatable="yes">Local files only</col>
       </row>
       <row>
         <col id="0" translatable="yes">No</col>
@@ -361,7 +361,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
   </object>
   <object class="GtkWindow" id="file_management_dialog">
     <property name="can-focus">False</property>
-    <property name="title" translatable="yes">File Management Preferences</property>
+    <property name="title" translatable="yes">File management preferences</property>
     <property name="window-position">center</property>
     <property name="default-width">800</property>
     <property name="default-height">600</property>
@@ -417,7 +417,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label4">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Default View&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Default view&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -619,7 +619,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label5">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Icon View Defaults&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Icon view defaults&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -728,7 +728,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Compact View Defaults&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Compact view defaults&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -837,7 +837,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label6">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;List View Defaults&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;List view defaults&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -946,7 +946,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label25">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Tree View Defaults&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Tree view defaults&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1282,7 +1282,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label12">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Executable Text Files&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Executable text files&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1492,7 +1492,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label214">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Media Handling&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Media handling&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1604,7 +1604,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label11">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Bulk Rename&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Bulk rename&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1717,7 +1717,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label28">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Icon Captions&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Icon captions&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -1952,7 +1952,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label100">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Window and Tab Titles&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Window and tab titles&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -2016,7 +2016,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label7">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;File Size&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;File size&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -2095,7 +2095,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label9">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;File Properties&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;File properties&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -2159,7 +2159,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label15">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Move/Copy To Menu&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Move/copy to menu&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -2265,7 +2265,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="appearance_mode_heading">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Light and Dark&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Light and dark&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -2477,7 +2477,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label31">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;List Columns&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;List columns&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -2538,7 +2538,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   </object>
                   <packing>
                     <property name="name">list-columns</property>
-                    <property name="title" translatable="yes">List Columns</property>
+                    <property name="title" translatable="yes">List columns</property>
                     <property name="icon-name">view-list-symbolic</property>
                     <property name="position">4</property>
                   </packing>
@@ -2568,7 +2568,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel" id="label18">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Previewable Files&lt;/b&gt;</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Previewable files&lt;/b&gt;</property>
                                     <property name="use-markup">True</property>
                                     <property name="xalign">0</property>
                                   </object>
@@ -3054,7 +3054,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Visible Buttons</property>
+                                    <property name="label" translatable="yes">Visible buttons</property>
                                     <property name="xalign">0</property>
                                     <attributes>
                                       <attribute name="weight" value="bold"/>
@@ -3581,7 +3581,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           <object class="GtkLabel">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="label" translatable="yes">Show Thumbnails</property>
+                                            <property name="label" translatable="yes">Show thumbnails</property>
                                           </object>
                                           <packing>
                                             <property name="expand">False</property>
@@ -3618,7 +3618,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           <object class="GtkLabel">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="label" translatable="yes">Extra Pane</property>
+                                            <property name="label" translatable="yes">Extra pane</property>
                                           </object>
                                           <packing>
                                             <property name="expand">False</property>
@@ -3680,7 +3680,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="label" translatable="yes">Visible Entries</property>
+                                <property name="label" translatable="yes">Visible entries</property>
                                 <property name="xalign">0</property>
                                 <attributes>
                                   <attribute name="weight" value="bold"/>
@@ -3753,7 +3753,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__open_in_new_tab_check">
-                                                    <property name="label" translatable="yes">Open in New _Tab</property>
+                                                    <property name="label" translatable="yes">Open in new _tab</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -3772,7 +3772,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__open_in_new_window_check">
-                                                    <property name="label" translatable="yes">Open in New _Window</property>
+                                                    <property name="label" translatable="yes">Open in new _window</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -3848,7 +3848,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__copy_path_check">
-                                                    <property name="label" translatable="yes">Copy _Path</property>
+                                                    <property name="label" translatable="yes">Copy _path</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -3981,7 +3981,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__make_link_check">
-                                                    <property name="label" translatable="yes">Ma_ke Link</property>
+                                                    <property name="label" translatable="yes">Ma_ke link</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4057,7 +4057,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__open_in_terminal_check">
-                                                    <property name="label" translatable="yes">Open in Terminal</property>
+                                                    <property name="label" translatable="yes">Open in terminal</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4075,7 +4075,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__open_as_root_check">
-                                                    <property name="label" translatable="yes">Open as Root</property>
+                                                    <property name="label" translatable="yes">Open as root</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4186,7 +4186,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="background_menu__create_new_folder_check">
-                                                    <property name="label" translatable="yes">Create New _Folder</property>
+                                                    <property name="label" translatable="yes">Create new _folder</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4224,7 +4224,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="background_menu__open_in_terminal_check">
-                                                    <property name="label" translatable="yes">Open in Terminal</property>
+                                                    <property name="label" translatable="yes">Open in terminal</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4242,7 +4242,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="background_menu__open_as_root_check">
-                                                    <property name="label" translatable="yes">Open as Root</property>
+                                                    <property name="label" translatable="yes">Open as root</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4260,7 +4260,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="background_menu__show_hidden_files_check">
-                                                    <property name="label" translatable="yes">Show _Hidden Files</property>
+                                                    <property name="label" translatable="yes">Show _hidden files</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4317,7 +4317,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="background_menu__copy_path_check">
-                                                    <property name="label" translatable="yes">Copy _Path</property>
+                                                    <property name="label" translatable="yes">Copy _path</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4374,7 +4374,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           <object class="GtkLabel">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="label" translatable="yes">Icon View</property>
+                                            <property name="label" translatable="yes">Icon view</property>
                                             <attributes>
                                               <attribute name="weight" value="bold"/>
                                             </attributes>
@@ -4397,7 +4397,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="iconview_menu__arrange_items_check">
-                                                    <property name="label" translatable="yes">Arran_ge Items</property>
+                                                    <property name="label" translatable="yes">Arran_ge items</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4416,7 +4416,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="iconview_menu__organize_by_name_check">
-                                                    <property name="label" translatable="yes">_Organize by Name</property>
+                                                    <property name="label" translatable="yes">_Organize by name</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
@@ -4541,7 +4541,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   </object>
                   <packing>
                     <property name="name">page0</property>
-                    <property name="title" translatable="yes">Context Menus</property>
+                    <property name="title" translatable="yes">Context menus</property>
                     <property name="icon-name">open-menu-symbolic</property>
                     <property name="position">7</property>
                   </packing>
@@ -4571,7 +4571,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   </object>
                   <packing>
                     <property name="name">templates</property>
-                    <property name="title" translatable="yes">Document Templates</property>
+                    <property name="title" translatable="yes">Document templates</property>
                     <property name="icon-name">folder-templates-symbolic</property>
                     <property name="position">8</property>
                   </packing>
@@ -4638,7 +4638,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
         <col id="0" translatable="yes">Always</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Local Files Only</col>
+        <col id="0" translatable="yes">Local files only</col>
       </row>
       <row>
         <col id="0" translatable="yes">Never</col>

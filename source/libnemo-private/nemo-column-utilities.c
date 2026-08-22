@@ -64,7 +64,7 @@ get_builtin_columns (void)
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "detailed_type",
 					       "attribute", "detailed_type",
-					       "label", _("Detailed Type"),
+					       "label", _("Detailed type"),
 					       "description", _("The specific type of the file."),
 					       "unbounded", TRUE,
 					       NULL));
@@ -78,21 +78,21 @@ get_builtin_columns (void)
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "date_created",
 					       "attribute", "date_created",
-					       "label", _("Date Created"),
+					       "label", _("Date created"),
 					       "description", _("The date the file was created."),
 					       NULL));
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "date_modified",
 					       "attribute", "date_modified",
-					       "label", _("Date Modified"),
+					       "label", _("Date modified"),
 					       "description", _("The date the file was modified."),
 					       NULL));
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "date_accessed",
 					       "attribute", "date_accessed",
-					       "label", _("Date Read"),
+					       "label", _("Date read"),
 					       "description", _("The date the file was last read."),
 					       NULL));
 
@@ -128,7 +128,7 @@ get_builtin_columns (void)
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "octal_permissions",
 					       "attribute", "octal_permissions",
-					       "label", _("Octal Permissions"),
+					       "label", _("Octal permissions"),
 					       "description", _("The permissions of the file, in octal notation."),
 					       NULL));
 #endif
@@ -138,7 +138,7 @@ get_builtin_columns (void)
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "mime_type",
 					       "attribute", "mime_type",
-					       "label", _("MIME Type"),
+					       "label", _("MIME type"),
 					       "description", _("The mime type of the file."),
 					       "unbounded", TRUE,
 					       NULL));
@@ -148,7 +148,7 @@ get_builtin_columns (void)
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "selinux_context",
 					       "attribute", "selinux_context",
-					       "label", _("SELinux Context"),
+					       "label", _("SELinux context"),
 					       "description", _("The SELinux security context of the file."),
 					       "unbounded", TRUE,
 					       NULL));
@@ -201,14 +201,14 @@ get_trash_columns (void)
 					 g_object_new (NEMO_TYPE_COLUMN,
 						       "name", "trashed_on",
 						       "attribute", "trashed_on",
-						       "label", _("Trashed On"),
+						       "label", _("Trashed on"),
 						       "description", _("Date when file was moved to the Trash"),
 						       NULL));
 		columns = g_list_append (columns,
 			                 g_object_new (NEMO_TYPE_COLUMN,
 			                               "name", "trash_orig_path",
 			                               "attribute", "trash_orig_path",
-			                               "label", _("Original Location"),
+			                               "label", _("Original location"),
 			                               "description", _("Original location of file before moved to the Trash"),
 			                               NULL));
 	}

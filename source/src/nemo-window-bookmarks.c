@@ -85,7 +85,7 @@ show_bogus_bookmark_window (NemoWindow *window,
 	detail = g_strdup_printf (_("The location \"%s\" does not exist."), uri_for_display);
 	
 	dialog = eel_show_yes_no_dialog (prompt, detail,
-					 _("Bookmark for Nonexistent Location"),
+					 _("Bookmark for nonexistent location"),
 					 GTK_STOCK_CANCEL,
 					 GTK_WINDOW (window));
 

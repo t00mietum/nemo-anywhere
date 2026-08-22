@@ -834,7 +834,7 @@ update_properties_window_title (NemoPropertiesWindow *window)
 		if (file != NULL) {
 			g_free (title);
 			name = nemo_file_get_display_name (file);
-			title = g_strdup_printf (_("%s Properties"), name);
+			title = g_strdup_printf (_("%s properties"), name);
 			g_free (name);
 		}
 	}
@@ -1345,7 +1345,7 @@ schedule_group_change_timeout (NemoPropertiesWindow *window)
 	eel_timed_wait_start
 		((EelCancelCallback) cancel_group_change_callback,
 		 window,
-		 _("Cancel Group Change?"),
+		 _("Cancel group change?"),
 		 GTK_WINDOW (window));
 
 	nemo_file_set_group
@@ -1760,7 +1760,7 @@ schedule_owner_change_timeout (NemoPropertiesWindow *window)
 	eel_timed_wait_start
 		((EelCancelCallback) cancel_owner_change_callback,
 		 window,
-		 _("Cancel Owner Change?"),
+		 _("Cancel owner change?"),
 		 GTK_WINDOW (window));
 
 	nemo_file_set_owner
@@ -4407,7 +4407,7 @@ create_advanced_permissions (NemoPropertiesWindow *window, GtkGrid *page_grid)
 
 	if (has_directory) {
 		if (has_file || window->details->has_recursive_apply) {
-			attach_title_field (page_grid, _("Folder Permissions:"));
+			attach_title_field (page_grid, _("Folder permissions:"));
 		}
 		create_permission_checkboxes (window, page_grid, TRUE);
 	}
@@ -4415,7 +4415,7 @@ create_advanced_permissions (NemoPropertiesWindow *window, GtkGrid *page_grid)
 
 	if (has_file || window->details->has_recursive_apply) {
 		if (has_directory) {
-			attach_title_field (page_grid, _("File Permissions:"));
+			attach_title_field (page_grid, _("File permissions:"));
 		}
 		create_permission_checkboxes (window, page_grid, FALSE);
 	}
@@ -4609,7 +4609,7 @@ create_permissions_page (NemoPropertiesWindow *window)
 							   "width", 2,
 							   NULL);
 
-			button = gtk_button_new_with_mnemonic (_("Apply Permissions to Enclosed Files"));
+			button = gtk_button_new_with_mnemonic (_("Apply permissions to enclosed files"));
 			gtk_widget_show (button);
 			gtk_box_pack_start (GTK_BOX (hbox), button, FALSE, FALSE, 0);
 			g_signal_connect (button, "clicked",
@@ -4866,7 +4866,7 @@ create_open_with_page (NemoPropertiesWindow *window)
 	g_object_set_data_full (G_OBJECT (vbox), "help-uri", g_strdup ("help:gnome-help/files-open"), g_free);
 	gtk_container_set_border_width (GTK_CONTAINER (vbox), STACK_INNER_BORDER);
 	gtk_stack_add_titled (window->details->stack,
-				  vbox, "open_with", _("Open With"));
+				  vbox, "open_with", _("Open with"));
 }
 
 
@@ -5240,7 +5240,7 @@ nemo_properties_window_present (GList       *original_files,
 	eel_timed_wait_start
 		(cancel_create_properties_window_callback,
 		 startup_data,
-		 _("Creating Properties window."),
+		 _("Creating properties window."),
 		 parent_window == NULL ? NULL : GTK_WINDOW (parent_window));
 
 	for (l = startup_data->target_files; l != NULL; l = next) {
@@ -5528,7 +5528,7 @@ select_image_button_callback (GtkWidget *widget,
 
 	image_uri = icon_name = NULL;
 
-	dialog = gtk_file_chooser_dialog_new (_("Select Custom Icon"),
+	dialog = gtk_file_chooser_dialog_new (_("Select custom icon"),
 	                                      GTK_WINDOW (window),
 	                                      GTK_FILE_CHOOSER_ACTION_OPEN,
 	                                      _("Revert"), NEMO_RESPONSE_REVERT,

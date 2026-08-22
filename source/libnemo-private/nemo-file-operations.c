@@ -195,14 +195,14 @@ typedef struct {
 #define IS_IO_ERROR(__error, KIND) (((__error)->domain == G_IO_ERROR && (__error)->code == G_IO_ERROR_ ## KIND))
 
 #define SKIP _("_Skip")
-#define SKIP_ALL _("S_kip All")
+#define SKIP_ALL _("S_kip all")
 #define RETRY _("_Retry")
-#define DELETE_ALL _("Delete _All")
+#define DELETE_ALL _("Delete _all")
 #define REPLACE _("_Replace")
-#define REPLACE_ALL _("Replace _All")
+#define REPLACE_ALL _("Replace _all")
 #define MERGE _("_Merge")
-#define MERGE_ALL _("Merge _All")
-#define COPY_FORCE _("Copy _Anyway")
+#define MERGE_ALL _("Merge _all")
+#define COPY_FORCE _("Copy _anyway")
 ;
 static void add_job_to_job_queue (GIOSchedulerJobFunc job_func,
                                              gpointer user_data,
@@ -2320,9 +2320,9 @@ trash_or_delete_internal (GList                  *files,
 	job->done_callback_data = done_callback_data;
 
 	if (try_trash) {
-		inhibit_power_manager ((CommonJob *)job, _("Trashing Files"));
+		inhibit_power_manager ((CommonJob *)job, _("Trashing files"));
 	} else {
-		inhibit_power_manager ((CommonJob *)job, _("Deleting Files"));
+		inhibit_power_manager ((CommonJob *)job, _("Deleting files"));
 	}
 
 	if (try_trash && !nemo_file_undo_manager_pop_flag ()) {
@@ -2572,7 +2572,7 @@ prompt_empty_trash (GtkWindow *parent_window)
 						    "All trashed items on the volume "
 						    "will be permanently lost."));
 	gtk_dialog_add_buttons (GTK_DIALOG (dialog),
-	                        _("Do _not Empty Trash"), GTK_RESPONSE_REJECT,
+	                        _("Do _not empty Trash"), GTK_RESPONSE_REJECT,
 	                        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 	                        _("Empty _Trash"), GTK_RESPONSE_ACCEPT, NULL);
 	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_REJECT);
@@ -5077,7 +5077,7 @@ nemo_file_operations_copy_file (GFile *source_file,
 		g_free (path);
 	}
 
-	inhibit_power_manager ((CommonJob *)job, _("Copying Files"));
+	inhibit_power_manager ((CommonJob *)job, _("Copying files"));
 
     generate_initial_job_details (job->common.progress, OP_KIND_COPY, job->files, job->destination);
 
@@ -5109,7 +5109,7 @@ nemo_file_operations_copy (GList *files,
 	}
 	job->debuting_files = g_hash_table_new_full (g_file_hash, (GEqualFunc)g_file_equal, g_object_unref, NULL);
 
-	inhibit_power_manager ((CommonJob *)job, _("Copying Files"));
+	inhibit_power_manager ((CommonJob *)job, _("Copying files"));
 
 	if (!nemo_file_undo_manager_pop_flag ()) {
 		GFile* src_dir;
@@ -5135,7 +5135,7 @@ report_move_progress (CopyMoveJob *move_job, int total, int left)
 	job = (CommonJob *)move_job;
 
 	nemo_progress_info_take_status (job->progress,
-					    f (_("Preparing to Move to \"%B\""),
+					    f (_("Preparing to move to \"%B\""),
 					       move_job->destination));
 
     if (nemo_progress_info_get_is_paused (job->progress)) {
@@ -5695,7 +5695,7 @@ nemo_file_operations_move (GList *files,
 	}
 	job->debuting_files = g_hash_table_new_full (g_file_hash, (GEqualFunc)g_file_equal, g_object_unref, NULL);
 
-	inhibit_power_manager ((CommonJob *)job, _("Moving Files"));
+	inhibit_power_manager ((CommonJob *)job, _("Moving files"));
 
 	if (!nemo_file_undo_manager_pop_flag ()) {
 		GFile* src_dir;

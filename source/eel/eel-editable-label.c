@@ -3103,7 +3103,7 @@ popup_targets_received (GtkClipboard     *clipboard,
       append_action_signal (label, label->popup_menu, GTK_STOCK_PASTE, "paste_clipboard",
 			    clipboard_contains_text);
   
-      menuitem = gtk_menu_item_new_with_label (_("Select All"));
+      menuitem = gtk_menu_item_new_with_label (_("Select all"));
       g_signal_connect_object (menuitem, "activate",
 			       G_CALLBACK (eel_editable_label_select_all), label,
 			       G_CONNECT_SWAPPED);
@@ -3114,7 +3114,7 @@ popup_targets_received (GtkClipboard     *clipboard,
       gtk_widget_show (menuitem);
       gtk_menu_shell_append (GTK_MENU_SHELL (label->popup_menu), menuitem);
       
-      menuitem = gtk_menu_item_new_with_label (_("Input Methods"));
+      menuitem = gtk_menu_item_new_with_label (_("Input methods"));
       gtk_widget_show (menuitem);
       submenu = gtk_menu_new ();
       gtk_menu_item_set_submenu (GTK_MENU_ITEM (menuitem), submenu);

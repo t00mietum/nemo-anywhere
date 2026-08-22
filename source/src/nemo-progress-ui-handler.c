@@ -204,7 +204,7 @@ progress_ui_handler_ensure_window (NemoProgressUIHandler *self)
     gtk_window_set_default_size (GTK_WINDOW (progress_window), 500, -1);
 
 	gtk_window_set_title (GTK_WINDOW (progress_window),
-			      _("File Operations"));
+			      _("File operations"));
 	gtk_window_set_wmclass (GTK_WINDOW (progress_window),
 				"file_progress", "nemo-anywhere");
 	gtk_window_set_position (GTK_WINDOW (progress_window),
@@ -261,7 +261,7 @@ progress_ui_handler_show_complete_notification (NemoProgressUIHandler *self)
 {
 	GNotification *complete_notification;
 
-	complete_notification = g_notification_new (_("File Operations"));
+	complete_notification = g_notification_new (_("File operations"));
 	g_notification_set_body (complete_notification, _("All file operations have been successfully completed"));
 	
 	g_application_send_notification (G_APPLICATION (nemo_application_get_singleton ()), NULL, complete_notification);

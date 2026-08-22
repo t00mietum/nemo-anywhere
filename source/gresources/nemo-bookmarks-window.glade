@@ -5,7 +5,7 @@
   <object class="GtkDialog" id="bookmarks_dialog">
     <property name="can-focus">False</property>
     <property name="border-width">5</property>
-    <property name="title" translatable="yes">Edit Bookmarks</property>
+    <property name="title" translatable="yes">Edit bookmarks</property>
     <property name="window-position">center</property>
     <property name="type-hint">normal</property>
     <child internal-child="vbox">
