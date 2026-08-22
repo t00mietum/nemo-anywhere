@@ -328,7 +328,7 @@ append_basic_info (NemoImagePropertiesPage *page)
 	value = g_strdup_printf ("%s (%s)", name, desc);
 	g_free (name);
 	g_free (desc);
-	append_item (page, _("Image Type"), value);
+	append_item (page, _("Image type"), value);
 	g_free (value);
 	value = g_strdup_printf (ngettext ("%d pixel",
 					   "%d pixels",
@@ -360,8 +360,8 @@ append_options_info (NemoImagePropertiesPage *page)
 
 	append_option_value_pair (page, pixbuf, "tEXt::Description", _("Description"));
 	append_option_value_pair (page, pixbuf, "tEXt::Copyright", _("Copyright"));
-	append_option_value_pair (page, pixbuf, "tEXt::Creation Time", _("Created On"));
-	append_option_value_pair (page, pixbuf, "tEXt::Software", _("Created By"));
+	append_option_value_pair (page, pixbuf, "tEXt::Creation Time", _("Created on"));
+	append_option_value_pair (page, pixbuf, "tEXt::Software", _("Created by"));
 	append_option_value_pair (page, pixbuf, "tEXt::Disclaimer", _("Disclaimer"));
 	append_option_value_pair (page, pixbuf, "tEXt::Warning", _("Warning"));
 	append_option_value_pair (page, pixbuf, "tEXt::Source", _("Source"));
@@ -379,23 +379,23 @@ append_exif_info (NemoImagePropertiesPage *page)
 		return;
 
 	if (exifdata->ifd[0] && exifdata->ifd[0]->count) {
-                append_tag_value_pair (page, exifdata, EXIF_TAG_MAKE, _("Camera Brand"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_MODEL, _("Camera Model"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_MAKE, _("Camera brand"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_MODEL, _("Camera model"));
 
                 /* Choose which date to show in order of relevance */
-                if (!append_tag_value_pair (page, exifdata, EXIF_TAG_DATE_TIME_ORIGINAL, _("Date Taken"))) {
-			if (!append_tag_value_pair (page, exifdata, EXIF_TAG_DATE_TIME_DIGITIZED, _("Date Digitized"))) {
-				append_tag_value_pair (page, exifdata, EXIF_TAG_DATE_TIME, _("Date Modified"));
+                if (!append_tag_value_pair (page, exifdata, EXIF_TAG_DATE_TIME_ORIGINAL, _("Date taken"))) {
+			if (!append_tag_value_pair (page, exifdata, EXIF_TAG_DATE_TIME_DIGITIZED, _("Date digitized"))) {
+				append_tag_value_pair (page, exifdata, EXIF_TAG_DATE_TIME, _("Date modified"));
 			}
 		}
 
-                append_tag_value_pair (page, exifdata, EXIF_TAG_EXPOSURE_TIME, _("Exposure Time"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_APERTURE_VALUE, _("Aperture Value"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_ISO_SPEED_RATINGS, _("ISO Speed Rating"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_FLASH,_("Flash Fired"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_METERING_MODE, _("Metering Mode"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_EXPOSURE_PROGRAM, _("Exposure Program"));
-                append_tag_value_pair (page, exifdata, EXIF_TAG_FOCAL_LENGTH,_("Focal Length"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_EXPOSURE_TIME, _("Exposure time"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_APERTURE_VALUE, _("Aperture value"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_ISO_SPEED_RATINGS, _("ISO speed rating"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_FLASH,_("Flash fired"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_METERING_MODE, _("Metering mode"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_EXPOSURE_PROGRAM, _("Exposure program"));
+                append_tag_value_pair (page, exifdata, EXIF_TAG_FOCAL_LENGTH,_("Focal length"));
                 append_tag_value_pair (page, exifdata, EXIF_TAG_SOFTWARE, _("Software"));
 	}
 

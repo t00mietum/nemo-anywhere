@@ -173,7 +173,7 @@ nemo_status_bar_constructed (GObject *object)
     button = gtk_toggle_button_new ();
     icon = gtk_image_new_from_icon_name ("nemo-sidebar-places-symbolic", size);
     gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show Places"));
+    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show places"));
     bar->places_button = button;
     gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
     g_signal_connect (GTK_BUTTON (button), "clicked",
@@ -182,7 +182,7 @@ nemo_status_bar_constructed (GObject *object)
     button = gtk_toggle_button_new ();
     icon = gtk_image_new_from_icon_name ("nemo-sidebar-tree-symbolic", size);
     gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show Treeview"));
+    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show treeview"));
     bar->tree_button = button;
     gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
     g_signal_connect (GTK_BUTTON (button), "clicked",
@@ -196,7 +196,7 @@ nemo_status_bar_constructed (GObject *object)
     button = gtk_button_new ();
     icon = gtk_image_new_from_icon_name ("nemo-sidebar-hide-symbolic", size);
     gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Hide the Sidebar (F9)"));
+    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Hide the sidebar (F9)"));
     bar->hide_button = button;
     gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
     g_signal_connect (GTK_BUTTON (button), "clicked",
@@ -205,7 +205,7 @@ nemo_status_bar_constructed (GObject *object)
     button = gtk_button_new ();
     icon = gtk_image_new_from_icon_name ("nemo-sidebar-show-symbolic", size);
     gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show the Sidebar (F9)"));
+    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show the sidebar (F9)"));
     bar->show_button = button;
     gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
     g_signal_connect (GTK_BUTTON (button), "clicked",

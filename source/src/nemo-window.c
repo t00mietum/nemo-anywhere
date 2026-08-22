@@ -1451,7 +1451,7 @@ nemo_window_sync_title (NemoWindow *window,
 		 * to recognize browser windows. Otherwise, we default to the directory name.
 		 */
 		if (!nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
-			full_title = g_strdup_printf (_("%s - File Browser"), slot->title);
+			full_title = g_strdup_printf (_("%s - File browser"), slot->title);
 			window_title = eel_str_middle_truncate (full_title, MAX_TITLE_LENGTH);
 			g_free (full_title);
 		} else {

@@ -368,7 +368,7 @@ add_buttons (NemoColumnChooser *chooser)
 	gtk_widget_show (box);
 	
 	chooser->details->move_up_button = button_new_with_mnemonic ("go-up-symbolic",
-								     _("Move _Up"));
+								     _("Move _up"));
 	g_signal_connect (chooser->details->move_up_button, 
 			  "clicked",  G_CALLBACK (move_up_clicked_callback),
 			  chooser);
@@ -378,7 +378,7 @@ add_buttons (NemoColumnChooser *chooser)
 			    FALSE, FALSE, 0);
 
 	chooser->details->move_down_button = button_new_with_mnemonic ("go-down-symbolic",
-								       _("Move Dow_n"));
+								       _("Move dow_n"));
 	g_signal_connect (chooser->details->move_down_button, 
 			  "clicked",  G_CALLBACK (move_down_clicked_callback),
 			  chooser);
@@ -391,7 +391,7 @@ add_buttons (NemoColumnChooser *chooser)
 	gtk_widget_show (separator);
 	gtk_box_pack_start (GTK_BOX (box), separator, FALSE, FALSE, 0);	
 
-	chooser->details->use_default_button = gtk_button_new_with_mnemonic (_("Use De_fault"));
+	chooser->details->use_default_button = gtk_button_new_with_mnemonic (_("Use de_fault"));
 	g_signal_connect (chooser->details->use_default_button, 
 			  "clicked",  G_CALLBACK (use_default_clicked_callback),
 			  chooser);

@@ -28,7 +28,7 @@ Active=false
 
 # The name to show in the menu, locale supported with standard desktop spec.
 # **** REQUIRED ****
-Name=Test Custom Action applied to %N
+Name=Test custom action applied to %N
 
 # Tool tip, locale supported (Appears in the status bar)
 Comment=This is a test for Nemo actions.  Action will be applied to %N

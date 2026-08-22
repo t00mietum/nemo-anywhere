@@ -898,18 +898,18 @@ nemo_drag_drop_action_ask (GtkWidget *widget,
 	menu = gtk_menu_new ();
 	gtk_menu_set_screen (GTK_MENU (menu), gtk_widget_get_screen (widget));
 	
-	append_drop_action_menu_item (menu, _("_Move Here"),
+	append_drop_action_menu_item (menu, _("_Move here"),
 				      GDK_ACTION_MOVE,
 				      (actions & GDK_ACTION_MOVE) != 0,
 				      &damd);
 
-	append_drop_action_menu_item (menu, _("_Copy Here"),
+	append_drop_action_menu_item (menu, _("_Copy here"),
 				      GDK_ACTION_COPY,
 				      (actions & GDK_ACTION_COPY) != 0,
 				      &damd);
 	
 	/* Windows creates a .lnk shortcut here (no POSIX symlink needed). */
-	append_drop_action_menu_item (menu, _("_Link Here"),
+	append_drop_action_menu_item (menu, _("_Link here"),
 				      GDK_ACTION_LINK,
 				      (actions & GDK_ACTION_LINK) != 0,
 				      &damd);

@@ -2116,7 +2116,7 @@ nemo_icon_view_container_construct (NemoIconViewContainer *icon_container,
     nemo_icon_container_set_is_desktop (NEMO_ICON_CONTAINER (icon_container), is_desktop);
 
 	atk_obj = gtk_widget_get_accessible (GTK_WIDGET (icon_container));
-	atk_object_set_name (atk_obj, _("Icon View"));
+	atk_object_set_name (atk_obj, _("Icon view"));
 
     constants = NEMO_ICON_CONTAINER (icon_container)->details->view_constants;
 

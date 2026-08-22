@@ -441,7 +441,7 @@ static const GtkActionEntry clipboard_entries[] = {
   /* tooltip */               N_("Paste the text stored on the clipboard"),
                               G_CALLBACK (action_paste_callback) },
   /* name, stock id */      { "Select All", NULL,
-  /* label, accelerator */    N_("Select _All"), "<control>A",
+  /* label, accelerator */    N_("Select _all"), "<control>A",
   /* tooltip */               N_("Select all the text in a text field"),
                               G_CALLBACK (action_select_all_callback) },
 };

@@ -514,7 +514,7 @@ notebook_popup_menu_show (NemoWindowPane *pane,
 
 	popup = gtk_menu_new();
 
-	item = gtk_menu_item_new_with_mnemonic (_("_New Tab"));
+	item = gtk_menu_item_new_with_mnemonic (_("_New tab"));
 	g_signal_connect (item, "activate",
 			  G_CALLBACK (notebook_popup_menu_new_tab_cb),
 			  pane);
@@ -531,7 +531,7 @@ notebook_popup_menu_show (NemoWindowPane *pane,
 	g_object_set_data (G_OBJECT (pane), "num_target_tab", 
 			   GINT_TO_POINTER (num_target_tab));
 
-	item = gtk_menu_item_new_with_mnemonic (_("Move Tab _Left"));
+	item = gtk_menu_item_new_with_mnemonic (_("Move tab _left"));
 	g_signal_connect (item, "activate",
 			  G_CALLBACK (notebook_popup_menu_move_left_cb),
 			  pane);
@@ -539,7 +539,7 @@ notebook_popup_menu_show (NemoWindowPane *pane,
 			       item);
 	gtk_widget_set_sensitive (item, can_move_left);
 
-	item = gtk_menu_item_new_with_mnemonic (_("Move Tab _Right"));
+	item = gtk_menu_item_new_with_mnemonic (_("Move tab _right"));
 	g_signal_connect (item, "activate",
 			  G_CALLBACK (notebook_popup_menu_move_right_cb),
 			  pane);
@@ -550,7 +550,7 @@ notebook_popup_menu_show (NemoWindowPane *pane,
 	gtk_menu_shell_append (GTK_MENU_SHELL (popup),
 			       gtk_separator_menu_item_new ());
 
-	item = gtk_image_menu_item_new_with_mnemonic (_("_Close Tab"));
+	item = gtk_image_menu_item_new_with_mnemonic (_("_Close tab"));
 	image = gtk_image_new_from_stock (GTK_STOCK_CLOSE, GTK_ICON_SIZE_MENU);
 	gtk_image_menu_item_set_image (GTK_IMAGE_MENU_ITEM (item), image);
 	g_signal_connect (item, "activate",

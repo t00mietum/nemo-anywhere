@@ -328,7 +328,7 @@ connect_dialog_set_info_bar_error (NemoConnectServerDialog *dialog,
 	dialog->details->info_bar_content = hbox;
 
 	gtk_button_set_label (GTK_BUTTON (dialog->details->connect_button),
-			      _("Try Again"));
+			      _("Try again"));
 	gtk_widget_set_sensitive (dialog->details->connect_button, TRUE);
 }
 
@@ -826,7 +826,7 @@ nemo_connect_server_dialog_init (NemoConnectServerDialog *dialog)
 	content_area = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
 
 	/* set dialog properties */
-	gtk_window_set_title (GTK_WINDOW (dialog), _("Connect to Server"));
+	gtk_window_set_title (GTK_WINDOW (dialog), _("Connect to server"));
 	gtk_container_set_border_width (GTK_CONTAINER (dialog), 6);
 	gtk_box_set_spacing (GTK_BOX (content_area), 2);
 	gtk_window_set_resizable (GTK_WINDOW (dialog), FALSE);
@@ -844,7 +844,7 @@ nemo_connect_server_dialog_init (NemoConnectServerDialog *dialog)
 
 	/* server settings label */
 	label = gtk_label_new (NULL);
-	str = g_strdup_printf ("<b>%s</b>", _("Server Details"));
+	str = g_strdup_printf ("<b>%s</b>", _("Server details"));
 	gtk_label_set_markup (GTK_LABEL (label), str);
 	g_free (str);
 	gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
@@ -1010,7 +1010,7 @@ nemo_connect_server_dialog_init (NemoConnectServerDialog *dialog)
 
 	/* user details label */
 	label = gtk_label_new (NULL);
-	str = g_strdup_printf ("<b>%s</b>", _("User Details"));
+	str = g_strdup_printf ("<b>%s</b>", _("User details"));
 	gtk_label_set_markup (GTK_LABEL (label), str);
 	g_free (str);
 	gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);

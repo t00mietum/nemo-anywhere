@@ -1357,12 +1357,12 @@ clear_ui (FMTreeView *view)
 
 static const GtkActionEntry tree_sidebar_menu_entries[] = {
     { NEMO_ACTION_OPEN,                    "folder-open-symbolic",        N_("_Open"),                NULL, NULL, G_CALLBACK (fm_tree_view_open_cb)               },
-    { NEMO_ACTION_OPEN_IN_NEW_TAB,         NULL,                          N_("Open in New _Tab"),     NULL, NULL, G_CALLBACK (fm_tree_view_open_in_new_tab_cb)    },
-    { NEMO_ACTION_OPEN_ALTERNATE,          NULL,                          N_("Open in New _Window"),  NULL, NULL, G_CALLBACK (fm_tree_view_open_in_new_window_cb) },
-    { NEMO_ACTION_NEW_FOLDER,              NULL,                          N_("Create New _Folder"),   NULL, NULL, G_CALLBACK (fm_tree_view_create_folder_cb)      },
+    { NEMO_ACTION_OPEN_IN_NEW_TAB,         NULL,                          N_("Open in new _tab"),     NULL, NULL, G_CALLBACK (fm_tree_view_open_in_new_tab_cb)    },
+    { NEMO_ACTION_OPEN_ALTERNATE,          NULL,                          N_("Open in new _window"),  NULL, NULL, G_CALLBACK (fm_tree_view_open_in_new_window_cb) },
+    { NEMO_ACTION_NEW_FOLDER,              NULL,                          N_("Create new _folder"),   NULL, NULL, G_CALLBACK (fm_tree_view_create_folder_cb)      },
     { NEMO_ACTION_CUT,                     "edit-cut-symbolic",           N_("Cu_t"),                 NULL, NULL, G_CALLBACK (fm_tree_view_cut_cb)                },
     { NEMO_ACTION_COPY,                    "edit-copy-symbolic",          N_("_Copy"),                NULL, NULL, G_CALLBACK (fm_tree_view_copy_cb)               },
-    { NEMO_ACTION_PASTE,                   "edit-paste-symbolic",         N_("_Paste Into Folder"),   NULL, NULL, G_CALLBACK (fm_tree_view_paste_cb)              },
+    { NEMO_ACTION_PASTE,                   "edit-paste-symbolic",         N_("_Paste into folder"),   NULL, NULL, G_CALLBACK (fm_tree_view_paste_cb)              },
     { NEMO_ACTION_PIN_FILE,                "view-pin-symbolic",           N_("P_in"),                 NULL, NULL, G_CALLBACK (fm_tree_view_pin_unpin_cb)          },
     { NEMO_ACTION_UNPIN_FILE,              "view-pin-symbolic",         N_("Unp_in"),               NULL, NULL, G_CALLBACK (fm_tree_view_pin_unpin_cb)          },
     { NEMO_ACTION_TRASH,                   "user-trash-full-symbolic",    N_("Mo_ve to Trash"),       NULL, NULL, G_CALLBACK (fm_tree_view_trash_cb)              },
@@ -1507,7 +1507,7 @@ create_tree (FMTreeView *view)
     g_object_unref (icon);
 
 	icon = g_themed_icon_new (NEMO_ICON_FILESYSTEM);
-	fm_tree_model_add_root_uri (view->details->child_model, "file:///", _("File System"), icon, NULL);
+	fm_tree_model_add_root_uri (view->details->child_model, "file:///", _("File system"), icon, NULL);
 	g_object_unref (icon);
 #ifdef NOT_YET_USABLE /* Do we really want this? */
 	icon = g_themed_icon_new (NEMO_ICON_NETWORK);
