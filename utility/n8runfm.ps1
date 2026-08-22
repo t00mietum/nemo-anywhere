@@ -155,6 +155,11 @@ if ($item -is [System.IO.FileInfo]) { $len = $item.Length }
 ## saying out loud (it timed out rather than simply not being there).
 $ProbeNote = ""
 
+## How far apart two same-sized builds' stamps may be and still be the same build
+## (see fSameBuild). Wide enough to absorb the sync layer's rounding, far too
+## narrow to swallow a real rebuild.
+$SameBuildSlackSec = 2
+
 
 ## Get-ChildItem item-type for the pool: files on Windows (single exe), dirs on Linux.
 $CopyGciType = if ($CopyIsFile) { @{ File = $true } } else { @{ Directory = $true } }
@@ -328,7 +333,6 @@ function fSourceProbePath {
 ## ignores it.
 function fProbeSources {
 	$rows = @()
-	$seen = @{}
 
 	foreach ($src in $Sources) {
 		$row = [pscustomobject]@{
@@ -366,12 +370,11 @@ function fProbeSources {
 		if (-not $row.Reachable) {
 			fItem "skip" $row.Label "${why}: $($row.Probe)"
 		} else {
-			$key = "{0}|{1}" -f $row.Stamp.Ticks, $row.Length
-			if ($seen.ContainsKey($key)) {
+			$same = fSameBuild -Row $row -Against $rows
+			if ($same) {
 				$row.Duplicate = $true
-				fItem "-" $row.Label "same build as $($seen[$key])"
+				fItem "-" $row.Label "same build as $($same.Label)"
 			} else {
-				$seen[$key] = $row.Label
 				fItem "ok" $row.Label ("{0}   {1}" -f $row.Stamp.ToString($StampDisplay), $row.Probe)
 			}
 		}
@@ -380,6 +383,36 @@ function fProbeSources {
 	}
 
 	return $rows
+}
+
+
+## The first earlier source found to be holding the same build as this one, or
+## $null. Same build = identical size, and stamps no further apart than
+## $SameBuildSlackSec.
+##
+## Identical size is the strong half of the test. The slack is there because a
+## build's mtime does not survive the sync layer intact - it comes back rounded to
+## whole seconds, and nothing promises it rounds DOWN. Without slack, a build that
+## rounded up reads as one second newer than the very copy it was made from, and
+## the launcher drags tens of megabytes across the network to fetch a build already
+## sitting on this disk. Two genuinely different builds of byte-identical size
+## seconds apart is not a thing that happens.
+##
+## Marking a later source a duplicate never costs us the build: the earlier source
+## holding it is by definition reachable, and every source stands on its own the
+## moment what it holds actually differs.
+function fSameBuild {
+	param(
+		[Parameter(Mandatory)]$Row,
+		$Against
+	)
+	if (-not $Against) { return $null }
+	foreach ($other in $Against) {
+		if (-not $other.Reachable -or $other.Duplicate) { continue }
+		if ($other.Length -ne $Row.Length) { continue }
+		if ([math]::Abs(($other.Stamp - $Row.Stamp).TotalSeconds) -le $SameBuildSlackSec) { return $other }
+	}
+	return $null
 }
 
 
@@ -1085,11 +1118,15 @@ exit 0
 ##	History:
 ##		- 2026-08-21: Every source is probed now instead of taking the first that
 ##		  answers, and the newest build wins wherever it sits: this box's own repo
-##		  build, b23 across the network, and the synced dogfood drop. Two sources
-##		  holding the same build (stamp plus size) are reported once rather than
-##		  counted twice, so a junction or a UNC spelling of one file no longer looks
-##		  like a second build. The probe reads mtime and size in the same guarded
-##		  call it used to spend on existence alone. Output is now a step-by-step
+##		  build, b23 across the network, and the synced dogfood drop - none of them
+##		  a fallback for the others, so whichever is holding the newest build is the
+##		  one used, and any one of them on its own is enough to launch. Two sources
+##		  holding the same build (identical size, stamps within a couple of seconds)
+##		  are reported once rather than counted twice, so neither a junction nor a
+##		  stamp the sync layer rounded can pass one build off as two - the second of
+##		  which would have cost a needless copy across the network. The probe reads
+##		  mtime and size in the same guarded call it used to spend on existence
+##		  alone. Output is now a step-by-step
 ##		  report - housekeeping, sources, build in hand, launch - with a status tag
 ##		  per row, and the same lines go to the run log.
 ##		- 2026-08-19: '--admin' self-elevates the whole launcher and launches the app
