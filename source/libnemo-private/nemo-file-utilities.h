@@ -140,4 +140,6 @@ gboolean nemo_path_is_network_safe (const gchar *path);
 gboolean nemo_location_is_drive_root (GFile *location);
 gchar *nemo_get_drive_root_name (GFile *location);
 gchar *nemo_build_path_list_text (GList *locations);
+
+gchar *nemo_filename_get_extension (const gchar *name);
 #endif /* NEMO_FILE_UTILITIES_H */

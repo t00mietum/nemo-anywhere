@@ -45,6 +45,13 @@ get_builtin_columns (void)
 					       NULL));
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
+					       "name", "extension",
+					       "attribute", "extension",
+					       "label", _("File extension"),
+					       "description", _("The extension of the file's name."),
+					       NULL));
+	columns = g_list_append (columns,
+				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "size",
 					       "attribute", "size",
 					       "label", _("Size"),
@@ -96,8 +103,8 @@ get_builtin_columns (void)
 					       "description", _("The date the file was last read."),
 					       NULL));
 
-#ifndef G_OS_WIN32
-	/* POSIX ownership/mode - meaningless (fabricated) on Windows */
+	/* Real on Windows too: GIO answers owner::user with the file's actual
+	 * owner there, unlike the fabricated mode bits below. */
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "owner",
@@ -107,6 +114,16 @@ get_builtin_columns (void)
 					       "unbounded", TRUE,
 					       NULL));
 
+#ifdef G_OS_WIN32
+	columns = g_list_append (columns,
+				 g_object_new (NEMO_TYPE_COLUMN,
+					       "name", "permissions_source",
+					       "attribute", "permissions_source",
+					       "label", _("Permissions source"),
+					       "description", _("Whether the file's permissions are inherited, set on the file itself, or both."),
+					       NULL));
+#else
+	/* POSIX ownership/mode - meaningless (fabricated) on Windows */
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "group",

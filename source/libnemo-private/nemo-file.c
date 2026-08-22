@@ -53,6 +53,9 @@
 #include <eel/eel-vfs-extensions.h>
 #include <eel/eel-string.h>
 #include <libnemo-private/nemo-posix-compat.h>
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-security-win32.h>
+#endif
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
@@ -155,6 +158,8 @@ static GQuark attribute_name_q,
 	attribute_selinux_context_q,
 	attribute_octal_permissions_q,
 	attribute_owner_q,
+	attribute_extension_q,
+	attribute_permissions_source_q,
 	attribute_group_q,
 	attribute_uri_q,
 	attribute_where_q,
@@ -2689,6 +2694,11 @@ update_info_internal (NemoFile *file,
 	file->details->is_media_check_automatic = is_media_check_automatic;
 
     file->details->favorite_checked = FALSE;
+
+#ifdef G_OS_WIN32
+	/* Fresh info means the ACL may have moved too - read it again when asked. */
+	file->details->win32_perm_source = NEMO_WIN32_PERM_SOURCE_NOT_COMPUTED;
+#endif
 
 	free_owner = FALSE;
 	owner = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_USER);
@@ -6662,6 +6672,56 @@ nemo_file_get_permissions_as_string (NemoFile *file)
 				 	: (sticky ? 'T' : '-'));
 }
 
+/* The File extension column's value. The parsing itself lives in
+ * nemo-file-utilities.c so it can be checked without a NemoFile; folders never
+ * show one, the way Explorer's own column behaves. */
+static char *
+nemo_file_get_extension_as_string (NemoFile *file)
+{
+	char *name;
+	char *extension;
+
+	if (nemo_file_is_directory (file)) {
+		return NULL;
+	}
+
+	name = nemo_file_get_name (file);
+	extension = nemo_filename_get_extension (name);
+	g_free (name);
+
+	return extension;
+}
+
+#ifdef G_OS_WIN32
+/* What the Permissions source column shows: whether the file's ACL entries
+ * came down from a parent folder, were set on the file itself, or both. Read
+ * once per info load and kept - the ACL fetch is a real system call, and this
+ * runs from the draw path. */
+static char *
+nemo_file_get_permissions_source_as_string (NemoFile *file)
+{
+	if (file->details->win32_perm_source == NEMO_WIN32_PERM_SOURCE_NOT_COMPUTED) {
+		char *path;
+
+		path = nemo_file_get_path (file);
+		file->details->win32_perm_source =
+			nemo_security_win32_permissions_source (path);
+		g_free (path);
+	}
+
+	switch (file->details->win32_perm_source) {
+	case NEMO_WIN32_PERM_SOURCE_INHERITED:
+		return g_strdup (_("Inherited"));
+	case NEMO_WIN32_PERM_SOURCE_LOCAL:
+		return g_strdup (_("Local"));
+	case NEMO_WIN32_PERM_SOURCE_MIXED:
+		return g_strdup (_("Mixed"));
+	default:
+		return NULL;
+	}
+}
+#endif
+
 /**
  * nemo_file_get_owner_as_string:
  *
@@ -6945,7 +7005,7 @@ nemo_file_get_deep_directory_count_as_string (NemoFile *file)
  * @attribute_name: The name of the desired attribute. The currently supported
  * set includes "name", "type", "detailed_type", "mime_type", "size", "deep_size", "deep_directory_count",
  * "deep_file_count", "deep_total_count", "date_modified", "date_changed", "date_accessed",
- * "date_permissions", "owner", "group", "permissions", "octal_permissions", "uri", "where",
+ * "date_permissions", "owner", "extension", "permissions_source", "group", "permissions", "octal_permissions", "uri", "where",
  * "link_target", "volume", "free_space", "selinux_context", "trashed_on", "trashed_orig_path"
  *
  * Returns: Newly allocated string ready to display to the user, or NULL
@@ -7090,6 +7150,14 @@ nemo_file_get_string_attribute_q (NemoFile *file, GQuark attribute_q)
 	if (attribute_q == attribute_free_space_q) {
 		return nemo_file_get_volume_free_space (file);
 	}
+	if (attribute_q == attribute_extension_q) {
+		return nemo_file_get_extension_as_string (file);
+	}
+#ifdef G_OS_WIN32
+	if (attribute_q == attribute_permissions_source_q) {
+		return nemo_file_get_permissions_source_as_string (file);
+	}
+#endif
 
 	extension_attribute = NULL;
 
@@ -7186,6 +7254,11 @@ nemo_file_get_string_attribute_with_default_q (NemoFile *file, GQuark attribute_
 	}
 	if (attribute_q == attribute_trash_orig_path_q) {
 		/* If n/a */
+		return g_strdup ("");
+	}
+	if (attribute_q == attribute_extension_q ||
+	    attribute_q == attribute_permissions_source_q) {
+		/* Nothing worth showing is an ordinary answer here, not an unknown. */
 		return g_strdup ("");
 	}
 
@@ -9183,6 +9256,8 @@ nemo_file_class_init (NemoFileClass *class)
 	attribute_selinux_context_q = g_quark_from_static_string ("selinux_context");
 	attribute_octal_permissions_q = g_quark_from_static_string ("octal_permissions");
 	attribute_owner_q = g_quark_from_static_string ("owner");
+	attribute_extension_q = g_quark_from_static_string ("extension");
+	attribute_permissions_source_q = g_quark_from_static_string ("permissions_source");
 	attribute_group_q = g_quark_from_static_string ("group");
 	attribute_uri_q = g_quark_from_static_string ("uri");
 	attribute_where_q = g_quark_from_static_string ("where");

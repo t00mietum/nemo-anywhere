@@ -90,8 +90,14 @@ static const char *const deflist__favorites_root_metadata[] = { NULL };
 static const char *const deflist_desktop_ignored_desktop_handlers[] = { "conky", "csd-background", NULL };
 static const char *const deflist_icon_view_captions[] = { "none", "size", "date_modified", NULL };
 static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL };
-static const char *const deflist_list_view_default_column_order[] = { "name", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
-static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
+static const char *const deflist_list_view_column_max_widths[] = { NULL };
+#ifdef G_OS_WIN32
+static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "size", "type", "date_modified", "owner", "permissions_source", NULL };
+static const char *const deflist_list_view_default_visible_columns[] = { "name", "extension", "size", "type", "date_modified", "owner", NULL };
+#else
+static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
+static const char *const deflist_list_view_default_visible_columns[] = { "name", "extension", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
+#endif
 static const char *const deflist_plugins_disabled_actions[] = { NULL };
 static const char *const deflist_plugins_disabled_extensions[] = { NULL };
 static const char *const deflist_plugins_disabled_scripts[] = { NULL };
@@ -144,6 +150,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "icon-view", "labels-beside-icons", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Put labels beside icons" },
 	{ "icon-view", "text-ellipsis-limit", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_text_ellipsis_limit, NULL, "Text Ellipsis Limit" },
 	{ "icon-view", "thumbnail-size", NEMO_CONFIG_INT, "64", NULL, NULL, "Default Thumbnail Icon Size" },
+	{ "list-view", "column-max-widths", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_column_max_widths, NULL, "Per-column width ceilings the user set by dragging, as column:pixels entries. A listed column never grows past its ceiling as the window widens." },
 	{ "list-view", "default-column-order", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_column_order, NULL, "Default column order in the list view" },
 	{ "list-view", "default-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_visible_columns, NULL, "Default list of columns visible in the list view" },
 	{ "list-view", "default-zoom-level", NEMO_CONFIG_ENUM, "small", NULL, enum_ZoomLevel, "Default list zoom level" },
@@ -264,6 +271,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-files-recursively", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Recurse into subfolders when performing a search" },
 	{ "search", "search-files-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the file search regex toggle" },
 	{ "search", "search-regex-format", NEMO_CONFIG_STRING, "pcre", NULL, NULL, "valid formats: pcre, javascript" },
+	{ "search", "name-location-split", NEMO_CONFIG_INT, "33", NULL, NULL, "Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column." },
 	{ "search", "search-reverse-sort", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Reverse the direction of the sort when viewing search results" },
 	{ "search", "search-skip-folders", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_skip_folders, NULL, "Paths or folder names to never recurse into when searching" },
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, "Column to sort on when viewing search results" },
