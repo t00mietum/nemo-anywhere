@@ -129,7 +129,7 @@ skeleton_handle_show_item_properties_cb (NemoFreedesktopFileManager1 *object,
 
 	files = g_list_reverse (files);
 
-	nemo_properties_window_present (files, NULL, startup_id);
+	nemo_properties_present (files, NULL, startup_id);
 
 	nemo_file_list_free (files);
 

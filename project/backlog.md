@@ -857,6 +857,15 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- 🔘 Properties on Windows opens the one Windows itself shows, instead of ours.
+	- Ours stays on a second menu item, since the Windows sheet has nowhere to put a custom icon, an emblem, an annotation or the image details page.
+	- Only Windows. Linux, BSD and macOS keep the existing window.
+
+- 🔘 Every piece of text in the interface reads as a sentence, not as a headline - only the first word capitalised, and anything that is a name left alone.
+	- Menus, buttons, tab and page titles, dialog titles, column headings, tooltips, preference labels.
+	- Nothing ships translated yet, so changing the English costs nothing downstream.
+
+
 - ✅ One setting for how much of the machine's CPU any compression may use, as a percentage of the cores it finds. Default 50% - the best balance on a hyperthreaded CPU.
 	- `performance.cpu-percent`, global rather than per-format, so a later job that can be spread over cores reads the same number instead of inventing one of its own.
 	- Reaches the 7z and rar create lines through a `{{THREADS}}` marker of their own, and tar.xz through the library that writes it. Zip, gzip and the built-in 7z have no such option, so they are left alone rather than handed one they would refuse.

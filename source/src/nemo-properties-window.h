@@ -65,4 +65,12 @@ void 	nemo_properties_window_present    (GList       *files,
 					       GtkWidget   *parent_widget,
 					       const gchar *startup_id);
 
+/* What the Properties gesture goes through. On Windows this is the sheet the
+ * platform itself shows, with our own window as the fallback for anything the
+ * shell has no name for; everywhere else it is our window either way. Reach for
+ * nemo_properties_window_present directly only where our window is the point. */
+void 	nemo_properties_present           (GList       *files,
+					       GtkWidget   *parent_widget,
+					       const gchar *startup_id);
+
 #endif /* NEMO_PROPERTIES_WINDOW_H */

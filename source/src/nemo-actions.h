@@ -79,6 +79,11 @@
 #define NEMO_ACTION_PROPERTIES "Properties"
 #define NEMO_ACTION_PROPERTIES_ACCEL "PropertiesAccel"
 #define NEMO_ACTION_LOCATION_PROPERTIES "LocationProperties"
+/* Windows only: the way back to our own properties window, which the shell
+   sheet has no room for. Hidden everywhere else, where it would be a second
+   item opening the same window as the first. */
+#define NEMO_ACTION_ADVANCED_PROPERTIES "AdvancedProperties"
+#define NEMO_ACTION_LOCATION_ADVANCED_PROPERTIES "LocationAdvancedProperties"
 #define NEMO_ACTION_NO_TEMPLATES "No Templates"
 #define NEMO_ACTION_EMPTY_TRASH "Empty Trash"
 #define NEMO_ACTION_CUT "Cut"
