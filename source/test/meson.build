@@ -210,6 +210,18 @@ if is_windows
 endif
 
 if is_windows
+  test('Properties fallback win32 test',
+    executable('test-nemo-properties-win32',
+      [ 'test-nemo-properties-win32.c', '../src/nemo-properties-win32.c' ],
+      include_directories: [ rootInclude, '../src' ],
+      dependencies: [ gtk, nemo_private, win_shell ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif
+
+if is_windows
   test('Drive root name test',
     executable('test-nemo-drive-root-name',
       [ 'test-nemo-drive-root-name.c' ],

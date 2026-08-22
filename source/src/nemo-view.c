@@ -2172,17 +2172,28 @@ action_new_empty_file_callback (GtkAction *action,
 	nemo_view_new_file (NEMO_VIEW (callback_data), NULL, NULL);
 }
 
+/* @own_window skips the platform's sheet and goes straight to ours - the second
+   properties item on Windows, where the shell sheet has nowhere to put a custom
+   icon, an emblem, an annotation or an extension page. */
 static void
-action_properties_callback (GtkAction *action,
-			    gpointer callback_data)
+show_properties (NemoView *view,
+		 GList    *files,
+		 gboolean  own_window)
 {
-        NemoView *view;
+	if (own_window) {
+		nemo_properties_window_present (files, GTK_WIDGET (view), NULL);
+	} else {
+		nemo_properties_present (files, GTK_WIDGET (view), NULL);
+	}
+}
+
+static void
+present_selection_properties (NemoView *view,
+			      gboolean  own_window)
+{
         GList *selection;
 	GList *files;
 
-        g_assert (NEMO_IS_VIEW (callback_data));
-
-        view = NEMO_VIEW (callback_data);
 	selection = nemo_view_get_selection (view);
 	if (g_list_length (selection) == 0) {
 		if (view->details->directory_as_file != NULL) {
@@ -2192,26 +2203,22 @@ action_properties_callback (GtkAction *action,
                 files = g_list_append (NULL, nemo_file_ref (view->details->directory_as_file));
             }
 
-			nemo_properties_window_present (files, GTK_WIDGET (view), NULL);
+			show_properties (view, files, own_window);
 
 			nemo_file_list_free (files);
 		}
 	} else {
-		nemo_properties_window_present (selection, GTK_WIDGET (view), NULL);
+		show_properties (view, selection, own_window);
 	}
         nemo_file_list_free (selection);
 }
 
 static void
-action_location_properties_callback (GtkAction *action,
-				     gpointer   callback_data)
+present_location_properties (NemoView *view,
+			     gboolean  own_window)
 {
-	NemoView *view;
-	GList           *files;
+	GList *files;
 
-	g_assert (NEMO_IS_VIEW (callback_data));
-
-	view = NEMO_VIEW (callback_data);
 	g_assert (NEMO_IS_FILE (view->details->location_popup_directory_as_file));
 
     if (NEMO_IS_SEARCH_DIRECTORY (view->details->model)) {
@@ -2220,9 +2227,45 @@ action_location_properties_callback (GtkAction *action,
         files = g_list_append (NULL, nemo_file_ref (view->details->location_popup_directory_as_file));
     }
 
-	nemo_properties_window_present (files, GTK_WIDGET (view), NULL);
+	show_properties (view, files, own_window);
 
 	nemo_file_list_free (files);
+}
+
+static void
+action_properties_callback (GtkAction *action,
+			    gpointer callback_data)
+{
+        g_assert (NEMO_IS_VIEW (callback_data));
+
+	present_selection_properties (NEMO_VIEW (callback_data), FALSE);
+}
+
+static void
+action_advanced_properties_callback (GtkAction *action,
+				     gpointer callback_data)
+{
+        g_assert (NEMO_IS_VIEW (callback_data));
+
+	present_selection_properties (NEMO_VIEW (callback_data), TRUE);
+}
+
+static void
+action_location_properties_callback (GtkAction *action,
+				     gpointer   callback_data)
+{
+	g_assert (NEMO_IS_VIEW (callback_data));
+
+	present_location_properties (NEMO_VIEW (callback_data), FALSE);
+}
+
+static void
+action_location_advanced_properties_callback (GtkAction *action,
+					      gpointer   callback_data)
+{
+	g_assert (NEMO_IS_VIEW (callback_data));
+
+	present_location_properties (NEMO_VIEW (callback_data), TRUE);
 }
 
 static gboolean
@@ -8723,6 +8766,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       "PropertiesAccel", "<control>I",
   /* tooltip */                  NULL,
 				 G_CALLBACK (action_properties_callback) },
+  /* name, stock id */         { NEMO_ACTION_ADVANCED_PROPERTIES, "document-properties-symbolic",
+  /* label, accelerator */       N_("Ad_vanced properties"), "<control>Return",
+  /* tooltip */                  N_("View or modify the properties of each selected item in this program's own window"),
+				 G_CALLBACK (action_advanced_properties_callback) },
   /* name, stock id */         { "New Folder", "folder-new-symbolic",
   /* label, accelerator */       N_("Create New _Folder"), "<control><shift>N",
   /* tooltip */                  N_("Create a new empty folder inside this folder"),
@@ -9038,6 +9085,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Properties"), NULL,
   /* tooltip */                  N_("View or modify the properties of this folder"),
 				 G_CALLBACK (action_location_properties_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_ADVANCED_PROPERTIES, "document-properties-symbolic",
+  /* label, accelerator */       N_("Ad_vanced properties"), NULL,
+  /* tooltip */                  N_("View or modify the properties of this folder in this program's own window"),
+				 G_CALLBACK (action_location_advanced_properties_callback) },
 
   /* name, stock id, label */  {NEMO_ACTION_COPY_TO_NEXT_PANE, NULL, N_("_Other pane"),
 				NULL, N_("Copy the current selection to the other pane in the window"),
@@ -9167,6 +9218,13 @@ real_merge_menus (NemoView *view)
 
 	action = gtk_action_group_get_action (action_group, NEMO_ACTION_NO_TEMPLATES);
 	gtk_action_set_sensitive (action, FALSE);
+
+#ifndef G_OS_WIN32
+	/* Nothing in the location menu re-reads this one, so it is set the once.
+	   Off Windows both properties items open the same window. */
+	action = gtk_action_group_get_action (action_group, NEMO_ACTION_LOCATION_ADVANCED_PROPERTIES);
+	gtk_action_set_visible (action, FALSE);
+#endif
 
 	g_signal_connect_object (action_group, "connect-proxy",
 				 G_CALLBACK (connect_proxy), G_OBJECT (view),
@@ -10531,6 +10589,15 @@ real_update_menus (NemoView *view)
 					      NEMO_ACTION_PROPERTIES_ACCEL);
 
 	gtk_action_set_sensitive (action, show_properties);
+
+	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_ADVANCED_PROPERTIES);
+#ifdef G_OS_WIN32
+	gtk_action_set_sensitive (action, show_properties);
+	gtk_action_set_visible (action, show_properties);
+#else
+	gtk_action_set_visible (action, FALSE);
+#endif
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_EMPTY_TRASH);

@@ -1133,7 +1133,7 @@ fm_tree_view_properties_cb (GtkAction *action,
         
 	list = g_list_prepend (NULL, nemo_file_ref (view->details->popup_file));
 
-	nemo_properties_window_present (list, GTK_WIDGET (view->details->tree_widget), NULL);
+	nemo_properties_present (list, GTK_WIDGET (view->details->tree_widget), NULL);
 
         nemo_file_list_free (list);
 }

@@ -29,6 +29,7 @@
 #include "nemo-desktop-item-properties.h"
 #include "nemo-error-reporting.h"
 #include "nemo-mime-actions.h"
+#include "nemo-properties-win32.h"
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -5149,6 +5150,22 @@ is_directory_ready_callback (NemoFile *file,
 	}
 }
 
+
+void
+nemo_properties_present (GList       *files,
+			 GtkWidget   *parent_widget,
+			 const gchar *startup_id)
+{
+	g_return_if_fail (files != NULL);
+
+#ifdef G_OS_WIN32
+	if (nemo_properties_win32_show (files, parent_widget)) {
+		return;
+	}
+#endif
+
+	nemo_properties_window_present (files, parent_widget, startup_id);
+}
 
 void
 nemo_properties_window_present (GList       *original_files,

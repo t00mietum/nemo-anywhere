@@ -3485,7 +3485,7 @@ properties_cb (GtkAction           *item,
 		file = nemo_file_get_by_uri (uri);
 		list = g_list_prepend (NULL, nemo_file_ref (file));
 
-		nemo_properties_window_present (list, GTK_WIDGET (sidebar), NULL);
+		nemo_properties_present (list, GTK_WIDGET (sidebar), NULL);
 
 		nemo_file_list_free (list);
 		g_free (uri);

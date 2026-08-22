@@ -44,6 +44,7 @@
 			<menuitem name="Self Poll" action="Self Poll"/>
 			<separator name="Properties Separator"/>
 			<menuitem name="Properties" action="Properties"/>
+			<menuitem name="AdvancedProperties" action="AdvancedProperties"/>
 		</placeholder>
 		<placeholder name="Global File Items Placeholder">
 			<menuitem name="Empty Trash" action="Empty Trash"/>
@@ -156,6 +157,7 @@
 		<menuitem name="Self Poll" action="Self Poll"/>
 		<separator name="Properties separator"/>
 		<menuitem name="Properties" action="Properties"/>
+		<menuitem name="AdvancedProperties" action="AdvancedProperties"/>
 	</placeholder>
 
 </popup>
@@ -249,6 +251,7 @@
         <menuitem name="Connect To Server Link" action="Connect To Server Link"/>
         <separator name="Properties Separator"/>
         <menuitem name="Properties" action="Properties"/>
+        <menuitem name="AdvancedProperties" action="AdvancedProperties"/>
 </popup>
 <popup name="location">
 	<placeholder name="Open Placeholder">
@@ -289,5 +292,6 @@
 	<menuitem name="Location Poll" action="Location Poll"/>
 	<separator name="Properties Separator"/>
 	<menuitem name="LocationProperties" action="LocationProperties"/>
+	<menuitem name="LocationAdvancedProperties" action="LocationAdvancedProperties"/>
 </popup>
 </ui>
