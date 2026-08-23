@@ -642,6 +642,7 @@ send_batch (SearchThreadData *data)
 	}
 	data->hit_list = NULL;
     g_mutex_unlock (&data->hit_list_lock);
+	/* cppcheck-suppress memleak ; hits is owned by the idle, which frees it */
 }
 
 #define STD_ATTRIBUTES \

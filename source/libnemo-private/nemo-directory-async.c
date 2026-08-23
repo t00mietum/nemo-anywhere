@@ -4457,6 +4457,7 @@ info_provider_callback (NemoInfoProvider *provider,
 		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
 				 info_provider_idle_callback, response,
 				 g_free);
+	/* cppcheck-suppress memleak ; response is owned by the idle, freed by its GDestroyNotify */
 }
 
 static void

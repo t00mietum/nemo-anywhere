@@ -60,7 +60,10 @@ main (int argc, char *argv[])
 		} else {
 			char *file = g_build_filename (probe_dir, "explorer-probe.txt", NULL);
 
-			g_file_set_contents (file, "probe\n", -1, NULL);
+			if (!g_file_set_contents (file, "probe\n", -1, NULL)) {
+				g_printerr ("FAIL cannot write %s\n", file);
+				failures++;
+			}
 
 			nemo_view_win32_open_in_explorer (probe_dir, TRUE);
 			g_usleep (2 * G_USEC_PER_SEC);
