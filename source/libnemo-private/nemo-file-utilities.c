@@ -2101,7 +2101,8 @@ nemo_get_drive_root_name (GFile *location)
    the text is never silently shorter than what was selected. Returns NULL when
    nothing at all could be named. */
 gchar *
-nemo_build_path_list_text (GList *locations)
+nemo_build_path_list_text (GList *locations,
+                           gchar  separator)
 {
     GString *text;
     GList *l;
@@ -2117,7 +2118,10 @@ nemo_build_path_list_text (GList *locations)
         }
 
         path = g_file_get_path (G_FILE (l->data));
-        if (path == NULL) {
+        if (path != NULL) {
+            nemo_path_apply_separator (path, separator);
+        } else {
+            /* A uri's slashes are not separators, so it is copied as it stands. */
             path = g_file_get_uri (G_FILE (l->data));
         }
         if (path == NULL) {
@@ -2189,28 +2193,44 @@ nemo_path_get_display_separator (void)
 #endif
 }
 
+/* The separator that is not being shown - what "copy the path the other way"
+   means. There is only one off Windows, so it answers the same as the first. */
+gchar
+nemo_path_get_other_separator (void)
+{
+#ifdef G_OS_WIN32
+    return (nemo_path_get_display_separator () == '/') ? '\\' : '/';
+#else
+    return G_DIR_SEPARATOR;
+#endif
+}
+
 /* Rewrites in place - both separators are one ASCII byte, so nothing moves.
    Only ever hand this a local path; a uri's slashes are not separators. */
 void
-nemo_path_apply_display_separator (gchar *path)
+nemo_path_apply_separator (gchar *path,
+                           gchar  separator)
 {
 #ifdef G_OS_WIN32
-    gchar want, other;
+    gchar other = (separator == '/') ? '\\' : '/';
     gchar *p;
 
     if (path == NULL) {
         return;
     }
 
-    want = nemo_path_get_display_separator ();
-    other = (want == '/') ? '\\' : '/';
-
     for (p = path; *p != '\0'; p++) {
         if (*p == other) {
-            *p = want;
+            *p = separator;
         }
     }
 #endif
+}
+
+void
+nemo_path_apply_display_separator (gchar *path)
+{
+    nemo_path_apply_separator (path, nemo_path_get_display_separator ());
 }
 
 /* The parse name of a location, spelled with the separator the user picked.

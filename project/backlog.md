@@ -872,13 +872,17 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- Typed input already took both separators, so what is new is the option to turn `/` off. A location that leans on it is then refused with a beep instead of going anywhere.
 	- Also fixed on the way past: the preferences dialog named a widget in a size group that no longer exists, so loading it stopped early and silently. Only an unused list model came after the break, which is why nothing looked wrong.
 
-- 🔘 Windows: "Copy path to clipboard as [\|/]".
-	- A second clipboard item, directly below the existing Copy Path one, offering whichever separator the display is not currently using.
-	- Wanted in the same three menus the existing item appears in: selection, background and breadcrumb.
+- ✅ Windows: "Copy path as [\|/]".
+	- A second clipboard item directly below the existing Copy Path one, spelling out whichever separator the paths are not currently shown with. It follows the same show/hide setting as the first, so the pair travels together.
+	- In all four places the first one appears: the Edit menu, the selection menu, the background menu and the breadcrumb menu. Hidden on every other platform.
+	- The existing Copy Path now follows the display setting too, so the pair is always "what you see" and "the other one". A remote location still contributes its uri untouched, since a uri's slashes were never separators.
 
-- 🔘 Windows: "Open with Explorer", for a single selected entry.
-	- A deliberate escape hatch rather than a dependency. The standing "depend on Explorer as little as possible" rule is about core function; this is asked for by name.
-	- Single entry only, so there is no question of what gets opened.
+- ✅ Windows: "Open with Explorer", for a single selected entry.
+	- On the selection menu, below Open With. Shown only when exactly one thing is selected and it has a local path, since a remote location gives Explorer nothing to open.
+	- A folder opens in Explorer; anything else is revealed and picked out inside its own folder.
+	- A deliberate escape hatch rather than a dependency. The standing "depend on Explorer as little as possible" rule is about core function; this one says Explorer on the label.
+	- Two routes, because one is not enough: the shell item API, which handles any name, falling back to a command line when that is refused. Running elevated is when it gets refused, and nemo can be running elevated - "Open as administrator" puts it there.
+	- Both routes watched working. The item itself cannot be clicked unattended, so it is covered by a probe behind `NEMO_PROBE_EXPLORER` rather than by a test that would open windows on every run.
 
 - ✅ Column widths and the Ext column, second pass. Overrides the earlier column rules where they disagree.
 	- "File extension" is now just "Ext", and shows the extension without its leading dot. It sits directly right of Name, with Location next along whenever that is switched on.

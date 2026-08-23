@@ -139,13 +139,15 @@ gboolean nemo_path_is_network_safe (const gchar *path);
    the sidebar, the breadcrumb and the title agree. Always FALSE/NULL off win32. */
 gboolean nemo_location_is_drive_root (GFile *location);
 gchar *nemo_get_drive_root_name (GFile *location);
-gchar *nemo_build_path_list_text (GList *locations);
+gchar *nemo_build_path_list_text (GList *locations, gchar separator);
 
 gchar *nemo_filename_get_extension (const gchar *name);
 
 /* Which separator paths are shown with. Windows takes either, so it is the
    user's choice there; elsewhere there is only one and these do nothing. */
 gchar    nemo_path_get_display_separator (void);
+gchar    nemo_path_get_other_separator (void);
+void     nemo_path_apply_separator (gchar *path, gchar separator);
 void     nemo_path_apply_display_separator (gchar *path);
 gchar   *nemo_location_get_display_name (GFile *location);
 gboolean nemo_path_input_is_allowed (const gchar *text);
