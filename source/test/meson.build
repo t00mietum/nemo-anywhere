@@ -173,6 +173,17 @@ test('Copy test',
   args: []
 )
 
+if is_windows
+  test('Dot-file switch test',
+    executable('test-nemo-dot-files-win32',
+      [ 'test-nemo-dot-files-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif
+
 # The win32 helper lives in src/, not a library, so it is compiled straight in.
 if is_windows
   test('Win32 argument quoting test',

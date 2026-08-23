@@ -857,6 +857,26 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Windows: two kinds of hidden file, two options.
+	- Supersedes the older item that asked for the same thing as one combined switch.
+	- The premise turned out to be worse than described: Windows reports only its own hidden attribute, so dot-files were shown there whatever the setting said. Same for names ending in a tilde, which count as backups elsewhere.
+	- "Show dot-files" is now a second switch, Ctrl+Shift+H, next to "Show hidden files" in the View menu and hidden on every other platform, where one switch still covers both. Default is to hide them.
+	- The two are independent: revealing attribute-hidden files no longer reveals dot-files, and the listing, the tree sidebar and search all go through the same check.
+	- Flipping either one re-reads the open folder, so an edit to the settings file shows up without a restart.
+
+- 🔘 Windows: choose which separator paths are shown with.
+	- Preference for `\` or `/`, applied wherever a path is displayed: location bar, breadcrumbs, the Location column, tooltips, properties.
+	- A second preference allows `/` in a typed location. It is checked and greyed out when `/` is already the display separator, since refusing the separator on screen would make no sense.
+	- Typed input already takes both on every platform, so the work is the option to turn `/` off, not to add it.
+
+- 🔘 Windows: "Copy path to clipboard as [\|/]".
+	- A second clipboard item, directly below the existing Copy Path one, offering whichever separator the display is not currently using.
+	- Wanted in the same three menus the existing item appears in: selection, background and breadcrumb.
+
+- 🔘 Windows: "Open with Explorer", for a single selected entry.
+	- A deliberate escape hatch rather than a dependency. The standing "depend on Explorer as little as possible" rule is about core function; this is asked for by name.
+	- Single entry only, so there is no question of what gets opened.
+
 - ✅ Column widths and the Ext column, second pass. Overrides the earlier column rules where they disagree.
 	- "File extension" is now just "Ext", and shows the extension without its leading dot. It sits directly right of Name, with Location next along whenever that is switched on.
 	- Location, on an ordinary folder listing, grows with Name rather than stopping at a share of it: the two split whatever the other columns leave and Name takes no more than half, so Location is never the narrower of the pair and anything Name does not need goes to Location. Dragging Location by hand ends that and pins the width, as it always did.
@@ -1051,11 +1071,8 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 - 🔘 Always operate on whole rows. E.g. if when right-clicking in between columns and not on part of an existing selection, select the entire row before opening right-click menu.
 
-- 🔘 Windows-specific:
-	Hide/show hidden files should consider both:
-		- Linux-style dot-files
-		- Native Windows "hidden" attribute
-	Windows & NTFS: Any dir symlink through any mechanism should also allow junction (ordered higher in preference than symlink).
+- 🔘 Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
+	- The hidden-files half of this item moved up to "Two kinds of hidden file, two options", which asks for the same thing as two switches rather than one.
 
 - 🔘 New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 

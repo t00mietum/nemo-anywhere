@@ -464,6 +464,8 @@ int                     nemo_file_compare_location                  (NemoFile   
 
 /* filtering functions for use by various directory views */
 gboolean                nemo_file_is_hidden_file                    (NemoFile                   *file);
+gboolean                nemo_file_is_hidden_dot_file                (NemoFile                   *file);
+gboolean                nemo_file_name_is_hidden_dot_file           (const char                 *name);
 gboolean                nemo_file_should_show                       (NemoFile                   *file,
 									 gboolean                        show_hidden,
 									 gboolean                        show_foreign);

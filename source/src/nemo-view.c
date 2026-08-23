@@ -2341,6 +2341,20 @@ nemo_view_should_sort_favorites_first (NemoView *view)
 	return view->details->sort_favorites_first;
 }
 
+#ifdef G_OS_WIN32
+/* Windows shows dot-files under a switch of their own, so flipping it means
+ * reading the listing again. */
+static void
+dot_files_preference_changed_callback (gpointer callback_data)
+{
+	NemoView *view = NEMO_VIEW (callback_data);
+
+	if (view->details->model != NULL) {
+		load_directory (view, view->details->model);
+	}
+}
+#endif
+
 static void
 sort_directories_first_changed_callback (gpointer callback_data)
 {
@@ -2848,6 +2862,11 @@ nemo_view_init (NemoView *view)
                   "changed::" NEMO_PREFERENCES_CLICK_TO_RENAME,
                   G_CALLBACK(click_to_rename_changed_callback),
                   view);
+#ifdef G_OS_WIN32
+	g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_SHOW_DOT_FILES,
+				  G_CALLBACK (dot_files_preference_changed_callback), view);
+#endif
 	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST,
 				  G_CALLBACK(sort_directories_first_changed_callback), view);
@@ -3043,6 +3062,10 @@ nemo_view_finalize (GObject *object)
 					      click_policy_changed_callback, view);
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                           click_to_rename_changed_callback, view);
+#ifdef G_OS_WIN32
+	g_signal_handlers_disconnect_by_func (nemo_preferences,
+					      dot_files_preference_changed_callback, view);
+#endif
 	g_signal_handlers_disconnect_by_func (nemo_preferences,
 					      sort_directories_first_changed_callback, view);
 	g_signal_handlers_disconnect_by_func (nemo_preferences,

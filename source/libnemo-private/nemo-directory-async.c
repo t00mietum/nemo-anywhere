@@ -855,6 +855,10 @@ should_skip_file (NemoDirectory *directory, GFileInfo *info)
         return TRUE;
     }
 
+    if (nemo_file_name_is_hidden_dot_file (g_file_info_get_name (info))) {
+        return TRUE;
+    }
+
     return FALSE;
 }
 

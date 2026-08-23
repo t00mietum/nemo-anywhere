@@ -1032,6 +1032,10 @@ visit_directory (GFile *dir, SearchThreadData *data)
 			goto next;
 		}
 
+		if (nemo_file_name_is_hidden_dot_file (g_file_info_get_name (info))) {
+			goto next;
+		}
+
 		display_name = g_file_info_get_display_name (info);
 		if (display_name == NULL) {
 			goto next;

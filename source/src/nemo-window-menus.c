@@ -285,6 +285,17 @@ action_show_hidden_files_callback (GtkAction *action,
 	nemo_window_set_hidden_files_mode (window, mode);
 }
 
+/* Windows marks hidden files with an attribute and treats a leading dot as an
+ * ordinary character, so the dot-file convention gets a switch of its own there.
+ * The item is hidden on every other platform, where one switch covers both. */
+static void
+action_show_dot_files_callback (GtkAction *action,
+				gpointer callback_data)
+{
+	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES,
+				 gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+}
+
 static void
 action_preferences_callback (GtkAction *action,
 			     gpointer user_data)
@@ -1508,6 +1519,11 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* tooltip */                  N_("Toggle the display of hidden files in the current window"),
                                  G_CALLBACK (action_show_hidden_files_callback),
                                  TRUE },
+  /* name, stock id */         { "Show Dot Files", NULL,
+  /* label, accelerator */       N_("Show _dot-files"), "<shift><control>H",
+  /* tooltip */                  N_("Toggle the display of files whose name starts with a dot"),
+                                 G_CALLBACK (action_show_dot_files_callback),
+                                 TRUE },
   /* name, stock id */     { "Show Hide Toolbar", NULL,
   /* label, accelerator */   N_("_Main toolbar"), NULL,
   /* tooltip */              N_("Change the visibility of this window's main toolbar"),
@@ -1931,6 +1947,17 @@ nemo_window_initialize_menus (NemoWindow *window)
                                   nemo_config_get_boolean (nemo_preferences,
                                   NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
     g_signal_handlers_unblock_by_func (action, action_show_hidden_files_callback, window);
+
+    action = gtk_action_group_get_action (action_group, NEMO_ACTION_SHOW_DOT_FILES);
+#ifdef G_OS_WIN32
+    g_signal_handlers_block_by_func (action, action_show_dot_files_callback, window);
+    gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
+                                  nemo_config_get_boolean (nemo_preferences,
+                                  NEMO_PREFERENCES_SHOW_DOT_FILES));
+    g_signal_handlers_unblock_by_func (action, action_show_dot_files_callback, window);
+#else
+    gtk_action_set_visible (action, FALSE);
+#endif
 
     g_signal_connect_object ( NEMO_WINDOW (window), "notify::sidebar-view-id",
                              G_CALLBACK (update_side_bar_radio_buttons), window, 0);

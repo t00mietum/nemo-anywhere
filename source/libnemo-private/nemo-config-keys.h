@@ -194,6 +194,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "show-compact-view-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show Compact View button in nemo toolbar" },
 	{ "preferences", "show-computer-icon-toolbar", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show Computer button in nemo toolbar" },
 	{ "preferences", "show-directory-item-counts", NEMO_CONFIG_ENUM, "local-only", NULL, enum_SpeedTradeoff, "When to show number of items in a folder" },
+	{ "preferences", "show-dot-files", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show files whose name starts with a dot (Windows only; elsewhere they count as hidden files)" },
 	{ "preferences", "show-edit-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show toggle button location entry/pathbar" },
 	{ "preferences", "show-full-path-titles", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show the full path of the current view in the title bar and tab bars" },
 	{ "preferences", "show-hidden-files", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show hidden files" },

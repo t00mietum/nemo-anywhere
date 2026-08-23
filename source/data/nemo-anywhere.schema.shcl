@@ -421,6 +421,11 @@ field: preferences.show-full-path-titles
 	default: false
 	desc: Whether to show the full path of the current view in the title bar and tab bars
 
+field: preferences.show-dot-files
+	type: bool
+	default: false
+	desc: Whether to show files whose name starts with a dot (Windows only; elsewhere they count as hidden files)
+
 field: preferences.show-hidden-files
 	type: bool
 	default: false
