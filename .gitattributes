@@ -13,6 +13,10 @@ cicd/hooks/* text eol=lf
 # Batch is the other way round - CRLF is what cmd.exe expects.
 *.cmd text eol=crlf
 
+# gen-theme-resources.py writes LF, so a CRLF checkout leaves the manifest looking
+# modified after every regeneration even when nothing in it changed.
+source/gresources/nemo-themes.gresource.xml text eol=lf
+
 # Vendored theme art - keep bytes stable, no EOL conversion.
 *.svg -text
 *.png -text
