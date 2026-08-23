@@ -855,6 +855,10 @@ should_skip_file (NemoDirectory *directory, GFileInfo *info)
         return TRUE;
     }
 
+    if (nemo_file_name_is_hidden_dot_file (g_file_info_get_name (info))) {
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -4453,6 +4457,7 @@ info_provider_callback (NemoInfoProvider *provider,
 		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
 				 info_provider_idle_callback, response,
 				 g_free);
+	/* cppcheck-suppress memleak ; response is owned by the idle, freed by its GDestroyNotify */
 }
 
 static void

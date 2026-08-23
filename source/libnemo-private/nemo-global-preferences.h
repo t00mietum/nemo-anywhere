@@ -53,6 +53,9 @@ G_BEGIN_DECLS
 #define NEMO_PREFERENCES_APPEARANCE_ICON_THEME	"icon-theme"
 
 #define NEMO_PREFERENCES_SHOW_HIDDEN_FILES			"show-hidden-files"
+#define NEMO_PREFERENCES_PATH_SEPARATOR				"path-separator"
+#define NEMO_PREFERENCES_ALLOW_SLASH_INPUT			"allow-slash-input"
+#define NEMO_PREFERENCES_SHOW_DOT_FILES				"show-dot-files"
 #define NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS		"show-advanced-permissions"
 #define NEMO_PREFERENCES_DATE_FORMAT            "date-format"
 

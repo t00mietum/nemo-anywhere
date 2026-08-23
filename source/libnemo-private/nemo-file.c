@@ -1067,7 +1067,7 @@ nemo_file_get_parent_uri_for_display (NemoFile *file)
 
 	parent = nemo_file_get_parent_location (file);
 	if (parent) {
-		result = g_file_get_parse_name (parent);
+		result = nemo_location_get_display_name (parent);
 		g_object_unref (parent);
 	} else {
 		result = g_strdup ("");
@@ -3853,6 +3853,56 @@ nemo_file_is_hidden_file (NemoFile *file)
 	return file->details->is_hidden;
 }
 
+#ifdef G_OS_WIN32
+static gboolean show_dot_files = FALSE;
+
+static void
+show_dot_files_changed_callback (gpointer callback_data)
+{
+	show_dot_files = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES);
+}
+#endif
+
+/**
+ * nemo_file_name_is_hidden_dot_file:
+ * @name: a file's base name.
+ *
+ * Windows has a hidden attribute of its own and no notion of dot-files, so the
+ * two are separate switches there and this answers only for the dot. Elsewhere
+ * GIO already folds dot-files into the hidden attribute, so this is always
+ * %FALSE and the one switch still covers both.
+ *
+ * Returns: %TRUE if @name should be hidden for being a dot-file.
+ */
+gboolean
+nemo_file_name_is_hidden_dot_file (const char *name)
+{
+#ifdef G_OS_WIN32
+	static gboolean watching_preference = FALSE;
+
+	if (!watching_preference) {
+		nemo_global_preferences_init ();
+		g_signal_connect_swapped (nemo_preferences,
+					  "changed::" NEMO_PREFERENCES_SHOW_DOT_FILES,
+					  G_CALLBACK (show_dot_files_changed_callback),
+					  NULL);
+		watching_preference = TRUE;
+		show_dot_files_changed_callback (NULL);
+	}
+
+	return !show_dot_files && name != NULL && name[0] == '.';
+#else
+	(void) name;
+	return FALSE;
+#endif
+}
+
+gboolean
+nemo_file_is_hidden_dot_file (NemoFile *file)
+{
+	return nemo_file_name_is_hidden_dot_file (file->details->name);
+}
+
 /**
  * nemo_file_should_show:
  * @file: the file to check.
@@ -3873,6 +3923,7 @@ nemo_file_should_show (NemoFile *file,
 		return TRUE;
 	} else {
 		return (show_hidden || !nemo_file_is_hidden_file (file)) &&
+			!nemo_file_is_hidden_dot_file (file) &&
 			(show_foreign || !(nemo_file_is_in_desktop (file) && nemo_file_is_foreign_link (file)));
 	}
 }

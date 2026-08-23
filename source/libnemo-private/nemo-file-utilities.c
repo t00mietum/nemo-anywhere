@@ -93,6 +93,7 @@ nemo_compute_title_for_location (GFile *location)
 
         uri = nemo_file_get_uri (file);
         path = g_filename_from_uri (uri, NULL, NULL);
+        nemo_path_apply_display_separator (path);
 
         if (path != NULL) {
             title = g_strdup_printf("%s - %s", builder, path);
@@ -2078,8 +2079,9 @@ nemo_get_drive_root_name (GFile *location)
     path = g_file_get_path (location);
 
     /* Spelled the way the user would type it, and the way every other Windows
-       program writes it: an upper-case letter and a trailing backslash. */
-    return g_strdup_printf ("%c:\\", g_ascii_toupper (path[0]));
+       program writes it: an upper-case letter and a trailing separator. */
+    return g_strdup_printf ("%c:%c", g_ascii_toupper (path[0]),
+                            nemo_path_get_display_separator ());
 #else
     return NULL;
 #endif
@@ -2099,7 +2101,8 @@ nemo_get_drive_root_name (GFile *location)
    the text is never silently shorter than what was selected. Returns NULL when
    nothing at all could be named. */
 gchar *
-nemo_build_path_list_text (GList *locations)
+nemo_build_path_list_text (GList *locations,
+                           gchar  separator)
 {
     GString *text;
     GList *l;
@@ -2115,7 +2118,10 @@ nemo_build_path_list_text (GList *locations)
         }
 
         path = g_file_get_path (G_FILE (l->data));
-        if (path == NULL) {
+        if (path != NULL) {
+            nemo_path_apply_separator (path, separator);
+        } else {
+            /* A uri's slashes are not separators, so it is copied as it stands. */
             path = g_file_get_uri (G_FILE (l->data));
         }
         if (path == NULL) {
@@ -2135,6 +2141,137 @@ nemo_build_path_list_text (GList *locations)
     }
 
     return g_string_free (text, FALSE);
+}
+
+/* Windows takes either separator, so which one gets shown is the user's choice.
+   Everywhere else there is only one and all of this stays out of the way. */
+#ifdef G_OS_WIN32
+
+static gboolean separator_preference_watched = FALSE;
+static gchar    display_separator = '\\';
+static gboolean slash_input_allowed = TRUE;
+
+static void
+separator_preference_changed (gpointer callback_data)
+{
+    g_autofree gchar *choice = nemo_config_get_string (nemo_preferences,
+                                                       NEMO_PREFERENCES_PATH_SEPARATOR);
+
+    display_separator = (g_strcmp0 (choice, "slash") == 0) ? '/' : '\\';
+    slash_input_allowed = nemo_config_get_boolean (nemo_preferences,
+                                                   NEMO_PREFERENCES_ALLOW_SLASH_INPUT);
+}
+
+static void
+watch_separator_preferences (void)
+{
+    if (separator_preference_watched) {
+        return;
+    }
+
+    nemo_global_preferences_init ();
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
+                              G_CALLBACK (separator_preference_changed), NULL);
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_ALLOW_SLASH_INPUT,
+                              G_CALLBACK (separator_preference_changed), NULL);
+    separator_preference_watched = TRUE;
+    separator_preference_changed (NULL);
+}
+
+#endif
+
+gchar
+nemo_path_get_display_separator (void)
+{
+#ifdef G_OS_WIN32
+    watch_separator_preferences ();
+    return display_separator;
+#else
+    return G_DIR_SEPARATOR;
+#endif
+}
+
+/* The separator that is not being shown - what "copy the path the other way"
+   means. There is only one off Windows, so it answers the same as the first. */
+gchar
+nemo_path_get_other_separator (void)
+{
+#ifdef G_OS_WIN32
+    return (nemo_path_get_display_separator () == '/') ? '\\' : '/';
+#else
+    return G_DIR_SEPARATOR;
+#endif
+}
+
+/* Rewrites in place - both separators are one ASCII byte, so nothing moves.
+   Only ever hand this a local path; a uri's slashes are not separators. */
+void
+nemo_path_apply_separator (gchar *path,
+                           gchar  separator)
+{
+#ifdef G_OS_WIN32
+    gchar other = (separator == '/') ? '\\' : '/';
+    gchar *p;
+
+    if (path == NULL) {
+        return;
+    }
+
+    for (p = path; *p != '\0'; p++) {
+        if (*p == other) {
+            *p = separator;
+        }
+    }
+#endif
+}
+
+void
+nemo_path_apply_display_separator (gchar *path)
+{
+    nemo_path_apply_separator (path, nemo_path_get_display_separator ());
+}
+
+/* The parse name of a location, spelled with the separator the user picked.
+   A remote location keeps its uri untouched. */
+gchar *
+nemo_location_get_display_name (GFile *location)
+{
+    gchar *name;
+
+    if (location == NULL) {
+        return NULL;
+    }
+
+    name = g_file_get_parse_name (location);
+
+    if (g_file_is_native (location)) {
+        nemo_path_apply_display_separator (name);
+    }
+
+    return name;
+}
+
+/* A typed location is refused when it leans on a separator that has been turned
+   off. Only the forward slash can be: a backslash is always a separator, and on
+   POSIX it is a legal character in a name, so nothing is reserved there. */
+gboolean
+nemo_path_input_is_allowed (const gchar *text)
+{
+#ifdef G_OS_WIN32
+    watch_separator_preferences ();
+
+    if (slash_input_allowed || text == NULL || strchr (text, '/') == NULL) {
+        return TRUE;
+    }
+
+    /* A uri is all slashes by definition and has nothing to do with this. */
+    return strstr (text, "://") != NULL;
+#else
+    (void) text;
+    return TRUE;
+#endif
 }
 
 /* The value of the Ext column: the tail of the name after the last dot, without

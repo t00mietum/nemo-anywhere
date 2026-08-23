@@ -39,7 +39,7 @@ static int failures = 0;
 
 /* Builds the list from uris, runs it through the helper, frees the list. */
 static char *
-text_for_uris (const char * const *uris)
+text_for_uris_with (const char * const *uris, char separator)
 {
 	GList *locations = NULL;
 	char *text;
@@ -50,10 +50,16 @@ text_for_uris (const char * const *uris)
 	}
 
 	locations = g_list_reverse (locations);
-	text = nemo_build_path_list_text (locations);
+	text = nemo_build_path_list_text (locations, separator);
 	g_list_free_full (locations, g_object_unref);
 
 	return text;
+}
+
+static char *
+text_for_uris (const char * const *uris)
+{
+	return text_for_uris_with (uris, G_DIR_SEPARATOR);
 }
 
 int
@@ -100,6 +106,18 @@ main (int argc, char *argv[])
 		check (text == NULL);
 		g_free (text);
 	}
+
+#ifdef G_OS_WIN32
+	/* The second clipboard item asks for the other separator. A uri is not
+	 * touched by it - its slashes were never separators. */
+	{
+		const char * const uris[] = { LOCAL_URI_A, REMOTE_URI, NULL };
+
+		text = text_for_uris_with (uris, '/');
+		check (g_strcmp0 (text, "C:/tmp/one.txt" EOL REMOTE_URI) == 0);
+		g_free (text);
+	}
+#endif
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

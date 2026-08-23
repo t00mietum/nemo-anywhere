@@ -49,6 +49,31 @@ main (int argc, char *argv[])
 	/* Nothing to quote is still a quoted empty argument, not an omitted one. */
 	check_quote ("", "\"\"");
 
+	/* "Open with Explorer" puts a window on the screen, so it is not something
+	 * an unattended run can do. Set NEMO_PROBE_EXPLORER to a folder to watch it
+	 * open that folder and then pick a file out of it. */
+	{
+		const char *probe_dir = g_getenv ("NEMO_PROBE_EXPLORER");
+
+		if (probe_dir == NULL) {
+			g_print ("SKIP open with Explorer (opens a window; set NEMO_PROBE_EXPLORER to a folder to run it)\n");
+		} else {
+			char *file = g_build_filename (probe_dir, "explorer-probe.txt", NULL);
+
+			if (!g_file_set_contents (file, "probe\n", -1, NULL)) {
+				g_printerr ("FAIL cannot write %s\n", file);
+				failures++;
+			}
+
+			nemo_view_win32_open_in_explorer (probe_dir, TRUE);
+			g_usleep (2 * G_USEC_PER_SEC);
+			nemo_view_win32_open_in_explorer (file, FALSE);
+
+			g_print ("probed open with Explorer on %s\n", file);
+			g_free (file);
+		}
+	}
+
 	if (failures == 0) {
 		g_print ("view-win32: all checks passed\n");
 	}

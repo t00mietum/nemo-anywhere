@@ -301,11 +301,21 @@ add_preferences_callbacks (void)
 				  G_CALLBACK(filtering_changed_callback),
 				  NULL);
 	g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_SHOW_DOT_FILES,
+				  G_CALLBACK(filtering_changed_callback),
+				  NULL);
+	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS,
 				  G_CALLBACK (async_data_preference_changed_callback),
 				  NULL);
 	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_DATE_FORMAT,
+				  G_CALLBACK(async_data_preference_changed_callback),
+				  NULL);
+	/* Same reason as the date format: how a file's attributes are spelled has
+	   changed, so every view has to ask for them again. */
+	g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
 				  G_CALLBACK(async_data_preference_changed_callback),
 				  NULL);
 }

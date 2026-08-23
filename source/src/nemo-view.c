@@ -2341,6 +2341,20 @@ nemo_view_should_sort_favorites_first (NemoView *view)
 	return view->details->sort_favorites_first;
 }
 
+#ifdef G_OS_WIN32
+/* Windows shows dot-files under a switch of their own, so flipping it means
+ * reading the listing again. */
+static void
+dot_files_preference_changed_callback (gpointer callback_data)
+{
+	NemoView *view = NEMO_VIEW (callback_data);
+
+	if (view->details->model != NULL) {
+		load_directory (view, view->details->model);
+	}
+}
+#endif
+
 static void
 sort_directories_first_changed_callback (gpointer callback_data)
 {
@@ -2848,6 +2862,11 @@ nemo_view_init (NemoView *view)
                   "changed::" NEMO_PREFERENCES_CLICK_TO_RENAME,
                   G_CALLBACK(click_to_rename_changed_callback),
                   view);
+#ifdef G_OS_WIN32
+	g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_SHOW_DOT_FILES,
+				  G_CALLBACK (dot_files_preference_changed_callback), view);
+#endif
 	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST,
 				  G_CALLBACK(sort_directories_first_changed_callback), view);
@@ -3043,6 +3062,10 @@ nemo_view_finalize (GObject *object)
 					      click_policy_changed_callback, view);
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                           click_to_rename_changed_callback, view);
+#ifdef G_OS_WIN32
+	g_signal_handlers_disconnect_by_func (nemo_preferences,
+					      dot_files_preference_changed_callback, view);
+#endif
 	g_signal_handlers_disconnect_by_func (nemo_preferences,
 					      sort_directories_first_changed_callback, view);
 	g_signal_handlers_disconnect_by_func (nemo_preferences,
@@ -6797,7 +6820,8 @@ action_copy_files_callback (GtkAction *action,
    the file they stand for rather than copying a uri nothing else understands. */
 static void
 copy_paths_to_clipboard (NemoView *view,
-			 GList    *files)
+			 GList    *files,
+			 gchar     separator)
 {
 	GtkClipboard *clipboard;
 	GList *locations = NULL;
@@ -6823,7 +6847,7 @@ copy_paths_to_clipboard (NemoView *view,
 
 	locations = g_list_reverse (locations);
 	count = g_list_length (locations);
-	text = nemo_build_path_list_text (locations);
+	text = nemo_build_path_list_text (locations, separator);
 	g_list_free_full (locations, g_object_unref);
 
 	if (text == NULL) {
@@ -6846,53 +6870,148 @@ copy_paths_to_clipboard (NemoView *view,
 }
 
 static void
+copy_selection_paths (NemoView *view,
+		      gchar     separator)
+{
+	GList *selection;
+
+	selection = nemo_view_get_selection (view);
+	copy_paths_to_clipboard (view, selection, separator);
+	nemo_file_list_free (selection);
+}
+
+static void
+copy_one_path (NemoView *view,
+	       NemoFile *file,
+	       gchar     separator)
+{
+	GList *files;
+
+	g_return_if_fail (file != NULL);
+
+	files = g_list_append (NULL, file);
+	copy_paths_to_clipboard (view, files, separator);
+	g_list_free (files);
+}
+
+static void
 action_copy_path_callback (GtkAction *action,
 			   gpointer callback_data)
 {
-	NemoView *view;
-	GList *selection;
+	copy_selection_paths (NEMO_VIEW (callback_data), nemo_path_get_display_separator ());
+}
 
-	view = NEMO_VIEW (callback_data);
-
-	selection = nemo_view_get_selection (view);
-	copy_paths_to_clipboard (view, selection);
-	nemo_file_list_free (selection);
+/* The other spelling of the same path. Windows only - nowhere else has two. */
+static void
+action_copy_path_alt_callback (GtkAction *action,
+			       gpointer callback_data)
+{
+	copy_selection_paths (NEMO_VIEW (callback_data), nemo_path_get_other_separator ());
 }
 
 static void
 action_background_copy_path_callback (GtkAction *action,
 				      gpointer callback_data)
 {
-	NemoView *view;
-	NemoFile *file;
-	GList *files;
+	NemoView *view = NEMO_VIEW (callback_data);
 
-	view = NEMO_VIEW (callback_data);
+	copy_one_path (view, nemo_view_get_directory_as_file (view),
+		       nemo_path_get_display_separator ());
+}
 
-	file = nemo_view_get_directory_as_file (view);
-	g_return_if_fail (file != NULL);
+static void
+action_background_copy_path_alt_callback (GtkAction *action,
+					  gpointer callback_data)
+{
+	NemoView *view = NEMO_VIEW (callback_data);
 
-	files = g_list_append (NULL, file);
-	copy_paths_to_clipboard (view, files);
-	g_list_free (files);
+	copy_one_path (view, nemo_view_get_directory_as_file (view),
+		       nemo_path_get_other_separator ());
 }
 
 static void
 action_location_copy_path_callback (GtkAction *action,
 				    gpointer callback_data)
 {
-	NemoView *view;
+	NemoView *view = NEMO_VIEW (callback_data);
+
+	copy_one_path (view, view->details->location_popup_directory_as_file,
+		       nemo_path_get_display_separator ());
+}
+
+static void
+action_location_copy_path_alt_callback (GtkAction *action,
+					gpointer callback_data)
+{
+	NemoView *view = NEMO_VIEW (callback_data);
+
+	copy_one_path (view, view->details->location_popup_directory_as_file,
+		       nemo_path_get_other_separator ());
+}
+
+/* The only place that deliberately hands a location to Explorer, because the
+   item says Explorer on it. One selected entry at a time, and only one that has
+   a local path - there is nothing to show Explorer for a remote uri. */
+static void
+action_open_in_explorer_callback (GtkAction *action,
+				  gpointer callback_data)
+{
+#ifdef G_OS_WIN32
+	NemoView *view = NEMO_VIEW (callback_data);
+	GList *selection;
 	NemoFile *file;
-	GList *files;
+	GFile *location;
+	gchar *path;
 
-	view = NEMO_VIEW (callback_data);
+	selection = nemo_view_get_selection (view);
 
-	file = view->details->location_popup_directory_as_file;
-	g_return_if_fail (file != NULL);
+	if (g_list_length (selection) != 1) {
+		nemo_file_list_free (selection);
+		return;
+	}
 
-	files = g_list_append (NULL, file);
-	copy_paths_to_clipboard (view, files);
-	g_list_free (files);
+	file = NEMO_FILE (selection->data);
+	location = nemo_file_get_location (file);
+	path = g_file_get_path (location);
+
+	if (path != NULL) {
+		nemo_view_win32_open_in_explorer (path, nemo_file_is_directory (file));
+	}
+
+	g_free (path);
+	g_object_unref (location);
+	nemo_file_list_free (selection);
+#endif
+}
+
+/* The label spells out the separator the paths are not being shown with, so it
+   is set each time a menu is built. Windows only - nowhere else has a second
+   separator, and there the item is not shown at all. */
+static void
+update_copy_path_alt_action (NemoView   *view,
+			     const char *action_name,
+			     gint        count)
+{
+	GtkAction *action;
+
+	action = gtk_action_group_get_action (view->details->dir_action_group, action_name);
+	if (action == NULL) {
+		return;
+	}
+
+#ifdef G_OS_WIN32
+	{
+		char *label = g_strdup_printf (ngettext ("Copy path _as \"%c\"",
+							 "Copy paths _as \"%c\"", count),
+					       nemo_path_get_other_separator ());
+
+		gtk_action_set_sensitive (action, count > 0);
+		g_object_set (action, "label", label, NULL);
+		g_free (label);
+	}
+#else
+	gtk_action_set_visible (action, FALSE);
+#endif
 }
 
 /* The dialog asks for the rest; all it needs from here is what to compress,
@@ -8815,6 +8934,11 @@ static const GtkActionEntry directory_view_entries[] = {
 #endif
 				 G_CALLBACK (action_open_as_root_callback) },
 
+  /* name, stock id */         { NEMO_ACTION_OPEN_IN_EXPLORER, "folder-open-symbolic",
+  /* label, accelerator */       N_("Open with Explorer"), "",
+  /* tooltip */                  N_("Show the selected item in Windows Explorer"),
+				 G_CALLBACK (action_open_in_explorer_callback) },
+
   /* name, stock id */         { NEMO_ACTION_FOLLOW_SYMLINK, "go-jump-symbolic",
   /* label, accelerator */       N_("Follow link to original file"), "",
   /* tooltip */                  N_("Navigate to the original file that this symbolic link points to"),
@@ -8851,6 +8975,15 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Copy _path"), "",
   /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
 				 G_CALLBACK (action_background_copy_path_callback) },
+  /* The label carries the separator, so it is filled in when the menu is built. */
+  /* name, stock id */         { NEMO_ACTION_COPY_PATH_ALT, "edit-copy-symbolic",
+  /* label, accelerator */       NULL, "",
+  /* tooltip */                  N_("Copy the full path of each selected item with the other separator"),
+				 G_CALLBACK (action_copy_path_alt_callback) },
+  /* name, stock id */         { NEMO_ACTION_BACKGROUND_COPY_PATH_ALT, "edit-copy-symbolic",
+  /* label, accelerator */       NULL, "",
+  /* tooltip */                  N_("Copy the full path of this folder with the other separator"),
+				 G_CALLBACK (action_background_copy_path_alt_callback) },
   /* name, stock id */         { NEMO_ACTION_COMPRESS, "package-x-generic",
   /* label, accelerator */       N_("Co_mpress..."), "",
   /* tooltip */                  N_("Create an archive holding the selected items"),
@@ -9040,6 +9173,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Copy _path"), "",
   /* tooltip */                  N_("Copy the full path of this folder to the clipboard"),
 				 G_CALLBACK (action_location_copy_path_callback) },
+  /* name, stock id */         { NEMO_ACTION_LOCATION_COPY_PATH_ALT, "edit-copy-symbolic",
+  /* label, accelerator */       NULL, "",
+  /* tooltip */                  N_("Copy the full path of this folder with the other separator"),
+				 G_CALLBACK (action_location_copy_path_alt_callback) },
   /* name, stock id */         { NEMO_ACTION_LOCATION_COMPRESS, "package-x-generic",
   /* label, accelerator */       N_("Co_mpress..."), "",
   /* tooltip */                  N_("Create an archive holding this folder"),
@@ -10055,6 +10192,8 @@ real_update_location_menu (NemoView *view)
 	show_open_in_new_tab = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 	show_open_alternate = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
+	update_copy_path_alt_action (view, NEMO_ACTION_LOCATION_COPY_PATH_ALT, 1);
+
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_LOCATION_OPEN_ALTERNATE);
 	gtk_action_set_visible (action, show_open_alternate);
@@ -10387,6 +10526,29 @@ real_update_menus (NemoView *view)
                                          NEMO_ACTION_OPEN_IN_TERMINAL);
     gtk_action_set_visible (action, no_selection_or_one_dir);
 
+    action = gtk_action_group_get_action (view->details->dir_action_group,
+                                         NEMO_ACTION_OPEN_IN_EXPLORER);
+#ifdef G_OS_WIN32
+    {
+        /* One entry at a time, and one Explorer can actually be pointed at:
+           a remote uri has no path to hand it. */
+        gboolean can_show = FALSE;
+
+        if (selection_count == 1) {
+            GFile *location = nemo_file_get_location (NEMO_FILE (selection->data));
+            gchar *path = g_file_get_path (location);
+
+            can_show = path != NULL;
+            g_free (path);
+            g_object_unref (location);
+        }
+
+        gtk_action_set_visible (action, can_show);
+    }
+#else
+    gtk_action_set_visible (action, FALSE);
+#endif
+
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_NEW_FOLDER);
 	gtk_action_set_sensitive (action, can_create_files);
@@ -10654,6 +10816,9 @@ real_update_menus (NemoView *view)
 	g_object_set (action, "label",
 		      ngettext ("Copy _path", "Copy _paths", selection_count),
 		      NULL);
+
+	update_copy_path_alt_action (view, NEMO_ACTION_COPY_PATH_ALT, selection_count);
+	update_copy_path_alt_action (view, NEMO_ACTION_BACKGROUND_COPY_PATH_ALT, 1);
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_COMPRESS);

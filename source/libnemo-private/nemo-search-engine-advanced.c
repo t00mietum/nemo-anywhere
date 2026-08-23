@@ -642,6 +642,7 @@ send_batch (SearchThreadData *data)
 	}
 	data->hit_list = NULL;
     g_mutex_unlock (&data->hit_list_lock);
+	/* cppcheck-suppress memleak ; hits is owned by the idle, which frees it */
 }
 
 #define STD_ATTRIBUTES \
@@ -1029,6 +1030,10 @@ visit_directory (GFile *dir, SearchThreadData *data)
 
 	while ((info = g_file_enumerator_next_file (enumerator, data->cancellable, NULL)) != NULL) {
 		if (g_file_info_get_attribute_boolean (info, G_FILE_ATTRIBUTE_STANDARD_IS_HIDDEN) && !data->show_hidden) {
+			goto next;
+		}
+
+		if (nemo_file_name_is_hidden_dot_file (g_file_info_get_name (info))) {
 			goto next;
 		}
 

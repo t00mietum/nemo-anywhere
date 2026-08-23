@@ -400,6 +400,17 @@ field: preferences.show-compact-view-icon-toolbar
 	default: true
 	desc: Show Compact View button in nemo toolbar
 
+field: preferences.path-separator
+	type: string
+	allowed: backslash, slash
+	default: backslash
+	desc: Which separator paths are shown with (Windows only; elsewhere there is only one)
+
+field: preferences.allow-slash-input
+	type: bool
+	default: true
+	desc: Whether a forward slash counts as a separator in a typed location (Windows only)
+
 field: preferences.show-computer-icon-toolbar
 	type: bool
 	default: false
@@ -420,6 +431,11 @@ field: preferences.show-full-path-titles
 	type: bool
 	default: false
 	desc: Whether to show the full path of the current view in the title bar and tab bars
+
+field: preferences.show-dot-files
+	type: bool
+	default: false
+	desc: Whether to show files whose name starts with a dot (Windows only; elsewhere they count as hidden files)
 
 field: preferences.show-hidden-files
 	type: bool

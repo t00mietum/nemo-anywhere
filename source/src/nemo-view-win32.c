@@ -15,6 +15,7 @@
 #include <glib/gi18n.h>
 #include <windows.h>
 #include <shellapi.h>
+#include <shlobj.h>
 
 /* ShellExecuteW returns >32 on success; anything at or below is an error code.
    Ignoring it meant a refused UAC prompt or a missing shell just did nothing. */
@@ -147,6 +148,75 @@ nemo_view_win32_open_terminal (const gchar *path)
 
 	g_free (found);
 	g_free (wexe);
+}
+
+/* Reveal @path in its own folder by starting an Explorer of our own. This is
+   the route that still works when nemo is running elevated, where talking to
+   the desktop's Explorer over COM is refused. */
+static gboolean
+explorer_select_by_command_line (const gchar *path)
+{
+	gchar *quoted = nemo_view_win32_quote_arg (path);
+	gchar *params = g_strconcat ("/select,", quoted, NULL);
+	wchar_t *wparams = (wchar_t *) g_utf8_to_utf16 (params, -1, NULL, NULL, NULL);
+	HINSTANCE res;
+
+	res = ShellExecuteW (NULL, L"open", L"explorer.exe", wparams, NULL, SW_SHOWNORMAL);
+
+	g_free (quoted);
+	g_free (params);
+	g_free (wparams);
+
+	return shell_execute_ok (res, "Open with Explorer", path);
+}
+
+/* The one place that deliberately hands work to Explorer, because the item says
+   Explorer on it. Nothing else in the tree depends on it. */
+void
+nemo_view_win32_open_in_explorer (const gchar *path,
+				  gboolean     is_directory)
+{
+	wchar_t *wpath;
+	PIDLIST_ABSOLUTE item;
+	HRESULT hr;
+
+	g_return_if_fail (path != NULL);
+
+	wpath = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+	if (wpath == NULL) {
+		g_warning ("Open with Explorer: cannot convert '%s'", path);
+		return;
+	}
+
+	if (is_directory) {
+		HINSTANCE res = ShellExecuteW (NULL, L"explore", wpath, NULL, NULL, SW_SHOWNORMAL);
+
+		shell_execute_ok (res, "Open with Explorer", path);
+		g_free (wpath);
+		return;
+	}
+
+	/* An item id rather than a command line, so nothing about the name has to
+	   survive being re-split. Needs COM on this thread; already-initialised
+	   and a different apartment are both fine to carry on from. */
+	item = ILCreateFromPathW (wpath);
+	g_free (wpath);
+
+	if (item == NULL) {
+		explorer_select_by_command_line (path);
+		return;
+	}
+
+	hr = CoInitializeEx (NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	if (SUCCEEDED (hr) || hr == RPC_E_CHANGED_MODE) {
+		hr = SHOpenFolderAndSelectItems (item, 0, NULL, 0);
+	}
+
+	ILFree (item);
+
+	if (FAILED (hr)) {
+		explorer_select_by_command_line (path);
+	}
 }
 
 #endif /* G_OS_WIN32 */

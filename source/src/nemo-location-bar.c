@@ -41,6 +41,7 @@
 #include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
 #include <eel/eel-vfs-extensions.h>
+#include <libnemo-private/nemo-file-utilities.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <libnemo-private/nemo-icon-dnd.h>
@@ -104,6 +105,13 @@ nemo_location_bar_get_location (NemoLocationBar *bar)
 	GFile *location;
 
 	user_location = gtk_editable_get_chars (GTK_EDITABLE (bar->details->entry), 0, -1);
+
+	/* Nothing to go to when the text leans on a separator that is switched off. */
+	if (!nemo_path_input_is_allowed (user_location)) {
+		g_free (user_location);
+		return NULL;
+	}
+
 	location = eel_g_file_new_for_user_input (user_location);
 	g_free (user_location);
 
@@ -116,6 +124,11 @@ emit_location_changed (NemoLocationBar *bar)
 	GFile *location;
 
 	location = nemo_location_bar_get_location (bar);
+	if (location == NULL) {
+		gtk_widget_error_bell (GTK_WIDGET (bar->details->entry));
+		return;
+	}
+
 	g_signal_emit (bar, signals[LOCATION_CHANGED], 0, location);
 	g_object_unref (location);
 }
@@ -228,6 +241,10 @@ drag_data_get_callback (GtkWidget *widget,
 	self = callback_data;
 
 	location = nemo_location_bar_get_location (self);
+	if (location == NULL) {
+		return;
+	}
+
 	uri = g_file_get_uri (location);
 
 	switch (info) {
@@ -483,7 +500,7 @@ nemo_location_bar_set_location (NemoLocationBar *bar,
 							  "");
 	} else {
 		file = g_file_new_for_uri (location);
-		formatted_location = g_file_get_parse_name (file);
+		formatted_location = nemo_location_get_display_name (file);
 		g_object_unref (file);
 
               if (eel_uri_is_network (formatted_location)) {

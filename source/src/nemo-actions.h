@@ -59,6 +59,7 @@
 #define NEMO_ACTION_ZOOM_OUT "Zoom Out"
 #define NEMO_ACTION_ZOOM_NORMAL "Zoom Normal"
 #define NEMO_ACTION_SHOW_HIDDEN_FILES "Show Hidden Files"
+#define NEMO_ACTION_SHOW_DOT_FILES "Show Dot Files"
 #define NEMO_ACTION_CLOSE "Close"
 #define NEMO_ACTION_SEARCH "Search"
 #define NEMO_ACTION_FOLDER_WINDOW "Folder Window"
@@ -93,6 +94,9 @@
 #define NEMO_ACTION_COPY_PATH "CopyPath"
 #define NEMO_ACTION_BACKGROUND_COPY_PATH "BackgroundCopyPath"
 #define NEMO_ACTION_LOCATION_COPY_PATH "LocationCopyPath"
+#define NEMO_ACTION_COPY_PATH_ALT "CopyPathAlt"
+#define NEMO_ACTION_BACKGROUND_COPY_PATH_ALT "BackgroundCopyPathAlt"
+#define NEMO_ACTION_LOCATION_COPY_PATH_ALT "LocationCopyPathAlt"
 #define NEMO_ACTION_COMPRESS "Compress"
 #define NEMO_ACTION_BACKGROUND_COMPRESS "BackgroundCompress"
 #define NEMO_ACTION_LOCATION_COMPRESS "LocationCompress"
@@ -167,6 +171,8 @@
 #define NEMO_ACTION_OPEN_IN_TERMINAL "OpenInTerminal"
 #define NEMO_ACTION_FOLLOW_SYMLINK "FollowSymbolicLink"
 #define NEMO_ACTION_OPEN_CONTAINING_FOLDER "OpenContainingFolder"
+/* Windows only: the deliberate way out to Explorer, on one selected entry. */
+#define NEMO_ACTION_OPEN_IN_EXPLORER "OpenInExplorer"
 
 #define NEMO_ACTION_PLUGIN_MANAGER "NemoPluginManager"
 
@@ -214,6 +220,8 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_COPY_PATH, "selection_menu__copy_path_check",
      "/selection/File Clipboard Actions/CopyPath", "selection-menu-copy-path" },
+    { NEMO_ACTION_COPY_PATH_ALT, NULL,
+     "/selection/File Clipboard Actions/CopyPathAlt", "selection-menu-copy-path" },
 
     { NEMO_ACTION_COMPRESS, "selection_menu__compress_check",
      "/selection/File Actions/Compress", "selection-menu-compress" },
@@ -284,6 +292,8 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_BACKGROUND_COPY_PATH, "background_menu__copy_path_check",
      "/background/Before Zoom Items/File Clipboard Actions/BackgroundCopyPath", "background-menu-copy-path" },
+    { NEMO_ACTION_BACKGROUND_COPY_PATH_ALT, NULL,
+     "/background/Before Zoom Items/File Clipboard Actions/BackgroundCopyPathAlt", "background-menu-copy-path" },
 
     { NEMO_ACTION_SHOW_HIDDEN_FILES, "background_menu__show_hidden_files_check",
      "/background/Before Zoom Items/Show Hidden Files", "background-menu-show-hidden-files" },

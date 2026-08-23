@@ -36,6 +36,7 @@
 
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <libnemo-private/nemo-file-utilities.h>
 #include <gtk/gtk.h>
 
 #define AFTER_ALL_TABS -1
@@ -328,7 +329,7 @@ nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 		/* Set the tooltip on the label's parent (the tab label hbox),
 		 * so it covers all of the tab label.
 		 */
-		location_name = g_file_get_parse_name (slot->location);
+		location_name = nemo_location_get_display_name (slot->location);
 		gtk_widget_set_tooltip_text (gtk_widget_get_parent (label), location_name);
 		g_free (location_name);
 	} else {
