@@ -30,6 +30,9 @@
 ##		  runtime, so nothing is wired. Either way it starts the app detached and
 ##		  exits - on unix the app's own output goes to a log in the target dir, since
 ##		  it no longer has the caller's console.
+##		- Opens at a configured startup location so a plain launch lands somewhere
+##		  useful. A path or URI given on the command line wins over it, and if the
+##		  configured place isn't there the app opens wherever it would have anyway.
 ##		- If no copy is held and the source is unreachable, falls back to the
 ##		  first installed known file manager.
 ##		- With '--admin' (Windows), runs the WHOLE launcher elevated - it self-
@@ -202,6 +205,28 @@ $FallbackManagers = if ($IsWindows) {
 	@("nemo", "nautilus", "pcmanfm", "thunar", "dolphin")
 }
 
+## Where the app opens when the caller didn't name a location. First candidate that
+## exists wins - C:\opt\0-0 is a junction to C:\0-0 here, but another box may have
+## only one of the two. Nothing here has to exist; if none does, the app just opens
+## wherever it would have on its own.
+$StartupLocations = if ($IsWindows) {
+	@(
+		"C:\opt\0-0\users\$env:USERNAME\0_links"
+		"C:\0-0\users\$env:USERNAME\0_links"
+	)
+} else {
+	@(
+		(Join-Path $HOME "0-0/0_links")
+	)
+}
+
+## Options whose value arrives as its own token. That token is a value, not a
+## location, even though it doesn't lead with '-'.
+$ValueAppOptions = @(
+	"--geometry", "-g", "--display", "--screen", "--class", "--name",
+	"--gtk-module", "--gdk-debug", "--gdk-no-debug", "--gtk-debug", "--gtk-no-debug"
+)
+
 ## Per-run decision log, kept in the target dir, so a closed console can't lose
 ## the copy/skip reasons behind a launch.
 $RunLog = Join-Path $TargetDir "n8runfm.log"
@@ -263,6 +288,7 @@ function fMain {
 	##    test harness, and letting it reach the output stream would dump a
 	##    process table on the way out.
 	fStep "Launch"
+	$PassArgs = fAddStartupLocation -PassArgs $PassArgs
 	$copy = fNewestCopy
 	if ($copy) {
 		$null = fLaunchNemo -CopyPath $copy.File.FullName -PassArgs $PassArgs
@@ -305,6 +331,53 @@ function fCheckPassArgs {
 			"`n`nLauncher flags: --admin, --gui" +
 			"`nApp options:    " + (($KnownAppOptions | Where-Object { $_ -match '^--' }) -join " "))
 	}
+}
+
+
+## Append the configured startup location, so a plain launch opens somewhere useful
+## instead of the app's own default. A location named on the command line wins.
+function fAddStartupLocation {
+	param([string[]]$PassArgs)
+
+	$out = @()
+	if ($PassArgs) { $out += $PassArgs }
+	if (fHasLocationArg -PassArgs $PassArgs) { return $out }
+
+	$loc = $StartupLocations | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+	if (-not $loc) {
+		if ($StartupLocations) {
+			fItem "skip" "location" ("none of these are there: " + ($StartupLocations -join ", "))
+		}
+		return $out
+	}
+
+	fItem "-" "location" $loc
+	return $out + $loc
+}
+
+
+## True when the caller already named where to open. Anything after '--' is a path
+## or URI; before it, so is any token that doesn't lead with '-', unless it is the
+## value of the option in front of it (see $ValueAppOptions).
+function fHasLocationArg {
+	param([string[]]$PassArgs)
+
+	if (-not $PassArgs) { return $false }
+
+	$skipNext  = $false
+	$afterDash = $false
+	foreach ($arg in $PassArgs) {
+		if ($afterDash) { return $true }
+		if ($arg -eq "--") { $afterDash = $true; continue }
+		if ($skipNext) { $skipNext = $false; continue }
+		if ($arg -match '^-') {
+			## '--opt=value' carries its own value; '--opt value' eats the next token.
+			if ($arg -notmatch '=' -and $ValueAppOptions -contains $arg) { $skipNext = $true }
+			continue
+		}
+		return $true
+	}
+	return $false
 }
 
 
@@ -1116,6 +1189,10 @@ exit 0
 
 
 ##	History:
+##		- 2026-08-22: Launch opens at a configured startup location (the 0_links
+##		  folder on either platform) when nothing else was named on the command
+##		  line, so a shortcut click lands somewhere useful instead of the app's
+##		  own default.
 ##		- 2026-08-21: Every source is probed now instead of taking the first that
 ##		  answers, and the newest build wins wherever it sits: this box's own repo
 ##		  build, b23 across the network, and the synced dogfood drop - none of them
