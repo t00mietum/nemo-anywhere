@@ -1,6 +1,6 @@
-/* What the File extension column shows for a given name. The interesting part
- * is what does NOT count as an extension - a dot is often just part of a name -
- * so most of these are refusals. */
+/* What the Ext column shows for a given name. The interesting part is what does
+ * NOT count as an extension - a dot is often just part of a name - so most of
+ * these are refusals. */
 
 #include <config.h>
 
@@ -31,14 +31,15 @@ check_is (const char *name, const char *expected)
 int
 main (int argc, char *argv[])
 {
-	/* The ordinary cases, compound names included: only the last dot counts. */
-	check_is ("report.txt", ".txt");
-	check_is ("archive.tar.gz", ".gz");
-	check_is ("song.mp3", ".mp3");
-	check_is ("archive.7z", ".7z");
-	check_is ("page.html5", ".html5");
-	check_is ("app.properties", ".properties");
-	check_is ("UPPER.TXT", ".TXT");
+	/* The ordinary cases, compound names included: only the last dot counts, and
+	   the dot itself is not part of the answer. */
+	check_is ("report.txt", "txt");
+	check_is ("archive.tar.gz", "gz");
+	check_is ("song.mp3", "mp3");
+	check_is ("archive.7z", "7z");
+	check_is ("page.html5", "html5");
+	check_is ("app.properties", "properties");
+	check_is ("UPPER.TXT", "TXT");
 
 	/* No dot at all. */
 	check_is ("README", NULL);
@@ -48,7 +49,7 @@ main (int argc, char *argv[])
 	/* A hidden file's leading dot is not an extension - but a hidden file
 	   can still have one of its own. */
 	check_is (".bashrc", NULL);
-	check_is (".config.bak", ".bak");
+	check_is (".config.bak", "bak");
 
 	/* A trailing dot has nothing after it. */
 	check_is ("odd.", NULL);

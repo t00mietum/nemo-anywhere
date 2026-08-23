@@ -2137,11 +2137,10 @@ nemo_build_path_list_text (GList *locations)
     return g_string_free (text, FALSE);
 }
 
-/* The extension for the File extension column: the tail of the name after the
- * last dot, dot included, the way Explorer's own column shows it. A dot is
- * often just part of a name, so the tail only counts when it looks the part -
- * short, letters and digits only, at least one letter. NULL when there is not
- * one worth showing. */
+/* The value of the Ext column: the tail of the name after the last dot, without
+ * the dot. A dot is often just part of a name, so the tail only counts when it
+ * looks the part - short, letters and digits only, at least one letter. NULL when
+ * there is not one worth showing. */
 gchar *
 nemo_filename_get_extension (const gchar *name)
 {
@@ -2174,7 +2173,7 @@ nemo_filename_get_extension (const gchar *name)
 		return NULL;
 	}
 
-	return g_strdup (tail);
+	return g_strdup (tail + 1);
 }
 
 #if !defined (NEMO_OMIT_SELF_CHECK)

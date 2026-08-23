@@ -92,10 +92,10 @@ static const char *const deflist_icon_view_captions[] = { "none", "size", "date_
 static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL };
 static const char *const deflist_list_view_column_max_widths[] = { NULL };
 #ifdef G_OS_WIN32
-static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "size", "type", "date_modified", "owner", "permissions_source", NULL };
+static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "where", "size", "type", "date_modified", "owner", "permissions_source", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "extension", "size", "type", "date_modified", "owner", NULL };
 #else
-static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
+static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "where", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "extension", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
 #endif
 static const char *const deflist_plugins_disabled_actions[] = { NULL };

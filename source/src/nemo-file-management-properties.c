@@ -38,6 +38,7 @@
 #include <libnemo-private/nemo-appearance.h>
 #include <libnemo-private/nemo-column-chooser.h>
 #include <libnemo-private/nemo-column-utilities.h>
+#include <libnemo-private/nemo-desktop-utils.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-module.h>
 
@@ -1033,6 +1034,62 @@ nemo_file_management_properties_dialog_setup_appearance_page (GtkBuilder *builde
 	}
 }
 
+/* The dialog opens at least this big whatever it holds, so it does not come up
+   as a cramped little box. */
+#define PREFERENCES_MIN_WIDTH 1000
+#define PREFERENCES_MIN_HEIGHT 700
+
+/* The dialog opens on Views, so Views is the page that has to fit: ask its
+   content how tall it wants to be and give the window that much, up to what the
+   monitor has. Measured rather than fixed, because the same page is a different
+   height under a different theme, font size or translation. */
+static void
+size_dialog_to_views_page (GtkBuilder *builder,
+			   GtkWidget  *dialog,
+			   GtkWindow  *parent)
+{
+	GtkWidget *page;
+	GtkWidget *content;
+	GtkRequisition wanted;
+	GdkRectangle work;
+	gint border;
+	gint width, height;
+	gint monitor;
+
+	page = GTK_WIDGET (gtk_builder_get_object (builder, "scrolledwindow2"));
+	if (page == NULL) {
+		return;
+	}
+
+	/* A scrolled window asks for almost nothing itself - that is the whole
+	   point of it - so what is inside it is what gets measured. */
+	content = gtk_bin_get_child (GTK_BIN (page));
+	if (content == NULL) {
+		return;
+	}
+
+	gtk_widget_get_preferred_size (content, NULL, &wanted);
+	border = gtk_container_get_border_width (GTK_CONTAINER (page));
+
+	width = PREFERENCES_MIN_WIDTH;
+	height = MAX (wanted.height + 2 * border, PREFERENCES_MIN_HEIGHT);
+
+	monitor = parent != NULL
+		? nemo_desktop_utils_get_monitor_for_widget (GTK_WIDGET (parent))
+		: nemo_desktop_utils_get_primary_monitor ();
+	nemo_desktop_utils_get_monitor_work_rect (monitor, &work);
+
+	if (height > work.height * 9 / 10) {
+		height = work.height * 9 / 10;
+		/* It will scroll after all, and the bar has to come from somewhere
+		   other than the text. */
+		width += 20;
+	}
+
+	gtk_window_set_default_size (GTK_WINDOW (dialog),
+				     MIN (width, work.width * 9 / 10), height);
+}
+
 static  void
 nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
                                               GtkWindow   *window,
@@ -1317,6 +1374,8 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	if (window) {
 		gtk_window_set_transient_for (GTK_WINDOW (dialog), window);
 	}
+
+	size_dialog_to_views_page (builder, dialog, window);
 
 	preferences_dialog = dialog;
 	g_object_add_weak_pointer (G_OBJECT (dialog), (gpointer *) &preferences_dialog);
