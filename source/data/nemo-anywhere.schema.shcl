@@ -400,6 +400,17 @@ field: preferences.show-compact-view-icon-toolbar
 	default: true
 	desc: Show Compact View button in nemo toolbar
 
+field: preferences.path-separator
+	type: string
+	allowed: backslash, slash
+	default: backslash
+	desc: Which separator paths are shown with (Windows only; elsewhere there is only one)
+
+field: preferences.allow-slash-input
+	type: bool
+	default: true
+	desc: Whether a forward slash counts as a separator in a typed location (Windows only)
+
 field: preferences.show-computer-icon-toolbar
 	type: bool
 	default: false

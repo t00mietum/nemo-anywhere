@@ -1067,7 +1067,7 @@ nemo_file_get_parent_uri_for_display (NemoFile *file)
 
 	parent = nemo_file_get_parent_location (file);
 	if (parent) {
-		result = g_file_get_parse_name (parent);
+		result = nemo_location_get_display_name (parent);
 		g_object_unref (parent);
 	} else {
 		result = g_strdup ("");

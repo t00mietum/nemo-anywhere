@@ -41,6 +41,12 @@ static const NemoConfigEnumValue enum_FolderView[] = {
 	{ NULL, 0 }
 };
 
+static const NemoConfigEnumValue enum_PathSeparator[] = {
+	{ "backslash", 0 },
+	{ "slash", 1 },
+	{ NULL, 0 }
+};
+
 static const NemoConfigEnumValue enum_SizePrefixes[] = {
 	{ "base-10", 0 },
 	{ "base-10-full", 1 },
@@ -192,6 +198,8 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "show-advanced-permissions", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show advanced permissions in the file property dialog" },
 	{ "preferences", "show-bookmarks-in-to-menus", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether to list bookmarks in the Move To/Copy To menus" },
 	{ "preferences", "show-compact-view-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show Compact View button in nemo toolbar" },
+	{ "preferences", "path-separator", NEMO_CONFIG_ENUM, "backslash", NULL, enum_PathSeparator, "Which separator paths are shown with (Windows only; elsewhere there is only one)" },
+	{ "preferences", "allow-slash-input", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether a forward slash counts as a separator in a typed location (Windows only)" },
 	{ "preferences", "show-computer-icon-toolbar", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show Computer button in nemo toolbar" },
 	{ "preferences", "show-directory-item-counts", NEMO_CONFIG_ENUM, "local-only", NULL, enum_SpeedTradeoff, "When to show number of items in a folder" },
 	{ "preferences", "show-dot-files", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show files whose name starts with a dot (Windows only; elsewhere they count as hidden files)" },

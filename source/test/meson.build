@@ -173,6 +173,28 @@ test('Copy test',
   args: []
 )
 
+# The resource has to be compiled straight in for the same reason the exe does:
+# nothing else references the self-registering object, so the linker drops it.
+test('Preferences widgets test',
+  executable('test-nemo-prefs-widgets',
+    [ 'test-nemo-prefs-widgets.c' ] + gresources,
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
+if is_windows
+  test('Path separator test',
+    executable('test-nemo-path-separator-win32',
+      [ 'test-nemo-path-separator-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif
+
 if is_windows
   test('Dot-file switch test',
     executable('test-nemo-dot-files-win32',

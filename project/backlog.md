@@ -864,10 +864,13 @@ Observations and suggestions rather than defects. Not individually reproduced.
 	- The two are independent: revealing attribute-hidden files no longer reveals dot-files, and the listing, the tree sidebar and search all go through the same check.
 	- Flipping either one re-reads the open folder, so an edit to the settings file shows up without a restart.
 
-- 🔘 Windows: choose which separator paths are shown with.
-	- Preference for `\` or `/`, applied wherever a path is displayed: location bar, breadcrumbs, the Location column, tooltips, properties.
-	- A second preference allows `/` in a typed location. It is checked and greyed out when `/` is already the display separator, since refusing the separator on screen would make no sense.
-	- Typed input already takes both on every platform, so the work is the option to turn `/` off, not to add it.
+- ✅ Windows: choose which separator paths are shown with.
+	- A "Paths" group on the Display page of Preferences, shown only on Windows: "Show separator as" picks `\` or `/`, and a checkbox below it accepts or refuses `/` in a typed location.
+	- The checkbox is ticked and greyed out while `/` is the separator on screen, since refusing what is being shown would make no sense.
+	- The choice reaches every surface that spells out a path: the location bar, the Location column, path tooltips, the window and tab titles, the sidebar tooltips, drive roots in the sidebar, and the Location row in properties. Breadcrumbs show names only, so there was nothing to change.
+	- Changing it re-reads the open folder, so the whole window switches over at once rather than on the next visit.
+	- Typed input already took both separators, so what is new is the option to turn `/` off. A location that leans on it is then refused with a beep instead of going anywhere.
+	- Also fixed on the way past: the preferences dialog named a widget in a size group that no longer exists, so loading it stopped early and silently. Only an unused list model came after the break, which is why nothing looked wrong.
 
 - 🔘 Windows: "Copy path to clipboard as [\|/]".
 	- A second clipboard item, directly below the existing Copy Path one, offering whichever separator the display is not currently using.

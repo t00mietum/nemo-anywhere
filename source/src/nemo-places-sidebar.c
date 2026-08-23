@@ -956,7 +956,7 @@ update_places (NemoPlacesSidebar *sidebar)
         bookmark_name = nemo_bookmark_get_name (bookmark);
         icon = nemo_bookmark_get_icon_name (bookmark);
         mount_uri = nemo_bookmark_get_uri (bookmark);
-        tooltip = g_file_get_parse_name (root);
+        tooltip = nemo_location_get_display_name (root);
 
         cat_iter = add_place (sidebar, PLACES_BOOKMARK,
                                SECTION_XDG_BOOKMARKS,
@@ -1123,7 +1123,7 @@ update_places (NemoPlacesSidebar *sidebar)
         bookmark_name = nemo_bookmark_get_name (bookmark);
         icon = nemo_bookmark_get_icon_name (bookmark);
         mount_uri = nemo_bookmark_get_uri (bookmark);
-        tooltip = g_file_get_parse_name (root);
+        tooltip = nemo_location_get_display_name (root);
 
         cat_iter = add_place (sidebar, PLACES_BOOKMARK,
                               SECTION_BOOKMARKS,
@@ -1198,7 +1198,7 @@ update_places (NemoPlacesSidebar *sidebar)
         icon = nemo_get_mount_icon_name (mount);
         mount_uri = g_file_get_uri (root);
         name = g_mount_get_name (mount);
-        tooltip = g_file_get_parse_name (root);
+        tooltip = nemo_location_get_display_name (root);
         place_info = new_place_info (PLACES_MOUNTED_VOLUME,
                                      SECTION_DEVICES,
                                      name, icon, mount_uri,
@@ -1262,7 +1262,7 @@ update_places (NemoPlacesSidebar *sidebar)
                     name = g_mount_get_name (mount);
 
                     volume_id = g_volume_get_identifier (volume, G_VOLUME_IDENTIFIER_KIND_UNIX_DEVICE);
-                    full_display_name = g_file_get_parse_name (root);
+                    full_display_name = nemo_location_get_display_name (root);
 
                     df_file = g_file_new_for_uri (mount_uri);
                     full = get_disk_full (sidebar, df_file, &tooltip_info);
@@ -1395,7 +1395,7 @@ update_places (NemoPlacesSidebar *sidebar)
             full = get_disk_full (sidebar, df_file, &tooltip_info);
             g_clear_object (&df_file);
 
-            parse_name = g_file_get_parse_name (root);
+            parse_name = nemo_location_get_display_name (root);
             tooltip = g_strdup_printf (_("%s\n%s"), parse_name, tooltip_info);
 
             g_free (tooltip_info);
@@ -1496,7 +1496,7 @@ update_places (NemoPlacesSidebar *sidebar)
 		icon = nemo_get_mount_icon_name (mount);
 		mount_uri = g_file_get_uri (root);
 		name = g_mount_get_name (mount);
-		tooltip = g_file_get_parse_name (root);
+		tooltip = nemo_location_get_display_name (root);
 		cat_iter = add_place (sidebar, PLACES_MOUNTED_VOLUME,
                 			   SECTION_NETWORK,
                 			   name, icon, mount_uri,

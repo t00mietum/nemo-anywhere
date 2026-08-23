@@ -1689,7 +1689,7 @@ display_view_selection_failure (NemoWindow *window, NemoFile *file,
 	char *scheme_string;
 
 	/* Some sort of failure occurred. How 'bout we tell the user? */
-	full_uri_for_display = g_file_get_parse_name (location);
+	full_uri_for_display = nemo_location_get_display_name (location);
 	/* Truncate the URI so it doesn't get insanely wide. Note that even
 	 * though the dialog uses wrapped text, if the URI doesn't contain
 	 * white space then the text-wrapping code is too stupid to wrap it.

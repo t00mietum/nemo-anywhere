@@ -53,6 +53,8 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_ZOOM_WIDGET "list_view_zoom_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SORT_ORDER_WIDGET "sort_order_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET "date_format_combobox"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET "path_separator_combobox"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET "allow_slash_input_checkbutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET "preview_image_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_FOLDER_WIDGET "preview_folder_combobox"
@@ -159,6 +161,13 @@ static const char * const date_format_values[] = {
 	"locale",
 	"iso",
 	"informal",
+	NULL
+};
+
+/* Order matches the rows appended to path_separator_combobox. */
+static const char * const path_separator_values[] = {
+	"backslash",
+	"slash",
 	NULL
 };
 
@@ -647,6 +656,47 @@ create_date_format_menu (GtkBuilder *builder)
 	g_date_time_unref (now);
 }
 
+/* A forward slash cannot be refused while it is the separator on screen, so the
+   switch is pinned on and greyed out for as long as it is. */
+static void
+path_separator_changed (GtkComboBox *combo_box,
+			GtkWidget   *check)
+{
+	gboolean showing_slash = gtk_combo_box_get_active (combo_box) == 1;
+
+	if (showing_slash) {
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (check), TRUE);
+	}
+
+	gtk_widget_set_sensitive (check, !showing_slash);
+}
+
+/* Windows takes either separator; nowhere else has the choice, so the whole
+   group stays out of the dialog there. */
+static void
+create_path_separator_menu (GtkBuilder *builder)
+{
+	GtkComboBoxText *combo_box;
+	GtkWidget *check;
+
+	combo_box = GTK_COMBO_BOX_TEXT
+		(gtk_builder_get_object (builder,
+					 NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET));
+	check = GTK_WIDGET (gtk_builder_get_object (builder,
+						    NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET));
+
+#ifdef G_OS_WIN32
+	gtk_combo_box_text_append_text (combo_box, "\\");
+	gtk_combo_box_text_append_text (combo_box, "/");
+
+	g_signal_connect_object (combo_box, "changed",
+				 G_CALLBACK (path_separator_changed), check, 0);
+#else
+	gtk_widget_hide (GTK_WIDGET (gtk_builder_get_object (builder, "vbox_paths")));
+	gtk_widget_set_no_show_all (GTK_WIDGET (gtk_builder_get_object (builder, "vbox_paths")), TRUE);
+#endif
+}
+
 static void
 set_columns_from_settings (NemoColumnChooser *chooser)
 {
@@ -1108,6 +1158,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 							       (char *)"preview_label",
 							       3);
 	create_date_format_menu (builder);
+	create_path_separator_menu (builder);
 
 
 	/* nemo patch */
@@ -1242,6 +1293,13 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET,
 			   NEMO_PREFERENCES_DATE_FORMAT,
 			   (const char **) date_format_values);
+	bind_builder_enum (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET,
+			   NEMO_PREFERENCES_PATH_SEPARATOR,
+			   (const char **) path_separator_values);
+	bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET,
+			   NEMO_PREFERENCES_ALLOW_SLASH_INPUT);
 	bind_builder_radio (builder, nemo_preferences,
 			    (const char **) click_behavior_components,
 			    NEMO_PREFERENCES_CLICK_POLICY,

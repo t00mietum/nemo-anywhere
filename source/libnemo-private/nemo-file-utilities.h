@@ -142,4 +142,11 @@ gchar *nemo_get_drive_root_name (GFile *location);
 gchar *nemo_build_path_list_text (GList *locations);
 
 gchar *nemo_filename_get_extension (const gchar *name);
+
+/* Which separator paths are shown with. Windows takes either, so it is the
+   user's choice there; elsewhere there is only one and these do nothing. */
+gchar    nemo_path_get_display_separator (void);
+void     nemo_path_apply_display_separator (gchar *path);
+gchar   *nemo_location_get_display_name (GFile *location);
+gboolean nemo_path_input_is_allowed (const gchar *text);
 #endif /* NEMO_FILE_UTILITIES_H */
