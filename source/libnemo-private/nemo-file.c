@@ -6672,9 +6672,9 @@ nemo_file_get_permissions_as_string (NemoFile *file)
 				 	: (sticky ? 'T' : '-'));
 }
 
-/* The File extension column's value. The parsing itself lives in
- * nemo-file-utilities.c so it can be checked without a NemoFile; folders never
- * show one, the way Explorer's own column behaves. */
+/* The Ext column's value. The parsing itself lives in nemo-file-utilities.c so
+ * it can be checked without a NemoFile; folders never show one, the way
+ * Explorer's own column behaves. */
 static char *
 nemo_file_get_extension_as_string (NemoFile *file)
 {

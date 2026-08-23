@@ -34,6 +34,23 @@ usual_columns (NemoColumnLayoutItem *items)
 	items[DATE] = (NemoColumnLayoutItem) {  30, 160, FALSE, FALSE };
 }
 
+/* The same row with Location on it. Location grows with Name here, so neither
+   is capped and the two divide what Size and Date leave. */
+enum { P_NAME, P_LOC, P_SIZE, P_DATE, N_PAIR };
+
+static void
+paired_columns (NemoColumnLayoutItem *items)
+{
+	items[P_NAME] = (NemoColumnLayoutItem) { 100, 300, FALSE, TRUE };
+	items[P_LOC]  = (NemoColumnLayoutItem) {  30, 200, FALSE, FALSE };
+	items[P_SIZE] = (NemoColumnLayoutItem) {  30,  80, FALSE, FALSE };
+	items[P_DATE] = (NemoColumnLayoutItem) {  30, 160, FALSE, FALSE };
+
+	items[P_LOC].shares_growth = TRUE;
+	items[P_NAME].elastic = TRUE;
+	items[P_LOC].elastic = TRUE;
+}
+
 static int
 total (const int *widths, int n)
 {
@@ -213,6 +230,136 @@ check_floor_beats_natural (void)
 	check (widths[0] == 880);
 }
 
+/* Room to spare with Location on the row: Name stops at its longest name and
+   everything past that is Location's. */
+static void
+check_location_takes_the_surplus (void)
+{
+	NemoColumnLayoutItem items[N_PAIR];
+	int widths[N_PAIR];
+
+	paired_columns (items);
+	nemo_column_layout_distribute (items, N_PAIR, -1, 1400, widths);
+
+	check (widths[P_SIZE] == 80);
+	check (widths[P_DATE] == 160);
+	check (widths[P_NAME] == 300);
+	check (widths[P_LOC] == 1400 - 300 - 80 - 160);
+	check (total (widths, N_PAIR) == 1400);
+}
+
+/* Not enough for both: they halve what is left, so Location is never the
+   narrower of the two - until Name is down on its floor, which is well below
+   half of anything, and Location takes what is left of the pair's room. */
+static void
+check_location_never_narrower (void)
+{
+	NemoColumnLayoutItem items[N_PAIR];
+	int widths[N_PAIR];
+	int available;
+
+	paired_columns (items);
+
+	for (available = 400; available <= 2000; available += 13) {
+		nemo_column_layout_distribute (items, N_PAIR, -1, available, widths);
+		check (widths[P_LOC] >= widths[P_NAME] ||
+		       widths[P_NAME] == items[P_NAME].floor_width);
+		check (total (widths, N_PAIR) == available);
+	}
+}
+
+/* Narrow enough that the pair cannot have its floors and its share both. Name
+   and Location give everything they have before Size or Date give anything. */
+static void
+check_pair_gives_before_the_rest (void)
+{
+	NemoColumnLayoutItem items[N_PAIR];
+	int widths[N_PAIR];
+
+	paired_columns (items);
+	nemo_column_layout_distribute (items, N_PAIR, -1, 300, widths);
+
+	check (widths[P_NAME] == 100);
+	check (widths[P_LOC] == 30);
+	check (widths[P_SIZE] < 80);
+	check (widths[P_DATE] < 160);
+	check (total (widths, N_PAIR) == 300);
+}
+
+/* A date or a size says nothing at all cut short, so the columns that still
+   read cut short give first and those two keep their width. */
+static void
+check_dates_keep_their_width (void)
+{
+	NemoColumnLayoutItem items[N_COLS];
+	int widths[N_COLS];
+
+	usual_columns (items);
+	items[NAME].elastic = TRUE;
+	items[TYPE].elastic = TRUE;
+
+	nemo_column_layout_distribute (items, N_COLS, TYPE, 500, widths);
+
+	check (widths[SIZE] == 80);
+	check (widths[DATE] == 160);
+	check (widths[TYPE] == 30);
+	check (widths[NAME] == 230);
+
+	/* Narrower still, with Name and Type both spent, and they finally give. */
+	usual_columns (items);
+	items[NAME].elastic = TRUE;
+	items[TYPE].elastic = TRUE;
+
+	nemo_column_layout_distribute (items, N_COLS, TYPE, 300, widths);
+
+	check (widths[NAME] == 100);
+	check (widths[TYPE] == 30);
+	check (widths[DATE] < 160);
+	check (widths[SIZE] < 80);
+	check (total (widths, N_COLS) == 300);
+}
+
+/* The cap on a column with no natural limit is a third of what grows, and with
+   Location on the row that is both of them. */
+static void
+check_cap_follows_the_pair (void)
+{
+	NemoColumnLayoutItem items[N_PAIR];
+	int widths[N_PAIR];
+
+	paired_columns (items);
+	items[P_DATE].unbounded = TRUE;
+	items[P_DATE].natural_width = 5000;
+
+	nemo_column_layout_distribute (items, N_PAIR, -1, 1200, widths);
+
+	check (widths[P_DATE] * 3 == widths[P_NAME] + widths[P_LOC]);
+	check (total (widths, N_PAIR) == 1200);
+}
+
+/* A capped column never ends up wider than Name or Location, however short the
+   names in the folder are. */
+static void
+check_cap_stays_inside_the_pair (void)
+{
+	NemoColumnLayoutItem items[N_PAIR];
+	int widths[N_PAIR];
+	int available;
+
+	paired_columns (items);
+	/* Short names, so Name settles well below half the row. */
+	items[P_NAME].natural_width = 140;
+	items[P_DATE].unbounded = TRUE;
+	items[P_DATE].natural_width = 5000;
+
+	for (available = 500; available <= 2000; available += 11) {
+		nemo_column_layout_distribute (items, N_PAIR, -1, available, widths);
+		check (widths[P_DATE] <= widths[P_NAME]);
+		check (widths[P_DATE] <= widths[P_LOC]);
+		check (total (widths, N_PAIR) == available);
+	}
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -225,6 +372,12 @@ main (int argc, char *argv[])
 	check_impossibly_narrow ();
 	check_single_column ();
 	check_floor_beats_natural ();
+	check_location_takes_the_surplus ();
+	check_location_never_narrower ();
+	check_pair_gives_before_the_rest ();
+	check_dates_keep_their_width ();
+	check_cap_follows_the_pair ();
+	check_cap_stays_inside_the_pair ();
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

@@ -857,6 +857,21 @@ Observations and suggestions rather than defects. Not individually reproduced.
 
 ### Features and enhancements
 
+- ✅ Column widths and the Ext column, second pass. Overrides the earlier column rules where they disagree.
+	- "File extension" is now just "Ext", and shows the extension without its leading dot. It sits directly right of Name, with Location next along whenever that is switched on.
+	- Location, on an ordinary folder listing, grows with Name rather than stopping at a share of it: the two split whatever the other columns leave and Name takes no more than half, so Location is never the narrower of the pair and anything Name does not need goes to Location. Dragging Location by hand ends that and pins the width, as it always did.
+	- Date created, Date modified and Date read keep their full width. What has to give when the window is too narrow comes off Name, Location and Type first, in proportion, and only reaches the dates once those three are down to their floors.
+	- Type, and any other column with no natural length, never ends up wider than Name or Location.
+	- Zooming in or out re-measures the rows. Before this the widths were thrown away and never worked out again, so one Ctrl+= left Location taking most of the row and every date cut short. Same for a column switched on that had not been on screen to be measured.
+	- A small gap keeps the first and last columns off the window frame.
+	- All of it watched in the running app, including the zoom case with the fix backed out.
+
+- ✅ The preferences dialog opens larger, and big enough for the Views page to fit without a scrollbar.
+	- The height is measured from the page itself rather than fixed, so a different theme, font size or translation still fits, up to what the monitor has room for.
+
+- ✅ Ask before moving files to Trash defaults to on.
+	- Already the default; confirmed rather than changed.
+
 - ✅ Right-click properties wording: ours is plain "Properties" and sits first; the Windows sheet reads "Windows properties (Alt+Enter)" below it. Shortcuts themselves are unchanged.
 	- Seen in the running app; the breadcrumb menu says "Windows properties" without the hint, since Alt+Enter acts on the selection rather than a path segment.
 - ✅ New list columns.

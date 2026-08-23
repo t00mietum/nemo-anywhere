@@ -167,6 +167,11 @@ struct SelectionForeachData {
    keeps more than the three characters the others fall back to. */
 #define NAME_COLUMN_FLOOR 100
 
+/* Air between the window edge and the first and last columns, so a name does not
+   start hard against the frame. Device-independent pixels: GTK multiplies these
+   by the display scale, so the gap looks the same at any resolution. */
+#define LIST_VIEW_EDGE_PADDING 8
+
 /* We wait two seconds after row is collapsed to unload the subdirectory */
 #define COLLAPSE_TO_UNLOAD_DELAY 2
 
@@ -182,6 +187,7 @@ static GtkTargetList *          source_target_list = NULL;
 
 static void   resize_columns_soon                            (NemoListView *view);
 static void   forget_natural_widths                          (NemoListView *view);
+static void   remeasure_rows                                 (NemoListView *view);
 static GList *nemo_list_view_get_selection                   (NemoView   *view);
 static void   nemo_list_view_update_selection                (NemoView *view);
 static GList *nemo_list_view_get_selection_for_file_transfer (NemoView   *view);
@@ -2291,9 +2297,9 @@ apply_columns_settings (NemoListView *list_view,
 
     g_list_free (view_columns);
 
-    /* A column arriving or leaving changes what the rest have to fit into. */
-    list_view->details->laid_out_width = -1;
-    resize_columns_soon (list_view);
+    /* A column arriving or leaving changes what the rest have to fit into, and a
+       column that was hidden was never measured while it was. */
+    remeasure_rows (list_view);
 }
 
 static void
@@ -2884,6 +2890,33 @@ measure_row (GtkTreeModel *model,
 	}
 }
 
+static gboolean
+measure_row_foreach (GtkTreeModel *model,
+		     GtkTreePath  *path,
+		     GtkTreeIter  *iter,
+		     gpointer      user_data)
+{
+	measure_row (model, path, iter, user_data);
+
+	return FALSE;
+}
+
+/* Every row again, from nothing. The incremental measure covers rows as they
+   arrive, which is not enough when what a row measures has changed under it -
+   a zoom, or a column that was not on screen the first time round. */
+static void
+remeasure_rows (NemoListView *view)
+{
+	forget_natural_widths (view);
+
+	if (view->details->model != NULL) {
+		gtk_tree_model_foreach (GTK_TREE_MODEL (view->details->model),
+					measure_row_foreach, view);
+	}
+
+	resize_columns_soon (view);
+}
+
 /* Hand every visible column a width, so that between them they come to exactly
    what the view has to give. The rule itself is in nemo-column-layout.c. */
 static void
@@ -2957,6 +2990,13 @@ resize_columns_now (NemoListView *view)
 			shrink_first = i;
 		}
 
+		/* The three that still read when they are cut short. A date or a
+		   size cut short reads as nothing at all, so those keep their width
+		   until these are down to their floors. */
+		items[i].elastic = items[i].is_name ||
+				   g_strcmp0 (id, "where") == 0 ||
+				   g_strcmp0 (id, "type") == 0;
+
 		if (items[i].is_name) {
 			name_index = i;
 		} else if (g_strcmp0 (id, "where") == 0) {
@@ -2986,9 +3026,18 @@ resize_columns_now (NemoListView *view)
 		}
 	}
 
-	/* Type's default ceiling is twice the File extension column - the pair
-	   reads as one description of the file. Only while extension is shown,
-	   and only until the user gives Type a ceiling of their own. */
+	/* Outside search, Location grows with Name rather than stopping at a share
+	   of it: the pair splits what the other columns leave, and Name takes no
+	   more than half. A width dragged onto Location by hand stands instead. */
+	if (!in_search && name_index >= 0 && where_index >= 0 &&
+	    user_column_ceiling ("where") == 0) {
+		items[where_index].shares_growth = TRUE;
+		items[where_index].unbounded = FALSE;
+	}
+
+	/* Type's default ceiling is twice the Ext column - the pair reads as one
+	   description of the file. Only while Ext is shown, and only until the user
+	   gives Type a ceiling of their own. */
 	if (shrink_first >= 0 && ext_index >= 0 && items[shrink_first].unbounded) {
 		gint ext_target = MAX (items[ext_index].floor_width,
 				       items[ext_index].natural_width);
@@ -2996,7 +3045,6 @@ resize_columns_now (NemoListView *view)
 		items[shrink_first].natural_width = MAX (items[shrink_first].floor_width,
 							 MIN (items[shrink_first].natural_width,
 							      2 * ext_target));
-		items[shrink_first].unbounded = FALSE;
 	}
 
 	if (in_search && name_index >= 0 && where_index >= 0) {
@@ -3131,6 +3179,11 @@ create_and_set_up_tree_view (NemoListView *view)
 	gchar **default_column_order, **default_visible_columns;
 
 	view->details->tree_view = GTK_TREE_VIEW (gtk_tree_view_new ());
+
+    /* Headings and rows both sit inside this, and the width the columns are laid
+       out against is what is left of the view after it. */
+    gtk_widget_set_margin_start (GTK_WIDGET (view->details->tree_view), LIST_VIEW_EDGE_PADDING);
+    gtk_widget_set_margin_end (GTK_WIDGET (view->details->tree_view), LIST_VIEW_EDGE_PADDING);
 
     gtk_tree_view_set_rubber_banding (GTK_TREE_VIEW (view->details->tree_view), TRUE);
 
@@ -4477,8 +4530,7 @@ nemo_list_view_set_zoom_level (NemoListView *view,
 
 	/* Everything measured was measured in the old font at the old icon size. */
 	view->details->column_floor = 0;
-	forget_natural_widths (view);
-	resize_columns_soon (view);
+	remeasure_rows (view);
 
 	/* FIXME: https://bugzilla.gnome.org/show_bug.cgi?id=641518 */
 	gtk_tree_view_columns_autosize (view->details->tree_view);
