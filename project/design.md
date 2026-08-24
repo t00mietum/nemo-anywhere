@@ -117,6 +117,8 @@ The Linux reference build lives in a stock Debian 13 container rather than on th
 
 Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable project lives under `source/` (the repo root is kept clean), so meson is pointed there.
 
+The container the day-to-day build actually runs in is `cicd/linux/Dockerfile.dev` (image `nemo-build-deps`, container `nemo-build`). It is the authoritative dep list; the packages below are the same set spelled out for anyone building on their own machine.
+
 - Install the toolchain and dev libraries:
 	- `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`
 	- `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`
