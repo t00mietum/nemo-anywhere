@@ -189,7 +189,10 @@ PACKAGE_CMDS=(
 PROFILE_ENABLE=1
 PROFILE_SECS=15
 PROFILE_CMD=(bash cicd/utility/profile-run.bash)
-PROFILE_PROBE=(gdb --version)
+## Ask the sampler itself, so its tool list stays in one place. The probe used to be
+## a bare `gdb --version`, which let a missing flamegraph renderer through and turned
+## an unprofilable box into an aborted run.
+PROFILE_PROBE=(bash cicd/utility/profile-run.bash --probe)
 PROFILE_OUT_DIR="cicd/artifacts/profiling"
 PROFILE_STRICT=0
 ## Unused by the current profiler; the engine's preflight still prints them.

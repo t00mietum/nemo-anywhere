@@ -68,11 +68,11 @@ set -Eeuo pipefail
 ## Find the repo root and load project config.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "${here}/.." && pwd)"   # the git repo root (cicd/..)
-export PATH="${HOME}/.local/bin:${PATH}"
-## NOT-READY (Rust origin): the source pipeline prepended ${HOME}/.cargo/bin so a
-## rustup toolchain won the PATH. nemo-anywhere is C/GTK built in the nemo-build
-## container (meson/ninja), so there is no host toolchain to front-load. Kept as a
-## note in case a host-side helper (e.g. a formatter/linter) ever needs its own bin dir.
+## Per-user bin dirs, so a run over ssh or from cron finds the same helpers an
+## interactive shell does - a non-interactive ssh gets a bare PATH and would
+## otherwise silently skip the lints (cppcheck) and the profiler (the cargo-installed
+## inferno-flamegraph). Cargo's goes last so its toolchain shadows nothing.
+export PATH="${HOME}/.local/bin:${PATH}:${HOME}/.cargo/bin"
 ## Cap build parallelism to at most half the cores so a pipeline run doesn't peg
 ## every CPU and leaves the machine usable. Computed BEFORE config.bash is read,
 ## so the build commands there can interpolate it (ninja -j "${CICD_MAX_JOBS}");
@@ -447,10 +447,14 @@ run_profiler(){
 
 	## An environmental miss is the box's fault, not the app's, so warn and carry
 	## on (unless PROFILE_STRICT). A failure of the run itself still aborts.
-	local skip=""
+	local skip="" why=""
 	command -v python3 >/dev/null 2>&1 || skip="python3 not found"
 	if [[ -z "$skip" ]] && declare -p PROFILE_PROBE &>/dev/null && ((${#PROFILE_PROBE[@]})); then
-		"${PROFILE_PROBE[@]}" >/dev/null 2>&1 || skip="${PROFILE_PROBE[*]} failed (profiling tools missing?)"
+		## Keep what the probe said - naming the missing tool saves a dig.
+		if ! why="$("${PROFILE_PROBE[@]}" 2>&1)"; then
+			why="$(printf '%s' "$why" | tail -1 | sed 's/^\[ *//; s/ *\]$//; s/^FAILED: //')"
+			skip="${why:-profiling tools missing}"
+		fi
 	fi
 	if [[ -n "$skip" ]]; then
 		((PROFILE_STRICT)) && fDie "profiler: ${skip}"
