@@ -52,7 +52,8 @@
 ## Where builds come from. Every entry is probed each run and the newest build
 ## wins - a source is not a fallback for the one above it. Each entry lists one or
 ## more roots because a clone or a sync root sits in a different place per box;
-## the first root that answers is that source's build. Nothing here has to exist.
+## every root is probed and the newest build among them is that source's build.
+## Nothing here has to exist.
 ##
 ## The 'main binary' relative path below turns a root into the thing actually
 ## looked at: the reachability probe, the build stamp (its mtime) and the size.
@@ -394,9 +395,11 @@ function fSourceProbePath {
 ## answers, and return a row per source:
 ##   { Label, Root, Probe, Stamp(DateTime), Length, Reachable, Duplicate }
 ##
-## A source's roots are alternate spellings of the same place (a clone root that
-## differs per box, a junction, a share mounted somewhere else), so the first root
-## that answers is that source's build and the rest are not tried.
+## Roots are usually alternate spellings of the same place (a clone root that differs
+## per box, a junction, a share mounted somewhere else), but not always - on some box
+## two of them really are separate trees holding different builds. So every root is
+## probed and the newest build among them is that source's build; an exact tie keeps
+## the first, which is the local spelling of a junction pair.
 ##
 ## Two sources can legitimately hold the SAME build - the sync layer copies the
 ## local drop to the other box and back. Sameness is decided on the build itself
@@ -423,21 +426,22 @@ function fProbeSources {
 			$probe = fSourceProbePath $root
 			$build = fProbeBuild $probe
 			if (-not $build) {
-				$row.Probe = $probe
+				if (-not $row.Reachable) { $row.Probe = $probe }
 				if ($script:ProbeNote) { $why = $script:ProbeNote }
 				continue
 			}
-			$row.Root      = $root
-			$row.Probe     = $probe
 			## Truncate to the granularity the copy name is written at, right here,
 			## so the report, the sameness test, the sort and the name a copy ends
 			## up with can't disagree. They already did: a build handed over by the
 			## sync layer keeps whole seconds while the one it was copied from keeps
 			## ticks, which made one build look like two.
-			$row.Stamp     = fParseStamp $build.Stamp.ToString($StampFormat)
+			$stamp = fParseStamp $build.Stamp.ToString($StampFormat)
+			if ($row.Reachable -and $stamp -le $row.Stamp) { continue }
+			$row.Root      = $root
+			$row.Probe     = $probe
+			$row.Stamp     = $stamp
 			$row.Length    = $build.Length
 			$row.Reachable = $true
-			break
 		}
 
 		if (-not $row.Reachable) {
@@ -528,12 +532,15 @@ function fProbeBuild {
 
 
 
-## True for a path served over the network - a UNC name, or a drive letter mapped
-## to a share. Everything else is local and needs no protection.
+## True for a path that may be served over the network - a UNC name, a drive letter
+## mapped to a share, or a unix path under a mount dir. The last is a guess, but a
+## dead mount wedges exactly the way a down share does and the probe timeout costs
+## a local path nothing. Everything else is local and needs no protection.
 function fIsRemotePath {
 	param([Parameter(Mandatory)][string]$Path)
 
 	if ($Path -match '^(\\\\|//)') { return $true }
+	if (-not $IsWindows -and $Path -match '^/(mnt|media|net)/') { return $true }
 	if ($IsWindows -and $Path -match '^([A-Za-z]):') {
 		try {
 			$drive = [System.IO.DriveInfo]::new($Matches[1] + ":\")
@@ -1189,6 +1196,13 @@ exit 0
 
 
 ##	History:
+##		- 2026-08-24: A source with more than one root now probes all of them and
+##		  takes the newest, instead of stopping at the first that answers. The roots
+##		  are usually one place spelled two ways, but not on every box - where they
+##		  are two real trees, an older one listed first was quietly winning and a
+##		  newer build at the second root was never seen. A unix path under /mnt,
+##		  /media or /net gets the network probe timeout too, so probing the extra
+##		  roots can't wedge on a dead mount.
 ##		- 2026-08-22: Launch opens at a configured startup location (the 0_links
 ##		  folder on either platform) when nothing else was named on the command
 ##		  line, so a shortcut click lands somewhere useful instead of the app's
