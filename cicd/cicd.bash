@@ -360,9 +360,15 @@ if ((! assume_yes)); then
 	## is the natural place to bail on the common (publish) path - Ctrl+C here
 	## aborts; there is no separate "Proceed? [y/N]" (removed to cut friction).
 	if ((${#GIT_PUBLISH[@]})) && [[ -z "$publish_msg" ]]; then
-		read -r -p "Publish commit message (blank = editor; Ctrl+C aborts): " m
-		fEcho_ResetBlankCounter
-		[[ -n "$m" ]] && publish_msg="$m"
+		## No terminal - ssh with a command, cron, a piped run. Nobody can answer,
+		## and a bare `read` under set -e aborts the whole run with no message at all.
+		if [[ -t 0 ]]; then
+			read -r -p "Publish commit message (blank = editor; Ctrl+C aborts): " m
+			fEcho_ResetBlankCounter
+			[[ -n "$m" ]] && publish_msg="$m"
+		else
+			fEcho_Clean "no terminal: the publish stage will fill in its own commit message"
+		fi
 	fi
 fi
 
@@ -649,8 +655,14 @@ elif [[ -n "$publish_msg" ]]; then
 	GIT_BACKUP_AND_PUBLISH_QUIET=1 GIT_AUTO_MESSAGE="${publish_msg}" \
 		GIT_EDITOR="${here}/utility/git-auto-msg.bash" "${GIT_PUBLISH[@]}" "${pub_flags[@]}"
 	fEcho "OK: published"
-else
+elif [[ -t 0 ]]; then
 	"${GIT_PUBLISH[@]}" "${pub_flags[@]}"
+	fEcho "OK: published"
+else
+	## An empty message means git opens an editor, and there is no terminal to open
+	## it into. Hand git the auto-message helper so the commit still gets written.
+	GIT_BACKUP_AND_PUBLISH_QUIET=1 GIT_EDITOR="${here}/utility/git-auto-msg.bash" \
+		"${GIT_PUBLISH[@]}" "${pub_flags[@]}"
 	fEcho "OK: published"
 fi
 
