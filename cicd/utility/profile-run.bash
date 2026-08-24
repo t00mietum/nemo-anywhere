@@ -18,6 +18,8 @@
 ##	   --hz N       samples per second (default 20)
 ##	   --bin PATH   profile this binary (default: the staged release, else the
 ##	                container debug build copied out)
+##	   --probe      check the box can profile at all, then exit. Lets the caller
+##	                tell "this box cannot" from "the run went wrong".
 
 ##	History: At bottom of script.
 
@@ -36,29 +38,39 @@ SLUG="nemo-anywhere"
 # shellcheck source=include/echo.bash
 source "${HERE}/include/echo.bash"
 
-out=""; secs=12; hz=20; bin=""
+out=""; secs=12; hz=20; bin=""; probeOnly=0
 while (($#)); do case "$1" in
 	--secs)    secs="${2:?--secs needs a number}"; shift 2 ;;
 	--hz)      hz="${2:?--hz needs a number}"; shift 2 ;;
 	--bin)     bin="${2:?--bin needs a path}"; shift 2 ;;
+	--probe)   probeOnly=1; shift ;;
 	-h|--help) sed -n '/^##	- Purpose:/,/^##	History:/p' "${BASH_SOURCE[0]}" | sed '$d; s/^##	\{0,1\}//'; exit 0 ;;
 	-*)        fDie "unknown option: $1 (try --help)" ;;
 	*)         out="$1"; shift ;;
 esac; done
-[[ -n "$out" ]] || fDie "usage: profile-run.bash <output.svg> [--secs N] [--hz N] [--bin PATH]"
+((probeOnly)) || [[ -n "$out" ]] || fDie "usage: profile-run.bash <output.svg> [--secs N] [--hz N] [--bin PATH]"
 
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Preconditions
 #
 # Anything missing here is the box, not the app, so say so and let the caller
-# decide whether that is a skip or a failure.
+# decide whether that is a skip or a failure. --probe is how it asks, so a box
+# that simply cannot profile reads as a skipped stage rather than a broken build.
 
-for tool in gdb Xvfb inferno-flamegraph; do
-	command -v "$tool" >/dev/null 2>&1 || fDie "missing: ${tool}"
-done
-[[ "$(cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null || echo 0)" == 0 ]] \
-	|| fDie "ptrace is restricted (yama/ptrace_scope is not 0), cannot sample"
+fCheckPreconditions(){
+	local tool missing=()
+	for tool in gdb Xvfb inferno-flamegraph; do
+		command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+	done
+	((${#missing[@]})) && fDie "missing: ${missing[*]}"
+	[[ "$(cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null || echo 0)" == 0 ]] \
+		|| fDie "ptrace is restricted (yama/ptrace_scope is not 0), cannot sample"
+	:
+}
+
+fCheckPreconditions
+((probeOnly)) && exit 0
 
 work="$(mktemp -d)"
 
