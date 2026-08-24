@@ -48,6 +48,8 @@
 ##	   --no-profile        skip the profiler stage
 ##	   --no-dogfood        skip installing the native release locally
 ##	   --no-publish        skip the git backup + publish stage
+##	   --allow-dirty       let publish commit an uncommitted working tree (it
+##	                       refuses one by default)
 ##	   --shots             refresh README screenshots (off by default)
 ##	   --demo              re-record the demo video (off by default)
 ##	   --quick             skip the slow stages (cross-builds + packages + profiling)
@@ -95,7 +97,7 @@ cd "${root}"
 stamp="$(date +%Y%m%d-%H%M%S)"
 
 ## Parse options.
-assume_yes=0; quiet=0; quick=0; gate=0; no_arm=0; no_sync=0; cli_message=""
+assume_yes=0; quiet=0; quick=0; gate=0; no_arm=0; no_sync=0; allow_dirty=0; cli_message=""
 while (($#)); do case "$1" in
 	-y|--yes)                 assume_yes=1; shift ;;
 	-q|--quiet)               quiet=1; assume_yes=1; shift ;;   ## quiet + unattended; publish runs quiet too
@@ -108,6 +110,7 @@ while (($#)); do case "$1" in
 	--no-profile)             PROFILE_ENABLE=0; shift ;;
 	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); shift ;;
 	--no-publish)             GIT_PUBLISH=(); shift ;;
+	--allow-dirty)            allow_dirty=1; shift ;;
 	--shots)                  SHOTS_ENABLE=1; shift ;;
 	--demo)                   DEMO_ENABLE=1; shift ;;
 	--quick)                  quick=1; BUILD_CROSS=0; PROFILE_ENABLE=0; PACKAGE_ENABLE=0; shift ;;   ## skip the slow stages
@@ -189,6 +192,24 @@ write_sums(){
 	  ((${#files[@]})) && sha256sum "${files[@]}" > "${sums}"
 	  true )
 }
+## Publishing pushes work that was committed deliberately; it is not a place to
+## sweep up whatever happens to be lying around. The publish stage runs a bare
+## `git add --all`, which cannot tell work in progress from a finished change, so
+## refuse instead. Gitignored paths (the artifacts dir the run itself writes to)
+## never show up here. --allow-dirty is the one-off way back to the old behaviour.
+require_clean_tree_for_publish(){
+	((${#GIT_PUBLISH[@]})) || return 0
+	((allow_dirty)) && return 0
+	local dirty
+	dirty="$(git -C "${root}" status --porcelain 2>/dev/null)"
+	[[ -n "$dirty" ]] || return 0
+	fEcho_Clean
+	fEcho_Clean "${dirty}"
+	fEcho_Clean
+	fEcho_Clean "Commit or stash it, or rerun with --no-publish. --allow-dirty commits it anyway."
+	fDie "working tree is dirty and the publish stage would commit all of it"
+}
+
 ## Refresh from upstream BEFORE the build, so what publish pushes is what was
 ## actually built and tested - the publish stage pulls too, but by then the
 ## testing is already behind us. Behind-only fast-forwards (wrapping any dirty
@@ -351,9 +372,14 @@ elif [[ -n "$publish_msg" ]]; then
 else
 	fEcho_Clean "Publish (last) ......: ${GIT_PUBLISH[*]} (will prompt for message; blank = editor)"
 fi
+((${#GIT_PUBLISH[@]})) && fEcho_Clean "  working tree ......: $( ((allow_dirty)) && echo 'committed as-is (--allow-dirty)' || echo 'must be clean' )"
 fEcho_Clean
 fEcho_Clean "Fail-fast: any error aborts before the next stage."
 fEcho_Clean
+
+## Before the build, not after it: a dirty tree is a ten-second answer, and finding
+## out at stage 8 wastes the whole run.
+require_clean_tree_for_publish
 
 if ((! assume_yes)); then
 	## Capture the commit message up front so the run can finish unattended. This
@@ -643,6 +669,9 @@ fi
 
 ## Stage 8: backup + publish.
 fSection "8/8  Backup + publish"
+## Again: preflight cleared the tree, but a stage since then may have written to it
+## (an in-place formatter is the obvious one).
+require_clean_tree_for_publish
 ## Always run the publisher quiet: cicd already gave the initial prompt, so skip
 ## its redundant continue-prompt. With no message it still lets git open the editor.
 pub_flags=(--quiet)
