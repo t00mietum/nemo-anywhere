@@ -129,13 +129,15 @@ if ((no_arm)) && declare -p CROSS_TARGETS &>/dev/null; then
 fi
 declare -p PACKAGE_ENABLE &>/dev/null || PACKAGE_ENABLE=0   ## tolerate a config predating the packages stage
 
-## Publish commit message: -m wins, then config, then a default when unattended.
+## Publish commit message: -m wins, then config, then whatever the auto-message
+## helper makes of the tree when unattended - one place owns the wording, so this
+## and the publisher cannot disagree about it.
 ## Empty -> publish interactively (git commit opens an editor); when interactive
 ## we offer to capture a message at the preflight prompt below.
 publish_msg=""
 if   [[ -n "$cli_message" ]];              then publish_msg="$cli_message"
 elif [[ -n "${PUBLISH_AUTO_MESSAGE:-}" ]]; then publish_msg="$PUBLISH_AUTO_MESSAGE"
-elif ((assume_yes));                       then publish_msg="${APP_NAME} CI/CD ${stamp}"
+elif ((assume_yes));                       then publish_msg="$(bash "${here}/utility/git-auto-msg.bash" --suggest)"
 fi
 
 ## Output helpers: fEcho / fEcho_Clean, blank-collapsing.

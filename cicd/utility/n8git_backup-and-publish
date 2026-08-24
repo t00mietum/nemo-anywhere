@@ -293,7 +293,7 @@ fMain(){
 		## quiet, auto-generate one so an unattended run never blocks on an editor;
 		## otherwise open the editor as usual.
 		if   [[ -n "${commitMessage}" ]]; then git commit -m "${commitMessage}"
-		elif ((doQuietly));               then git commit -m "${dirName_Top} ${serialDT}"
+		elif ((doQuietly));               then git commit -m "$(fAutoMessage)"
 		else                                   git commit
 		fi
 	fi
@@ -312,6 +312,14 @@ fMain(){
 :;}
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+## The message an unattended commit lands under. Delegated to the sibling helper so
+## the pipeline and this script cannot drift apart on it; the fallback is for a copy
+## of this script living somewhere on its own.
+fAutoMessage(){
+	if [[ -x "${meDir}/git-auto-msg.bash" ]]; then bash "${meDir}/git-auto-msg.bash" --suggest
+	else                                          echo "Updated"
+	fi ;}
+
 fCleanup(){
 #	if ((! doQuietly)); then
 		fEcho_Clean
