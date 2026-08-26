@@ -33,6 +33,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 | ✅   | Complete
 | 🚫   | Canceled
 
+Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` date once it is complete or canceled. Format is `YYYYmmDD-HHMMSS`.
+
 ## Backlog
 
 ### Bugs
