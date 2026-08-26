@@ -58,9 +58,13 @@ jobs:
             mingw-w64-x86_64-desktop-file-utils
             intltool
 
+      # The linker writes a timestamp into the PE header, and left alone it writes
+      # the clock, so the same tag would build to different bytes every run.
       - name: Build (meson + ninja)
         shell: msys2 {0}
         run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
           meson setup -Dxmp=false build source
           ninja -C build
 

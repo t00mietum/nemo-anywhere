@@ -37,6 +37,8 @@ MAINTAINER="t00mietum <t00mietum@users.noreply.github.com>"
 
 # shellcheck source=../utility/include/echo.bash
 source "${ROOT}/cicd/utility/include/echo.bash"
+# shellcheck source=../utility/include/source-date.bash
+source "${ROOT}/cicd/utility/include/source-date.bash"
 
 tarball=""; do_deb=1; do_rpm=1
 while (($#)); do case "$1" in
@@ -64,6 +66,11 @@ base="$(basename "$tarball" .tar.gz)"
 ver="${base#"${SLUG}"-}"; ver="${ver%%-linux-*}"
 arch="${base##*-linux-}"
 [[ -n "$ver" && -n "$arch" ]] || fDie "cannot read version/arch out of $(basename "$tarball")"
+
+## dpkg-deb and rpmbuild both read this and stamp it instead of the clock, so the
+## same tarball packages to the same bytes twice.
+fSetSourceDate "$ROOT"
+fWarnIfSourceDateIsAGuess "$ROOT"
 
 case "$arch" in
 	x86_64) deb_arch="amd64"; rpm_arch="x86_64" ;;
@@ -225,6 +232,14 @@ if ((do_rpm)); then
 		{
 			echo "%global _build_id_links none"
 			echo "%global __os_install_post %{nil}"   ## the binaries are already stripped
+			## rpm reads SOURCE_DATE_EPOCH but ignores it unless told to. Without these
+			## the header carries the clock and every file gets a fresh mtime.
+			echo "%global source_date_epoch_from_changelog 0"
+			echo "%global use_source_date_epoch_as_buildtime 1"
+			echo "%global clamp_mtime_to_source_date_epoch 1"
+			## Otherwise the header records the build container's hostname, which is
+			## a fresh random string every time the container is recreated.
+			echo "%global _buildhost ${SLUG}-build"
 			echo "Name:           ${SLUG}"
 			echo "Version:        ${rpm_ver}"
 			echo "Release:        1"

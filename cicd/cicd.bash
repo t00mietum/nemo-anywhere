@@ -86,6 +86,7 @@ export CICD_MAX_JOBS
 
 source "${here}/config.bash"
 source "${here}/utility/include/gfs-rotate.bash"                  ## gfs_rotate() for the profiler artifacts
+source "${here}/utility/include/source-date.bash"                 ## fSetSourceDate() for reproducible builds
 declare -p FMT_CMD &>/dev/null || FMT_CMD=()                      ## tolerate a config without the fmt stage
 ## NOT-READY (Rust origin): the source pipeline also exported CARGO_BUILD_JOBS and
 ## RUST_TEST_THREADS here to bound cargo's jobserver and the test run. No cargo in a
@@ -94,7 +95,10 @@ declare -p FMT_CMD &>/dev/null || FMT_CMD=()                      ## tolerate a 
 #export RUST_TEST_THREADS="${CICD_MAX_JOBS}"
 
 cd "${root}"
+## Log and artifact names are the one place the wall clock still belongs; anything
+## a build stamps into its output reads SOURCE_DATE_EPOCH instead.
 stamp="$(date +%Y%m%d-%H%M%S)"
+fSetSourceDate "${root}"
 
 ## Parse options.
 assume_yes=0; quiet=0; quick=0; gate=0; no_arm=0; no_sync=0; allow_dirty=0; cli_message=""
