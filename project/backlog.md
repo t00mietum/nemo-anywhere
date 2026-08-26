@@ -38,145 +38,178 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 ### Bugs
 
 - 🔘 Switching the path separator to `/` does not take effect until the folder is revisited.
+	- Opened: 20260826-103001
 	- Note: the rest of the Paths group on the Display page applies straight away, so this one is the odd man out.
 
 - 🔘 "Show the full path in the title bar and tab bars" does nothing.
+	- Opened: 20260826-103001
 	- Note: on the Display page, under Windows and Tab Titles. Turning it on leaves the window title and the tabs showing the folder name only.
 
 - 🔘 Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
+	- Opened: 20260821-150232
 	- Found while proving the long-path manifest work. The toolkit's own directory walk is what breaks; every other call on the same path is right, which is why nothing showed up until a folder that deep was actually opened.
 	- In the window it reads as an empty folder, because each name it hands back is then checked against the folder that was asked for and none of them are in it. That is the harmless case. The one to worry about is search, which walks folders itself and would follow the wrong tree.
 	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
 	- Not ours to fix in place. Either the walk is done ourselves on Windows, or it goes upstream - nothing was found already filed for it.
 
 - 🔘 The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
+	- Opened: 20260821-144459
 	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
 	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
 
 - 🔘 A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+	- Opened: 20260818-155550
 	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
 	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
 	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
 
 - 🔘 The installer leaves the user PATH very slightly different from how it found it.
+	- Opened: 20260818-155550
 	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
 
 - 🔘 Windows network browsing cannot be proved to report a missing network or a refused share.
+	- Opened: 20260804-230307
 	- From code review 20260804. The address building and the not-found answer are fixed and verified against real shares.
 	- Note: both halves need a machine that fails in those specific ways, which this one does not.
 
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
+	- Opened: 20260804-133646
 	- The Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
 	- What is left on Windows is a different signature: nine `g_file_get_child: assertion 'name != NULL'` at startup. Not looked into.
 	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
 
 - 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
+	- Opened: 20260802-095853
 	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
 
 ### Features and enhancements
 
 - 🔘 Update the vendored SHCL to the current release.
+	- Opened: 20260826-103001
 	- It manages its own file creation and updating now, which is one of the rough edges hit here.
-	- Note: no copy on this box - fetch it from the source.
+	- Note: Fetch it from the source.
 
 - 🔘 Windows: open a `.lnk` the way Explorer does, by what it points at.
+	- Opened: 20260826-103001
 	- A shortcut to a file opens in the file's associated program.
 	- A shortcut to a program runs it.
 	- A shortcut to a folder goes to that path in the current tab.
+	- Use an appropriate icon.
 	- Note: following a shortcut through to its target already works. What is missing is treating each kind of target differently.
 
 - 🔘 Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
+	- Opened: 20260826-103001
 	- The build number is the minutes elapsed since the start of 2000, Crockford base32 encoded, lower case.
 
 - 🔘 Ctrl+H toggles dot-files and Windows hidden files together.
+	- Opened: 20260826-103001
 	- If the two are out of step, take the Windows hidden setting as the current value and match the other to it.
 	- Ctrl+Shift+H stays as it is, Windows only.
 
 - 🔘 Ctrl+, opens Preferences.
+	- Opened: 20260826-103001
 
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
+	- Opened: 20260826-103001
 
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
+	- Opened: 20260826-103001
 	- Only that one button. The ancestor buttons keep the shorter menu.
 	- Note: the first pass left out the selection and extension submenus (Open With, Copy/Move To, Rename, Duplicate, Create Link, Scripts, Actions), which are tied to the live selection.
 
 - 🔘 Always operate on whole rows in list view.
+	- Opened: 20260826-103001
 	- Clicking anywhere on a row selects that row, so clicking off the text is not read as a background click - unless it is below everything listed.
 	- Right-clicking off an existing selection selects first and then opens the menu, to save a step.
 
 - 🔘 Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
+	- Opened: 20260730-203115
 	- Overrides launch directly. All settings and overrides live in the settings file, never written to the registry.
 	- Not blocked any more; the config engine is in.
 
 - 🔘 Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
-
-- 🔘 Windows: "Open in terminal" should refer to an ordered list of shells and terminals in settings (if there's not a standard Windows way). At install time - and at launch in a background thread once the UI renders and settles:
-	- Check for a hardcoded list of terminals. For each that exist, add them to config. (Add nonexistent ones too, commented out.) For each, prefer to launch in what's installed, in this order of preference: SilkTerm, Windows Terminal, conhost. User can override which terminal is opened, for each shell.
-		- Powershell 7
-		- WSL2 distros
-		- WSL1 distros
-		- NuShell
-		- PyCmd
-		- CMD.exe
-		- Powershell 5
+	- Opened: 20260826-103001
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
+	- Opened: 20260826-103001
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe - the documented fallback, working as intended, but worth knowing before announcing a build.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
+	- Opened: 20260821-150232
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
 
 - 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
+	- Opened: 20260819-141014
 
 - 🔘 Search options: Flat [ ]  Hierarchical [ ]
+	- Opened: 20260819-141014
 
 - 🔘 Path button bar should immediately return to buttons, any time the path defocuses, not just 'esc' hit.
+	- Opened: 20260802-011216
 
 - 🔘 Hit 'Esc' when focus is in the folder/file pane to completely remove selection. (E.g. to use menu key on background.) Esc again to return it to where it was.
+	- Opened: 20260802-011216
 
 - 🔘 In find mode, show the whole path in the status bar rather than just the selected filename.
+	- Opened: 20260730-112038
 
 - 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.
+	- Opened: 20260730-112038
 	- Using a reusable tooltip mechanism
 
 - 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
+	- Opened: 20260730-112038
 	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 
 - 🔘 Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
+	- Opened: 20260823-142431
 	- The hidden-files half of this item became "Two kinds of hidden file, two options", now done - it asks for the same thing as two switches rather than one.
 
 - 🔘 New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
+	- Opened: 20260730-112038
 
 - 🔘 If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
+	- Opened: 20260722-172504
 
 - 🔘 Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
+	- Opened: 20260722-201512
 	- 🔘 '~' should work on Windows too.
 	- 🔘 Allow environment variables in bookmarks, pathnames, command-line, etc.
 		- E.g. $HOME on Linux, %USERPROFILE% on Windows.
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
+	- Opened: 20260722-172504
 
 - 🔘 Allow moving tabs to other windows.
+	- Opened: 20260722-172504
 
 - 🔘 Option to always show a tab.
+	- Opened: 20260722-172504
 
 - 🔘 Tabs shouldn't take up the whole space, only what's needed for title (and a reasonable minimum width).
+	- Opened: 20260723-133832
 	- With a minimum and maximum width, as a percentage, in the settings file.
 
 - 🔘 Target: BSD
+	- Opened: 20260730-185314
 
 - 🔘 Target: macOS
+	- Opened: 20260730-185314
 
 - 🛠️ Enable the disabled pipeline stages as the build matures.
+	- Opened: 20260725-153058
 
 - 🔘 Wire the Linux release lane into the pipeline engine itself. Its collector still assumes a bare binary and Cargo-shaped versions, so `RELEASE_ENABLE` stays 0.
+	- Opened: 20260804-133646
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
+	- Opened: 20260804-133646
 
 - 🔘 Recorded demo of the app in use, generated by the pipeline and skippable on a quick run.
+	- Opened: 20260804-230307
 	- A short video showing the main features, ~twenty seconds, rendered without a visible display.
 	- A looping animation of the same thing for the top of the README.
 	- Everything anonymized - no real user name, no distinctive paths.
@@ -185,6 +218,7 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Follow the 'Automated demo of program use' notes kept with the shared project directives.
 
 - 🔘 Windows code signing, and reducing AV false positives.
+	- Opened: 20260804-095855
 	- A paid signing service, around $10 a month for 5,000 signatures, is the option on the table now.
 	- SignPath Foundation (free for open source) was applied for and refused, so releases ship an unsigned exe with the `.zip` as the fallback. The release-only workflow at `.github/workflows/release-win.yml` still builds, packs and publishes; its submission step is left dormant behind the token gate. Consequence worth remembering: that workflow existed because SignPath would only sign CI-built artifacts, so with it gone nothing forces a release into hosted CI and a local cut is viable again.
 	- Options weighed (Azure Artifact Signing, Certum open source, commercial cloud, reapplying) are in `cicd/win/signing.md`.
@@ -196,46 +230,64 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 #### Done - Bugs
 
 - ✅ In dark mode the breadcrumb bar and the checked view buttons kept a light background, unreadable against everything around them.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 	- Cause: a bundled theme is loaded as a stylesheet of our own, but the theme *name* was left pointing at it. GTK cannot resolve a name it has never seen on disk, falls back to its packaged sheet, and drops the dark half while doing so - so the layer under ours was the light one. Anything our sheet did not itself paint showed it through.
 	- Fixed: the name now points at a theme GTK really has, so the base follows light/dark while our sheet sits on top. Confirmed by eye, and by reproducing it the other way first.
 	- Also fixed alongside: choosing a theme that cannot be found left the previous one on screen, so a bad name looked like nothing had happened.
 
 - ✅ The three view buttons at the bottom left drew as broken-image placeholders.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 	- Cause: none of the app's own artwork was in the Windows bundle at all. Only the toolkit's icons were packaged, so every one of our own icon names missed - the location button in the toolbar was the same failure.
 	- Fixed: the app's artwork now rides inside the executable, the same way the bundled themes do. Costs no extra files, so nothing is added to startup time, and it works on every platform including a relocated install.
 
 - ✅ The theme picker offered "macOS" and "Windows 10" twice in dark mode, and one of each was the light theme.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 	- Cause: those two themes ship a dark sheet of their own upstream *and* have a separately drawn dark half that we also bundle, so both halves claimed dark.
 	- Fixed: where a light/dark pair is named, the pair wins and the redundant sheet is dropped. A theme that states which modes it suits is no longer second-guessed either, so a hand-dropped theme cannot bring the fault back.
 
 - ✅ On Windows a drive root is named `\` everywhere except the sidebar - the window title reads `\` and the breadcrumb reads `(C:) Windows` while the sidebar has `Windows (C:)`. Seen on this box browsing `C:\`.
+	- Opened: 20260818-142740
+	- Closed: 20260818-155550
 	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
 	- Three different sources were in play: the basename, which is `\` for every drive alike; the volume monitor, which says `(C:) Windows`; and the sidebar's own string.
 	- Fixed: a drive root is `C:\` everywhere - title, breadcrumb and sidebar all ask the same helper. The volume label moved to the sidebar tooltip, where it cannot be mistaken for the path.
 	- Verified on Windows: a new test covers the naming, including that the first folder inside a drive keeps its own name; the three surfaces were then checked by eye. Pre-fix the checks fail.
 
 - ✅ "Set as default" in the Open With tab did nothing on Windows, and said nothing either.
+	- Opened: 20260818-155550
+	- Closed: 20260818-155550
 	- Cause: Windows keeps the per-user default behind a hash it will not let a program write, so the call fails outright - and the result was thrown away along with the error.
 	- Fixed: the failure is reported. The choice still cannot be made on Windows; the difference is the user is told rather than left thinking it worked.
 	- Verified on Windows: the underlying call refuses with "Setting default applications not supported yet". Looking a default up still works, but only by extension - asking by mime type answers nothing.
 
 - ✅ The action layout editor never opens: the app spawns it as `nemo-action-layout-editor`, but the binary installs under the app slug as `nemo-anywhere-action-layout-editor`. One missed rename from the rebrand.
+	- Opened: 20260804-133646
+	- Closed: 20260818-103142
 	- Fixed: it is spawned under the app slug, out of the folder the app itself was started from, and a failure to start now says so instead of doing nothing.
 	- Also found and fixed alongside: the Restart button in extension settings was quitting and starting whichever upstream Nemo happened to be installed, not this app.
 
 - ✅ The Windows build shipped without its compiled-in resources, so it had no menu bar at all and every `.ui`, `.glade` and `.css` lookup failed.
+	- Opened: 20260818-155550
+	- Closed: 20260818-155550
 	- Cause: the resource bundle is attached to the extension library. On Linux that is a shared library and the whole thing loads, so the resources register themselves. On Windows it is a static one, and the linker keeps only the members that resolve a symbol - the resources register from a constructor nothing calls by name, so the object was dropped.
 	- Nobody noticed because the app still starts and browses: the missing menu bar reads as a design choice, and the fallout was a wall of criticals that had been written off as noise.
 	- Fixed: on Windows the resources go straight into the executable. Linux keeps them in the shared library as before.
 	- Verified on Windows: the menu bar is back, and startup criticals went from 40 to 9 - none of the remainder about resources or widgets.
 
 - ✅ The Windows executable was not marked long-path aware, so anything past the old 260-character limit was out of reach even with long paths switched on.
+	- Opened: 20260818-142740
+	- Closed: 20260826-103001
 	- Cause: the exe carried no application manifest, which is where that is declared.
 	- Fixed: the manifest arrived with the DPI work. Measured on a 427-character folder holding a 462-character file: without the manifest every call failed outright; with it, reading the file, asking for its details, testing that it exists and walking into the folder all work.
 	- Note: listing such a folder is still wrong, and worse than a failure - it is its own bug, still open.
 
 - ✅ Code review 20260815.
-	- Full code, security and performance review of the whole tree, first-party and inherited. Findings were adversarially re-checked before landing here; the ones that survived are below, worst first. Technical detail is kept out of this file. Numbers are continuous and match the private detail notes.
+	- Opened: 20260815-154746
+	- Closed: 20260817-210917
+	- Full code, security and performance review of the whole tree, first-party and inherited. Everything below was re-checked before it went in, worst first. Technical detail is kept out of this file. Numbers are continuous and match the private detail notes.
 	- ✅ High.
 		- ✅ Item 1. Windows trash acts on file paths from the address with no check that they belong to the recycle bin.
 			- Cause: delete, move and read take the raw path straight from a `trash:///` address, so a crafted address can read or permanently delete any file.
@@ -619,7 +671,9 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 			- Fixed: only rows that actually change are touched.
 
 - ✅ Code review 20260804.
-	- Full adversarial review of everything written or changed since the fork point. Ordered roughly most serious first. Technical detail is kept out of this file.
+	- Opened: 20260804-230307
+	- Closed: 20260817-210917
+	- Full review of everything written or changed since the fork point. Ordered roughly most serious first. Technical detail is kept out of this file.
 	- ✅ Item 1. Every dropdown and radio choice in Settings saved the wrong value.
 		- Cause: the settings layer stored the choice by number, but the dialog only ever supplied the name, leaving the number at zero. Whatever was picked, the first option was saved.
 		- Note: worst case was "Executable text files", where the first option is "run it" - so any visit to that setting quietly armed scripts to run on double click.
@@ -811,33 +865,47 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- Fixed: it reports a skip instead of a pass when it cannot run.
 
 - ✅ Setting list view to 66% doesn't affect current list view. It should.
+	- Opened: 20260724-135703
+	- Closed: 20260725-184516
 	- Also, setting default view to List mode, should affect current view immediately as well.
 	- Cause: a folder stored its own view and zoom the first time it was opened, even when that just matched the default, so it was pinned to whatever the default was that day and later changes to the default never reached it. Nothing was watching the default view setting at all.
 	- Fixed: a setting that only matches the default is no longer stored, so folders keep following it. Changing a default now also applies to the folders already on screen, and folders you deliberately set to their own view or zoom keep it.
 
 - ✅ Settings don't seem to be persisting.
+	- Opened: 20260724-091054
+	- Closed: 20260725-172648
 	- Verified: settings do persist, on both Linux and Windows. Checked the menus, the Settings dialog, per-folder view state, and window size, each set in one run and read back in the next.
 	- Cause: the Settings dialog was crashing the whole app at the time this was filed, so nothing set in that session was kept. That crash is fixed.
 	- Fixed as well: window size and position were only written when a window was closed cleanly, so a crash - or the wine launcher replacing the running copy - threw them away. They are now saved shortly after a move or resize settles.
 
 - ✅ Windows via Wine: error message at startup. 'The folder contents could not be displayed.', 'Sorry, could not display all the contents of "<username>": Input/output error.' Mouse cursor also stuck at "busy spinner".
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Reproduced: opening a home folder containing a unix symlink.
 	- Cause: one unreadable child failed the whole folder listing. The aborted load also left the busy cursor on.
 	- Fixed: the unreadable child is skipped and the rest of the folder lists. The load completes and the cursor clears.
 
 - ✅ Windows via Wine: cursor seems stuck on the "busy" mouse icon.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Cause: same as the startup error above. The folder load never finished, so the busy cursor never cleared.
 
 - ✅ Icons don't match OG nemo.
+	- Opened: 20260724-091054
+	- Closed: 20260725-153058
 	- Cause: two gaps. Windows reports one generic icon for every file type, and the Windows dependency snapshot was missing its image-loader cache, so no symbolic (SVG) icons rendered.
 	- Fixed: per-type icons now derived from the file type on Windows. The loader cache is generated when the snapshot is built.
 	- Note: the app's own bundled PNG icons didn't resolve on Windows either. That was a separate item, since done.
 
 - ✅ Windows: dot-name folders don't say "Folder". Regular folders say "Program", not "Folder".
+	- Opened: 20260724-135703
+	- Closed: 20260725-153058
 	- Cause: folder type was guessed from the name whenever size read as zero, which every Windows folder does.
 	- Fixed: folders always report the folder type, never guessed.
 
 - ✅ Portable fallbacks for the remaining Mint-flavored theme icon names.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Cause: menus and toolbars referenced icon names only Mint themes ship. Pre-existing gap on non-Mint, cosmetic only.
 	- Fixed: all names mapped to standard freedesktop names (mostly a straight prefix strip; the non-standard ones got closest equivalents).
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
@@ -845,6 +913,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 #### Done - Features and enhancements
 
 - ✅ Windows: two kinds of hidden file, two options.
+	- Opened: 20260823-142431
+	- Closed: 20260823-142431
 	- Supersedes the older item that asked for the same thing as one combined switch.
 	- The premise turned out to be worse than described: Windows reports only its own hidden attribute, so dot-files were shown there whatever the setting said. Same for names ending in a tilde, which count as backups elsewhere.
 	- "Show dot-files" is now a second switch, Ctrl+Shift+H, next to "Show hidden files" in the View menu and hidden on every other platform, where one switch still covers both. Default is to hide them.
@@ -852,6 +922,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Flipping either one re-reads the open folder, so an edit to the settings file shows up without a restart.
 
 - ✅ Windows: choose which separator paths are shown with.
+	- Opened: 20260823-142431
+	- Closed: 20260823-144331
 	- A "Paths" group on the Display page of Preferences, shown only on Windows: "Show separator as" picks `\` or `/`, and a checkbox below it accepts or refuses `/` in a typed location.
 	- The checkbox is ticked and greyed out while `/` is the separator on screen, since refusing what is being shown would make no sense.
 	- The choice reaches every surface that spells out a path: the location bar, the Location column, path tooltips, the window and tab titles, the sidebar tooltips, drive roots in the sidebar, and the Location row in properties. Breadcrumbs show names only, so there was nothing to change.
@@ -860,11 +932,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Also fixed on the way past: the preferences dialog named a widget in a size group that no longer exists, so loading it stopped early and silently. Only an unused list model came after the break, which is why nothing looked wrong.
 
 - ✅ Windows: "Copy path as [\|/]".
+	- Opened: 20260823-145852
+	- Closed: 20260823-145852
 	- A second clipboard item directly below the existing Copy Path one, spelling out whichever separator the paths are not currently shown with. It follows the same show/hide setting as the first, so the pair travels together.
 	- In all four places the first one appears: the Edit menu, the selection menu, the background menu and the breadcrumb menu. Hidden on every other platform.
 	- The existing Copy Path now follows the display setting too, so the pair is always "what you see" and "the other one". A remote location still contributes its uri untouched, since a uri's slashes were never separators.
 
 - ✅ Windows: "Open with Explorer", for a single selected entry.
+	- Opened: 20260823-142431
+	- Closed: 20260823-145852
 	- On the selection menu, below Open With. Shown only when exactly one thing is selected and it has a local path, since a remote location gives Explorer nothing to open.
 	- A folder opens in Explorer; anything else is revealed and picked out inside its own folder.
 	- A deliberate escape hatch rather than a dependency. The standing "depend on Explorer as little as possible" rule is about core function; this one says Explorer on the label.
@@ -872,6 +948,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Both routes watched working. The item itself cannot be clicked unattended, so it is covered by a probe behind `NEMO_PROBE_EXPLORER` rather than by a test that would open windows on every run.
 
 - ✅ Column widths and the Ext column, second pass. Overrides the earlier column rules where they disagree.
+	- Opened: 20260823-134341
+	- Closed: 20260823-134341
 	- "File extension" is now just "Ext", and shows the extension without its leading dot. It sits directly right of Name, with Location next along whenever that is switched on.
 	- Location, on an ordinary folder listing, grows with Name rather than stopping at a share of it: the two split whatever the other columns leave and Name takes no more than half, so Location is never the narrower of the pair and anything Name does not need goes to Location. Dragging Location by hand ends that and pins the width, as it always did.
 	- Date created, Date modified and Date read keep their full width. What has to give when the window is too narrow comes off Name, Location and Type first, in proportion, and only reaches the dates once those three are down to their floors.
@@ -881,26 +959,38 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- All of it watched in the running app, including the zoom case with the fix backed out.
 
 - ✅ The preferences dialog opens larger, and big enough for the Views page to fit without a scrollbar.
+	- Opened: 20260823-134341
+	- Closed: 20260823-134341
 	- The height is measured from the page itself rather than fixed, so a different theme, font size or translation still fits, up to what the monitor has room for.
 
 - ✅ Ask before moving files to Trash defaults to on.
+	- Opened: 20260823-134341
+	- Closed: 20260823-134341
 	- Already the default; confirmed rather than changed.
 
 - ✅ Right-click properties wording: ours is plain "Properties" and sits first; the Windows sheet reads "Windows properties (Alt+Enter)" below it. Shortcuts themselves are unchanged.
+	- Opened: 20260822-075741
+	- Closed: 20260822-075741
 	- Seen in the running app; the breadcrumb menu says "Windows properties" without the hint, since Alt+Enter acts on the selection rather than a path segment.
 
 - ✅ New list columns.
+	- Opened: 20260822-075741
+	- Closed: 20260822-075741
 	- "File extension", on by default, between Name and Type, dot included the way Explorer shows it. Left empty when the tail after a dot is not really an extension - folders, dot-files, too long, all digits, or not letters and digits. The refusals have a test of their own that fails with the checks taken out.
 	- "Owner" now shows on Windows too and is on by default there - the platform reports the file's real owner, so the old fabricated-values reason to hide it no longer applied.
 	- Windows only: "Permissions source" - Inherited, Local or Mixed, read from the file's ACL - off by default, listed after Owner. Verified against files with disabled inheritance and added grants.
 	- Type now defaults to at most twice the File extension column's width.
 
 - ✅ Column widths remember the user's hand. Overrides the earlier auto-sizing rules where they disagree.
+	- Opened: 20260822-075741
+	- Closed: 20260822-075741
 	- A column with no natural width limit that the user resizes keeps that width as its ceiling from then on, through any window resizing in either direction, saved in settings.
 	- Name still takes all remaining space - except in find mode, where Name and Location split the row one-third/two-thirds by default, and an adjusted split is remembered forever and kept as the window resizes. Supersedes the find-mode column note, now canceled.
 	- Both were watched working in the running app: the dragged ceiling survives narrow-then-wide, and the find-mode split held at the adjusted ratio across sizes.
 
 - ✅ Properties on Windows opens the one Windows itself shows, instead of ours.
+	- Opened: 20260821-203911
+	- Closed: 20260821-204030
 	- Alt+Enter, Ctrl+I and every Properties item now hand the selection to the shell's own sheet - the same one Explorer shows, third-party tabs included. Only Windows; Linux, BSD and macOS are untouched.
 	- Ours stays on a second item, "Advanced properties" (Ctrl+Enter), because the Windows sheet has nowhere to put a custom icon, an emblem, an annotation or the image details page. It is hidden everywhere else, where both items would open the same window.
 	- Anything the shell cannot name falls back to ours rather than doing nothing: a virtual location, a selection spanning folders (which is what a search result set is), or an item that has gone away since it was clicked.
@@ -908,6 +998,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Verified on Windows by eye and by test: the fallback rule has checks of its own, and the two that matter go red with the rule taken back out.
 
 - ✅ Every piece of text in the interface reads as a sentence, not as a headline - only the first word capitalised, and anything that is a name left alone.
+	- Opened: 20260821-203911
+	- Closed: 20260821-211359
 	- Menus, buttons, tab and page titles, dialog titles, column headings, tooltips, preference labels, and the bundled actions. About 330 labels in all.
 	- A mnemonic stays where it was, so the underlined letter does not move; it is simply lower case now. Keyboard shortcut text is untouched.
 	- Names keep their capital: the platforms, the toolkit, Trash and the other places in the sidebar, file and disc formats, acronyms. So does a sentence that names a menu item or a tab, since the item itself is still called that.
@@ -916,6 +1008,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- The check found what a first pass by eye did not - the plural labels, where two spellings sit in one call, which is what had left "Copy Paths" and "Make Links" behind. Proven to go red on a label put back to Title Case.
 
 - ✅ One setting for how much of the machine's CPU any compression may use, as a percentage of the cores it finds. Default 50% - the best balance on a hyperthreaded CPU.
+	- Opened: 20260821-144459
+	- Closed: 20260821-144459
 	- `performance.cpu-percent`, global rather than per-format, so a later job that can be spread over cores reads the same number instead of inventing one of its own.
 	- Reaches the 7z and rar create lines through a `{{THREADS}}` marker of their own, and tar.xz through the library that writes it. Zip, gzip and the built-in 7z have no such option, so they are left alone rather than handed one they would refuse.
 	- It is the one marker that does not stand for a control in the Compress dialog, so a line edited past it says nothing - the program simply picks for itself.
@@ -923,6 +1017,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Verified: each program is handed the switch it spells its own way, and both checks fail with the marker taken back out.
 
 - ✅ Per-monitor DPI aware where the platform offers it, and DPI aware at minimum everywhere else.
+	- Opened: 20260821-144459
+	- Closed: 20260821-150232
 	- The Windows executable now carries an application manifest, which is where this is declared and where Windows reads it before any of our code runs. Per-monitor v2 where it exists, per-monitor v1 and then system-wide on older builds.
 	- Without it the whole window was stretched as a bitmap on a scaled display - blurry - and a second monitor at a different scale could not be followed at all.
 	- The toolkit scales in whole steps only, so a display at 125% or 150% would come out at 100% and read smaller than every other window on that screen. Text is scaled to the monitor's real DPI on top of that, which is not restricted to whole steps, and re-reads it whenever a window moves to a monitor at another scale or a monitor is plugged in. Widgets and icons stay on the whole step.
@@ -931,11 +1027,15 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test, which fails with the whole-step part taken back out. This box runs at 100%, so the fraction itself has been checked by arithmetic rather than by eye - worth a look on a scaled display.
 
 - ✅ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
+	- Opened: 20260821-144459
+	- Closed: 20260821-150232
 	- Both views. A folder was already selected whole; a file now is too.
 	- `preferences.rename-selects-whole-name`, a file-only setting with no control in Preferences.
 	- Verified in the running window: F2 on a `.md` file opens the box with the suffix inside the selection.
 
 - ✅ List view columns use the window as it is resized, instead of being pushed off the end of it or leaving a gap.
+	- Opened: 20260821-144459
+	- Closed: 20260821-153301
 	- Widening: columns take the new space until one can show the longest value in it, and then that one stops. Name is the only column that keeps growing without limit, so once everything else has what it needs the rest is Name's.
 	- Narrowing, which is the same thing read backwards: Name gives its surplus back first, having had all of it. When every column is down to the longest value it holds and it still does not fit, Type gives next, on its own, to about three characters - it is the one least missed that short, where a date or a size that short says nothing. Only then does everything else give ground together, each in proportion to how wide it is, Name included.
 	- A column whose values have no natural limit either - Type, Location, Owner, Group - stops at a third of the Name column rather than taking the window for one long value. The cap and Name's width have to agree with each other, so the answer is found rather than guessed, and it does not depend on the order the columns are in.
@@ -947,17 +1047,25 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Verified by eye at half a dozen widths on two folders, and the rule itself has a test of its own that fails on the obvious ways to get it wrong.
 
 - ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colours, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
+	- Opened: 20260819-160351
+	- Closed: 20260819-160351
 	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
 	- Three new fetch shapes were needed: a repository that keeps one theme family per branch, six themes out of one sparse checkout, and two that ship the icons as a tar committed inside a repository of something else.
 	- **Buuf is deliberately not included.** It is CC BY-NC-SA, and the NonCommercial term rules it out of anything shipped and out of the repository. It is worth having, so `filesystem/` explains where to drop it and gives a one-line fetch for it.
 	- Three of the twelve carry no licence file upstream and are shipped on weaker evidence than the rest. Each one is named, with what it rests on, in `vendor/README.md` - worth a look before a release.
 
 - ✅ A gallery of every icon set in the README, four icons each on a light and a dark background, plus how to drop your own in. Rendered by `cicd/utility/icon-gallery.py`; re-run it when the set list changes.
+	- Opened: 20260819-160351
+	- Closed: 20260819-160351
 	- Each icon is rasterised on its own before being placed. Several sets colour themselves through a stylesheet keyed on a class name they all spell the same way, so pasting their markup into one sheet made six differently coloured sets come out identical - and renaming the classes apart made them all come out black.
 
 - ✅ `filesystem/` - a tree mirroring where things land on disk, so a folder can be copied straight across. Carries the icon and widget drop-in folders, what they are called on each platform, and the two optional `index.theme` keys that tell the picker which modes a theme suits.
+	- Opened: 20260819-160351
+	- Closed: 20260819-160351
 
 - ✅ Windows icon sets: one per Windows generation, all with yellow folders.
+	- Opened: 20260819-145557
+	- Closed: 20260819-145557
 	- Luna (XP) and Aero (7) were already ours; Metro (10) and Mica (11) are new, so every bundled Windows widget theme now has icons drawn to match it. The picker pairs them automatically.
 	- Folders are yellow in all four. Aero's were blue, which is not what Windows 7 shipped, and a yellow folder is the one colour that reads on a light background and a dark one alike.
 	- The XP and 7 folders were too shallow to read as folders at a glance; the body is taller in every era now.
@@ -965,25 +1073,39 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- The vendored Fluent icon set is gone with them: it drew blue folders and looked nothing like Windows 11, and Mica now covers that style. The Fluent *widget* theme stays. About 390 KB and 179 files lighter.
 
 - ✅ Every bundled SVG run through a size pass: 2.1 MB of icon art down to 1.8 MB, and nemo's own artwork from 142 KB to 50 KB.
+	- Opened: 20260819-145557
+	- Closed: 20260819-145557
 	- Numbers in path data are rounded to a step finer than a two-thousandth of the icon, which is under a tenth of a pixel at any size one is drawn. Colours fold to their short form and unreferenced ids go.
 	- Multipliers - transform matrices, gradient vectors - are deliberately left alone: rounding a scale factor moves everything it touches, which is visible where rounding a coordinate is not.
-	- Checked by rendering all 983 icons before and after and comparing pixels. One icon differs at all, by an amount invisible side by side. Doing that caught a real fault first time round: an arc's two flags can be written with nothing between them, and reading path data as a plain run of numbers swallows one and silently reshapes the glyph.
+	- All 983 icons were compared before and after. One differs at all, by an amount invisible side by side. Checking caught a real fault first time round: an arc's two flags can be written with nothing between them, and reading path data as a plain run of numbers swallows one and silently reshapes the glyph.
 
 - ✅ Default settings changed: folder expanders on in list view, binary size prefixes (KiB/MiB), and thumbnail visibility inherited from the parent folder.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 
 - ✅ List columns trimmed to one row per idea.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 	- Three dates, the same three everywhere: Date Created, Date Modified (on by default) and Date Read. The "- Time" twins of the first two are gone; they showed the same instant a second way. The times themselves come from whatever each OS keeps them in, so nothing here is per-platform.
 	- MIME Type and Detailed Type are no longer offered - neither reads as anything but debug output beside the plain Type column. Off behind a named switch in the source rather than deleted, since the underlying values are still what the properties window and the sort menu use.
 
 - ✅ Appearance page: picking a Style now moves the Icons choice to match it, so a Windows 11 window frame no longer comes with macOS icons. Where a style has no icon set of its own the icons stay put. The note about drop-in theme folders sits further down the page, clear of the two pickers.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 
 - ✅ "System default" in both theme pickers now reads "Nemo Anywhere" - on the bundled targets it is the app's own look, not the platform's.
+	- Opened: 20260819-141014
+	- Closed: 20260819-141014
 
 - ✅ Settings belong where each platform keeps them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS. Linux and BSD keep `~/.config`. Themes stay where they were.
+	- Opened: 20260819-105607
+	- Closed: 20260819-105607
 	- A folder left in the old place is moved across on first run, so nobody starts from defaults.
 	- Covered by a test that sandboxes both roots and watches the move happen; it fails without the fix.
 
 - ✅ The Windows executable takes too long to start. **14.2s to 3.4s**, and the executable shrank from 39.8 MB to 33.5 MB.
+	- Opened: 20260819-110216
+	- Closed: 20260819-122828
 	- Measured first: the packed single exe reached even `--version` in 14.2s against 0.9s for the same build as a plain folder, and all of the difference is spent before our own code runs. The packer charges about 2.8 ms for every file it carries, and the bundled themes were a couple of thousand of them. The packer's own compression and mapping settings were measured and change nothing.
 	- The bundled themes now ride inside the executable as one compiled-in resource instead of ~2,200 loose files. The sysroot's full Adwaita and its legacy set - 2,693 files to answer the ~180 names we ask of them, plus 33 X11 cursors that do nothing on Windows - are replaced by our own trimmed copies. The whole folder went from 4,840 files to 152.
 	- Trimming Adwaita turned up three faults in the theme resolver that had been quietly costing every bundled theme icons, `emblem-symbolic-link` among them - the one every symlinked file in the view wears. All the bundled themes were rebuilt.
@@ -993,14 +1115,20 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- The remaining 2.5s over a plain-folder launch is the packer's own fixed cost and would need a different packer to reach.
 
 - ✅ Dimmer highlight of mouseover line. It can easily get confused with line selection.
+	- Opened: 20260802-011216
+	- Closed: 20260802-015402
 	- App CSS dims file-pane/tree row :hover to 0.035 alpha (theme was 0.08), scoped `:not(:selected)`; confirmed by eyeball.
 
 - ✅ Drag and drop onto a path button, and a fuller right-click menu on one.
+	- Opened: 20260802-011216
+	- Closed: 20260826-103001
 	- DnD-to already worked (drop-target proxy on each button's folder); confirmed fine.
 	- Right-click menu was the trimmed `location` menu. Added Open, Open in Terminal, Open as Admin, and New Folder (create inside) as `Location*` variants so a segment acts like a folder.
 	- New Folder only enabled when the segment is the currently displayed folder (else grayed) - it is created inside that folder.
 
 - ✅ Ship with "Copy path(s)" script from current nemo install.
+	- Opened: 20260724-091054
+	- Closed: 20260820-055722
 	- Built in rather than shipped as a script, so it needs no interpreter, no clipboard helper and no per-platform install step.
 	- On the selection menu, the background menu (the folder being viewed) and a breadcrumb segment; also on the Edit menu, with Ctrl+Shift+C.
 	- Copies the native path of each selected item, one per line, unquoted, with no trailing newline - the line ending being the local one, so a paste into cmd or notepad lands as separate lines.
@@ -1008,6 +1136,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Label follows the count: "Copy Path" for one, "Copy Paths" for several. Show/hide checkboxes in Preferences like the other context-menu items.
 
 - ✅ Right-click "Compress...": a cross-platform way to archive the selected files and folders.
+	- Opened: 20260820-153813
+	- Closed: 20260820-153813
 	- On the selection menu, the background menu (the folder being viewed) and a breadcrumb segment; also on the Edit menu.
 	- A dialog asks for the name, the format and the folder to put it in, prefilled from the selection and the folder being viewed. The name follows the format, so switching from zip to tar.xz swaps the suffix instead of stacking one on top of the other.
 	- Compressing one folder - selected, or from the background menu or a breadcrumb - archives the folder itself, so opening the archive shows the folder and the contents are one level in. The archive is named after the folder and offered beside it rather than inside it, which is where a person would look for it. A drive root, having no beside, keeps itself.
@@ -1024,6 +1154,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be cancelled, and a cancelled or failed run leaves no half-written archive behind.
 
 - ✅ The 7z and rar command lines are settings, not code, so a user can edit them.
+	- Opened: 20260821-133318
+	- Closed: 20260821-133318
 	- Four lines in `settings.shcl` under `archive` - create and unpack, for each of the two programs - each with `{{PLACEHOLDER}}` markers for the parts the app fills in. Point one at a different build, add a switch we do not offer, or work around a version that spells something its own way.
 	- Every switch the Compress dialog can turn on has a marker of its own, so an edited line keeps the dialog working. Leave one out and the app says which control has gone quiet.
 	- Clearing a line puts the shipped one back rather than running nothing, and a line that cannot be read is refused outright rather than half-run.
@@ -1031,6 +1163,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- `{{LIKE_THIS}}` is now the convention for any setting that needs a placeholder. Braces because no shell or command prompt expands them, so a line can be pasted somewhere to try it out and come back unchanged.
 
 - ✅ Right-click "Extract" for the archive formats we recognize, including shelling out to 7z or rar.
+	- Opened: 20260821-064823
+	- Closed: 20260821-064823
 	- Three items on the selection menu and the Edit menu, shown only when everything selected is an archive: "Extract Here", "Extract Each to Its Own Folder" (singular when one is selected) and "Extract To..." with a folder chooser. Show/hide them in Preferences like the other context-menu items.
 	- "Extract Here" unpacks exactly what the archive stores, so one made from a folder brings that folder with it and lands in one place. The folder-each item is the answer to an archive that would otherwise scatter its contents over the folder being viewed.
 	- Reading covers far more than writing does: the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors all open with nothing installed.
@@ -1041,12 +1175,16 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Unpacking runs as a normal background job: it shows in the same progress popup as copying and can be cancelled.
 
 - ✅ Depend on Explorer as little as possible.
+	- Opened: 20260818-155550
+	- Closed: 20260818-155550
 	- Audited every place the Windows build reaches into the shell. The only one that handed work to Explorer was a "show this file in the file manager" call, which asked Windows for the default handler for a folder - Explorer, by definition.
 	- It was already unreachable: the only caller sits behind a desktop-view check that went permanently false when the desktop shell was removed. On Windows it would also have been asking for a handler that Windows does not answer for - nothing is registered for a folder as a type.
 	- Removed, along with its declaration. Nothing in the tree launches Explorer now.
 	- What remains is in-process and unavoidable: the recycle bin and `.lnk` files are shell APIs called inside our own process, with no Explorer involved. Two `ShellExecute` calls stay for good reasons - one launches the terminal the user chose (found on PATH, not via the shell's associations), the other relaunches our own executable elevated, which is the only way to ask for elevation.
 
 - ✅ Code review 20260815 - architecture and UX notes.
+	- Opened: 20260815-154746
+	- Closed: 20260817-210917
 	- Observations and suggestions rather than defects. Not individually reproduced.
 	- ✅ Item 110. Two separate desktop-terminal fallbacks disagree: "Open in Terminal" honors the configured terminal, launching a terminal app does not.
 		- Fixed: both paths fall back to the same scan of known terminals, so neither silently does nothing.
@@ -1081,6 +1219,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- Fixed: the code-structure, data-flow, execution, stack, UI and testing sections are written.
 
 - ✅ Ultra-portable Windows: a single self-contained executable.
+	- Opened: 20260730-203115
+	- Closed: 20260802-144622
 	- ✅ No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
 		- Pack lane added: `cicd/win/pack-portable.ps1` flattens the staged bundle into a prefix layout (exe + dlls at the root, lib/share/etc beside - the same layout the release zip contract expects, and it double-click-runs with no launcher) then packs it with the EVB console into `cicd/artifacts/win-portable/nemo-anywhere.exe`. Wired as cicd-win stage 5.
 		- Font-rendering env (freetype v35 interpreter) now set inside the exe on Windows, so no launcher is needed for the native text look.
@@ -1092,6 +1232,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- `nemo_module_setup` skips the plugin dir on Windows, so a stray DLL can never load and hang the app. The Settings plugins tab still shows, listing nothing ("No extensions found").
 
 - ✅ Windows look: make it feel native even though it isn't Explorer.
+	- Opened: 20260730-203115
+	- Closed: 20260818-201822
 	- ✅ Fix the thin, poorly anti-aliased text - Segoe UI 9 with full hinting and subpixel (generated settings.ini + fontconfig).
 	- ✅ Themes: bundle a curated set of icon and widget styles, light and dark. Permissive licenses only - not Microsoft's own art.
 		- Done: eight widget themes (Windows 11, 10, 7, XP light+dark, macOS light+dark) and nine icon styles, about 5 MB all told. Each vendored at a pinned commit with its license kept.
@@ -1105,6 +1247,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- Done: an Appearance page in settings with Light / Dark / Follow the system, plus style and icon pickers filtered to the mode in force. Picking one half of a light/dark pair follows the pair when the mode changes.
 
 - ✅ Config engine: settings + persistence moved to SHCL in a user-level `settings.shcl`; gconf/dconf and the Windows registry are out of the picture.
+	- Opened: 20260804-205711
+	- Closed: 20260804-205711
 	- Done: GSettings replaced outright rather than kept over a SHCL backend, so no compiled schema is installed or shipped. All 168 settings, ~300 call sites, 84 change handlers and 16 property binds moved over.
 	- Done: the file holds only non-default values, carries each key's description as a comment, and is re-read while running so a hand-edit applies immediately.
 	- Done: a schema file ships beside the app so `shcl check --schema` validates a hand-edited config (catches typos and bad values).
@@ -1113,48 +1257,70 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Note: nemo actions can still name any GSettings schema in a condition; that reads other programs' settings and is unaffected.
 
 - ✅ No autorun, ever, on any platform - not even an option. Notice a new drive; never run anything off it. Remove the autorun-software helper and its media-autorun path.
+	- Opened: 20260730-203115
+	- Closed: 20260802-002013
 	- Done: the autorun-software helper, its menu entry, and the "prompt or autorun programs" preference are gone.
 	- Done: the inserted-media bar never offers to run software from media. Other media notices (audio CD, photos) unchanged, and automount / auto-open still work - drives are noticed, nothing runs.
 
 - ✅ Native Windows shortcuts: create `.lnk` files, the Windows analog of `.desktop` launchers.
+	- Opened: 20260725-153058
+	- Closed: 20260803-135051
 	- ✅ Create: "Make Link" and the drag "_Link Here" now write a `.lnk` shell shortcut on Windows (via `IShellLinkW`), in place of the POSIX symlink the win32 file layer can't make. Round-trip verified by a test that loads the shortcut back through the shell.
 	- ✅ Follow on open: opening a `.lnk` now follows through to its target - a folder navigates in place, a file opens as if the target were double-clicked. Reading the target round-trips through the shell (test-verified).
 
 - ✅ Ship the app's own icons and data files on Windows.
+	- Opened: 20260725-153058
+	- Closed: 20260826-103001
 	- Cause: the data dir was a compile-time absolute Unix path, so the sort-menu icons, the eject icon and the emblem art did not resolve on Windows.
 	- Fixed: the artwork rides inside the executable as a compiled-in resource, and the data, translation and helper-program folders are found relative to the running program, with the built-in path as a fallback.
 
 - ✅ Real-Windows validation pass.
+	- Opened: 20260724-140849
+	- Closed: 20260826-103001
 	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
 	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Worth deciding whether ours should stand down there. The test that hit it now skips that step unless asked for it, since nothing can answer the dialog unattended.
 	- Done on real Windows: the recycle bin end to end, network browsing against this box's own shares, single instance and location forwarding, the installer's install/reinstall/uninstall round trip, and elevated relaunch. Each of the code-review items was re-checked here, and the fix removed to watch the check fail first.
 	- Found doing it, and fixed: the whole compiled-resource bundle was missing from the Windows build, so there was no menu bar at all; a drive root was named three different ways; "Set as default" failed silently forever; the installer read a prerelease version as the release it precedes.
 
 - ✅ Get release binaries onto the host, plus an optimized buildtype.
+	- Opened: 20260730-185314
+	- Closed: 20260804-133646
 	- ✅ Done: host dogfood path proven. Release build staged in the container, copied out to a self-contained folder, launched via a small wrapper.
 	- ✅ Done: Linux release lane at `cicd/linux/release.bash` - optimized stripped build on an Ubuntu 22.04 box (the glibc floor is what the binary is built against), staged into a relocatable prefix, packed as the tarball plus the sums file.
 	- ✅ Done: artifacts come out under the names the installers look for, and the artifact dir is wired in `config.bash` so `utility/release.bash` verifies and attaches them.
 
 - ✅ Single-exe packaging stage in `cicd-win.ps1` - pack the staged DLL closure into one portable `.exe`.
+	- Opened: 20260730-203115
+	- Closed: 20260804-095855
 	- Done: `cicd/win/pack-portable.ps1` flattens the bundle and packs it with Enigma Virtual Box into one self-contained exe; wired as cicd-win stage 5.
 
 - ✅ Windows exe signing groundwork.
+	- Opened: 20260804-095855
+	- Closed: 20260804-095855
 	- ✅ Embedded VERSIONINFO in the exe (real publisher/version metadata; a blank-metadata binary scores worse with AV heuristics and looks unfinished in Properties).
 	- ✅ Local `signtool` signing scaffold in cicd-win stage 5 - env-driven, no-op until a cert is configured (fits a token/store cert: Certum OSS, Azure Trusted Signing, or a commercial EV).
 
 - ✅ Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer had nothing to fetch even though the release carried a working exe.
+	- Opened: 20260804-133646
+	- Closed: 20260804-232326
 	- Done: `cicd/win/pack-zip.bash` builds it from the cross build, and it ships from `v1.0.0-beta2` on.
 
 - ✅ Don't continuously spam stdout/stderr with meaningless debug messages.
+	- Opened: 20260802-011216
+	- Closed: 20260802-012711
 	- Cause: on Windows, any file type without a registry MIME mapping fell through a wildcard and got a doomed image-thumbnail attempt - two warnings per file, every folder browsed. A few one-shot startup notices added to the noise.
 	- Fixed: unknown types are no longer treated as thumbnailable, the image loader gets a real MIME type, and the per-file / startup notices are debug-level now (visible with G_MESSAGES_DEBUG when wanted).
 	- Verified: browsing a mixed folder of images and non-images runs silent; image thumbnails unaffected.
 
 - ✅ Add a C formatter/linter gate and wire it into the format/lint stages.
+	- Opened: 20260725-153058
+	- Closed: 20260802-011216
 	- Done: check-only cppcheck over the changed C files only, wired into both pipelines (Windows stage 1 + gate, Linux lint stage). No in-place formatter - a full-tree reformat of the inherited code would bury history in churn.
 	- Done: a box without cppcheck skips with a warning instead of blocking a push.
 
 - ✅ Change default settings:
+	- Opened: 20260724-091054
+	- Closed: 20260802-004759
 	- ✅ List view, 66% size.
 	- ✅ Ask before moving items to trash.
 	- ✅ Date display in ISO format.
@@ -1162,22 +1328,32 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Done: new out-of-the-box defaults - list view at 66%, trash moves ask first, ISO dates, owner/group/permissions columns visible. Existing installs that changed a setting keep their value.
 
 - ✅ Remove features:
+	- Opened: 20260724-091054
+	- Closed: 20260802-004759
 	- Option to display date in monospace font.
 	- Done: the date font style option, its setting, and the mono-font matching are gone. Dates use the regular font.
 
 - ✅ Allow select and copy of error message dialogs.
+	- Opened: 20260724-102941
+	- Closed: 20260802-004759
 	- Done: the message text in the stock error/question dialogs is selectable, so it can be copied. The expandable details text already was.
 
 - ✅ "Name" column should always be as large as possible, the other columns don't auto-adjust. When window grows or shrinks, the Name column does too to as wide as possible without pushing other columns off.
+	- Opened: 20260724-091054
+	- Closed: 20260727-001739
 	- Cause: the Name cell asked for a 40-character width, which acted as a floor the column could never shrink past, so a narrowing window pushed the trailing columns off instead.
 	- Fixed: dropped that request, so Name now gives space back down to its existing minimum. Long names ellipsize as before.
 	- Verified: at 600px wide all four columns fit where Date Modified used to be cut off; at 1500px Name still takes all the slack; shrinking back from wide re-fits correctly.
 
 - ✅ Wine launcher.
+	- Opened: 20260724-091054
+	- Closed: 20260725-153058
 	- Fixed: launches detached, so the script exits and returns immediately.
 	- Fixed: initial directory is the user's home if it exists, falling back to the drive root, then C:\.
 
 - ✅ Installer script(s) - one-liner install from a shell, for every target.
+	- Opened: 20260723-133832
+	- Closed: 20260723-133832
 	- Done: two standalone installers. The bash one covers Linux, BSD, WSL, and macOS; the PowerShell one covers all of those plus Windows.
 	- Done: both take channel, target, and architecture options; print the plan and wait for a yes; verify the download checksum before unpacking; replace an existing install in place; and reverse themselves with an uninstall option.
 	- Done: installs as a folder plus a menu entry and a name on PATH. User install is the default; only the system-wide install escalates, and says so in the plan.
@@ -1186,6 +1362,8 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Note: the Windows half still needs the real-Windows validation pass.
 
 - ✅ Dogfood launcher script.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Done: keeps date-stamped copies of the latest build in a local pool, prunes aged-out copies not in use, launches the newest with args passed through.
 	- Done: one cross-platform PowerShell script for Linux and Windows. Working copy deployed to the common util dir.
 	- Done: launches detached and returns immediately. App output goes to a log in the target dir, so it never holds the calling console open.
@@ -1195,25 +1373,37 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- Fixed: copies left by the pre-single-exe layout were invisible to the pruning and sat there for good.
 
 - ✅ Adopt the local-only delivery model: dev = integration target, main = release-only (dev to main = release cut). Feature branches merge --no-ff into dev.
+	- Opened: 20260718-195609
+	- Closed: 20260718-195609
 	- Note: copied as high-level concepts (not language tooling) from the sibling project.
 
 - ✅ Stand up the local pipeline: engine, config, git backup+publish, release helper, and a pre-push merge gate.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Verified: container build + smoke test, and backup+publish, all pass.
 
 - ✅ dbus / single-instance handling.
+	- Opened: 20260718-155447
+	- Closed: 20260725-153058
 	- Verified: single-instance works unchanged on Windows. A second launch hands its arguments to the first. No per-platform gating needed. Details in design.md, "Decisions along the way".
 	- Fixed: a bus-less environment (headless or minimal system) crashed the internal file-operations service. It now skips setup cleanly. Regression test added, passes on both platforms.
 
 - ✅ Context-menu actions: open in terminal, open elevated, launchers.
+	- Opened: 20260718-155447
+	- Closed: 20260724-143335
 	- Done: on Windows, "open in terminal" opens the native console at the folder, and "open elevated" relaunches the app through the normal elevation prompt. Linux paths unchanged. Menu labels are per-platform.
 	- Note: `.desktop` launcher files already degrade cleanly on Windows. Native `.lnk` creation is its own item, since done.
 
 - ✅ Thumbnails, icon theme, and default-app association per platform.
+	- Opened: 20260718-155447
+	- Closed: 20260724-150328
 	- Done: the portable file-and-app layer already carries most of this. The real gaps were the two icon bugs (see Done - Bugs) and packaging the thumbnailer tools with the Windows runtime.
 	- Verified: default-app lookup, launch, and set-default work on Windows through the portable layer. Image thumbnails render.
 	- Note: on Windows 10/11 the per-user default-app choice may not stick. Not worked around.
 
 - ✅ gvfs replacement or scope-out (mounts, network, trash).
+	- Opened: 20260718-155447
+	- Closed: 20260725-153058
 	- Done: gvfs stays an optional runtime dep on Linux; gaps filled natively per platform. Details in design.md, "Decisions along the way".
 	- ✅ Portable per-file metadata store on all platforms - view/sort state, custom icons, emblems, favorite markers.
 		- Done: one file under the app config dir. Entries follow moves and renames, including folder contents.
@@ -1230,74 +1420,117 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 		- Done: the literal path is tried first, then a `\`-to-`/` retry only if it doesn't resolve. Real backslash-named files and remote URIs are never touched.
 
 - ✅ File operations (copy/move/delete/rename) on native APIs.
+	- Opened: 20260718-155447
+	- Closed: 20260722-201512
 	- Verified: the existing operations engine drives all core operations correctly on Windows - copy, conflict, overwrite, recursive folder copy, move, rename, delete. No porting needed. Probe test added, runs on both platforms.
 	- Fixed: link-creation options are hidden on Windows (no symlink support there). The permissions tab, columns, and change-permissions paths are hidden too, since Windows fabricates the mode bits.
 
 - ✅ File monitoring via portable backends.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Verified: change events deliver through the native monitor backends on both platforms. Nothing to port.
 
 - ✅ Choose and stand up the Windows toolchain.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Done: cross-compile from Linux with mingw-w64, smoke-test under wine, in a dedicated container. Details in design.md, "Building (Windows cross)".
 
 - ✅ Get GTK3 + GLib/GIO building on the chosen toolchain.
+	- Opened: 20260718-155447
+	- Closed: 20260725-153058
 	- Done: cross configure comes up clean with all deps resolved. Unix-only deps guarded out per platform.
 
 - ✅ Compile on Windows, stubbing/excluding hard platform deps.
+	- Opened: 20260718-155447
+	- Closed: 20260725-153058
 	- Done: the app, its helpers, and the extension library all build and link clean, and run under wine. Linux stays green.
 	- Done: POSIX gaps closed via a shared compatibility header plus per-site guards.
 
 - ✅ Launch on Windows and browse the local filesystem.
+	- Opened: 20260718-155447
+	- Closed: 20260725-153058
 	- Done: the GUI comes up under wine and browses the local drive - sidebar, icon view, per-type icons, item count, free space.
 	- Fixed: startup abort caused by desktop settings schemas that only exist on Cinnamon/GNOME. Bundled neutral fallbacks now cover them (see design.md, "Decisions along the way").
 	- Done: headless GUI smoke test scripted.
 
 - ✅ Map drive letters / roots into the location model.
+	- Opened: 20260718-155447
+	- Closed: 20260725-153058
 	- Done: on Windows, each fixed drive is a first-class sidebar root with a disk-usage bar, replacing the single Unix filesystem root (meaningless on Windows). Removable and network drives keep the normal devices path, which carries eject.
 	- Verified: drives show as roots and open to their contents.
 
 - ✅ Remove desktop management entirely (Nemo Anywhere is a file manager, not a desktop shell).
+	- Opened: 20260719-181630
+	- Closed: 20260719-181630
 	- Done: the desktop binary, desktop windows, and the Cinnamon session coupling all deleted. Kept the launcher-file editor and the monitor-geometry helper, both real file-manager features.
 
 - ✅ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable).
+	- Opened: 20260719-181630
+	- Closed: 20260719-190803
 	- Done: favorites, thumbnails, tray icon, and the icon chooser all reimplemented portably. Details in design.md, "Decisions along the way".
 
 - ✅ Prove a de-Cinnamon Linux build that runs standalone (no xapp, no cinnamon-desktop) on any desktop or none.
+	- Opened: 20260718-155447
+	- Closed: 20260719-190803
 	- Verified: builds and links with neither library. Favorites and thumbnails work on the standalone build.
 
 - ✅ Isolate per-file view metadata keys so the two builds don't share view state on the same files.
+	- Opened: 20260718-174619
+	- Closed: 20260722-172504
 	- Done: view/layout keys and the favorite markers carry the app name. Keys other file managers also read (custom icon, emblems, annotation, backgrounds) stay shared on purpose.
 
 - ✅ Build upstream as-is on Linux (meson) to confirm a known-good reference.
+	- Opened: 20260718-155447
+	- Closed: 20260718-155447
 	- Done: builds and runs clean on stock Debian 13, in a container (this dev box has newer mixed libs).
 
 - ✅ Note the exact dependency set and versions that produce a working build.
+	- Opened: 20260718-155447
+	- Closed: 20260718-155447
 	- Done: recorded in the build notes outside the repo.
 
 - ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean.
+	- Opened: 20260718-161018
+	- Closed: 20260718-161018
 	- Done: meson project moved under `source/` with its internal layout intact. Builds and runs green.
 
 - ✅ Rebrand to "Nemo Anywhere" / `nemo-anywhere` so it co-installs and runs alongside upstream Nemo without conflict.
+	- Opened: 20260718-174619
+	- Closed: 20260718-174619
 	- Done: renamed the installed identity only (binaries, service names, settings schema, config/data dirs, menu entries, icons). Internal code identifiers left as-is; no clash.
 	- Done: settings fully isolated from upstream Nemo. Doesn't claim the freedesktop file-manager service when upstream holds it.
 	- Verified: staged install has no filename collisions with upstream. Window runs headless.
 
 - ✅ Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof).
+	- Opened: 20260718-191700
+	- Closed: 20260719-181454
 
 - ✅ Clean detached baseline from linuxmint/nemo 6.6.4 (no upstream commit history).
+	- Opened: 20260718-155447
+	- Closed: 20260718-155447
 
 - ✅ Fork branding + provenance (README, fork.md), GPL-2.0-only.
+	- Opened: 20260718-155447
+	- Closed: 20260718-155447
 
 - ✅ Name chosen: nemo-anywhere.
+	- Opened: 20260718-155447
+	- Closed: 20260718-155447
 
 - ✅ Create the GitHub repo and push.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Done: created public.
 
 - ✅ Strip upstream CI - keep the repo clear of unrelated automation.
+	- Opened: 20260725-153058
+	- Closed: 20260725-153058
 	- Done: workflows and issue templates removed in the fork-setup commit.
 
 ### Future and/or deferred
 
 - ✋ Make the CICD test gate resilient to a down or absent docker daemon.
+	- Opened: 20260721-222522
 	- Done: build and smoke steps go through a wrapper that probes the daemon first.
 	- Done: an environmental miss (docker absent, daemon down, container gone) skips with a warning instead of blocking the push. A real build or test failure still gates. A strict mode turns a miss back into a hard failure.
 	- Note: the daemon needs root to start, so the unattended hook never auto-starts it. The skip message shows the manual command.
@@ -1305,22 +1538,38 @@ In each section, items are listed approximately from newest to oldest. (Note: if
 	- ✋ Revisit whether one container-Linux smoke test is a meaningful gate once Windows/cross lanes exist.
 
 - ✋ Code review 20260815.
+	- Opened: 20260815-154746
 	- ✋ Item 101. Carriage returns in settings values are not escaped and are stripped on reload.
 		- Deferred: fixing it means changing both halves of the vendored settings parser and with them the on-disk escaping, for a character no setting ever contains.
-
 	- ✋ Item 106. Sorting by a string attribute allocates and formats both values on every comparison.
 		- Deferred: doing it properly needs a per-file cache of the formatted value with its own invalidation - the same machinery as the icon render cache, for much less gain.
+	- ✋ Item 109. Platform code is split two ways: dedicated Windows modules alongside inline platform blocks in large shared files.
+		- Deferred: Need to decide whether this is "convention" or a "bug".
 
-	- ✋ Item 109. Platform code is split two ways: dedicated Windows modules alongside inline platform blocks in large shared files. Worth settling on one shape.
-		- Deferred: a judgement call about convention rather than a defect. Worth settling before the next platform, not during a bug sweep.
+- ✋ Windows: "Open in terminal" should refer to an ordered list of shells and terminals in settings (if there's not a standard Windows way). At install time - and at launch in a background thread once the UI renders and settles:
+	- Opened: 20260802-095853
+	- Check for a hardcoded list of terminals. For each that exist, add them to config. (Add nonexistent ones too, commented out.) For each, prefer to launch in what's installed, in this order of preference: SilkTerm, Windows Terminal, conhost. User can override which terminal is opened, for each shell.
+		- Powershell 7
+		- WSL2 distros
+		- WSL1 distros
+		- NuShell
+		- PyCmd
+		- CMD.exe
+		- Powershell 5
 
 ### Canceled
 
 - 🚫 Keyboard shortcuts do nothing in the Windows build when run under wine.
+	- Opened: 20260725-172648
+	- Closed: 20260802-001535
 	- Cause: wine has no keyboard layout DLL, so GTK can't turn a keypress into a key value and no shortcut ever matches. Plain keys (arrows, typing) still work, and so do the menus and mouse.
 	- Note: a wine limitation, not our code. Expected to work on real Windows - added to the real-Windows validation pass.
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work removes the whole launcher/dll-folder arrangement.
+	- Opened: 20260802-101032
+	- Closed: 20260802-101032
 
 - 🚫 In find mode, shrink the Name column to fit and let Location grow with the window, then put it back on leaving find mode.
+	- Opened: 20260730-112038
+	- Closed: 20260822-075741
 	- Superseded by the column-width work: in find mode Name and Location split the row one-third/two-thirds, and an adjusted split is remembered.
