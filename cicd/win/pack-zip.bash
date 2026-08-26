@@ -34,6 +34,8 @@ OUT="${ROOT}/cicd/artifacts/release"
 
 # shellcheck source=../utility/include/echo.bash
 source "${ROOT}/cicd/utility/include/echo.bash"
+# shellcheck source=../utility/include/source-date.bash
+source "${ROOT}/cicd/utility/include/source-date.bash"
 
 while (($#)); do case "$1" in
 	--out)     OUT="${2:?--out needs a path}"; shift 2 ;;
@@ -49,6 +51,16 @@ docker exec "$CONTAINER" test -x "${BUILD}/src/${SLUG}.exe" 2>/dev/null \
 
 ver="$(grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "${ROOT}/source/meson.build" | head -1)"
 [[ -n "$ver" ]] || fDie "no version in source/meson.build"
+
+fSetSourceDate "$ROOT"
+fWarnIfSourceDateIsAGuess "$ROOT"
+
+## The exe was linked by a separate, manual cross build, so it can easily predate
+## the commit being packed. Its PE header says which commit it really came from.
+pe="$(fPeTimestamp <(docker exec "$CONTAINER" head -c 4096 "${BUILD}/src/${SLUG}.exe"))"
+if [[ "$pe" != "${SOURCE_DATE_EPOCH}" ]]; then
+	fEcho "WARNING: the built exe is stamped ${pe:-unknown}, not ${SOURCE_DATE_EPOCH} - rebuild it before packing a release"
+fi
 
 name="${SLUG}-${ver}-windows-x86_64"
 
@@ -109,7 +121,12 @@ docker exec "$CONTAINER" rm -rf "/tmp/${name}"
 
 mkdir -p "$OUT"
 rm -f "${OUT}/${name}.zip"
-( cd "$work" && zip -qr "${OUT}/${name}.zip" "${name}" )
+## zip is the one archiver here that ignores SOURCE_DATE_EPOCH, so the mtimes have
+## to be set on disk first. -X drops the unix uid/gid and high-precision time extra
+## fields, and feeding a sorted list fixes the entry order that -r would take from
+## readdir. Note zip's own floor is 1980, so a zero epoch lands there.
+find "${work}/${name}" -exec touch -h -d "@${SOURCE_DATE_EPOCH}" {} +
+( cd "$work" && find "${name}" -print | LC_ALL=C sort | zip -qX "${OUT}/${name}.zip" -@ )
 
 fEcho "OK: ${name}.zip ($(du -h --apparent-size "${OUT}/${name}.zip" | cut -f1))"
 fEcho_Clean "contents: $(unzip -l "${OUT}/${name}.zip" | tail -1 | awk '{print $2}') entries, exe at the folder root"

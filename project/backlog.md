@@ -914,6 +914,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Build timestamps come from the commit being built, not the clock, so a release can be reproduced.
+	- Opened: 20260826-131500
+	- Closed: 20260826-152000
+	- The Windows exe was the one that really varied: the linker writes a timestamp into the PE header, and two clean builds of the same commit differed in exactly those four bytes. Everything else was already close.
+	- Every lane now sets `SOURCE_DATE_EPOCH` to the commit date and hands it to whatever stamps a time. `zip` has no notion of it, so the staged tree gets the date set on disk and is packed in sorted order; `tar` is told explicitly; the rpm spec has to ask for it before rpm will read it.
+	- Verified by building each artifact twice from scratch: the Windows exe, the Linux tarball, the .deb, the .rpm and the Windows zip all came out byte-identical. A build with the stamp removed differed, which is the check that the mechanism is what did it.
+	- Also fixed on the way through: the Linux release lane had been failing since the staging script gained a safety guard on its destination name, which no longer matched what the release script passed it.
+	- Not covered, and cannot be: a signed exe, since the countersignature carries the real time of signing.
+
 - ✅ Windows: two kinds of hidden file, two options.
 	- Opened: 20260823-142431
 	- Closed: 20260823-142431

@@ -126,6 +126,7 @@ The container the day-to-day build actually runs in is `cicd/linux/Dockerfile.de
 	- `libarchive-dev`
 	- `libx11-dev libxext-dev libxrender-dev`
 - Configure and build:
+	- `export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"` (see "Reproducible builds")
 	- `meson setup build source`
 	- `ninja -C build`
 - The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
@@ -137,7 +138,7 @@ Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt 
 - `cicd/win/fetch-sysroot.bash` - resolves the transitive dependency closure of a few root packages (gtk3, json-glib, libarchive, libexif, libgsf) from the MSYS2 pacman database and unpacks each `.pkg.tar.zst` into `/opt/win-sysroot`. No pacman needed; the `.db` is just a tarball of `desc` files we parse ourselves.
 - `cicd/win/win64.cross.txt` - meson cross file: mingw-w64 binaries, `wine` as the exe wrapper, `PKG_CONFIG_SYSROOT_DIR` pointed at the sysroot (the `.pc` files keep `prefix=/mingw64`).
 - `cicd/win/Dockerfile` - builds `nemo-winbuild`: mingw toolchain + native glib codegen tools (run on the build host) + wine + the baked sysroot.
-- Configure/build (source mounted at `/src`):
+- Configure/build (source mounted at `/src`), or `cicd/win/build-cross.bash` to run both with the build stamp set - see "Reproducible builds":
 	- `meson setup --cross-file /opt/win64.cross.txt -Dxmp=false /build-win /src/source`
 	- `ninja -C /build-win`
 - Deliberately off for Windows: XMP/exempi (not packaged for mingw - `-Dxmp=false`), and the Unix-only pieces (`gio-unix`, `x11`, SELinux, Tracker) which get `host_machine.system()` guards in meson plus `#ifdef` guards in the affected C files.
@@ -368,6 +369,12 @@ Guiding constraint: GitHub is dumb git hosting plus optional release storage, an
 - Profiling: `cicd/utility/profile-run.bash` browses a generated folder tree on a private headless display while sampling every thread, then renders a flamegraph into `cicd/artifacts/profiling` (GFS-rotated), and `cicd/utility/flame-report.py` prints the hot spots into the run log.
 	- It samples by attaching a debugger rather than using perf. perf needs a privileged sysctl on this machine, and a profiler that cannot run without root is a profiler nobody runs. The cost is that samples are wall-clock rather than CPU time, so a blocked thread reads as work; the report keeps waiting in its own bucket and gives every other figure as a share of busy time as well as of total.
 	- It profiles the debug build. The release binaries are stripped, and a flamegraph with no function names says nothing.
+- Reproducible builds: nothing a build produces takes its timestamp from the clock. Every lane sets `SOURCE_DATE_EPOCH` to the date of the commit being built, and everything that stamps a time reads it - so the same commit builds to the same bytes on any box, on any day, and a released artifact can be checked against a rebuild of its tag.
+	- The Windows exe was the one that actually differed run to run: the linker writes a timestamp into the PE header, and left alone it writes the clock. Two clean builds of one commit used to differ in exactly those four bytes.
+	- What reads the stamp on its own: the linker, `dpkg-deb`, and `rpmbuild` (the last only once the spec asks it to). What does not, and is handled by hand: `zip`, which has no such notion, so the staged files get the stamp set on disk and are fed to it in sorted order. `tar` is given the stamp and a sorted entry order explicitly.
+	- `cicd/utility/include/source-date.bash` is the single place that answers what the stamp is, and every lane that can also be run on its own calls it rather than working it out again. `docker exec` does not carry the host environment into a container, so each lane hands it over explicitly.
+	- A tree with uncommitted changes still gets its `HEAD` commit's date - the alternative is the clock, which is worse - but the release lanes warn, because nothing built from it can be reproduced.
+	- Left out on purpose: the wall clock still names log files and dated dogfood copies, which is what it is for. And a signed exe can never be byte-identical anyway, since the countersignature carries the real time of signing.
 - Packaging: built from what the release lanes already produced, never rebuilt. `cicd/linux/package.bash` turns the Linux tarball into a `.deb` and an `.rpm`, both installing the same relocatable prefix under `/opt` plus a launcher, a menu entry and icons in the shared theme. `cicd/win/pack-zip.bash` flattens the cross-build into the Windows zip layout. BSD, macOS, AppImage and Flatpak are deferred for want of a toolchain here.
 	- The `.deb`'s dependency versions are read off the built binaries inside the Ubuntu release container, not on the development box, so the package claims the same floor the binary was actually built against. `rpmbuild` derives its own requirements from the ELF, so the `.rpm` needs no such help.
 - Releases: `cicd/utility/release.bash` cuts from a clean main - tag `v<version>` (version read from `source/meson.build` alone) and optional push + GitHub Release upload. Tag+push work today; artifact attach is gated until the release-build stage produces host-side artifacts. The README release badge reads the current release off GitHub, so nothing has to be bumped by hand for it; a project that used a hand-written badge instead would have that checked against the version.

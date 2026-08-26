@@ -32,6 +32,12 @@ strict="${DOCKER_GATE_STRICT:-0}"
 
 fEcho(){ echo "[ $* ]"; }
 
+## Reproducible-build stamp. cicd.bash normally exports it before we are called;
+## computing it here too keeps a standalone run honest.
+# shellcheck source=include/source-date.bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/include/source-date.bash"
+fSetSourceDate "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 ## Environmental miss: skip (exit 0) so a push isn't blocked, unless strict.
 skip_or_die(){
 	if [[ "$strict" == "1" ]]; then
@@ -66,4 +72,6 @@ docker start "$container" >/dev/null 2>&1 || true
 ## 'ulimit -c 0' first: the container's workdir IS the mounted repo, and the kernel's
 ## core_pattern is a bare relative name, so a crash here drops a root-owned core.<pid>
 ## into the tree - unreadable to the host user, and enough to abort the next backup.
-exec docker exec "$container" sh -c "ulimit -c 0; $cmd"
+## SOURCE_DATE_EPOCH has to be handed across explicitly - docker exec starts with
+## the container's environment, not ours - or the linker stamps the clock.
+exec docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0}" "$container" sh -c "ulimit -c 0; $cmd"

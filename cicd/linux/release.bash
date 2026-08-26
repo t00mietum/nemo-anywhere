@@ -27,10 +27,12 @@ IMAGE="${NEMO_RELEASE_IMAGE:-nemo-build-jammy:latest}"
 CONTAINER="${NEMO_RELEASE_CONTAINER:-nemo-build-jammy}"
 OUT="${ROOT}/cicd/artifacts/release"
 BUILD=/build-release
-STAGE=/build-prefix
+STAGE=/build-prefix/nemo-anywhere   # stage-prefix.bash guards its rm -rf on the dest being named after the app
 
 # shellcheck source=../utility/include/echo.bash
 source "${ROOT}/cicd/utility/include/echo.bash"
+# shellcheck source=../utility/include/source-date.bash
+source "${ROOT}/cicd/utility/include/source-date.bash"
 
 clean=0
 case "${1:-}" in
@@ -42,6 +44,10 @@ esac
 
 ver="$(grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "${ROOT}/source/meson.build" | head -1)"
 [[ -n "$ver" ]] || fDie "no version in source/meson.build"
+
+## Every timestamp the build and the archive would otherwise take from the clock.
+fSetSourceDate "$ROOT"
+fWarnIfSourceDateIsAGuess "$ROOT"
 
 ## At most half the cores, matching the pipeline engine - a release build should
 ## not make the box unusable either. Inherited from cicd.bash when called from it.
@@ -79,7 +85,7 @@ arch="$(docker exec "$CONTAINER" uname -m)"
 fEcho_Clean ""
 fEcho "Building ${SLUG} ${ver} (linux-${arch})"
 ((clean)) && docker exec "$CONTAINER" rm -rf "$BUILD" || true
-docker exec "$CONTAINER" sh -c "
+docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 	set -e
 	if [ -d ${BUILD} ]; then reconf=--reconfigure; else reconf=; fi
 	meson setup \$reconf --buildtype=release -Dstrip=true -Dprefix=/opt/${SLUG} ${BUILD} /src/source >/dev/null
@@ -106,12 +112,12 @@ mkdir -p "$OUT"
 rm -rf "${OUT:?}/${name}" "${OUT}/${name}.tar.gz"
 ## /build* is not host-mounted, so docker cp is the only way out of the container.
 docker cp "${CONTAINER}:${STAGE}" "${OUT}/${name}" >/dev/null
-## Fixed owner and timestamp so the same source produces the same archive on any
-## box. The stamp is the last commit date; outside a checkout, fall back to the
-## epoch rather than emitting a bare "@" that makes tar fail partway through.
-stamp="$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || true)"
+## Fixed owner, timestamp and entry order, so the same commit produces the same
+## archive on any box. Without --sort the entries come out in readdir order, which
+## differs between filesystems. The gzip layer needs nothing: tar feeds it on a
+## pipe, and gzip writes a zero mtime when it has no input file to read one from.
 tar -czf "${OUT}/${name}.tar.gz" -C "$OUT" \
-	--owner=0 --group=0 --numeric-owner --mtime="@${stamp:-0}" \
+	--owner=0 --group=0 --numeric-owner --sort=name --mtime="@${SOURCE_DATE_EPOCH}" \
 	"${name}"
 rm -rf "${OUT:?}/${name}"
 

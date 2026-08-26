@@ -228,7 +228,11 @@ function fVersion {
 function fBuild {
 	## -j caps at half the cores, same as the Linux engine; ninja alone takes cores+2.
 	$jobs = [Math]::Max(1, [Environment]::ProcessorCount / 2 -as [int])
+	## The linker stamps the PE header with the clock unless told otherwise, which
+	## makes two builds of the same commit differ. Set inside the snippet rather
+	## than as $env: - the mingw shell does not reliably carry ours across.
 	$sh = @"
+export SOURCE_DATE_EPOCH="`$(git log -1 --format=%ct 2>/dev/null || echo 0)"
 if [ -f $BuildRel/build.ninja ]; then meson setup --reconfigure $BuildRel source; else meson setup -Dxmp=false $BuildRel source; fi
 ninja -C $BuildRel -j $jobs
 "@
