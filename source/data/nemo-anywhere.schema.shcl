@@ -28,12 +28,12 @@ field: appearance.mode
 
 field: archive.create-with-7z
 	type: string
-	default: "{{PROGRAM}} a {{FORMAT}} {{LEVEL}} -y -bsp1 {{PASSWORD}} {{SPLIT}} {{SOLID}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
+	default: "{{PROGRAM}} a {{FORMAT}} {{LEVEL}} {{THREADS}} -y -bsp1 {{PASSWORD}} {{SPLIT}} {{SOLID}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
 	desc: Command line 7-Zip is run with to create an archive. {{PROGRAM}} is the 7z it found, {{SOURCE_ITEMS}} the files and folders being packed, and the rest stand for what the Compress dialog was asked for - drop one and that option stops reaching the program. Empty this line to get the built-in one back.
 
 field: archive.create-with-rar
 	type: string
-	default: "{{PROGRAM}} a {{LEVEL}} -r -y {{PASSWORD}} {{SPLIT}} {{SOLID}} {{DEDUPE}} {{RECOVERY}} {{LOCK}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
+	default: "{{PROGRAM}} a {{LEVEL}} {{THREADS}} -r -y {{PASSWORD}} {{SPLIT}} {{SOLID}} {{DEDUPE}} {{RECOVERY}} {{LOCK}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
 	desc: Command line rar is run with to create an archive. Same placeholders as the 7-Zip line, plus {{DEDUPE}}, {{RECOVERY}} and {{LOCK}}, which rar alone can do.
 
 field: archive.extract-with-7z
@@ -85,6 +85,11 @@ field: terminal.exec
 field: terminal.exec-arg
 	type: string
 	default: -e
+
+field: terminal.win32-candidates
+	type: string-array
+	default: wt.exe, pwsh.exe, powershell.exe, cmd.exe
+	desc: Terminals to try for "Open in Terminal" on Windows, in order
 
 field: desktop.background-fade
 	type: bool
@@ -192,14 +197,18 @@ field: icon-view.thumbnail-size
 	default: 64
 	desc: Default Thumbnail Icon Size
 
+field: list-view.column-max-widths
+	type: string-array
+	desc: Per-column width ceilings the user set by dragging, as column:pixels entries. A listed column never grows past its ceiling as the window widens.
+
 field: list-view.default-column-order
 	type: string-array
-	default: name, size, type, date_modified, owner, group, permissions
+	default: name, extension, where, size, type, date_modified, owner, group, permissions
 	desc: Default column order in the list view
 
 field: list-view.default-visible-columns
 	type: string-array
-	default: name, size, type, date_modified, owner, group, permissions
+	default: name, extension, size, type, date_modified, owner, group, permissions
 	desc: Default list of columns visible in the list view
 
 field: list-view.default-zoom-level
@@ -610,6 +619,16 @@ field: preferences.treat-root-as-normal
 	default: false
 	desc: Suppress any safeguards when running nemo/nemo-desktop as the root user. For some systems there is only a root user.
 
+field: preferences.menu-config.background-menu-compress
+	type: bool
+	default: true
+	desc: Show the background context menu's Compress item.
+
+field: preferences.menu-config.background-menu-copy-path
+	type: bool
+	default: true
+	desc: Show the background context menu's Copy Path item.
+
 field: preferences.menu-config.background-menu-create-new-folder
 	type: bool
 	default: true
@@ -660,6 +679,11 @@ field: preferences.menu-config.iconview-menu-organize-by-name
 	default: true
 	desc: Show the background context menu's Organize by Name item (icon view only).
 
+field: preferences.menu-config.selection-menu-compress
+	type: bool
+	default: true
+	desc: Show the selection context menu's Compress item.
+
 field: preferences.menu-config.selection-menu-copy
 	type: bool
 	default: true
@@ -670,6 +694,11 @@ field: preferences.menu-config.selection-menu-copy-to
 	default: false
 	desc: Show the selection context menu's Copy To submenu.
 
+field: preferences.menu-config.selection-menu-copy-path
+	type: bool
+	default: true
+	desc: Show the selection context menu's Copy Path item.
+
 field: preferences.menu-config.selection-menu-cut
 	type: bool
 	default: true
@@ -679,6 +708,11 @@ field: preferences.menu-config.selection-menu-duplicate
 	type: bool
 	default: false
 	desc: Show the selection context menu's Duplicate item.
+
+field: preferences.menu-config.selection-menu-extract
+	type: bool
+	default: true
+	desc: Show the selection context menu's Extract items.
 
 field: preferences.menu-config.selection-menu-favorite
 	type: bool
@@ -753,6 +787,11 @@ field: preferences.menu-config.selection-menu-scripts
 field: search.disabled-search-helpers
 	type: string-array
 	desc: List of search helper filenames to skip when using content search.
+
+field: search.name-location-split
+	type: int
+	default: 33
+	desc: Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column.
 
 field: search.search-content-case-sensitive
 	type: bool
@@ -864,7 +903,7 @@ field: window-state.sidebar-bookmark-breakpoint
 
 field: window-state.sidebar-width
 	type: int
-	default: 170
+	default: 240
 	desc: Width of the side pane
 
 field: window-state.start-with-location-bar

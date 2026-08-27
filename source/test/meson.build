@@ -386,3 +386,12 @@ test('Directory load clean test',
   ),
   args: []
 )
+
+test('Config schema drift test',
+  executable('test-nemo-config-schema',
+    [ 'test-nemo-config-schema.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: [ meson.current_source_dir() / '..' / 'data' / 'nemo-anywhere.schema.shcl' ]
+)

@@ -66,10 +66,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
 	- Not ours to fix in place. Either the walk is done ourselves on Windows, or it goes upstream - nothing was found already filed for it.
 
-- 🔘 The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
+- ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Opened: 20260821-144459
+	- Closed: 20260826-180755
 	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
 	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
+	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
+	- It found thirteen real mismatches on its first run: eight settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
 
 - 🔘 A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
 	- Opened: 20260818-155550
