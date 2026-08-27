@@ -121,10 +121,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Would let the config engine use its library's own writer, which preserves a file's permissions, attributes and alternate streams across a save where the current one does not.
 	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
 
-- 🔘 The whole `desktop` group of settings is dead weight.
+- ✅ The whole `desktop` group of settings is dead weight.
 	- Opened: 20260827-075015
+	- Closed: 20260827-081500
 	- Fifteen keys left behind when the desktop shell came out. They still ship in the schema and still appear in a generated starter config, so a user can set them and nothing happens.
 	- Two of the fifteen are not clearly dead on a quick look - one leaf name is shared with a live setting in another group - so this wants checking key by key rather than deleting the group.
+	- Checked key by key. Twelve had no reader anywhere and are gone from the table, the schema and the preference names. Three still have live readers and stay: the deprecated manage-the-desktop switch, the grid switch, and the desktop text ellipsis limit, which shares its leaf name with the icon view's own.
 
 - 🔘 Windows: open a `.lnk` the way Explorer does, by what it points at.
 	- Opened: 20260826-103001

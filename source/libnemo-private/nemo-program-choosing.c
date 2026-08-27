@@ -92,6 +92,7 @@ nemo_launch_application (GAppInfo *application,
 	g_list_free_full (uris, g_free);
 }
 
+#ifdef G_OS_UNIX
 static void
 dummy_child_watch (GPid     pid,
                    gint     status,
@@ -103,7 +104,6 @@ dummy_child_watch (GPid     pid,
    */
 }
 
-#ifdef G_OS_UNIX
 static void
 gather_pid_callback (GDesktopAppInfo *appinfo,
                      GPid            pid,

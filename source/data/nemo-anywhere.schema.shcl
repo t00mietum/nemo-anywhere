@@ -91,80 +91,20 @@ field: terminal.win32-candidates
 	default: wt.exe, pwsh.exe, powershell.exe, cmd.exe
 	desc: Terminals to try for "Open in Terminal" on Windows, in order
 
-field: desktop.background-fade
-	type: bool
-	default: true
-	desc: Fade the background on change
-
-field: desktop.computer-icon-visible
-	type: bool
-	default: false
-	desc: Computer icon visible on desktop
-
-field: desktop.desktop-layout
-	type: string
-	default: true::false
-	desc: Desktop layout
-
-field: desktop.font
-	type: string
-	default: Noto Sans 10
-	desc: Desktop font
-
-field: desktop.home-icon-visible
-	type: bool
-	default: false
-	desc: Home icon visible on desktop
-
-field: desktop.horizontal-grid-adjust
-	type: float
-	default: 1.0
-	desc: Horizontal desktop grid adjustment
-
-field: desktop.ignored-desktop-handlers
-	type: string-array
-	default: conky, csd-background
-	desc: List of desktop-handling to ignore when determining whether or not to manager the desktop.
-
-field: desktop.network-icon-visible
-	type: bool
-	default: false
-	desc: Network Servers icon visible on the desktop
-
 field: desktop.show-desktop-icons
 	type: bool
 	default: true
 	desc: Deprecated: Allow Nemo to manage the desktop
-
-field: desktop.show-orphaned-desktop-icons
-	type: bool
-	default: true
-	desc: Whether to show icons from inactive monitors on another monitor
 
 field: desktop.text-ellipsis-limit
 	type: int
 	default: 2
 	desc: Text Ellipsis Limit
 
-field: desktop.trash-icon-visible
-	type: bool
-	default: false
-	desc: Trash icon visible on desktop
-
 field: desktop.use-desktop-grid
 	type: bool
 	default: true
 	desc: Which desktop view type to use
-
-field: desktop.vertical-grid-adjust
-	type: float
-	default: 1.0
-	desc: Vertical desktop grid adjustment
-
-field: desktop.volumes-visible
-	type: bool
-	default: false
-	desc: Show mounted volumes on the desktop
 
 field: icon-view.captions
 	type: string-array

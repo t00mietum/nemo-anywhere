@@ -93,7 +93,6 @@ static const NemoConfigEnumValue enum_ZoomLevel[] = {
 
 static const char *const deflist__favorites[] = { NULL };
 static const char *const deflist__favorites_root_metadata[] = { NULL };
-static const char *const deflist_desktop_ignored_desktop_handlers[] = { "conky", "csd-background", NULL };
 static const char *const deflist_icon_view_captions[] = { "none", "size", "date_modified", NULL };
 static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL };
 static const char *const deflist_list_view_column_max_widths[] = { NULL };
@@ -135,21 +134,9 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "terminal", "exec", NEMO_CONFIG_STRING, "", NULL, NULL, NULL },
 	{ "terminal", "exec-arg", NEMO_CONFIG_STRING, "-e", NULL, NULL, NULL },
 	{ "terminal", "win32-candidates", NEMO_CONFIG_STRING_LIST, NULL, deflist_terminal_win32_candidates, NULL, "Terminals to try for \"Open in Terminal\" on Windows, in order" },
-	{ "desktop", "background-fade", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Fade the background on change" },
-	{ "desktop", "computer-icon-visible", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Computer icon visible on desktop" },
-	{ "desktop", "desktop-layout", NEMO_CONFIG_STRING, "true::false", NULL, NULL, "Desktop layout" },
-	{ "desktop", "font", NEMO_CONFIG_STRING, "Noto Sans 10", NULL, NULL, "Desktop font" },
-	{ "desktop", "home-icon-visible", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Home icon visible on desktop" },
-	{ "desktop", "horizontal-grid-adjust", NEMO_CONFIG_FLOAT, "1.0", NULL, NULL, "Horizontal desktop grid adjustment" },
-	{ "desktop", "ignored-desktop-handlers", NEMO_CONFIG_STRING_LIST, NULL, deflist_desktop_ignored_desktop_handlers, NULL, "List of desktop-handling to ignore when determining whether or not to manager the desktop." },
-	{ "desktop", "network-icon-visible", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Network Servers icon visible on the desktop" },
 	{ "desktop", "show-desktop-icons", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Deprecated: Allow Nemo to manage the desktop" },
-	{ "desktop", "show-orphaned-desktop-icons", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether to show icons from inactive monitors on another monitor" },
 	{ "desktop", "text-ellipsis-limit", NEMO_CONFIG_INT, "2", NULL, NULL, "Text Ellipsis Limit" },
-	{ "desktop", "trash-icon-visible", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Trash icon visible on desktop" },
 	{ "desktop", "use-desktop-grid", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Which desktop view type to use" },
-	{ "desktop", "vertical-grid-adjust", NEMO_CONFIG_FLOAT, "1.0", NULL, NULL, "Vertical desktop grid adjustment" },
-	{ "desktop", "volumes-visible", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show mounted volumes on the desktop" },
 	{ "icon-view", "captions", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_captions, NULL, "List of possible captions on icons" },
 	{ "icon-view", "default-use-tighter-layout", NEMO_CONFIG_BOOL, "false", NULL, NULL, "deprecated - not used" },
 	{ "icon-view", "default-zoom-level", NEMO_CONFIG_ENUM, "standard", NULL, enum_ZoomLevel, "Default icon zoom level" },
