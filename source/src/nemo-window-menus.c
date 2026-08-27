@@ -268,6 +268,17 @@ action_zoom_normal_callback (GtkAction *action,
     nemo_view_restore_default_zoom_level (get_current_view (user_data));
 }
 
+/* Windows marks hidden files with an attribute and treats a leading dot as an
+ * ordinary character, so the dot-file convention gets a switch of its own there.
+ * The item is hidden on every other platform, where one switch covers both. */
+static void
+action_show_dot_files_callback (GtkAction *action,
+				gpointer callback_data)
+{
+	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES,
+				 gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+}
+
 static void
 action_show_hidden_files_callback (GtkAction *action,
 				   gpointer callback_data)
@@ -284,17 +295,28 @@ action_show_hidden_files_callback (GtkAction *action,
 	}
 
 	nemo_window_set_hidden_files_mode (window, mode);
-}
 
-/* Windows marks hidden files with an attribute and treats a leading dot as an
- * ordinary character, so the dot-file convention gets a switch of its own there.
- * The item is hidden on every other platform, where one switch covers both. */
-static void
-action_show_dot_files_callback (GtkAction *action,
-				gpointer callback_data)
-{
-	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES,
-				 gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+#ifdef G_OS_WIN32
+	/* Both kinds of hidden move together here, so one keystroke shows
+	 * everything that was out of sight. The two can be set apart from each
+	 * other in preferences or with the dot-file item, and this brings them back
+	 * in step at whichever value the attribute switch just took.
+	 *
+	 * The dot-file item is ticked directly rather than left to follow the
+	 * setting: neither toggle watches for a change made anywhere else, they are
+	 * only read once when the menus are built. */
+	{
+		gboolean       on = (mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE);
+		GtkActionGroup *group = nemo_window_get_main_action_group (window);
+		GtkAction      *dot = gtk_action_group_get_action (group, NEMO_ACTION_SHOW_DOT_FILES);
+
+		nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, on);
+
+		g_signal_handlers_block_by_func (dot, action_show_dot_files_callback, window);
+		gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (dot), on);
+		g_signal_handlers_unblock_by_func (dot, action_show_dot_files_callback, window);
+	}
+#endif
 }
 
 static void
@@ -1367,7 +1389,7 @@ static const GtkActionEntry main_entries[] = {
                                  G_CALLBACK (action_close_window_slot_callback) },
                                { "Preferences", "preferences-system-symbolic",
                                  N_("Prefere_nces"),
-                                 NULL, N_("Edit Nemo preferences"),
+                                 "<control>comma", N_("Edit Nemo preferences"),
                                  G_CALLBACK (action_preferences_callback) },
 #ifdef TEXT_CHANGE_UNDO
   /* name, stock id, label */  { "Undo", NULL, N_("_Undo"),

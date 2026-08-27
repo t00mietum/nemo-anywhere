@@ -155,13 +155,17 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `--about` is new, and prints the version line, the copyright, the project home and the license. Help > About gained the copyright and a link to the project, which it had never shown.
 	- Checked on both platforms: the two command line outputs, the About dialog, and the splash.
 
-- 🔘 Ctrl+H toggles dot-files and Windows hidden files together.
+- ✅ Ctrl+H toggles dot-files and Windows hidden files together.
 	- Opened: 20260826-103001
+	- Closed: 20260827-110000
 	- If the two are out of step, take the Windows hidden setting as the current value and match the other to it.
 	- Ctrl+Shift+H stays as it is, Windows only.
+	- Both the setting and the dot-file menu item move with it now. The item had to be ticked directly - neither of the two toggles watches for a change made anywhere else, they are only read when the menus are built, which is a wider gap worth closing on its own some time.
+	- Nothing changes off Windows, where one switch already covered both.
 
-- 🔘 Ctrl+, opens Preferences.
+- ✅ Ctrl+, opens Preferences.
 	- Opened: 20260826-103001
+	- Closed: 20260827-110000
 
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
