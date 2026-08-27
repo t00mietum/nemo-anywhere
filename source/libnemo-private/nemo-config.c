@@ -28,6 +28,12 @@
 #include <glib/gstdio.h>
 #include <string.h>
 
+/* SHCL's own file tier is left out: its writer reaches Windows through the ANSI
+ * calls, which are the system codepage unless the exe asks for UTF-8, so a
+ * config under a non-ASCII user name would fail to save. GLib converts to
+ * UTF-16 and is atomic on both platforms. What is given up is the Windows
+ * ACL/stream preservation and the POSIX directory fsync. */
+#define SHCL_NO_FILE_IO
 #define SHCL_IMPLEMENTATION
 #include "shcl.h"
 
@@ -44,7 +50,7 @@
  * Rebuilding the document from its own canonical form drops the lot. */
 #define ARENA_DEBT_LIMIT      (256 * 1024)
 /* Settings hold ~168 keys - a few KB. Cap the read well above that: SHCL's
- * arena retains ~12+ bytes per codepoint permanently and OOMs via a library
+ * arena retains many times the file size permanently and OOMs via a library
  * exit(70), so an oversized or corrupt file would take the whole process. */
 #define CONFIG_MAX_BYTES      (8 * 1024 * 1024)
 

@@ -106,10 +106,25 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Update the vendored SHCL to the current release.
+- ✅ Update the vendored SHCL to the current release.
 	- Opened: 20260826-103001
+	- Closed: 20260827-075015
 	- It manages its own file creation and updating now, which is one of the rough edges hit here.
 	- Note: Fetch it from the source.
+	- Moved from 1.2.0 to 2.0.0. Nothing in the settings layer had to change: none of the calls made here changed shape, and neither of the two breaking changes is reachable from plain key names.
+	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
+	- Its new file tier is deliberately compiled out. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save. Revisit if the codepage item below is taken.
+
+- 🔘 Ask for UTF-8 as the process codepage in the Windows manifest.
+	- Opened: 20260827-075015
+	- Windows 10 1903 and later read `activeCodePage` and make every narrow call UTF-8. Without it a narrow call anywhere in the process is at the mercy of whatever codepage the machine is set to, which is how a non-ASCII user name breaks things that otherwise look fine.
+	- Would let the config engine use its library's own writer, which preserves a file's permissions, attributes and alternate streams across a save where the current one does not.
+	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
+
+- 🔘 The whole `desktop` group of settings is dead weight.
+	- Opened: 20260827-075015
+	- Fifteen keys left behind when the desktop shell came out. They still ship in the schema and still appear in a generated starter config, so a user can set them and nothing happens.
+	- Two of the fifteen are not clearly dead on a quick look - one leaf name is shared with a live setting in another group - so this wants checking key by key rather than deleting the group.
 
 - 🔘 Windows: open a `.lnk` the way Explorer does, by what it points at.
 	- Opened: 20260826-103001

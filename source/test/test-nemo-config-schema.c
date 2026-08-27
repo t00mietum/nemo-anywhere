@@ -137,6 +137,8 @@ join_nicks (const NemoConfigEnumValue *values)
 	return g_string_free (text, FALSE);
 }
 
+/* Only the default comparison uses this, and that is POSIX-only below. */
+#ifndef G_OS_WIN32
 static char *
 join_list (const char *const *list)
 {
@@ -152,6 +154,7 @@ join_list (const char *const *list)
 
 	return g_string_free (text, FALSE);
 }
+#endif
 
 int
 main (int argc, char **argv)
