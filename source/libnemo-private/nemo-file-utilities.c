@@ -69,7 +69,11 @@ nemo_compute_title_for_location (GFile *location)
 	/* TODO-gio: This doesn't really work all that great if the
 	   info about the file isn't known atm... */
 
-	if (nemo_is_home_directory (location)) {
+	/* "Home" is a name, not a path, so it has to yield when the full path was
+	   asked for - otherwise turning the preference on in the home folder looks
+	   like it did nothing at all. */
+	if (nemo_is_home_directory (location) &&
+	    !nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES)) {
 		return g_strdup (_("Home"));
 	}
 

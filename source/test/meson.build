@@ -377,3 +377,12 @@ test('Path list text test',
   ),
   args: []
 )
+
+test('Directory load clean test',
+  executable('test-nemo-directory-load-clean',
+    [ 'test-nemo-directory-load-clean.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)

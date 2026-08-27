@@ -94,6 +94,7 @@ static void toggle_menubar                          (NemoWindow            *wind
 static void nemo_window_reload                      (NemoWindow            *window);
 static void cancel_pending_geometry_save            (NemoWindow            *window);
 static void default_folder_viewer_changed           (NemoWindow            *window);
+static void title_spelling_changed                  (NemoWindow            *window);
 
 /* Sanity check: highest mouse button value I could find was 14. 5 is our
  * lower threshold (well-documented to be the one of the button events for the
@@ -882,6 +883,9 @@ nemo_window_finalize (GObject *object)
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                                           default_folder_viewer_changed,
                                           window);
+    g_signal_handlers_disconnect_by_func (nemo_preferences,
+                                          title_spelling_changed,
+                                          window);
 
     clear_menu_hide_delay (window);
 
@@ -1362,6 +1366,31 @@ nemo_window_key_release_event (GtkWidget *widget,
 
     return GTK_WIDGET_CLASS (nemo_window_parent_class)->key_release_event (widget, event);
 }
+
+/* Titles and the location widgets are only recomputed when the location or view
+   changes, so a preference that changes how a path is spelled has to ask. */
+static void
+title_spelling_changed (NemoWindow *window)
+{
+	GList *l, *walk;
+
+	for (walk = window->details->panes; walk; walk = walk->next) {
+		NemoWindowPane *pane = walk->data;
+
+		for (l = pane->slots; l != NULL; l = l->next) {
+			NemoWindowSlot *slot = l->data;
+
+			if (slot->location == NULL) {
+				continue;
+			}
+
+			nemo_window_slot_update_title (slot);
+		}
+
+		nemo_window_pane_resync_path_spelling (pane);
+	}
+}
+
 
 /*
  * Main API
@@ -2108,6 +2137,14 @@ nemo_window_init (NemoWindow *window)
     g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER,
 				  G_CALLBACK(default_folder_viewer_changed),
+				  window);
+    g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES,
+				  G_CALLBACK(title_spelling_changed),
+				  window);
+    g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
+				  G_CALLBACK(title_spelling_changed),
 				  window);
 }
 

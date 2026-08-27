@@ -298,20 +298,37 @@ nemo_file_clear_display_name (NemoFile *file)
    gio hands back the basename, which is "\" for every drive alike, so the title
    bar and the breadcrumb both read "\" with no way to tell the drives apart. */
 static char *
-file_get_drive_root_name (NemoFile *file)
+file_get_drive_root_name (NemoFile *file, GFileInfo *info)
 {
+#ifdef G_OS_WIN32
 	GFile *location;
+	const char *base;
 	char *name;
 
 	if (file == NULL || file->details->directory == NULL) {
 		return NULL;
 	}
 
-	location = nemo_file_get_location (file);
+	if (nemo_file_is_self_owned (file)) {
+		location = g_object_ref (file->details->directory->details->location);
+	} else {
+		/* details->name is not filled in until later in this same update, so
+		   a file being seen for the first time has to be named from the info. */
+		base = file->details->name != NULL ? file->details->name
+		                                   : (info != NULL ? g_file_info_get_name (info) : NULL);
+		if (base == NULL) {
+			return NULL;
+		}
+		location = g_file_get_child (file->details->directory->details->location, base);
+	}
+
 	name = nemo_get_drive_root_name (location);
-	g_clear_object (&location);
+	g_object_unref (location);
 
 	return name;
+#else
+	return NULL;
+#endif
 }
 
 static gboolean
@@ -2509,7 +2526,7 @@ update_info_internal (NemoFile *file,
 
     edit_name = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_EDIT_NAME);
 
-	drive_root_name = file_get_drive_root_name (file);
+	drive_root_name = file_get_drive_root_name (file, info);
 	if (drive_root_name != NULL) {
 		/* A drive root cannot be renamed, so it edits as it displays. */
 		changed |= nemo_file_set_display_name (file,
@@ -4371,7 +4388,7 @@ nemo_file_peek_display_name (NemoFile *file)
 	/* Default to display name based on filename if its not set yet */
 
 	if (file->details->display_name == NULL) {
-		char *drive_root_name = file_get_drive_root_name (file);
+		char *drive_root_name = file_get_drive_root_name (file, NULL);
 
 		/* Before the info arrives the name is still the bare basename, so a
 		   drive root would flash up as "\" and then correct itself. */
