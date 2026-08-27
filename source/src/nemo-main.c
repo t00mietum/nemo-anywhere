@@ -65,7 +65,7 @@ static gboolean
 prints_and_exits (int argc, char *argv[])
 {
 	static const char *quiet[] = {
-		"--version", "--help", "--help-all", "--help-gtk",
+		"--version", "--about", "--help", "--help-all", "--help-gtk",
 		"--quit", "-q", "--check", "-c", "--fix-cache", "-?", NULL
 	};
 	int i, q;

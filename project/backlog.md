@@ -146,10 +146,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Split out of the shortcut item above. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
 	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
 
-- 🔘 Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
+- ✅ Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
 	- Opened: 20260826-103001
+	- Closed: 20260827-100000
 	- The build number is the minutes elapsed since the start of 2000, Crockford base32 encoded, lower case.
 	- General format: "<program name> v<version> build <build>" [copyright ...]
+	- Five characters at the moment. It comes off the same commit date the reproducible builds already use, so two builds of one commit agree; a build outside the release lanes falls back to the clock.
+	- `--about` is new, and prints the version line, the copyright, the project home and the license. Help > About gained the copyright and a link to the project, which it had never shown.
+	- Checked on both platforms: the two command line outputs, the About dialog, and the splash.
 
 - 🔘 Ctrl+H toggles dot-files and Windows hidden files together.
 	- Opened: 20260826-103001

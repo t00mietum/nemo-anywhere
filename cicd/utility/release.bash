@@ -103,12 +103,14 @@ if ((do_publish)); then
 	## Notes are the hand-written changelog section when there is one.
 	notes_file="$(mktemp)"
 	trap 'rm -f "${notes_file}"' EXIT
-	if "${here}/changelog-notes.bash" "${ver}" >"${notes_file}"; then
-		notes_arg=(--notes-file "${notes_file}")
-	else
+	if ! "${here}/changelog-notes.bash" "${ver}" >"${notes_file}"; then
 		echo "no changelog section for ${ver} - publishing with a placeholder body" >&2
-		notes_arg=(--notes "See the changelog for details.")
+		printf 'See the changelog for details.\n' >"${notes_file}"
 	fi
+	## Same number the binaries carry: both read it off HEAD's commit date.
+	( source "${here}/include/source-date.bash"; fSetSourceDate "${here}/../.."
+	  printf '\n---\n\nBuild %s\n' "$(python3 "${here}/../../source/build-number.py")" ) >>"${notes_file}"
+	notes_arg=(--notes-file "${notes_file}")
 	## A prerelease is anything with a pre-release part, matching the tag rule the
 	## release workflow applies from its side.
 	pre_arg=()

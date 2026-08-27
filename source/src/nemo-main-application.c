@@ -23,6 +23,7 @@
  */
 
 #include <config.h>
+#include <nemo-build-number.h>
 
 #include "nemo-main-application.h"
 
@@ -808,6 +809,7 @@ nemo_main_application_local_command_line (GApplication *application,
 {
 	gboolean perform_self_check = FALSE;
 	gboolean version = FALSE;
+	gboolean about = FALSE;
 	gboolean browser = FALSE;
 	gboolean open_in_tabs = FALSE;
 	gboolean open_in_existing_window = FALSE;
@@ -830,6 +832,8 @@ nemo_main_application_local_command_line (GApplication *application,
 		  NULL, NULL },
 		{ "version", '\0', 0, G_OPTION_ARG_NONE, &version,
 		  N_("Show the version of the program."), NULL },
+		{ "about", '\0', 0, G_OPTION_ARG_NONE, &about,
+		  N_("Show the version, copyright and license."), NULL },
 		{ "geometry", 'g', 0, G_OPTION_ARG_STRING, &self->priv->geometry,
 		  N_("Create the initial window with the given geometry. "
              "Examples: nemo --geometry=+100+100, nemo --geometry=600x400, nemo --geometry=600x400+100+100."), N_("GEOMETRY") },
@@ -874,7 +878,19 @@ nemo_main_application_local_command_line (GApplication *application,
 	}
 
 	if (version) {
-		g_print ("nemo-anywhere " VERSION "\n");
+		g_print ("nemo-anywhere " NEMO_VERSION_STRING "\n");
+		goto out;
+	}
+
+	if (about) {
+		g_print ("\nnemo-anywhere " NEMO_VERSION_STRING "\n"
+			 "Copyright \xc2\xa9 2026 t00mietum. Upstream copyrights held by the Nemo authors.\n"
+			 "Project: https://github.com/t00mietum/nemo-anywhere\n"
+			 "Licensed under the GNU General Public License, version 2 only. Full text at:\n"
+			 "  https://spdx.org/licenses/GPL-2.0-only.html\n"
+			 "No warranty.\n"
+			 "\n"
+			 "A file manager that runs on its own, with nothing behind it to install.\n\n");
 		goto out;
 	}
 
