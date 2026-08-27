@@ -156,20 +156,37 @@ function fResolveTag {
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Functions - Windows
 
-## True when a running process is executing something inside the given folder -
+## Names of the running processes executing something inside the given folder -
 ## Windows can't replace files that are still open.
-function fInUse {
+function fHoldersOf {
 	param([string]$Folder)
 	## Win32_Process exposes ExecutablePath for processes whose handle Get-Process
 	## cannot open (protected or cross-session), so a running instance is not read
 	## as absent. Match on the folder plus a separator so C:\foo doesn't hit
 	## C:\foobar.
-	$full = [System.IO.Path]::GetFullPath($Folder).TrimEnd('\') + '\'
+	$full  = [System.IO.Path]::GetFullPath($Folder).TrimEnd('\') + '\'
+	$names = @()
 	foreach ($proc in (Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)) {
 		$path = $proc.ExecutablePath
-		if ($path -and $path.StartsWith($full, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+		if ($path -and $path.StartsWith($full, [StringComparison]::OrdinalIgnoreCase)) {
+			$names += [System.IO.Path]::GetFileName($path)
+		}
 	}
-	return $false
+	return @($names | Sort-Object -Unique)
+}
+
+## The session bus the app starts lives in the install folder and outlives the
+## window by a few seconds, so closing the app is not enough on its own. Wait it
+## out, then say what is actually holding the folder rather than blaming the app.
+function fWaitUntilFree {
+	param([string]$Folder, [int]$Seconds = 10)
+	for ($i = 0; $i -lt $Seconds; $i++) {
+		$holders = fHoldersOf $Folder
+		if ($holders.Count -eq 0) { return @() }
+		if ($i -eq 0) { fEcho_Clean "waiting for $($holders -join ', ') to finish with ${Folder}" }
+		Start-Sleep -Seconds 1
+	}
+	return (fHoldersOf $Folder)
 }
 
 function fMakeShortcut {
@@ -223,19 +240,24 @@ function fPathContains {
 	return @($current -split ';' | Where-Object { $_.TrimEnd('\') -ieq $Dir.TrimEnd('\') }).Count -gt 0
 }
 
+## A trailing separator means nothing to Windows, but it was there before the
+## install touched the value, so an uninstall has to hand back what it found.
 function fPathAdd {
 	param([string]$Scope, [string]$Dir)
 	if (fPathContains $Scope $Dir) { return $false }
 	$current = fPathRead $Scope
-	fPathWrite $Scope $(if ($current) { "$($current.TrimEnd(';'));$Dir" } else { $Dir })
+	$tail = if ($current -and $current.EndsWith(';')) { ';' } else { '' }
+	fPathWrite $Scope $(if ($current) { "$($current.TrimEnd(';'));${Dir}${tail}" } else { $Dir })
 	return $true
 }
 
 function fPathRemove {
 	param([string]$Scope, [string]$Dir)
 	if (-not (fPathContains $Scope $Dir)) { return $false }
-	$kept = (fPathRead $Scope) -split ';' | Where-Object { $_ -and ($_.TrimEnd('\') -ine $Dir.TrimEnd('\')) }
-	fPathWrite $Scope ($kept -join ';')
+	$current = fPathRead $Scope
+	$tail = if ($current.EndsWith(';')) { ';' } else { '' }
+	$kept = $current -split ';' | Where-Object { $_ -and ($_.TrimEnd('\') -ine $Dir.TrimEnd('\')) }
+	fPathWrite $Scope (($kept -join ';') + $tail)
 	return $true
 }
 
@@ -446,7 +468,10 @@ if ($Uninstall) {
 	fEcho_Clean ""
 	fEcho "Removing"
 	if ($os -eq "windows") {
-		if ($havePrefix -and (fInUse $prefix)) { fFail "${AppName} is still running from ${prefix} - close it and try again" }
+		if ($havePrefix) {
+			$holders = fWaitUntilFree $prefix
+			if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
+		}
 		if ($haveShortcut) { Remove-Item -LiteralPath $shortcut -Force; fEcho_Clean "removed ${shortcut}" }
 		if ($havePrefix)   { Remove-Item -LiteralPath $prefix -Recurse -Force; fEcho_Clean "removed ${prefix}" }
 		if (fPathRemove $pathScope $prefix) { fEcho_Clean "removed ${prefix} from the ${pathScope} PATH" }
@@ -617,8 +642,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $tree $stagedName))) {
 }
 
 if ($os -eq "windows") {
-	if ((Test-Path -LiteralPath $prefix) -and (fInUse $prefix)) {
-		fFail "${AppName} is still running from ${prefix} - close it and try again"
+	if (Test-Path -LiteralPath $prefix) {
+		$holders = fWaitUntilFree $prefix
+		if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
 	}
 	New-Item -ItemType Directory -Path (Split-Path -Parent $prefix) -Force | Out-Null
 	## Stage beside the prefix, then swap with same-volume renames. Copying the

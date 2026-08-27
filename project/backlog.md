@@ -74,15 +74,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
 	- It found thirteen real mismatches on its first run: eight settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
 
-- 🔘 A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+- 🛠️ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
 	- Opened: 20260818-155550
 	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
 	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
 	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
+	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app. Written but not yet exercised on Windows.
 
-- 🔘 The installer leaves the user PATH very slightly different from how it found it.
+- ✅ The installer leaves the user PATH very slightly different from how it found it.
 	- Opened: 20260818-155550
+	- Closed: 20260826-180755
 	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
+	- Both halves now carry the trailing separator through, so what an uninstall writes back is what the install found. Checked against an empty PATH, one with a trailing separator and one without.
 
 - 🔘 Windows network browsing cannot be proved to report a missing network or a refused share.
 	- Opened: 20260804-230307
