@@ -222,28 +222,15 @@ typedef enum
 #define NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT	"thumbnail-limit"
 #define NEMO_PREFERENCES_INHERIT_SHOW_THUMBNAILS "inherit-show-thumbnails"
 
-#define NEMO_PREFERENCES_DESKTOP_FONT		   "font"
-#define NEMO_PREFERENCES_DESKTOP_HOME_VISIBLE          "home-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_COMPUTER_VISIBLE      "computer-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_TRASH_VISIBLE         "trash-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_VOLUMES_VISIBLE	   "volumes-visible"
-#define NEMO_PREFERENCES_DESKTOP_NETWORK_VISIBLE       "network-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_BACKGROUND_FADE       "background-fade"
-#define NEMO_PREFERENCES_DESKTOP_IGNORED_DESKTOP_HANDLERS "ignored-desktop-handlers"
-
 /* bulk rename utility */
 #define NEMO_PREFERENCES_BULK_RENAME_TOOL              "bulk-rename-tool"
 
 /* Lockdown */
 #define NEMO_PREFERENCES_LOCKDOWN_COMMAND_LINE         "disable-command-line"
 
-/* Desktop background */
-#define NEMO_PREFERENCES_DESKTOP_LAYOUT "desktop-layout"
-#define NEMO_PREFERENCES_SHOW_ORPHANED_DESKTOP_ICONS "show-orphaned-desktop-icons"
+/* Desktop */
 #define NEMO_PREFERENCES_SHOW_DESKTOP   "show-desktop-icons"    /* DEPRECATED */
 #define NEMO_PREFERENCES_USE_DESKTOP_GRID "use-desktop-grid"
-#define NEMO_PREFERENCES_DESKTOP_HORIZONTAL_GRID_ADJUST "horizontal-grid-adjust"
-#define NEMO_PREFERENCES_DESKTOP_VERTICAL_GRID_ADJUST "vertical-grid-adjust"
 
 /* File size unit prefix */
 #define NEMO_PREFERENCES_SIZE_PREFIXES			"size-prefixes"

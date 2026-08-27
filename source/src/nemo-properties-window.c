@@ -4729,8 +4729,7 @@ get_pending_key (GList *file_list)
 
 	g_list_free_full (uris, g_free);
 
-	ret = key->str;
-	g_string_free (key, FALSE);
+	ret = g_string_free (key, FALSE);
 
 	return ret;
 }
