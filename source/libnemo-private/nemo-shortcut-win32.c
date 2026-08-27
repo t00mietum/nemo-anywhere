@@ -18,6 +18,7 @@
 #define COBJMACROS
 #include <windows.h>
 #include <shlobj.h>
+#include <shellapi.h>
 #include <objidl.h>
 
 /* CoInitialize on this thread; returns TRUE if the caller must CoUninitialize. */
@@ -235,6 +236,39 @@ uninit:
 out:
 	g_free (w_lnk);
 	return ok;
+}
+
+gboolean
+nemo_shortcut_win32_launch (const char  *lnk_path,
+                            GError     **error)
+{
+	gunichar2 *w_lnk;
+	HINSTANCE  res;
+
+	g_return_val_if_fail (lnk_path != NULL, FALSE);
+
+	w_lnk = to_utf16 (lnk_path);
+	if (w_lnk == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+				     _("Could not encode the shortcut path."));
+		return FALSE;
+	}
+
+	/* No verb: the default one, which is what a double-click uses. The shell
+	   reads the .lnk itself, so the arguments, working directory, window state
+	   and any run-as flag all come along. */
+	res = ShellExecuteW (NULL, NULL, (LPCWSTR) w_lnk, NULL, NULL, SW_SHOWNORMAL);
+	g_free (w_lnk);
+
+	/* Anything at or below 32 is an error code, not a handle. */
+	if ((INT_PTR) res > 32) {
+		return TRUE;
+	}
+
+	g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+		     _("Could not open the shortcut (error %d)."),
+		     (int) (INT_PTR) res);
+	return FALSE;
 }
 
 #endif /* G_OS_WIN32 */
