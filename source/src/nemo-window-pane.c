@@ -1143,6 +1143,26 @@ nemo_window_pane_get_toolbar_action_group (NemoWindowPane *pane)
 	return pane->toolbar_action_group;
 }
 
+/* Redraw whatever spells out a path, without any of the rest of a location
+   change - the user has only changed how it is written. */
+void
+nemo_window_pane_resync_path_spelling (NemoWindowPane *pane)
+{
+	NemoWindowSlot *slot = pane->active_slot;
+	char *uri;
+
+	if (slot == NULL || slot->location == NULL) {
+		return;
+	}
+
+	uri = nemo_window_slot_get_location_uri (slot);
+	nemo_location_bar_set_location (NEMO_LOCATION_BAR (pane->location_bar), uri);
+	g_free (uri);
+
+	nemo_path_bar_clear_buttons (NEMO_PATH_BAR (pane->path_bar));
+	nemo_path_bar_set_path (NEMO_PATH_BAR (pane->path_bar), slot->location);
+}
+
 void
 nemo_window_pane_sync_location_widgets (NemoWindowPane *pane)
 {

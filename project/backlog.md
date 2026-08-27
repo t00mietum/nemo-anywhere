@@ -39,13 +39,25 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Switching the path separator to `/` does not take effect until the folder is revisited.
+- Search doesn't fully work.
+
+- 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
+	- Opened: 20260826-180755
+	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
+	- So it depends on something only the real session has - most likely where the focus was sitting. Needs one hands-on run to pin down.
+
+- 🛠️ Switching the path separator to `/` does not take effect until the folder is revisited.
 	- Opened: 20260826-103001
 	- Note: the rest of the Paths group on the Display page applies straight away, so this one is the odd man out.
+	- Cause: the title, the location entry and the breadcrumb are only rebuilt on a location or view change, so changing how a path is spelled never asked for one.
+	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way. Still wants a look on Windows, where the separator itself can actually change.
 
-- 🔘 "Show the full path in the title bar and tab bars" does nothing.
+- ✅ "Show the full path in the title bar and tab bars" does nothing.
 	- Opened: 20260826-103001
+	- Closed: 20260826-180755
 	- Note: on the Display page, under Windows and Tab Titles. Turning it on leaves the window title and the tabs showing the folder name only.
+	- Two causes. The title is only recomputed on a location or view change, so the setting did nothing until the next navigation. And the home folder answered "Home" before the setting was ever read, so in the one place most people would try it, it did nothing at all.
+	- Both fixed. The home folder now gives way to the setting, and the title, the tabs and the location widgets all refresh the moment it changes.
 
 - 🔘 Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
 	- Opened: 20260821-150232
@@ -54,20 +66,26 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
 	- Not ours to fix in place. Either the walk is done ourselves on Windows, or it goes upstream - nothing was found already filed for it.
 
-- 🔘 The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
+- ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Opened: 20260821-144459
+	- Closed: 20260826-180755
 	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
 	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
+	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
+	- It found thirteen real mismatches on its first run: eight settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
 
-- 🔘 A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+- 🛠️ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
 	- Opened: 20260818-155550
 	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
 	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
 	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
+	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app. Written but not yet exercised on Windows.
 
-- 🔘 The installer leaves the user PATH very slightly different from how it found it.
+- ✅ The installer leaves the user PATH very slightly different from how it found it.
 	- Opened: 20260818-155550
+	- Closed: 20260826-180755
 	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
+	- Both halves now carry the trailing separator through, so what an uninstall writes back is what the install found. Checked against an empty PATH, one with a trailing separator and one without.
 
 - 🔘 Windows network browsing cannot be proved to report a missing network or a refused share.
 	- Opened: 20260804-230307
@@ -77,7 +95,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
 	- The Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
-	- What is left on Windows is a different signature: nine `g_file_get_child: assertion 'name != NULL'` at startup. Not looked into.
+	- The second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed - is fixed. A file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
+	- A regression check lists a folder and fails on anything logged at warning level or worse.
 	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
 
@@ -103,6 +122,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
 	- Opened: 20260826-103001
 	- The build number is the minutes elapsed since the start of 2000, Crockford base32 encoded, lower case.
+	- General format: "<program name> v<version> build <build>" [copyright ...]
 
 - 🔘 Ctrl+H toggles dot-files and Windows hidden files together.
 	- Opened: 20260826-103001
@@ -110,9 +130,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Ctrl+Shift+H stays as it is, Windows only.
 
 - 🔘 Ctrl+, opens Preferences.
-	- Opened: 20260826-103001
-
-- 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
 
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
@@ -124,6 +141,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260826-103001
 	- Clicking anywhere on a row selects that row, so clicking off the text is not read as a background click - unless it is below everything listed.
 	- Right-clicking off an existing selection selects first and then opens the menu, to save a step.
+
+- 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
+	- Opened: 20260826-103001
 
 - 🔘 Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
 	- Opened: 20260730-203115
@@ -145,6 +165,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
 	- Opened: 20260819-141014
+	- Need to think through the UX.
 
 - 🔘 Search options: Flat [ ]  Hierarchical [ ]
 	- Opened: 20260819-141014

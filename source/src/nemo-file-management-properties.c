@@ -656,6 +656,7 @@ create_date_format_menu (GtkBuilder *builder)
 	g_date_time_unref (now);
 }
 
+#ifdef G_OS_WIN32
 /* A forward slash cannot be refused while it is the separator on screen, so the
    switch is pinned on and greyed out for as long as it is. */
 static void
@@ -670,12 +671,14 @@ path_separator_changed (GtkComboBox *combo_box,
 
 	gtk_widget_set_sensitive (check, !showing_slash);
 }
+#endif
 
 /* Windows takes either separator; nowhere else has the choice, so the whole
    group stays out of the dialog there. */
 static void
 create_path_separator_menu (GtkBuilder *builder)
 {
+#ifdef G_OS_WIN32
 	GtkComboBoxText *combo_box;
 	GtkWidget *check;
 
@@ -685,7 +688,6 @@ create_path_separator_menu (GtkBuilder *builder)
 	check = GTK_WIDGET (gtk_builder_get_object (builder,
 						    NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET));
 
-#ifdef G_OS_WIN32
 	gtk_combo_box_text_append_text (combo_box, "\\");
 	gtk_combo_box_text_append_text (combo_box, "/");
 
