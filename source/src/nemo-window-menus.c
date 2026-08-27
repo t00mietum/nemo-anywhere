@@ -26,6 +26,7 @@
  *                           split into separate file just for convenience.
  */
 #include <config.h>
+#include <nemo-build-number.h>
 
 #include <locale.h>
 
@@ -325,16 +326,16 @@ action_about_nemo_callback (GtkAction *action,
 		   "51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA")
 	};
 	gchar *license_trans;
-	GDateTime *date;
 
 	license_trans = g_strjoin ("\n\n", _(license[0]), _(license[1]),
 					     _(license[2]), NULL);
 
-	date = g_date_time_new_now_local ();
-
 	gtk_show_about_dialog (GTK_WINDOW (user_data),
 			       "program-name", _("Nemo Anywhere"),
-			       "version", VERSION,
+			       "version", NEMO_VERSION_STRING,
+			       "copyright", "\xc2\xa9 2026 t00mietum\n"
+					    "Upstream copyrights held by the Nemo authors",
+			       "website", "https://github.com/t00mietum/nemo-anywhere",
 			       "comments", _("Nemo Anywhere lets you organize "
 					     "files and folders, both on "
 					     "your computer and online."),
@@ -344,7 +345,6 @@ action_about_nemo_callback (GtkAction *action,
 			      NULL);
 
 	g_free (license_trans);
-	g_date_time_unref (date);
 }
 
 static void

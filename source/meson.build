@@ -31,6 +31,18 @@ buildtype = get_option('buildtype')
 # Surround the version in quotes to make it a C string
 conf.set_quoted('VERSION', meson.project_version())
 
+# Build number: minutes since 2000 in Crockford base32. Worked out at configure
+# time, so a build in a tree that has moved on needs a reconfigure to catch up -
+# both release lanes do one every run. It gets a header of its own rather than a
+# place in config.h, which everything includes: the number moves on every
+# reconfigure, and only a handful of files ever show it.
+py = import('python').find_installation()
+buildConf = configuration_data()
+buildConf.set_quoted('NEMO_VERSION_STRING',
+  'v' + meson.project_version() + ' build ' +
+  run_command(py, files('build-number.py'), check: true).stdout().strip())
+configure_file(output: 'nemo-build-number.h', configuration: buildConf)
+
 check_headers = [
   'malloc.h',
   'sys/mount.h',
