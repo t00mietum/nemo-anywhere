@@ -128,13 +128,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Two of the fifteen are not clearly dead on a quick look - one leaf name is shared with a live setting in another group - so this wants checking key by key rather than deleting the group.
 	- Checked key by key. Twelve had no reader anywhere and are gone from the table, the schema and the preference names. Three still have live readers and stay: the deprecated manage-the-desktop switch, the grid switch, and the desktop text ellipsis limit, which shares its leaf name with the icon view's own.
 
-- 🔘 Windows: open a `.lnk` the way Explorer does, by what it points at.
+- ✅ Windows: open a `.lnk` the way Explorer does, by what it points at.
 	- Opened: 20260826-103001
+	- Closed: 20260827-090000
 	- A shortcut to a file opens in the file's associated program.
 	- A shortcut to a program runs it.
 	- A shortcut to a folder goes to that path in the current tab.
 	- Use an appropriate icon.
 	- Note: following a shortcut through to its target already works. What is missing is treating each kind of target differently.
+	- A shortcut to a folder still opens in the current tab, which is the one case worth doing differently from the shell. Everything else is now handed to the shell as the shortcut, not as its target.
+	- That is what fixes the program case. A shortcut carries a command line, a working directory and a window state, and none of them survive being reduced to a target path - a shortcut to a shell with arguments used to open a bare shell. Shortcuts to virtual items (Recycle Bin, a control panel page) now open too, having no path to reduce to in the first place.
+	- Proven that a launched shortcut's arguments and working directory both arrive.
+	- Icon split off below - it is a bigger piece than the rest of this and applies to more than shortcuts.
+
+- 🔘 Windows: show the icon the shell would show.
+	- Opened: 20260827-090000
+	- Split out of the shortcut item above. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
+	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
 
 - 🔘 Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
 	- Opened: 20260826-103001

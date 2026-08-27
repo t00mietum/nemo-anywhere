@@ -31,6 +31,14 @@ gboolean nemo_shortcut_win32_read   (const char  *lnk_path,
                                      char       **target_path,
                                      GError     **error);
 
+/* Open a .lnk the way a double-click in the shell would: the target's
+ * associated program for a document, the program itself for an executable,
+ * carrying the arguments, working directory and window state stored in the
+ * shortcut. Handing over the shortcut rather than its target is the point -
+ * none of that is reachable from the target path alone. */
+gboolean nemo_shortcut_win32_launch (const char  *lnk_path,
+                                     GError     **error);
+
 G_END_DECLS
 
 #endif /* NEMO_SHORTCUT_WIN32_H */

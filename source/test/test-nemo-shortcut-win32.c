@@ -219,6 +219,59 @@ main (int argc, char *argv[])
 		g_free (nested);
 	}
 
+	/* The point of handing the shortcut itself to the shell rather than its
+	 * target: the arguments and the working directory come along. Both are
+	 * checked at once by writing to a relative name - it can only land in the
+	 * shortcut's working directory. */
+	{
+		const char *shell = g_getenv ("COMSPEC");
+		char *run_lnk = g_build_filename (dir, "run.lnk", NULL);
+		char *stamp = g_build_filename (dir, "stamp.txt", NULL);
+		GError *rerr = NULL;
+		int waited;
+
+		if (shell == NULL) {
+			shell = "C:\\windows\\system32\\cmd.exe";
+		}
+
+		check (nemo_shortcut_win32_create (shell, run_lnk, dir,
+						   "/c echo carried > stamp.txt", NULL, &rerr));
+		check (rerr == NULL);
+		g_clear_error (&rerr);
+
+		if (g_file_test (run_lnk, G_FILE_TEST_EXISTS)) {
+			check (nemo_shortcut_win32_launch (run_lnk, &rerr));
+			check (rerr == NULL);
+			g_clear_error (&rerr);
+
+			/* The shell returns as soon as it has started the process. */
+			for (waited = 0; waited < 40 && !g_file_test (stamp, G_FILE_TEST_EXISTS); waited++) {
+				g_usleep (250000);
+			}
+			check (g_file_test (stamp, G_FILE_TEST_EXISTS));
+		}
+
+		g_unlink (stamp);
+		g_unlink (run_lnk);
+		g_free (stamp);
+		g_free (run_lnk);
+	}
+
+	/* Opening a shortcut that is not there must fail with something to show,
+	 * not report success into a void. Nothing is launched: the shell has
+	 * nothing to open and answers before it starts anything. */
+	{
+		char *missing = g_build_filename (dir, "not-here.lnk", NULL);
+		GError *lerr = NULL;
+
+		check (!nemo_shortcut_win32_launch (missing, &lerr));
+		check (lerr != NULL);
+		check (lerr == NULL || lerr->message != NULL);
+
+		g_clear_error (&lerr);
+		g_free (missing);
+	}
+
 	g_unlink (lnk);
 	g_unlink (target);
 	g_rmdir (dir);
