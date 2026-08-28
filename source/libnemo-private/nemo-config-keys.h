@@ -97,11 +97,11 @@ static const char *const deflist_icon_view_captions[] = { "none", "size", "date_
 static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL };
 static const char *const deflist_list_view_column_max_widths[] = { NULL };
 #ifdef G_OS_WIN32
-static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "where", "size", "type", "date_modified", "owner", "permissions_source", NULL };
-static const char *const deflist_list_view_default_visible_columns[] = { "name", "extension", "size", "type", "date_modified", "owner", NULL };
+static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "permissions_source", NULL };
+static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", NULL };
 #else
-static const char *const deflist_list_view_default_column_order[] = { "name", "extension", "where", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
-static const char *const deflist_list_view_default_visible_columns[] = { "name", "extension", "size", "type", "date_modified", "owner", "group", "permissions", NULL };
+static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "group", "permissions", NULL };
+static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", "group", "permissions", NULL };
 #endif
 static const char *const deflist_plugins_disabled_actions[] = { NULL };
 static const char *const deflist_plugins_disabled_extensions[] = { NULL };
@@ -246,7 +246,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences.menu-config", "selection-menu-cut", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Cut item." },
 	{ "preferences.menu-config", "selection-menu-duplicate", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Duplicate item." },
 	{ "preferences.menu-config", "selection-menu-favorite", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Favorite/Unfavorite item." },
-	{ "preferences.menu-config", "selection-menu-make-link", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Create Link item." },
+	{ "preferences.menu-config", "selection-menu-make-link", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's link items." },
 	{ "preferences.menu-config", "selection-menu-move-to", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Move To submenu." },
 	{ "preferences.menu-config", "selection-menu-move-to-trash", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Move to Trash item." },
 	{ "preferences.menu-config", "selection-menu-open", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Open item." },
@@ -267,7 +267,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-files-recursively", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Recurse into subfolders when performing a search" },
 	{ "search", "search-files-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the file search regex toggle" },
 	{ "search", "search-regex-format", NEMO_CONFIG_STRING, "pcre", NULL, NULL, "valid formats: pcre, javascript" },
-	{ "search", "name-location-split", NEMO_CONFIG_INT, "33", NULL, NULL, "Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column." },
+	{ "search", "name-location-split", NEMO_CONFIG_INT, "50", NULL, NULL, "Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column." },
 	{ "search", "search-reverse-sort", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Reverse the direction of the sort when viewing search results" },
 	{ "search", "search-skip-folders", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_skip_folders, NULL, "Paths or folder names to never recurse into when searching" },
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, "Column to sort on when viewing search results" },

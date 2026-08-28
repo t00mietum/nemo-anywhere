@@ -272,6 +272,49 @@ main (int argc, char *argv[])
 		g_free (missing);
 	}
 
+	/* The other kind of link. Windows wants Developer Mode or an elevated run
+	 * for this, so on a box that has neither there is nothing to check but the
+	 * refusal itself. */
+	{
+		char *sym = g_build_filename (dir, "symlink-to-target", NULL);
+		GError *serr = NULL;
+		gboolean made = nemo_shortcut_win32_create_symlink (target, sym, &serr);
+
+		check (made == nemo_shortcut_win32_symlinks_allowed ());
+
+		if (made) {
+			char *back = NULL;
+			GFile *f = g_file_new_for_path (sym);
+			GFileInfo *info;
+
+			/* Not g_file_test: its symlink question always answers no on
+			 * Windows. GIO reads the reparse point and does not. */
+			info = g_file_query_info (f, G_FILE_ATTRIBUTE_STANDARD_IS_SYMLINK,
+						  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
+			check (info != NULL && g_file_info_get_is_symlink (info));
+			g_clear_object (&info);
+			g_object_unref (f);
+
+			check (g_file_get_contents (sym, &back, NULL, NULL));
+			check (back != NULL);
+			g_free (back);
+
+			/* A name already taken has to read as a clash, or the caller
+			 * cannot uniquify it and just gives up. */
+			g_clear_error (&serr);
+			check (!nemo_shortcut_win32_create_symlink (target, sym, &serr));
+			check (serr != NULL && g_error_matches (serr, G_IO_ERROR, G_IO_ERROR_EXISTS));
+
+			g_unlink (sym);
+		} else {
+			check (serr != NULL);
+			g_print ("SKIP symlink contents (this box does not allow symlinks)\n");
+		}
+
+		g_clear_error (&serr);
+		g_free (sym);
+	}
+
 	g_unlink (lnk);
 	g_unlink (target);
 	g_rmdir (dir);

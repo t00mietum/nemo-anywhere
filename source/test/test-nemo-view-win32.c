@@ -28,6 +28,22 @@ check_quote (const char *arg, const char *want)
 	g_free (got);
 }
 
+static void
+check_split (const char *command, const char *want_exe, const char *want_args)
+{
+	char *args = NULL;
+	char *exe = nemo_view_win32_split_terminal_command (command, &args);
+
+	if (g_strcmp0 (exe, want_exe) != 0 || g_strcmp0 (args, want_args) != 0) {
+		g_printerr ("FAIL %s -> [%s] [%s], wanted [%s] [%s]\n",
+			    command, exe, args ? args : "(none)",
+			    want_exe, want_args ? want_args : "(none)");
+		failures++;
+	}
+	g_free (exe);
+	g_free (args);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -48,6 +64,24 @@ main (int argc, char *argv[])
 
 	/* Nothing to quote is still a quoted empty argument, not an omitted one. */
 	check_quote ("", "\"\"");
+
+	/* The terminal preference is one field, so the program and its arguments
+	 * have to be told apart afterwards. */
+	check_split ("wt.exe", "wt.exe", NULL);
+	check_split ("pwsh.exe -NoLogo", "pwsh.exe", "-NoLogo");
+	check_split ("\"C:\\Program Files\\Thing\\term.exe\"", "C:\\Program Files\\Thing\\term.exe", NULL);
+	check_split ("\"C:\\Program Files\\Thing\\term.exe\" --here -x", "C:\\Program Files\\Thing\\term.exe", "--here -x");
+
+	/* An unquoted path with spaces and no arguments still has to work: a
+	 * program that can be found is taken whole rather than cut at the space. */
+	{
+		char *found = g_find_program_in_path ("cmd.exe");
+
+		if (found != NULL) {
+			check_split (found, found, NULL);
+		}
+		g_free (found);
+	}
 
 	/* "Open with Explorer" puts a window on the screen, so it is not something
 	 * an unattended run can do. Set NEMO_PROBE_EXPLORER to a folder to watch it

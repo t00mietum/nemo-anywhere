@@ -104,10 +104,20 @@ nemo_desktop_settings_set_filechooser_bool (const char *key, gboolean value)
 	g_object_unref (fc);
 }
 
+/* A terminal named in our own preferences beats whatever the desktop publishes:
+   the desktop's is a fallback, not an override. */
+static gboolean
+own_terminal_chosen (void)
+{
+	g_autofree char *chosen = nemo_config_get_string (own_terminal, "exec");
+
+	return chosen != NULL && *chosen != '\0';
+}
+
 char *
 nemo_desktop_settings_get_terminal_exec (void)
 {
-	if (de_terminal != NULL)
+	if (de_terminal != NULL && !own_terminal_chosen ())
 		return g_settings_get_string (de_terminal, "exec");
 	return nemo_config_get_string (own_terminal, "exec");
 }
@@ -115,7 +125,7 @@ nemo_desktop_settings_get_terminal_exec (void)
 char *
 nemo_desktop_settings_get_terminal_exec_arg (void)
 {
-	if (de_terminal != NULL)
+	if (de_terminal != NULL && !own_terminal_chosen ())
 		return g_settings_get_string (de_terminal, "exec-arg");
 	return nemo_config_get_string (own_terminal, "exec-arg");
 }

@@ -1678,6 +1678,95 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                 <property name="position">5</property>
                               </packing>
                             </child>
+                            <child>
+                              <object class="GtkBox" id="terminal_section_box">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="border-width">6</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel" id="terminal_section_label">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Terminal&lt;/b&gt;</property>
+                                    <property name="use-markup">True</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkAlignment" id="terminal_alignment">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="left-padding">40</property>
+                                    <property name="right-padding">40</property>
+                                    <child>
+                                      <object class="GtkBox" id="terminal_field_box">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="orientation">vertical</property>
+                                        <property name="spacing">4</property>
+                                        <child>
+                                          <object class="GtkBox" id="terminal_row_box">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="spacing">4</property>
+                                            <child>
+                                              <object class="GtkLabel" id="terminal_exec_label">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">Command to open a terminal:</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkEntry" id="terminal_exec_entry">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">True</property>
+                                                <property name="hexpand">True</property>
+                                                <property name="invisible-char">●</property>
+                                                <property name="shadow-type">out</property>
+                                                <property name="tooltip-text" translatable="yes">Leave empty to use whatever the system offers. A program that needs arguments takes them here too; quote a path that contains spaces. The folder is passed as the working directory.</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">0</property>
+                                          </packing>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">6</property>
+                              </packing>
+                            </child>
                           </object>
                         </child>
                       </object>
@@ -4081,7 +4170,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__make_link_check">
-                                                    <property name="label" translatable="yes">Ma_ke link</property>
+                                                    <property name="label" translatable="yes">Ma_ke symlink / shortcut</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>

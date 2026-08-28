@@ -17,6 +17,11 @@ void nemo_view_win32_open_elevated (const gchar *path);
 /* Open the native console (Windows Terminal, PowerShell, or cmd) at @path. */
 void nemo_view_win32_open_terminal (const gchar *path);
 
+/* Split the one-field terminal preference into the program and what follows it,
+ * or NULL in @args when nothing does. Exposed for the sake of a test - the real
+ * call opens a window. */
+gchar *nemo_view_win32_split_terminal_command (const gchar *command, gchar **args);
+
 /* Hand @path to Explorer: a folder opens, anything else is revealed and picked
  * out inside its own folder. @is_directory says which. */
 void nemo_view_win32_open_in_explorer (const gchar *path, gboolean is_directory);

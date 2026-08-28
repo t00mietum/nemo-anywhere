@@ -74,6 +74,7 @@
             <menuitem name="Unpin File" action="Unpin File"/>
 			<menuitem name="Duplicate" action="Duplicate"/>
 			<menuitem name="Create Link" action="Create Link"/>
+			<menuitem name="Create Shortcut" action="Create Shortcut"/>
 			<menuitem name="Compress" action="Compress"/>
 			<menuitem name="ExtractHere" action="ExtractHere"/>
 			<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
@@ -202,6 +203,7 @@
         <menuitem name="Pin File" action="Pin File"/>
         <menuitem name="Unpin File" action="Unpin File"/>
 		<menuitem name="Create Link" action="Create Link"/>
+		<menuitem name="Create Shortcut" action="Create Shortcut"/>
 		<menuitem name="Compress" action="Compress"/>
 		<menuitem name="ExtractHere" action="ExtractHere"/>
 		<menuitem name="ExtractToFolder" action="ExtractToFolder"/>

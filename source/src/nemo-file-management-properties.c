@@ -107,6 +107,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_INHERIT_SHOW_THUMBNAILS_WIDGET "inherit_show_thumbnails_checkbutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_BULK_RENAME_WIDGET "bulk_rename_entry"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_TERMINAL_EXEC_WIDGET "terminal_exec_entry"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIPS_ON_ICON_VIEW_WIDGET "tooltips_on_icon_view_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIPS_ON_LIST_VIEW_WIDGET "tooltips_on_list_view_checkbutton"
@@ -1340,6 +1341,10 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     bind_builder_string_entry (builder, nemo_preferences,
                          NEMO_FILE_MANAGEMENT_PROPERTIES_BULK_RENAME_WIDGET,
                          NEMO_PREFERENCES_BULK_RENAME_TOOL);
+
+    bind_builder_string_entry (builder, nemo_config_get_group ("terminal"),
+                         NEMO_FILE_MANAGEMENT_PROPERTIES_TERMINAL_EXEC_WIDGET,
+                         "exec");
 
     bind_builder_bool (builder, nemo_preferences,
                        NEMO_FILE_MANAGEMENT_PROPERTIES_START_WITH_DUAL_PANE_WIDGET,

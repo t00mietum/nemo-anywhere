@@ -143,12 +143,12 @@ field: list-view.column-max-widths
 
 field: list-view.default-column-order
 	type: string-array
-	default: name, extension, where, size, type, date_modified, owner, group, permissions
+	default: name, where, size, extension, type, date_modified, owner, group, permissions
 	desc: Default column order in the list view
 
 field: list-view.default-visible-columns
 	type: string-array
-	default: name, extension, size, type, date_modified, owner, group, permissions
+	default: name, size, extension, type, date_modified, owner, group, permissions
 	desc: Default list of columns visible in the list view
 
 field: list-view.default-zoom-level
@@ -661,8 +661,8 @@ field: preferences.menu-config.selection-menu-favorite
 
 field: preferences.menu-config.selection-menu-make-link
 	type: bool
-	default: false
-	desc: Show the selection context menu's Create Link item.
+	default: true
+	desc: Show the selection context menu's link items.
 
 field: preferences.menu-config.selection-menu-move-to
 	type: bool
@@ -730,7 +730,7 @@ field: search.disabled-search-helpers
 
 field: search.name-location-split
 	type: int
-	default: 33
+	default: 50
 	desc: Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column.
 
 field: search.search-content-case-sensitive

@@ -14,6 +14,7 @@
 
 #include <gio/gio.h>
 #include <glib/gi18n.h>
+#include <glib/gstdio.h>
 
 #define COBJMACROS
 #include <windows.h>
@@ -269,6 +270,107 @@ nemo_shortcut_win32_launch (const char  *lnk_path,
 		     _("Could not open the shortcut (error %d)."),
 		     (int) (INT_PTR) res);
 	return FALSE;
+}
+
+/* Older Windows headers do not carry the unprivileged flag. */
+#ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+#define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x2
+#endif
+
+static gboolean
+try_symlink (const char *target_path,
+             const char *link_path,
+             DWORD       extra_flags,
+             DWORD      *win_error)
+{
+	gunichar2 *w_target = to_utf16 (target_path);
+	gunichar2 *w_link = to_utf16 (link_path);
+	DWORD flags = extra_flags;
+	gboolean ok;
+
+	if (g_file_test (target_path, G_FILE_TEST_IS_DIR)) {
+		flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+	}
+
+	SetLastError (0);
+	ok = CreateSymbolicLinkW ((LPCWSTR) w_link, (LPCWSTR) w_target, flags) != 0;
+	*win_error = ok ? 0 : GetLastError ();
+
+	g_free (w_target);
+	g_free (w_link);
+
+	return ok;
+}
+
+gboolean
+nemo_shortcut_win32_create_symlink (const char  *target_path,
+                                    const char  *link_path,
+                                    GError     **error)
+{
+	DWORD win_error = 0;
+
+	/* The unprivileged flag is what makes this work under Developer Mode.
+	 * Windows before 1703 refuses the flag itself rather than the call, so a
+	 * second attempt without it covers those. */
+	if (try_symlink (target_path, link_path, SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE, &win_error)) {
+		return TRUE;
+	}
+
+	if (win_error == ERROR_INVALID_PARAMETER &&
+	    try_symlink (target_path, link_path, 0, &win_error)) {
+		return TRUE;
+	}
+
+	if (win_error == ERROR_PRIVILEGE_NOT_HELD) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
+				     _("Windows allows symlinks only with Developer Mode turned on, or when running as administrator."));
+	} else if (win_error == ERROR_ALREADY_EXISTS || win_error == ERROR_FILE_EXISTS) {
+		/* Spelled as EXISTS so the caller can uniquify the name and try again,
+		   the way the POSIX path does. */
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_EXISTS,
+				     _("A file with that name already exists."));
+	} else {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+			     _("Could not create the symlink (error %lu)."),
+			     (unsigned long) win_error);
+	}
+
+	return FALSE;
+}
+
+gboolean
+nemo_shortcut_win32_symlinks_allowed (void)
+{
+	static gsize answer = 0;   /* 1 no, 2 yes */
+
+	if (g_once_init_enter (&answer)) {
+		gsize allowed = 1;
+		char *dir = g_dir_make_tmp ("nemo-symlink-check-XXXXXX", NULL);
+
+		/* Asking Windows whether the privilege is held means reading a token
+		 * and a registry key and getting both right; making one and throwing
+		 * it away answers the same question with no room for doubt. */
+		if (dir != NULL) {
+			char *target = g_build_filename (dir, "target", NULL);
+			char *link = g_build_filename (dir, "link", NULL);
+
+			if (g_file_set_contents (target, "", 0, NULL) &&
+			    nemo_shortcut_win32_create_symlink (target, link, NULL)) {
+				allowed = 2;
+			}
+
+			g_remove (link);
+			g_remove (target);
+			g_rmdir (dir);
+			g_free (target);
+			g_free (link);
+			g_free (dir);
+		}
+
+		g_once_init_leave (&answer, allowed);
+	}
+
+	return answer == 2;
 }
 
 #endif /* G_OS_WIN32 */

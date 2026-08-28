@@ -116,6 +116,9 @@ typedef struct {
 	int n_icon_positions;
 	GHashTable *debuting_files;
 	gchar *target_name;
+	/* Windows only, where a link can be either a .lnk shortcut or a real
+	   symlink and the menu offers both. Elsewhere there is one kind. */
+	gboolean want_symlink;
 	NemoCopyCallback  done_callback;
 	gpointer done_callback_data;
 } CopyMoveJob;
@@ -5822,6 +5825,27 @@ win_create_lnk (GFile **dest, const char *target_path, GError **error)
 	}
 	return ok;
 }
+
+/* The other kind of link Windows has. The name is left alone - a symlink is not
+ * a document and gains nothing from an extension. */
+static gboolean
+win_create_symlink (GFile *dest, const char *target_path, GError **error)
+{
+	char *link_path;
+	gboolean ok;
+
+	link_path = g_file_get_path (dest);
+	if (link_path == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("Symlinks can only be created in a local folder."));
+		return FALSE;
+	}
+
+	ok = nemo_shortcut_win32_create_symlink (target_path, link_path, error);
+	g_free (link_path);
+
+	return ok;
+}
 #endif
 
 static void
@@ -5869,9 +5893,11 @@ link_file (CopyMoveJob *job,
 		not_local = TRUE;
 	} else if (
 #ifdef G_OS_WIN32
-		   /* dest is rewritten to a .lnk on success; the bookkeeping below
-		    * then records the shortcut file. */
-		   win_create_lnk (&dest, path, &error)
+		   /* For a shortcut, dest is rewritten to a .lnk on success and the
+		    * bookkeeping below records that file instead. */
+		   (job->want_symlink
+		    ? win_create_symlink (dest, path, &error)
+		    : win_create_lnk (&dest, path, &error))
 #else
 		   g_file_make_symbolic_link (dest,
 					      path,
@@ -6067,19 +6093,21 @@ link_job (GIOSchedulerJob *io_job,
 	return FALSE;
 }
 
-void
-nemo_file_operations_link (GList *files,
-			       GArray *relative_item_points,
-			       GFile *target_dir,
-			       GtkWindow *parent_window,
-			       NemoCopyCallback  done_callback,
-			       gpointer done_callback_data)
+static void
+start_link_job (GList *files,
+		GArray *relative_item_points,
+		GFile *target_dir,
+		GtkWindow *parent_window,
+		gboolean symlink,
+		NemoCopyCallback  done_callback,
+		gpointer done_callback_data)
 {
 	CopyMoveJob *job;
 
 	job = op_job_new (CopyMoveJob, parent_window);
 	job->done_callback = done_callback;
 	job->done_callback_data = done_callback_data;
+	job->want_symlink = symlink;
 	job->files = eel_g_object_list_copy (files);
 	job->destination = g_object_ref (target_dir);
 	if (relative_item_points != NULL &&
@@ -6104,6 +6132,18 @@ nemo_file_operations_link (GList *files,
     generate_initial_job_details (job->common.progress, OP_KIND_LINK, job->files, job->destination);
 
     add_job_to_job_queue (link_job, job, job->common.cancellable, job->common.progress, OP_KIND_LINK);
+}
+
+void
+nemo_file_operations_link (GList *files,
+			       GArray *relative_item_points,
+			       GFile *target_dir,
+			       GtkWindow *parent_window,
+			       NemoCopyCallback  done_callback,
+			       gpointer done_callback_data)
+{
+	start_link_job (files, relative_item_points, target_dir, parent_window, FALSE,
+			done_callback, done_callback_data);
 }
 
 
@@ -6342,6 +6382,35 @@ callback_for_move_to_trash (GHashTable *debuting_uris,
 	if (data->real_callback)
 		data->real_callback (debuting_uris, !user_cancelled, data->real_data);
 	g_free (data);
+}
+
+/* The menu's own way in, as against a drag with the link modifier held. The two
+   differ only on Windows, where a drag makes a shortcut and the menu item says
+   symlink. */
+void
+nemo_file_operations_symlink (const GList *item_uris,
+			      GArray *relative_item_points,
+			      const char *target_dir,
+			      GtkWidget *parent_view,
+			      NemoCopyCallback  done_callback,
+			      gpointer done_callback_data)
+{
+	GList *locations;
+	GFile *dest;
+	GtkWindow *parent_window = NULL;
+
+	dest = g_file_new_for_uri (target_dir);
+	locations = location_list_from_uri_list (item_uris);
+
+	if (parent_view) {
+		parent_window = (GtkWindow *) gtk_widget_get_ancestor (parent_view, GTK_TYPE_WINDOW);
+	}
+
+	start_link_job (locations, relative_item_points, dest, parent_window, TRUE,
+			done_callback, done_callback_data);
+
+	g_list_free_full (locations, g_object_unref);
+	g_object_unref (dest);
 }
 
 void

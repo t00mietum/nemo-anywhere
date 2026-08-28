@@ -68,6 +68,7 @@
 
 #include <libnemo-extension/nemo-menu-provider.h>
 #include <libnemo-private/nemo-bookmark.h>
+#include <libnemo-private/nemo-shortcut-win32.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-clipboard-monitor.h>
 #include <libnemo-private/nemo-search-directory.h>
@@ -327,7 +328,8 @@ static void     nemo_view_duplicate_selection              (NemoView      *view,
 							        GArray               *item_locations);
 static void     nemo_view_create_links_for_files           (NemoView      *view,
 							        GList                *files,
-							        GArray               *item_locations);
+							        GArray               *item_locations,
+							        gboolean              symlink);
 static void     trash_or_delete_files                          (GtkWindow            *parent_window,
 								const GList          *files,
 								gboolean              delete_if_all_already_in_trash,
@@ -1581,24 +1583,38 @@ action_duplicate_callback (GtkAction *action,
 }
 
 static void
-action_create_link_callback (GtkAction *action,
-			     gpointer callback_data)
+create_links_for_selection (NemoView *view, gboolean symlink)
 {
-        NemoView *view;
         GList *selection;
         GArray *selected_item_locations;
 
-        g_assert (NEMO_IS_VIEW (callback_data));
-
-        view = NEMO_VIEW (callback_data);
 	selection = nemo_view_get_selection (view);
 	if (selection_not_empty_in_menu_callback (view, selection)) {
 		selected_item_locations = nemo_view_get_selected_icon_locations (view);
-	        nemo_view_create_links_for_files (view, selection, selected_item_locations);
+	        nemo_view_create_links_for_files (view, selection, selected_item_locations, symlink);
 	        g_array_free (selected_item_locations, TRUE);
 	}
 
         nemo_file_list_free (selection);
+}
+
+static void
+action_create_link_callback (GtkAction *action,
+			     gpointer callback_data)
+{
+        g_assert (NEMO_IS_VIEW (callback_data));
+
+        create_links_for_selection (NEMO_VIEW (callback_data), TRUE);
+}
+
+/* Windows only - the .lnk the shell understands, as against a symlink. */
+static void
+action_create_shortcut_callback (GtkAction *action,
+				 gpointer callback_data)
+{
+        g_assert (NEMO_IS_VIEW (callback_data));
+
+        create_links_for_selection (NEMO_VIEW (callback_data), FALSE);
 }
 
 static void
@@ -4349,7 +4365,8 @@ offset_drop_points (GArray *relative_item_points,
 
 static void
 nemo_view_create_links_for_files (NemoView *view, GList *files,
-				      GArray *relative_item_points)
+				      GArray *relative_item_points,
+				      gboolean symlink)
 {
 	GList *uris;
 	char *dir_uri;
@@ -4376,8 +4393,13 @@ nemo_view_create_links_for_files (NemoView *view, GList *files,
 
         copy_move_done_data = pre_copy_move (view);
 	dir_uri = nemo_view_get_backing_uri (view);
-	nemo_file_operations_copy_move (uris, relative_item_points, dir_uri, GDK_ACTION_LINK,
-					    GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
+	if (symlink) {
+		nemo_file_operations_symlink (uris, relative_item_points, dir_uri,
+					      GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
+	} else {
+		nemo_file_operations_copy_move (uris, relative_item_points, dir_uri, GDK_ACTION_LINK,
+						    GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
+	}
 	g_free (dir_uri);
 	g_list_free_full (uris, g_free);
 }
@@ -9033,9 +9055,13 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Duplicate each selected item"),
 				 G_CALLBACK (action_duplicate_callback) },
   /* name, stock id */         { "Create Link", NULL,
-  /* label, accelerator */       N_("Ma_ke link"), "<control>M",
+  /* label, accelerator */       N_("Ma_ke symlink"), "<control>M",
   /* tooltip */                  N_("Create a symbolic link for each selected item"),
 				 G_CALLBACK (action_create_link_callback) },
+  /* name, stock id */         { "Create Shortcut", NULL,
+  /* label, accelerator */       N_("Make s_hortcut"), NULL,
+  /* tooltip */                  N_("Create a Windows shortcut for each selected item"),
+				 G_CALLBACK (action_create_shortcut_callback) },
   /* name, stock id */         { "Rename", NULL,
   /* label, accelerator */       N_("_Rename..."), "F2",
   /* tooltip */                  N_("Rename selected item"),
@@ -10734,11 +10760,31 @@ real_update_menus (NemoView *view)
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_CREATE_LINK);
+#ifdef G_OS_WIN32
+	/* Windows only lets a program make one with Developer Mode on or when
+	   running elevated, so the item goes grey rather than failing on use. */
+	gtk_action_set_sensitive (action, can_link_files && nemo_shortcut_win32_symlinks_allowed ());
+#else
 	gtk_action_set_sensitive (action, can_link_files);
+#endif
     gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
 	g_object_set (action, "label",
-		      ngettext ("Ma_ke link",
-			      	"Ma_ke links",
+		      ngettext ("Ma_ke symlink",
+			      	"Ma_ke symlinks",
+				selection_count),
+		      NULL);
+
+	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_CREATE_SHORTCUT);
+	gtk_action_set_sensitive (action, can_link_files);
+#ifdef G_OS_WIN32
+    gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
+#else
+    gtk_action_set_visible (action, FALSE);
+#endif
+	g_object_set (action, "label",
+		      ngettext ("Make s_hortcut",
+			      	"Make s_hortcuts",
 				selection_count),
 		      NULL);
 
