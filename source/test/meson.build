@@ -95,6 +95,15 @@ test('Search invalid regex test',
   args: []
 )
 
+test('Treeview hit test',
+  executable('test-eel-treeview-hit',
+    [ 'test-eel-treeview-hit.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Search content test',
   executable('test-nemo-search-content',
     [ 'test-nemo-search-content.c' ],

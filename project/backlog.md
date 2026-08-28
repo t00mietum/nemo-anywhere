@@ -39,8 +39,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Trying to drag 'C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\project\backlog.md' to another application - even before the file was dragged off nemo-anywhere - crashed the application.
-
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
 	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
@@ -212,6 +210,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Dragging a file towards another application crashed the app, before it had even left the window.
+	- Opened: 20260828
+	- Closed: 20260828-163000
+	- Nothing to do with the other application. Any drag that passed over the empty space below the last row did it, which a drag out of the window does on its way.
+	- The toolkit is asked which row sits under the pointer. Past the last row it answers "none" without filling in the row it was handed, and that leftover value was then read and released.
+	- A new check asks the same question at a position below the rows, and was watched failing without the fix.
 
 - ✅ Search doesn't fully work.
 	- Opened: 20260826-103001
