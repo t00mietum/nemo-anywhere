@@ -27,6 +27,7 @@
 #include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-global-preferences.h"
+#include "nemo-dir-enum.h"
 #include "nemo-lib-self-check-functions.h"
 #include "nemo-metadata.h"
 #include "nemo-file.h"
@@ -1197,7 +1198,7 @@ nemo_find_file_insensitive_next (GFile *parent, const gchar *name)
 
 	/* Enumerate and compare insensitive */
 	filename = NULL;
-	children = g_file_enumerate_children (parent,
+	children = nemo_enumerate_children (parent,
 	                                      G_FILE_ATTRIBUTE_STANDARD_NAME,
 	                                      0, NULL, NULL);
 	if (children != NULL) {
@@ -2185,6 +2186,19 @@ watch_separator_preferences (void)
 }
 
 #endif
+
+/* Called from nemo_global_preferences_init, and it has to stay there. GObject
+   runs handlers in the order they were connected, so anything that spells out a
+   path from its own "changed::path-separator" handler reads a stale separator
+   unless this one was connected first. That put the breadcrumb a step behind
+   the window title. */
+void
+nemo_path_init_display_separator (void)
+{
+#ifdef G_OS_WIN32
+    watch_separator_preferences ();
+#endif
+}
 
 gchar
 nemo_path_get_display_separator (void)

@@ -55,6 +55,7 @@ nemo_private_sources = [
   'nemo-merged-directory.c',
   'nemo-config.c',
   'nemo-desktop-settings.c',
+  'nemo-dir-enum.c',
   'nemo-metadata.c',
   'nemo-metadata-store.c',
   'nemo-network-win32.c',

@@ -367,6 +367,7 @@ nemo_global_preferences_init (void)
 
     setup_cached_pref_keys ();
     setup_cached_time_data ();
+    nemo_path_init_display_separator ();
 
     eel_debug_call_at_shutdown (nemo_global_preferences_finalize);
 }

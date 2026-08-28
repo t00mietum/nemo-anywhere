@@ -41,6 +41,7 @@
 #include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-file-changes-queue.h"
+#include "nemo-dir-enum.h"
 #include "nemo-lib-self-check-functions.h"
 
 #include "nemo-progress-info.h"
@@ -1772,7 +1773,7 @@ delete_dir (CommonJob *job, GFile *dir,
 	skip_error = should_skip_readdir_error (job, dir);
  retry:
 	error = NULL;
-	enumerator = g_file_enumerate_children (dir,
+	enumerator = nemo_enumerate_children (dir,
 						G_FILE_ATTRIBUTE_STANDARD_NAME,
 						G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 						job->cancellable,
@@ -2481,7 +2482,7 @@ dir_has_files (GFile *dir)
 
 	res = FALSE;
 
-	enumerator = g_file_enumerate_children (dir,
+	enumerator = nemo_enumerate_children (dir,
 						G_FILE_ATTRIBUTE_STANDARD_NAME,
 						0,
 						NULL, NULL);
@@ -2892,7 +2893,7 @@ scan_dir (GFile *dir,
 
  retry:
 	error = NULL;
-	enumerator = g_file_enumerate_children (dir,
+	enumerator = nemo_enumerate_children (dir,
 						G_FILE_ATTRIBUTE_STANDARD_NAME","
 						G_FILE_ATTRIBUTE_STANDARD_TYPE","
 						G_FILE_ATTRIBUTE_STANDARD_SIZE,
@@ -3915,7 +3916,7 @@ copy_move_directory (CopyMoveJob *copy_job,
 	skip_error = should_skip_readdir_error (job, src);
  retry:
 	error = NULL;
-	enumerator = g_file_enumerate_children (src,
+	enumerator = nemo_enumerate_children (src,
 						G_FILE_ATTRIBUTE_STANDARD_NAME,
 						G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 						job->cancellable,
@@ -4106,7 +4107,7 @@ remove_target_recursively (CommonJob *job,
 
 	error = NULL;
 	enumerator = !is_dir ? NULL :
-		     g_file_enumerate_children (file,
+		     nemo_enumerate_children (file,
 						G_FILE_ATTRIBUTE_STANDARD_NAME,
 						G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 						job->cancellable,
@@ -6267,7 +6268,7 @@ set_permissions_file (SetPermissionsJob *job,
 
 	if (!job_aborted (common) &&
 	    g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
-		enumerator = g_file_enumerate_children (file,
+		enumerator = nemo_enumerate_children (file,
 							G_FILE_ATTRIBUTE_STANDARD_NAME","
 							G_FILE_ATTRIBUTE_STANDARD_TYPE","
 							G_FILE_ATTRIBUTE_UNIX_MODE,
@@ -6957,7 +6958,7 @@ delete_trash_file (CommonJob *job,
          */
         should_recurse = !g_file_has_uri_scheme (file, "trash");
 
-		enumerator = g_file_enumerate_children (file,
+		enumerator = nemo_enumerate_children (file,
 							G_FILE_ATTRIBUTE_STANDARD_NAME ","
 							G_FILE_ATTRIBUTE_STANDARD_TYPE,
 							G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,

@@ -16,6 +16,11 @@
 	  - The run-as level. asInvoker is what we already got by having no manifest
 	    at all, stated explicitly so it cannot change by accident. Asking for
 	    elevation is a deliberate act with its own relaunch.
+	  - The process code page. Everything we call is the wide form of the API,
+	    but the libraries under us and the C runtime are not, and without this
+	    those fall back on whatever the machine happens to be set to - which is
+	    how a user name outside that code page breaks things that otherwise
+	    look fine.
 
 	No common-controls dependency on purpose: nothing here draws with them, and
 	pulling in the v6 assembly would change how the shell dialogs we do use look.
@@ -36,6 +41,8 @@
 			<!-- 8.1 through 1607 read this one instead. "true/pm" is per-monitor. -->
 			<dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
 			<longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+			<!-- 1903 and later. Older builds ignore it and keep the machine code page. -->
+			<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
 		</windowsSettings>
 	</application>
 

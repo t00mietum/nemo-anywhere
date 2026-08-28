@@ -28,6 +28,32 @@ static int failures = 0;
 		} \
 	} while (0)
 
+/* Which kind of reparse point a path is, or 0 if it is not one. The find data
+ * carries the tag in dwReserved0 whenever the reparse attribute is set. */
+static DWORD
+reparse_tag_of (const char *path)
+{
+	gunichar2 *wide = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+	WIN32_FIND_DATAW data;
+	HANDLE find;
+	DWORD tag = 0;
+
+	if (wide == NULL) {
+		return 0;
+	}
+
+	find = FindFirstFileW ((LPCWSTR) wide, &data);
+	if (find != INVALID_HANDLE_VALUE) {
+		if (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+			tag = data.dwReserved0;
+		}
+		FindClose (find);
+	}
+
+	g_free (wide);
+	return tag;
+}
+
 /* The shell always reports canonical long paths, while TEMP on a stock Windows
  * box is often still the 8.3 short form (C:\Users\COLLIE~1\...) - which is what
  * g_dir_make_tmp builds on. Compare both sides on the long form or a perfectly
@@ -313,6 +339,60 @@ main (int argc, char *argv[])
 
 		g_clear_error (&serr);
 		g_free (sym);
+	}
+
+	/* A link to a folder is a junction, which Windows allows with no privilege
+	 * at all - so this one has to work whatever the box is set to. */
+	{
+		char *folder = g_build_filename (dir, "folder", NULL);
+		char *inside = g_build_filename (folder, "inside.txt", NULL);
+		char *link = g_build_filename (dir, "link-to-folder", NULL);
+		char *through = g_build_filename (link, "inside.txt", NULL);
+		char *back = NULL;
+		GError *jerr = NULL;
+		GFile *f;
+		GFileInfo *info;
+
+		check (g_mkdir (folder, 0755) == 0);
+		check (g_file_set_contents (inside, "junction", -1, NULL));
+
+		check (nemo_shortcut_win32_create_symlink (folder, link, &jerr));
+		check (jerr == NULL);
+
+		/* Reads through to the target, and is a reparse point rather than a
+		 * second copy of the folder. */
+		check (g_file_get_contents (through, &back, NULL, NULL));
+		check (g_strcmp0 (back, "junction") == 0);
+		g_free (back);
+
+		f = g_file_new_for_path (link);
+		info = g_file_query_info (f, G_FILE_ATTRIBUTE_STANDARD_IS_SYMLINK,
+					  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
+		check (info != NULL && g_file_info_get_is_symlink (info));
+		g_clear_object (&info);
+		g_object_unref (f);
+
+		/* And a junction specifically, not a symlink. This box runs elevated,
+		 * so a symlink would have worked too and every other check here would
+		 * still pass - the tag is the only thing that tells them apart. */
+		check (reparse_tag_of (link) == IO_REPARSE_TAG_MOUNT_POINT);
+
+		/* A taken name still has to read as a clash so the caller can
+		 * uniquify it. */
+		check (!nemo_shortcut_win32_create_symlink (folder, link, &jerr));
+		check (jerr != NULL && g_error_matches (jerr, G_IO_ERROR, G_IO_ERROR_EXISTS));
+		g_clear_error (&jerr);
+
+		/* Removing the link must not take the target's contents with it. */
+		check (g_rmdir (link) == 0);
+		check (g_file_test (inside, G_FILE_TEST_EXISTS));
+
+		g_unlink (inside);
+		g_rmdir (folder);
+		g_free (through);
+		g_free (link);
+		g_free (inside);
+		g_free (folder);
 	}
 
 	g_unlink (lnk);

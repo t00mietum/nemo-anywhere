@@ -26,14 +26,19 @@
 
 #include <gio/gio.h>
 #include <glib/gstdio.h>
+#include <errno.h>
 #include <string.h>
 
-/* SHCL's own file tier is left out: its writer reaches Windows through the ANSI
- * calls, which are the system codepage unless the exe asks for UTF-8, so a
- * config under a non-ASCII user name would fail to save. GLib converts to
- * UTF-16 and is atomic on both platforms. What is given up is the Windows
- * ACL/stream preservation and the POSIX directory fsync. */
-#define SHCL_NO_FILE_IO
+/* SHCL's file tier is in, for its writer: a temp file beside the target, synced
+ * before it is published, and on Windows a replace that carries the old file's
+ * permissions, attributes and alternate streams onto the new one - none of
+ * which g_file_set_contents does. It reaches Windows through the ANSI calls,
+ * which is why it was left out until the manifest asked for UTF-8 as the
+ * process code page.
+ *
+ * Only the writer. Reading stays on GLib, which keeps the size cap in front of
+ * SHCL's arena (it exits the process rather than failing an allocation) and
+ * hands back the exact bytes the own-write check compares against. */
 #define SHCL_IMPLEMENTATION
 #include "shcl.h"
 
@@ -209,6 +214,14 @@ load_locked (void)
 			           shcl_diag_code (config_doc, i), (int) m.n, m.p);
 		}
 
+		/* Anything the parse could not keep is gone from the next save, so say
+		 * so rather than let a hand-edited line disappear without a word. */
+		if (shcl_lost_count (config_doc) > 0) {
+			g_warning ("nemo-config: %s has %zu line(s) that could not be kept; "
+			           "the next save will not carry them",
+			           config_path, shcl_lost_count (config_doc));
+		}
+
 		g_free (last_written);
 		last_written = g_memdup2 (text, len);
 		last_written_len = len;
@@ -292,7 +305,21 @@ save_now (gpointer data)
 	g_mkdir_with_parents (dir, 0700);
 	g_free (dir);
 
-	ok = g_file_set_contents (config_path, text != NULL ? text : "", text_len, &error);
+	{
+		/* SHCL names its temp file by splitting on '/' and nothing else, so a
+		 * Windows path spelled with backslashes puts the temp in the working
+		 * directory under an impossible name and every write fails. Windows
+		 * takes either separator, so hand it the one the writer can read. */
+		char *write_path = g_strdup (config_path);
+
+		nemo_path_apply_separator (write_path, '/');
+		ok = shcl_write_file_atomic (write_path, text != NULL ? text : "", text_len) != 0;
+		if (!ok) {
+			g_set_error (&error, G_FILE_ERROR, g_file_error_from_errno (errno),
+			             "%s", g_strerror (errno));
+		}
+		g_free (write_path);
+	}
 
 	g_mutex_lock (&config_lock);
 	if (ok) {

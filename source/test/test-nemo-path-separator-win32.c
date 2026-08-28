@@ -86,6 +86,39 @@ test_slash_input_can_be_refused (void)
 	check (nemo_path_input_is_allowed ("C:/Users/someone"));
 }
 
+static void
+late_handler (gpointer data, const char *key)
+{
+	char *seen = data;
+
+	*seen = nemo_path_get_display_separator ();
+}
+
+/* Everything that spells out a path does it from its own handler on this
+ * setting, and GObject runs handlers in the order they were connected. So the
+ * separator has to be refreshed by the time a handler connected later runs, or
+ * the window ends up a step behind - which is what the breadcrumb did. */
+static void
+test_separator_is_fresh_for_later_handlers (void)
+{
+	char seen = '\0';
+	gulong id;
+
+	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
+
+	id = g_signal_connect_swapped (nemo_preferences,
+				       "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
+				       G_CALLBACK (late_handler), &seen);
+
+	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "slash");
+	check (seen == '/');
+
+	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
+	check (seen == '\\');
+
+	g_signal_handler_disconnect (nemo_preferences, id);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -99,6 +132,10 @@ main (int argc, char *argv[])
 	gtk_init (&argc, &argv);
 
 	nemo_global_preferences_init ();
+
+	/* First, and it has to stay first: any other check here would prime the
+	   separator cache and hide the ordering this one is about. */
+	test_separator_is_fresh_for_later_handlers ();
 
 	test_backslash_is_the_default ();
 	test_slash_can_be_chosen ();

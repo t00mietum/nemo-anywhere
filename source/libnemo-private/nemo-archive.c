@@ -35,6 +35,7 @@
 
 #include "nemo-archive-commands.h"
 #include "nemo-command-template.h"
+#include "nemo-dir-enum.h"
 #include "nemo-file-changes-queue.h"
 #include "nemo-global-preferences.h"
 #include "nemo-job-queue.h"
@@ -783,7 +784,7 @@ scan_directory (ArchiveJob *job,
 	GFileEnumerator *children;
 	GFileInfo *child_info;
 
-	children = g_file_enumerate_children (dir, SCAN_ATTRIBUTES,
+	children = nemo_enumerate_children (dir, SCAN_ATTRIBUTES,
 					      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 					      job->cancellable, NULL);
 	if (children == NULL) {

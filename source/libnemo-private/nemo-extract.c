@@ -36,6 +36,7 @@
 #include "nemo-archive.h"
 #include "nemo-archive-commands.h"
 #include "nemo-command-template.h"
+#include "nemo-dir-enum.h"
 #include "nemo-extract-conflict-dialog.h"
 #include "nemo-file-changes-queue.h"
 #include "nemo-job-queue.h"
@@ -606,7 +607,7 @@ delete_recursively (GFile        *file,
 {
 	GFileEnumerator *children;
 
-	children = g_file_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
+	children = nemo_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
 					      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 					      cancellable, NULL);
 	if (children != NULL) {
@@ -1281,7 +1282,7 @@ place_staged_tree (ExtractJob *job,
 {
 	GFileEnumerator *children;
 
-	children = g_file_enumerate_children (staging_dir,
+	children = nemo_enumerate_children (staging_dir,
 					      G_FILE_ATTRIBUTE_STANDARD_NAME ","
 					      G_FILE_ATTRIBUTE_STANDARD_TYPE ","
 					      G_FILE_ATTRIBUTE_STANDARD_SIZE ","

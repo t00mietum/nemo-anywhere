@@ -10455,6 +10455,28 @@ update_configurable_context_menu_items (NemoView *view)
     }
 }
 
+#ifdef G_OS_WIN32
+/* Whether every selected item is a folder - a folder link is a junction, which
+   Windows allows without any privilege at all. */
+static gboolean
+selection_is_all_directories (GList *selection)
+{
+	GList *node;
+
+	if (selection == NULL) {
+		return FALSE;
+	}
+
+	for (node = selection; node != NULL; node = node->next) {
+		if (!nemo_file_is_directory (NEMO_FILE (node->data))) {
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+#endif
+
 static void
 real_update_menus (NemoView *view)
 {
@@ -10761,9 +10783,12 @@ real_update_menus (NemoView *view)
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_CREATE_LINK);
 #ifdef G_OS_WIN32
-	/* Windows only lets a program make one with Developer Mode on or when
-	   running elevated, so the item goes grey rather than failing on use. */
-	gtk_action_set_sensitive (action, can_link_files && nemo_shortcut_win32_symlinks_allowed ());
+	/* Windows only lets a program make a symlink with Developer Mode on or when
+	   running elevated, so the item goes grey rather than failing on use. A
+	   folder is the exception - it gets a junction, which needs no privilege. */
+	gtk_action_set_sensitive (action, can_link_files &&
+				  (nemo_shortcut_win32_symlinks_allowed () ||
+				   selection_is_all_directories (selection)));
 #else
 	gtk_action_set_sensitive (action, can_link_files);
 #endif

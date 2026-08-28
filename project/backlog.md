@@ -85,11 +85,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
 	- So it depends on something only the real session has - most likely where the focus was sitting. Needs one hands-on run to pin down.
 
-- 🛠️ Switching the path separator to `/` does not take effect until the folder is revisited.
+- ✅ Switching the path separator to `/` does not take effect until the folder is revisited.
 	- Opened: 20260826-103001
+	- Closed: 20260828-124500
 	- Note: the rest of the Paths group on the Display page applies straight away, so this one is the odd man out.
 	- Cause: the title, the location entry and the breadcrumb are only rebuilt on a location or view change, so changing how a path is spelled never asked for one.
-	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way. Still wants a look on Windows, where the separator itself can actually change.
+	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way.
+	- Two more halves showed up on Windows, where the separator can really change. The breadcrumb was redrawing a step behind - it read the separator before the setting had been taken in. And the sidebar, which spells a drive root as `C:\`, was not redrawing at all.
+	- Both fixed. Title, breadcrumb, location bar and sidebar now all move together the moment the setting changes, with no navigation. A new check covers the ordering and was watched failing without the fix.
 
 - ✅ "Show the full path in the title bar and tab bars" does nothing.
 	- Opened: 20260826-103001
@@ -98,12 +101,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Two causes. The title is only recomputed on a location or view change, so the setting did nothing until the next navigation. And the home folder answered "Home" before the setting was ever read, so in the one place most people would try it, it did nothing at all.
 	- Both fixed. The home folder now gives way to the setting, and the title, the tabs and the location widgets all refresh the moment it changes.
 
-- 🔘 Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
+- ✅ Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
 	- Opened: 20260821-150232
+	- Closed: 20260828-114000
 	- Found while proving the long-path manifest work. The toolkit's own directory walk is what breaks; every other call on the same path is right, which is why nothing showed up until a folder that deep was actually opened.
 	- In the window it reads as an empty folder, because each name it hands back is then checked against the folder that was asked for and none of them are in it. That is the harmless case. The one to worry about is search, which walks folders itself and would follow the wrong tree.
 	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
-	- Not ours to fix in place. Either the walk is done ourselves on Windows, or it goes upstream - nothing was found already filed for it.
+	- The walk is now done here on Windows once a path is long enough that the toolkit cannot be trusted with it. Everything shorter still goes straight to the toolkit, so the ordinary case is untouched.
+	- One entry point covers the lot: the file listing, search, copy, move, delete, the deep count and the archive scan all go through it.
+	- A folder 308 characters deep lists its real contents in the window now, with sizes, types and dates. New checks cover it both ways round, and were watched failing without the fix.
 
 - ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Opened: 20260821-144459
@@ -113,12 +119,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
 	- It found thirteen real mismatches on its first run: eight settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
 
-- 🛠️ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+- ✅ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
 	- Opened: 20260818-155550
+	- Closed: 20260828-134500
 	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
 	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
 	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
-	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app. Written but not yet exercised on Windows.
+	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app.
+	- Exercised on Windows against a scratch install, and it turned up three real faults, all fixed:
+		- An in-place upgrade died outright. The in-use check hands back an empty list as nothing at all, and asking that for a count is an error, so every upgrade over an existing folder failed before it started. Only a first install had ever been run.
+		- The check compared two spellings of the same folder and so found nothing. It long-forms the folder it was given but takes a running program's path as reported, and those two do not have to agree.
+		- If the swap failed anyway, for a reason no process scan can see, the failure came out as a raw runtime error. It now says which folder is stuck and what to do.
+	- The round trip is now clean: install, run, close, upgrade over it, uninstall. The PATH comes back byte for byte and nothing is left behind.
 
 - ✅ The installer leaves the user PATH very slightly different from how it found it.
 	- Opened: 20260818-155550
@@ -214,13 +226,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: Fetch it from the source.
 	- Moved from 1.2.0 to 2.0.0. Nothing in the settings layer had to change: none of the calls made here changed shape, and neither of the two breaking changes is reachable from plain key names.
 	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
-	- Its new file tier is deliberately compiled out. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save. Revisit if the codepage item below is taken.
+	- Its new file tier was deliberately compiled out at first. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save.
+	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind - watched happening, and watched surviving afterwards.
+	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it is worth keeping; the reader also hands back the exact bytes the "was this our own write" check compares against.
+	- The trap: the library names its temp file by splitting the path on a forward slash and nothing else, so a Windows path spelled with backslashes puts the temp somewhere impossible and every save fails. The path is handed over spelled with slashes. The existing config checks caught this immediately.
 
-- 🔘 Ask for UTF-8 as the process codepage in the Windows manifest.
+- ✅ Ask for UTF-8 as the process codepage in the Windows manifest.
 	- Opened: 20260827-075015
+	- Closed: 20260828-142000
 	- Windows 10 1903 and later read `activeCodePage` and make every narrow call UTF-8. Without it a narrow call anywhere in the process is at the mercy of whatever codepage the machine is set to, which is how a non-ASCII user name breaks things that otherwise look fine.
-	- Would let the config engine use its library's own writer, which preserves a file's permissions, attributes and alternate streams across a save where the current one does not.
 	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
+	- Looked. Nothing of ours narrows: every Windows call in the tree is the wide form, and the only conversions are explicit UTF-8 ones. What the change reaches is the libraries underneath and the C runtime, which is the point of it.
+	- In: the code page reads 65001 with the manifest and 1252 without. The app was run with its config under a folder named in German and Japanese, and read, wrote and live-reloaded it. Suite unchanged.
+	- Follow-on, taken: the config engine now saves through its library's own writer. See the SHCL item above.
 
 - ✅ The whole `desktop` group of settings is dead weight.
 	- Opened: 20260827-075015
@@ -323,9 +341,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260730-112038
 	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 
-- 🔘 Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
+- ✅ Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
 	- Opened: 20260823-142431
+	- Closed: 20260828-151500
 	- The hidden-files half of this item became "Two kinds of hidden file, two options", now done - it asks for the same thing as two switches rather than one.
+	- A link to a folder is now a junction. One place decides it, so every route into "Make symlink" gets the same answer, and a symlink is still the fallback for anything a junction cannot hold - a file, a share, a relative target.
+	- The point of preferring one: a junction needs no privilege. Making a folder link no longer wants Developer Mode or an elevated run, and the menu item stops greying out for a folder on a machine that has neither.
+	- Watched working: made from the menu, and the result reads back as a mount point rather than a symlink. A new check covers that, and was watched failing without the fix.
 
 - 🔘 New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 	- Opened: 20260730-112038

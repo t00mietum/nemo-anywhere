@@ -168,7 +168,12 @@ function fHoldersOf {
 	$names = @()
 	foreach ($proc in (Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)) {
 		$path = $proc.ExecutablePath
-		if ($path -and $path.StartsWith($full, [StringComparison]::OrdinalIgnoreCase)) {
+		if (-not $path) { continue }
+		## GetFullPath has already long-formed the folder, but a process started
+		## from an 8.3 short path still reports the short one, and then a real
+		## holder reads as absent. A '~' is what marks a short name.
+		if ($path.Contains('~')) { $path = [System.IO.Path]::GetFullPath($path) }
+		if ($path.StartsWith($full, [StringComparison]::OrdinalIgnoreCase)) {
 			$names += [System.IO.Path]::GetFileName($path)
 		}
 	}
@@ -181,7 +186,9 @@ function fHoldersOf {
 function fWaitUntilFree {
 	param([string]$Folder, [int]$Seconds = 10)
 	for ($i = 0; $i -lt $Seconds; $i++) {
-		$holders = fHoldersOf $Folder
+		## @() on the way out of every call: an empty array unrolls to $null on
+		## return, and reading .Count off that throws under strict mode.
+		$holders = @(fHoldersOf $Folder)
 		if ($holders.Count -eq 0) { return @() }
 		if ($i -eq 0) { fEcho_Clean "waiting for $($holders -join ', ') to finish with ${Folder}" }
 		Start-Sleep -Seconds 1
@@ -469,7 +476,7 @@ if ($Uninstall) {
 	fEcho "Removing"
 	if ($os -eq "windows") {
 		if ($havePrefix) {
-			$holders = fWaitUntilFree $prefix
+			$holders = @(fWaitUntilFree $prefix)
 			if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
 		}
 		if ($haveShortcut) { Remove-Item -LiteralPath $shortcut -Force; fEcho_Clean "removed ${shortcut}" }
@@ -643,7 +650,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $tree $stagedName))) {
 
 if ($os -eq "windows") {
 	if (Test-Path -LiteralPath $prefix) {
-		$holders = fWaitUntilFree $prefix
+		$holders = @(fWaitUntilFree $prefix)
 		if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
 	}
 	New-Item -ItemType Directory -Path (Split-Path -Parent $prefix) -Force | Out-Null
@@ -662,7 +669,13 @@ if ($os -eq "windows") {
 		Copy-Item -LiteralPath $tree -Destination $staging -Recurse -Force -ErrorAction Stop
 	}
 	if (Test-Path -LiteralPath $prefix) {
-		Move-Item -LiteralPath $prefix -Destination $backup -ErrorAction Stop
+		try {
+			Move-Item -LiteralPath $prefix -Destination $backup -ErrorAction Stop
+		} catch {
+			## Something has the folder open that the process scan cannot see - a
+			## scanner, a shell window sitting in it, a handle from another session.
+			fFail "could not replace ${prefix} - something still has it open, close it and try again"
+		}
 	}
 	try {
 		Move-Item -LiteralPath $staging -Destination $prefix -ErrorAction Stop
