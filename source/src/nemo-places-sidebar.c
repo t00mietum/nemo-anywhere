@@ -4637,6 +4637,12 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 				  G_CALLBACK(desktop_setting_changed_callback),
 				  sidebar);
 
+	/* A drive root is listed as "C:\", so how a path is spelled changes what
+	   the sidebar says. */
+	g_signal_connect_swapped (nemo_preferences, "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
+				  G_CALLBACK(update_places_on_idle),
+				  sidebar);
+
     nemo_desktop_settings_watch (NEMO_PREFERENCES_RECENT_ENABLED,
                                  G_CALLBACK (desktop_setting_changed_callback),
                                  sidebar);
@@ -4728,6 +4734,10 @@ nemo_places_sidebar_dispose (GObject *object)
 
 	g_signal_handlers_disconnect_by_func (nemo_preferences,
 					      reset_menu,
+					      sidebar);
+
+	g_signal_handlers_disconnect_by_func (nemo_preferences,
+					      update_places_on_idle,
 					      sidebar);
 
     nemo_desktop_settings_unwatch (sidebar);

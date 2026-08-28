@@ -145,6 +145,7 @@ gchar *nemo_filename_get_extension (const gchar *name);
 
 /* Which separator paths are shown with. Windows takes either, so it is the
    user's choice there; elsewhere there is only one and these do nothing. */
+void     nemo_path_init_display_separator (void);
 gchar    nemo_path_get_display_separator (void);
 gchar    nemo_path_get_other_separator (void);
 void     nemo_path_apply_separator (gchar *path, gchar separator);

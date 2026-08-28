@@ -85,11 +85,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
 	- So it depends on something only the real session has - most likely where the focus was sitting. Needs one hands-on run to pin down.
 
-- 🛠️ Switching the path separator to `/` does not take effect until the folder is revisited.
+- ✅ Switching the path separator to `/` does not take effect until the folder is revisited.
 	- Opened: 20260826-103001
+	- Closed: 20260828-124500
 	- Note: the rest of the Paths group on the Display page applies straight away, so this one is the odd man out.
 	- Cause: the title, the location entry and the breadcrumb are only rebuilt on a location or view change, so changing how a path is spelled never asked for one.
-	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way. Still wants a look on Windows, where the separator itself can actually change.
+	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way.
+	- Two more halves showed up on Windows, where the separator can really change. The breadcrumb was redrawing a step behind - it read the separator before the setting had been taken in. And the sidebar, which spells a drive root as `C:\`, was not redrawing at all.
+	- Both fixed. Title, breadcrumb, location bar and sidebar now all move together the moment the setting changes, with no navigation. A new check covers the ordering and was watched failing without the fix.
 
 - ✅ "Show the full path in the title bar and tab bars" does nothing.
 	- Opened: 20260826-103001
