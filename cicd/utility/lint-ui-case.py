@@ -84,6 +84,10 @@ KEEP = set([
 	"The file \\\"%s\\\" has no known programs associated with it.  If you trust the source of this file, and have sufficient permissions, you can mark it executable and launch it.  Or, you can use the Open with dialog to pick a program to associate it with.",
 	"The file \\\"%s\\\" has no known programs associated with it.  Use the Open with dialog to pick a program to open it with.",
 	"You have chosen to hide the main menu.  You can get it back temporarily by:\\n\\n- Tapping the <Alt> key\\n- Right-clicking an empty region of the main toolbar\\n- Right-clicking an empty region of the status bar.\\n\\nYou can restore it permanently by selecting this option again from the View menu.",
+	# Windows names both of these itself, capitals and all.
+	"Windows allows symlinks only with Developer Mode turned on, or when running as administrator.",
+	"Only a file on this computer can go to the Recycle Bin.",
+	"The Recycle Bin refused it (error %d).",
 	# A window title: the file's name, then what the window is.
 	"%s - File browser",
 ])
