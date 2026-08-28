@@ -318,6 +318,10 @@ add_preferences_callbacks (void)
 				  "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
 				  G_CALLBACK(async_data_preference_changed_callback),
 				  NULL);
+	g_signal_connect_swapped (nemo_preferences,
+				  "changed::" NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION,
+				  G_CALLBACK(async_data_preference_changed_callback),
+				  NULL);
 }
 
 /**

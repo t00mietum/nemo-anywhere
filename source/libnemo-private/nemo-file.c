@@ -2048,6 +2048,44 @@ name_is (NemoFile *file, const char *new_name)
     return strcmp (new_name, file->details->name) == 0;
 }
 
+#ifdef G_OS_WIN32
+static gboolean show_shortcut_extension = FALSE;
+
+static void
+show_shortcut_extension_changed_callback (gpointer callback_data)
+{
+	show_shortcut_extension = nemo_config_get_boolean (nemo_preferences,
+							   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
+}
+
+static gboolean
+name_has_lnk (const char *name)
+{
+	gsize len = name != NULL ? strlen (name) : 0;
+
+	return len > 4 && g_ascii_strcasecmp (name + len - 4, ".lnk") == 0;
+}
+
+/* The shell never shows a shortcut's .lnk, so neither do we unless asked to. */
+static gboolean
+hiding_shortcut_extension (void)
+{
+	static gboolean watching_preference = FALSE;
+
+	if (!watching_preference) {
+		nemo_global_preferences_init ();
+		g_signal_connect_swapped (nemo_preferences,
+					  "changed::" NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION,
+					  G_CALLBACK (show_shortcut_extension_changed_callback),
+					  NULL);
+		watching_preference = TRUE;
+		show_shortcut_extension_changed_callback (NULL);
+	}
+
+	return !show_shortcut_extension;
+}
+#endif
+
 void
 nemo_file_rename (NemoFile *file,
 		      const char *new_name,
@@ -2062,10 +2100,25 @@ nemo_file_rename (NemoFile *file,
 	gboolean is_renameable_desktop_file;
 	GFile *location;
 	GError *error;
+#ifdef G_OS_WIN32
+	g_autofree char *restored_name = NULL;
+#endif
 
 	g_return_if_fail (NEMO_IS_FILE (file));
 	g_return_if_fail (new_name != NULL);
 	g_return_if_fail (callback != NULL);
+
+#ifdef G_OS_WIN32
+	/* The rename box starts from the name on screen, which has no .lnk on it
+	   while the extension is hidden. Putting it back is what stops a rename
+	   turning a shortcut into an ordinary file - the same thing the .desktop
+	   branch below does for its own extension. */
+	if (hiding_shortcut_extension () &&
+	    name_has_lnk (file->details->name) && !name_has_lnk (new_name)) {
+		restored_name = g_strconcat (new_name, ".lnk", NULL);
+		new_name = restored_name;
+	}
+#endif
 
 	is_renameable_desktop_file =
 		is_desktop_file (file) && can_rename_desktop_file (file);
@@ -2276,6 +2329,59 @@ nemo_file_is_local (NemoFile *file)
 	g_return_val_if_fail (NEMO_IS_FILE (file), FALSE);
 
 	return nemo_directory_is_local (file->details->directory);
+}
+
+#ifdef G_OS_WIN32
+/* Reparse targets come back in the NT spelling, hence the two extra prefixes. */
+static gboolean
+path_is_a_share (const char *path)
+{
+	if (path == NULL) {
+		return FALSE;
+	}
+
+	if (g_str_has_prefix (path, "\\??\\UNC\\") || g_str_has_prefix (path, "\\\\?\\UNC\\")) {
+		return TRUE;
+	}
+
+	return (path[0] == '\\' && path[1] == '\\') || (path[0] == '/' && path[1] == '/');
+}
+#endif
+
+/**
+ * nemo_file_is_on_a_share:
+ * @file: a file.
+ *
+ * A share is native as far as gio is concerned, so nothing gated on "local"
+ * holds it back and a folder of junctions pays a network timeout per entry -
+ * twenty to fifty seconds each, one at a time, while the listing waits. This
+ * covers both a file sitting on a share and a link pointing at one. Always
+ * %FALSE off Windows, where a share is a mount and not native.
+ *
+ * Returns: %TRUE if reading @file may have to go over the network.
+ */
+gboolean
+nemo_file_is_on_a_share (NemoFile *file)
+{
+#ifdef G_OS_WIN32
+	NemoDirectory *directory;
+
+	g_return_val_if_fail (NEMO_IS_FILE (file), FALSE);
+
+	if (path_is_a_share (file->details->symlink_name)) {
+		return TRUE;
+	}
+
+	/* peek rather than get: this is asked for every file on every pass of the
+	   async loop, so it must not allocate. */
+	directory = file->details->directory;
+
+	return directory != NULL && directory->details->location != NULL &&
+	       path_is_a_share (g_file_peek_path (directory->details->location));
+#else
+	(void) file;
+	return FALSE;
+#endif
 }
 
 static void
@@ -4424,7 +4530,15 @@ nemo_file_peek_display_name (NemoFile *file)
 char *
 nemo_file_get_display_name (NemoFile *file)
 {
-	return g_strdup (nemo_file_peek_display_name (file));
+	const char *name = nemo_file_peek_display_name (file);
+
+#ifdef G_OS_WIN32
+	if (hiding_shortcut_extension () && name_has_lnk (name)) {
+		return g_strndup (name, strlen (name) - 4);
+	}
+#endif
+
+	return g_strdup (name);
 }
 
 char *
@@ -5598,6 +5712,15 @@ show_directory_item_count_changed_callback (gpointer callback_data)
 	show_directory_item_count = nemo_config_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS);
 }
 
+/* Whether the file is worth spending an unbounded amount of time on. Not the
+   same question as nemo_file_is_local, which answers for the folder it sits in
+   and so says yes to a link that leads off the machine. */
+static gboolean
+file_is_cheap_to_read (NemoFile *file)
+{
+	return !nemo_file_is_on_a_share (file) && nemo_file_is_local (file);
+}
+
 static gboolean
 get_speed_tradeoff_preference_for_file (NemoFile *file, NemoSpeedTradeoffValue value)
 {
@@ -5629,7 +5752,7 @@ get_speed_tradeoff_preference_for_file (NemoFile *file, NemoSpeedTradeoffValue v
 		return TRUE;
 	} else {
 		/* only local files */
-		return nemo_file_is_local (file);
+		return file_is_cheap_to_read (file);
 	}
 }
 

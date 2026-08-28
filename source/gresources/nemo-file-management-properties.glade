@@ -1627,9 +1627,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           <object class="GtkBox" id="box1">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="spacing">4</property>
+                                            <property name="spacing">12</property>
                                             <child>
-                                              <object class="GtkLabel" id="label13">
+                                              <object class="GtkLabel" id="command_label_0">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
                                                 <property name="label" translatable="yes">Command to invoke when renaming multiple items:</property>
@@ -1645,12 +1645,11 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                               <object class="GtkEntry" id="bulk_rename_entry">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">True</property>
-                                                <property name="hexpand">True</property>
                                                 <property name="invisible-char">●</property>
                                                 <property name="shadow-type">out</property>
                                               </object>
                                               <packing>
-                                                <property name="expand">False</property>
+                                                <property name="expand">True</property>
                                                 <property name="fill">True</property>
                                                 <property name="position">1</property>
                                               </packing>
@@ -1715,9 +1714,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           <object class="GtkBox" id="terminal_row_box">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="spacing">4</property>
+                                            <property name="spacing">12</property>
                                             <child>
-                                              <object class="GtkLabel" id="terminal_exec_label">
+                                              <object class="GtkLabel" id="command_label_1">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
                                                 <property name="label" translatable="yes">Command to open a terminal:</property>
@@ -1733,13 +1732,12 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                               <object class="GtkEntry" id="terminal_exec_entry">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">True</property>
-                                                <property name="hexpand">True</property>
                                                 <property name="invisible-char">●</property>
                                                 <property name="shadow-type">out</property>
                                                 <property name="tooltip-text" translatable="yes">Leave empty to use whatever the system offers. A program that needs arguments takes them here too; quote a path that contains spaces. The folder is passed as the working directory.</property>
                                               </object>
                                               <packing>
-                                                <property name="expand">False</property>
+                                                <property name="expand">True</property>
                                                 <property name="fill">True</property>
                                                 <property name="position">1</property>
                                               </packing>
@@ -2415,6 +2413,57 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
                                 <property name="position">6</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkBox" id="vbox_shortcuts">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="border-width">6</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel" id="label_shortcuts">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Shortcuts&lt;/b&gt;</property>
+                                    <property name="use-markup">True</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkAlignment" id="alignment_shortcuts">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="left-padding">40</property>
+                                    <child>
+                                      <object class="GtkCheckButton" id="show_shortcut_extension_checkbutton">
+                                        <property name="label" translatable="yes">Show the _.lnk extension in a shortcut's name</property>
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">True</property>
+                                        <property name="receives-default">False</property>
+                                        <property name="use-underline">True</property>
+                                        <property name="xalign">0</property>
+                                        <property name="draw-indicator">True</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">7</property>
                               </packing>
                             </child>
                           </object>
@@ -4736,7 +4785,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkScrolledWindow">
+                  <object class="GtkScrolledWindow" id="templates_scrolledwindow">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="border-width">6</property>

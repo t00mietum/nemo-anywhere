@@ -72,6 +72,13 @@ read_schema (const char *path)
 
 	for (i = 0; lines[i] != NULL; i++) {
 		const char *line = lines[i];
+		gsize line_len = strlen (line);
+
+		/* Git checks the schema out with CRLF on Windows, and a carriage return
+		   left on the end of a field name matches nothing. */
+		if (line_len > 0 && line[line_len - 1] == '\r') {
+			lines[i][line_len - 1] = '\0';
+		}
 
 		if (g_str_has_prefix (line, "field: ")) {
 			current = g_new0 (SchemaField, 1);

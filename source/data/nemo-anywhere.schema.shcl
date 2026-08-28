@@ -457,6 +457,11 @@ field: preferences.show-search-icon-toolbar
 	default: true
 	desc: Show Search button in nemo toolbar
 
+field: preferences.show-shortcut-extension
+	type: bool
+	default: false
+	desc: Whether a shortcut's .lnk extension is part of the name shown (Windows only)
+
 field: preferences.show-show-thumbnails-toolbar
 	type: bool
 	default: false

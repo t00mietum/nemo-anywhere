@@ -197,6 +197,15 @@ if is_windows
 endif
 
 if is_windows
+  test('Shortcut name test',
+    executable('test-nemo-shortcut-name-win32',
+      [ 'test-nemo-shortcut-name-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+
   test('Dot-file switch test',
     executable('test-nemo-dot-files-win32',
       [ 'test-nemo-dot-files-win32.c' ],

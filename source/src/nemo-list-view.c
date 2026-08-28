@@ -2933,7 +2933,6 @@ resize_columns_now (NemoListView *view)
 	gint shrink_first = -1;
 	gint name_index = -1;
 	gint where_index = -1;
-	gint ext_index = -1;
 	gint i = 0;
 
 	if (view->details->tree_view == NULL ||
@@ -3001,8 +3000,6 @@ resize_columns_now (NemoListView *view)
 			name_index = i;
 		} else if (g_strcmp0 (id, "where") == 0) {
 			where_index = i;
-		} else if (g_strcmp0 (id, "extension") == 0) {
-			ext_index = i;
 		}
 
 		i++;
@@ -3033,18 +3030,6 @@ resize_columns_now (NemoListView *view)
 	    user_column_ceiling ("where") == 0) {
 		items[where_index].shares_growth = TRUE;
 		items[where_index].unbounded = FALSE;
-	}
-
-	/* Type's default ceiling is twice the Ext column - the pair reads as one
-	   description of the file. Only while Ext is shown, and only until the user
-	   gives Type a ceiling of their own. */
-	if (shrink_first >= 0 && ext_index >= 0 && items[shrink_first].unbounded) {
-		gint ext_target = MAX (items[ext_index].floor_width,
-				       items[ext_index].natural_width);
-
-		items[shrink_first].natural_width = MAX (items[shrink_first].floor_width,
-							 MIN (items[shrink_first].natural_width,
-							      2 * ext_target));
 	}
 
 	if (in_search && name_index >= 0 && where_index >= 0) {

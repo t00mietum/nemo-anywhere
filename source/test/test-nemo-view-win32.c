@@ -67,8 +67,11 @@ main (int argc, char *argv[])
 
 	/* The terminal preference is one field, so the program and its arguments
 	 * have to be told apart afterwards. */
-	check_split ("wt.exe", "wt.exe", NULL);
-	check_split ("pwsh.exe -NoLogo", "pwsh.exe", "-NoLogo");
+	/* A bare name that is not on PATH: nothing to look up, nothing to split.
+	   Not a real terminal, or the answer depends on what the machine has
+	   installed - wt.exe here came back as its full WindowsApps path. */
+	check_split ("nemo-no-such-terminal.exe", "nemo-no-such-terminal.exe", NULL);
+	check_split ("nemo-no-such-terminal.exe -NoLogo", "nemo-no-such-terminal.exe", "-NoLogo");
 	check_split ("\"C:\\Program Files\\Thing\\term.exe\"", "C:\\Program Files\\Thing\\term.exe", NULL);
 	check_split ("\"C:\\Program Files\\Thing\\term.exe\" --here -x", "C:\\Program Files\\Thing\\term.exe", "--here -x");
 

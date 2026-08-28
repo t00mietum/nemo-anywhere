@@ -56,6 +56,7 @@ G_BEGIN_DECLS
 #define NEMO_PREFERENCES_PATH_SEPARATOR				"path-separator"
 #define NEMO_PREFERENCES_ALLOW_SLASH_INPUT			"allow-slash-input"
 #define NEMO_PREFERENCES_SHOW_DOT_FILES				"show-dot-files"
+#define NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION		"show-shortcut-extension"
 #define NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS		"show-advanced-permissions"
 #define NEMO_PREFERENCES_DATE_FORMAT            "date-format"
 

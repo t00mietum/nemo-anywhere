@@ -1,6 +1,10 @@
 /* The preferences dialog is built from a resource and wired by widget name, so
  * a renamed or mistyped id only shows up when someone opens the dialog. This
- * loads the same resource and checks the ids the code asks for by name. */
+ * loads the same resource and checks the ids the code asks for by name.
+ *
+ * It also checks the page list the dialog sizes itself from. That list has to
+ * name every page: one left out is a page the window is too short for, which
+ * is what put Display behind a scrollbar from the moment it opened. */
 
 #include <config.h>
 
@@ -15,8 +19,77 @@ static const char * const widget_ids[] = {
 	"vbox_paths",
 	"date_format_combobox",
 	"show_full_path_in_title_bars_checkbutton",
+	"show_shortcut_extension_checkbutton",
+	"vbox_shortcuts",
+	"command_label_0",
+	"command_label_1",
 	NULL
 };
+
+/* Kept in step with preferences_pages[] in nemo-file-management-properties.c. */
+static const char * const page_ids[] = {
+	"scrolledwindow2",
+	"scrolledwindow1",
+	"scrolledwindow3",
+	"appearance_scrolledwindow",
+	"scrolledwindow4",
+	"scrolledwindow5",
+	"scrolledwindow6",
+	"scrolledwindow8",
+	"templates_scrolledwindow",
+	"scrolledwindow7",
+	NULL
+};
+
+static gboolean
+is_listed (const char *id)
+{
+	int i;
+
+	for (i = 0; page_ids[i] != NULL; i++) {
+		if (g_strcmp0 (page_ids[i], id) == 0) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+/* Every page the stack holds, against every page the sizing measures. */
+static void
+check_pages_are_all_listed (GtkBuilder *builder)
+{
+	GtkContainer *stack;
+	GList *children, *l;
+	int i;
+
+	stack = GTK_CONTAINER (gtk_builder_get_object (builder, "page_stack"));
+	if (stack == NULL) {
+		g_printerr ("FAIL no page_stack\n");
+		failures++;
+		return;
+	}
+
+	children = gtk_container_get_children (stack);
+	for (l = children; l != NULL; l = l->next) {
+		const char *id = gtk_buildable_get_name (GTK_BUILDABLE (l->data));
+
+		if (!is_listed (id)) {
+			g_printerr ("FAIL page %s is in the stack but not sized for\n",
+				    id != NULL ? id : "(unnamed)");
+			failures++;
+		}
+	}
+	g_list_free (children);
+
+	for (i = 0; page_ids[i] != NULL; i++) {
+		if (gtk_builder_get_object (builder, page_ids[i]) == NULL) {
+			g_printerr ("FAIL page %s is sized for but not in the dialog\n",
+				    page_ids[i]);
+			failures++;
+		}
+	}
+}
 
 int
 main (int argc, char *argv[])
@@ -42,6 +115,8 @@ main (int argc, char *argv[])
 			failures++;
 		}
 	}
+
+	check_pages_are_all_listed (builder);
 
 	g_object_unref (builder);
 

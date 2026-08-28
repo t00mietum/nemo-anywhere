@@ -55,6 +55,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET "date_format_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET "path_separator_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET "allow_slash_input_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET "show_shortcut_extension_checkbutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET "preview_image_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_FOLDER_WIDGET "preview_folder_combobox"
@@ -674,10 +675,21 @@ path_separator_changed (GtkComboBox *combo_box,
 }
 #endif
 
-/* Windows takes either separator; nowhere else has the choice, so the whole
-   group stays out of the dialog there. */
+#ifndef G_OS_WIN32
 static void
-create_path_separator_menu (GtkBuilder *builder)
+hide_group (GtkBuilder *builder, const char *id)
+{
+	GtkWidget *group = GTK_WIDGET (gtk_builder_get_object (builder, id));
+
+	gtk_widget_hide (group);
+	gtk_widget_set_no_show_all (group, TRUE);
+}
+#endif
+
+/* Windows takes either separator, and only Windows has .lnk shortcuts, so both
+   groups stay out of the dialog everywhere else. */
+static void
+set_up_windows_only_groups (GtkBuilder *builder)
 {
 #ifdef G_OS_WIN32
 	GtkComboBoxText *combo_box;
@@ -695,8 +707,8 @@ create_path_separator_menu (GtkBuilder *builder)
 	g_signal_connect_object (combo_box, "changed",
 				 G_CALLBACK (path_separator_changed), check, 0);
 #else
-	gtk_widget_hide (GTK_WIDGET (gtk_builder_get_object (builder, "vbox_paths")));
-	gtk_widget_set_no_show_all (GTK_WIDGET (gtk_builder_get_object (builder, "vbox_paths")), TRUE);
+	hide_group (builder, "vbox_paths");
+	hide_group (builder, "vbox_shortcuts");
 #endif
 }
 
@@ -1088,59 +1100,133 @@ nemo_file_management_properties_dialog_setup_appearance_page (GtkBuilder *builde
 }
 
 /* The dialog opens at least this big whatever it holds, so it does not come up
-   as a cramped little box. */
+   as a cramped little box. Written for a 96dpi screen - see text_scale. */
 #define PREFERENCES_MIN_WIDTH 1000
 #define PREFERENCES_MIN_HEIGHT 700
 
-/* The dialog opens on Views, so Views is the page that has to fit: ask its
-   content how tall it wants to be and give the window that much, up to what the
-   monitor has. Measured rather than fixed, because the same page is a different
-   height under a different theme, font size or translation. */
-static void
-size_dialog_to_views_page (GtkBuilder *builder,
-			   GtkWidget  *dialog,
-			   GtkWindow  *parent)
+/* Every page in the stack, in the order the sidebar lists them. */
+static const char *const preferences_pages[] = {
+	"scrolledwindow2",		/* Views */
+	"scrolledwindow1",		/* Behavior */
+	"scrolledwindow3",		/* Display */
+	"appearance_scrolledwindow",	/* Appearance */
+	"scrolledwindow4",		/* List columns */
+	"scrolledwindow5",		/* Preview */
+	"scrolledwindow6",		/* Toolbar */
+	"scrolledwindow8",		/* Context menus */
+	"templates_scrolledwindow",	/* Document templates */
+	"scrolledwindow7",		/* Plugins */
+	NULL
+};
+
+/* Windows hands a fractional display scale to GTK as a font size and nothing
+   else, so at 150% the text grows and a floor written in raw pixels quietly
+   means two thirds of what it says. Everything measured scales itself; only the
+   two constants above need this. */
+static double
+text_scale (void)
 {
-	GtkWidget *page;
-	GtkWidget *content;
-	GtkRequisition wanted;
+	gint xft_dpi = -1;
+
+	g_object_get (gtk_settings_get_default (), "gtk-xft-dpi", &xft_dpi, NULL);
+
+	if (xft_dpi <= 0) {
+		return 1.0;
+	}
+
+	return MAX (1.0, xft_dpi / 1024.0 / 96.0);
+}
+
+/* A scrolled window asks for almost nothing itself - that is the whole point of
+   it - so what is inside it is what gets measured, plus the page's own border. */
+static GtkWidget *
+page_content (GtkBuilder *builder, const char *id, gint *border)
+{
+	GtkWidget *page = GTK_WIDGET (gtk_builder_get_object (builder, id));
+
+	if (page == NULL) {
+		return NULL;
+	}
+
+	*border = 2 * gtk_container_get_border_width (GTK_CONTAINER (page));
+
+	return gtk_bin_get_child (GTK_BIN (page));
+}
+
+/* Give the window enough for the longest page, not just the one it opens on:
+   sizing to Views alone left Display and Behavior scrolling from the start.
+   Measured rather than fixed, because the same page is a different height under
+   a different theme, font size or translation. */
+static void
+size_dialog_to_longest_page (GtkBuilder *builder,
+			     GtkWidget  *dialog,
+			     GtkWindow  *parent)
+{
+	GtkWidget *sidebar;
 	GdkRectangle work;
-	gint border;
+	GtkRequisition wanted;
+	double scale = text_scale ();
+	gint content_width = 0;
+	gint content_height = 0;
+	gint sidebar_width = 0;
 	gint width, height;
 	gint monitor;
+	int i;
 
-	page = GTK_WIDGET (gtk_builder_get_object (builder, "scrolledwindow2"));
-	if (page == NULL) {
-		return;
+	for (i = 0; preferences_pages[i] != NULL; i++) {
+		gint border = 0;
+		GtkWidget *content = page_content (builder, preferences_pages[i], &border);
+
+		if (content == NULL) {
+			continue;
+		}
+
+		gtk_widget_get_preferred_size (content, &wanted, NULL);
+		content_width = MAX (content_width, wanted.width + border);
 	}
 
-	/* A scrolled window asks for almost nothing itself - that is the whole
-	   point of it - so what is inside it is what gets measured. */
-	content = gtk_bin_get_child (GTK_BIN (page));
-	if (content == NULL) {
-		return;
+	sidebar = GTK_WIDGET (gtk_builder_get_object (builder, "page_sidebar"));
+	if (sidebar != NULL) {
+		gtk_widget_get_preferred_size (sidebar, &wanted, NULL);
+		sidebar_width = wanted.width;
 	}
 
-	gtk_widget_get_preferred_size (content, NULL, &wanted);
-	border = gtk_container_get_border_width (GTK_CONTAINER (page));
-
-	width = PREFERENCES_MIN_WIDTH;
-	height = MAX (wanted.height + 2 * border, PREFERENCES_MIN_HEIGHT);
+	width = MAX (content_width + sidebar_width, (gint) (PREFERENCES_MIN_WIDTH * scale));
 
 	monitor = parent != NULL
 		? nemo_desktop_utils_get_monitor_for_widget (GTK_WIDGET (parent))
 		: nemo_desktop_utils_get_primary_monitor ();
 	nemo_desktop_utils_get_monitor_work_rect (monitor, &work);
 
+	width = MIN (width, work.width * 9 / 10);
+
+	/* Height depends on width - a label that fits on one line here takes two in
+	   a narrower window - so ask only once the width is settled. */
+	for (i = 0; preferences_pages[i] != NULL; i++) {
+		gint border = 0;
+		GtkWidget *content = page_content (builder, preferences_pages[i], &border);
+		gint page_height = 0;
+
+		if (content == NULL) {
+			continue;
+		}
+
+		gtk_widget_get_preferred_height_for_width (content,
+							   MAX (1, width - sidebar_width - border),
+							   &page_height, NULL);
+		content_height = MAX (content_height, page_height + border);
+	}
+
+	height = MAX (content_height, (gint) (PREFERENCES_MIN_HEIGHT * scale));
+
 	if (height > work.height * 9 / 10) {
 		height = work.height * 9 / 10;
 		/* It will scroll after all, and the bar has to come from somewhere
 		   other than the text. */
-		width += 20;
+		width = MIN (width + 20, work.width * 9 / 10);
 	}
 
-	gtk_window_set_default_size (GTK_WINDOW (dialog),
-				     MIN (width, work.width * 9 / 10), height);
+	gtk_window_set_default_size (GTK_WINDOW (dialog), width, height);
 }
 
 static  void
@@ -1157,11 +1243,16 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	nemo_file_management_properties_size_group_create (builder,
 							       (char *)"captions_label",
 							       3);
+	/* The two command entries on Behavior start at the same x, so the pair
+	   reads as one block rather than two rows that happen to be near. */
+	nemo_file_management_properties_size_group_create (builder,
+							       (char *)"command_label",
+							       2);
 	nemo_file_management_properties_size_group_create (builder,
 							       (char *)"preview_label",
 							       3);
 	create_date_format_menu (builder);
-	create_path_separator_menu (builder);
+	set_up_windows_only_groups (builder);
 
 
 	/* nemo patch */
@@ -1303,6 +1394,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET,
 			   NEMO_PREFERENCES_ALLOW_SLASH_INPUT);
+	bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET,
+			   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
 	bind_builder_radio (builder, nemo_preferences,
 			    (const char **) click_behavior_components,
 			    NEMO_PREFERENCES_CLICK_POLICY,
@@ -1440,7 +1534,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 		gtk_window_set_transient_for (GTK_WINDOW (dialog), window);
 	}
 
-	size_dialog_to_views_page (builder, dialog, window);
+	size_dialog_to_longest_page (builder, dialog, window);
 
 	preferences_dialog = dialog;
 	g_object_add_weak_pointer (G_OBJECT (dialog), (gpointer *) &preferences_dialog);
