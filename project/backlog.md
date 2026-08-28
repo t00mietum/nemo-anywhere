@@ -57,10 +57,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
 
-- 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
-	- Opened: 20260802-095853
-	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
-
 ### Features and enhancements
 
 - 🔘 Windows: content search cannot read documents, because the search helpers are not packaged there.
@@ -210,6 +206,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
+	- Opened: 20260802-095853
+	- Closed: 20260828-164500
+	- Fixed by the path-button menu work: the menu now opens inside the press itself rather than after an attribute load that could finish late.
+	- Confirmed by hand on Windows - eight right-clicks in a row, the menu up and staying up every time.
 
 - ✅ Dragging a file towards another application crashed the app, before it had even left the window.
 	- Opened: 20260828
