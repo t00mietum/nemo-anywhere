@@ -55,6 +55,14 @@ void nemo_file_operations_copy_move   (const GList               *item_uris,
 					   GtkWidget                 *parent_view,
 					   NemoCopyCallback       done_callback,
 					   gpointer                   done_callback_data);
+/* Same as copy_move with the link action, except on Windows, where this makes a
+   real symlink and the link action makes a .lnk shortcut. */
+void nemo_file_operations_symlink      (const GList               *item_uris,
+					   GArray                    *relative_item_points,
+					   const char                *target_dir_uri,
+					   GtkWidget                 *parent_view,
+					   NemoCopyCallback       done_callback,
+					   gpointer                   done_callback_data);
 void nemo_file_operations_copy_file (GFile *source_file,
 					 GFile *target_dir,
 					 const gchar *source_display_name,

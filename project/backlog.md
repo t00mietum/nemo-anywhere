@@ -150,12 +150,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Splitting one field into a program and its arguments has three rules, in order: a quoted first word, then a string that names a program on its own (so an unquoted path with spaces still works), then the first space. Tested.
 	- Watched working on Windows: a terminal named with an argument was launched exactly as written.
 
-- 🔘 Make link is on by default, and Windows tells a shortcut from a symlink.
+- ✅ Make link is on by default, and Windows tells a shortcut from a symlink.
 	- Opened: 20260827-183930
-	- The menu item ships turned off today.
+	- Closed: 20260827-195422
+	- The menu item shipped turned off.
 	- Renamed "Make symlink" on every platform, since a symlink is what it makes.
-	- Windows gains a second item, "Make shortcut", for what the existing one does there. Both on by default.
-	- Windows only lets a program create a symlink with Developer Mode on or when running elevated, so the item is greyed out when neither holds.
+	- Windows gained a second item, "Make shortcut", for the .lnk the shell understands. Both are on by default and share one switch in Context menus - two toggles for nearly the same thing would only be confusing.
+	- Windows allows a symlink only with Developer Mode on or when running elevated, so the item goes grey when neither holds. The check is made once by making a throwaway symlink and deleting it, which is a plainer answer than reading a token and a registry key.
+	- A drag with the link modifier still makes a shortcut on Windows, which is what Explorer does.
+	- Both watched working on Windows against a real folder. Not seen: the greyed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
 
 - ✅ Update the vendored SHCL to the current release.
 	- Opened: 20260826-103001

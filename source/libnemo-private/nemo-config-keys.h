@@ -246,7 +246,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences.menu-config", "selection-menu-cut", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Cut item." },
 	{ "preferences.menu-config", "selection-menu-duplicate", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Duplicate item." },
 	{ "preferences.menu-config", "selection-menu-favorite", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Favorite/Unfavorite item." },
-	{ "preferences.menu-config", "selection-menu-make-link", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Create Link item." },
+	{ "preferences.menu-config", "selection-menu-make-link", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's link items." },
 	{ "preferences.menu-config", "selection-menu-move-to", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the selection context menu's Move To submenu." },
 	{ "preferences.menu-config", "selection-menu-move-to-trash", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Move to Trash item." },
 	{ "preferences.menu-config", "selection-menu-open", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Open item." },

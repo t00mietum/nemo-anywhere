@@ -119,6 +119,7 @@
 #define NEMO_ACTION_RENAME "Rename"
 #define NEMO_ACTION_DUPLICATE "Duplicate"
 #define NEMO_ACTION_CREATE_LINK "Create Link"
+#define NEMO_ACTION_CREATE_SHORTCUT "Create Shortcut"
 #define NEMO_ACTION_SELECT_ALL "Select All"
 #define NEMO_ACTION_INVERT_SELECTION "Invert Selection"
 #define NEMO_ACTION_SELECT_PATTERN "Select Pattern"
@@ -251,6 +252,10 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_CREATE_LINK, "selection_menu__make_link_check",
      "/selection/File Actions/Create Link", "selection-menu-make-link" },
+    /* Windows only, and it rides on the same switch: one preference for both
+       kinds of link rather than two that mean nearly the same thing. */
+    { NEMO_ACTION_CREATE_SHORTCUT, NULL,
+     "/selection/File Actions/Create Shortcut", "selection-menu-make-link" },
 
     { NEMO_ACTION_RENAME, "selection_menu__rename_check",
      "/selection/File Actions/Rename", "selection-menu-rename" },

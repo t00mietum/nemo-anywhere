@@ -661,8 +661,8 @@ field: preferences.menu-config.selection-menu-favorite
 
 field: preferences.menu-config.selection-menu-make-link
 	type: bool
-	default: false
-	desc: Show the selection context menu's Create Link item.
+	default: true
+	desc: Show the selection context menu's link items.
 
 field: preferences.menu-config.selection-menu-move-to
 	type: bool

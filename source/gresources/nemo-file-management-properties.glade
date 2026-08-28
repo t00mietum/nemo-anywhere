@@ -4170,7 +4170,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                 <property name="selectable">False</property>
                                                 <child>
                                                   <object class="GtkCheckButton" id="selection_menu__make_link_check">
-                                                    <property name="label" translatable="yes">Ma_ke link</property>
+                                                    <property name="label" translatable="yes">Ma_ke symlink / shortcut</property>
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">True</property>
                                                     <property name="receives-default">False</property>
