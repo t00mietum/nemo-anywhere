@@ -125,6 +125,11 @@ void       nemo_config_set_enum    (NemoConfigGroup *group, const char *key, gin
 
 /* Drop the key so its default applies again. */
 void       nemo_config_reset       (NemoConfigGroup *group, const char *key);
+/* Drop every stored key - what --reset does. */
+void       nemo_config_reset_all   (void);
+/* Drop stored values naming a POSIX absolute path. Windows only, and only for
+   the first run, where such a value can only have come from another machine. */
+void       nemo_config_drop_foreign_paths (void);
 /* Every key declared for this group, NULL-terminated. Free with g_strfreev. */
 char     **nemo_config_list_keys   (NemoConfigGroup *group);
 

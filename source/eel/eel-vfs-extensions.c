@@ -93,6 +93,112 @@ eel_vfs_supports_uri_scheme (const gchar *scheme)
    return FALSE;
 }
 
+/* Find the variable reference starting at p, if there is one. Returns the name
+ * bounds and where to carry on from; name_start stays NULL when there is not
+ * one, including for a lone % or a $ with nothing usable after it. */
+static void
+find_variable (const char  *p,
+               const char **name_start,
+               const char **name_end,
+               const char **next)
+{
+	const char *close;
+
+	*name_start = NULL;
+
+	if (*p == '%') {
+		close = strchr (p + 1, '%');
+		if (close != NULL && close > p + 1) {
+			*name_start = p + 1;
+			*name_end = close;
+			*next = close + 1;
+		}
+		return;
+	}
+
+	if (*p != '$') {
+		return;
+	}
+
+	if (p[1] == '{') {
+		close = strchr (p + 2, '}');
+		if (close != NULL && close > p + 2) {
+			*name_start = p + 2;
+			*name_end = close;
+			*next = close + 1;
+		}
+		return;
+	}
+
+	close = p + 1;
+	while (g_ascii_isalnum (*close) || *close == '_') {
+		close++;
+	}
+	if (close > p + 1) {
+		*name_start = p + 1;
+		*name_end = close;
+		*next = close;
+	}
+}
+
+char *
+eel_expand_user_input (const char *text)
+{
+	GString    *out;
+	const char *p;
+	gboolean    changed = FALSE;
+
+	if (text == NULL) {
+		return NULL;
+	}
+
+	out = g_string_new (NULL);
+	p = text;
+
+#ifdef G_OS_WIN32
+	/* Only here: on POSIX glib's own parse expands a leading ~, and knows the
+	 * ~user form as well, which this does not. */
+	if (p[0] == '~' && (p[1] == '\0' || p[1] == '/' || p[1] == '\\')) {
+		g_string_append (out, g_get_home_dir ());
+		p++;
+		changed = TRUE;
+	}
+#endif
+
+	while (*p != '\0') {
+		const char *name_start, *name_end = NULL, *next = NULL;
+		const char *value = NULL;
+		char       *name;
+
+		find_variable (p, &name_start, &name_end, &next);
+
+		if (name_start != NULL) {
+			name = g_strndup (name_start, name_end - name_start);
+			value = g_getenv (name);
+			g_free (name);
+		}
+
+		/* A name nobody set stays exactly as typed - which is what keeps a
+		 * folder with a % or a $ in its name reachable. */
+		if (value == NULL) {
+			g_string_append_c (out, *p);
+			p++;
+			continue;
+		}
+
+		g_string_append (out, value);
+		changed = TRUE;
+		p = next;
+	}
+
+	if (!changed) {
+		g_string_free (out, TRUE);
+		return NULL;
+	}
+
+	return g_string_free (out, FALSE);
+}
+
 /* Typed-location parsing that accepts backslash separators everywhere.
  * The literal text always wins - a real backslash-named file stays
  * reachable and nothing is reserved - but if the literal form is a
@@ -102,6 +208,7 @@ GFile *
 eel_g_file_new_for_user_input (const char *text)
 {
 	GFile *location;
+	char  *expanded;
 
 	location = g_file_parse_name (text);
 
@@ -130,6 +237,27 @@ eel_g_file_new_for_user_input (const char *text)
 		} else {
 			g_object_unref (retry);
 		}
+	}
+
+	/* A home shorthand or a variable only ever stands in for a local path, so
+	 * it is tried last and only when the literal is not already something that
+	 * can be opened. The expansion is worked out first because it costs
+	 * nothing - that keeps the existence check off every other typed path. */
+	expanded = eel_expand_user_input (text);
+
+	if (expanded != NULL) {
+		if (!g_file_is_native (location) ||
+		    !g_file_query_exists (location, NULL)) {
+			GFile *retry = g_file_parse_name (expanded);
+
+			if (g_file_is_native (retry)) {
+				g_object_unref (location);
+				location = retry;
+			} else {
+				g_object_unref (retry);
+			}
+		}
+		g_free (expanded);
 	}
 
 	return location;

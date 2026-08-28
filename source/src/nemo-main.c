@@ -66,7 +66,7 @@ prints_and_exits (int argc, char *argv[])
 {
 	static const char *quiet[] = {
 		"--version", "--about", "--help", "--help-all", "--help-gtk",
-		"--quit", "-q", "--check", "-c", "--fix-cache", "-?", NULL
+		"--quit", "-q", "--check", "-c", "--fix-cache", "--reset", "-?", NULL
 	};
 	int i, q;
 

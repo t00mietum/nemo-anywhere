@@ -35,6 +35,7 @@
 #include "nemo-splash.h"
 
 #if (defined(ENABLE_EMPTY_VIEW) && ENABLE_EMPTY_VIEW)
+#include "nemo-bookmark-list.h"
 #include "nemo-empty-view.h"
 #endif /* ENABLE_EMPTY_VIEW */
 
@@ -570,6 +571,9 @@ nemo_application_startup (GApplication *app)
 	/* initialize preferences and open the config store */
 	nemo_splash_note (_("Reading settings"));
 	nemo_global_preferences_init ();
+
+	/* Before the bookmark list is built, so the seeded file is what it reads. */
+	nemo_bookmark_list_first_run_setup ();
 
 	/* register the favorites:/// scheme before anything queries for it
 	 * (upstream relied on the xapp gtk module doing this at gtk init) */

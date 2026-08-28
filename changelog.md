@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- A `--reset` flag that clears the settings and the bookmarks and puts everything back to defaults. It will not run while the app is open.
+- On Windows, a first start fills the bookmark list with the drive, Desktop, Documents, Downloads, Pictures, Videos and AppData. Anything left behind by a config copied from a Linux machine is dropped at the same time.
+- Typed locations understand `~` for the home folder and environment variables, written either `%NAME%` or `$NAME`, on any platform. A folder whose name really contains one of those characters still opens as itself.
 - An Appearance page in Preferences: Light, Dark, or follow the system, plus a style and an icon theme to draw with. Both lists only offer themes drawn for the mode you are in, and picking one half of a light/dark pair follows the pair when the mode changes.
 - Windows and macOS builds carry a set of themes so the app looks like something out of the box: Windows 11, Windows 10, Windows 7, Windows XP and macOS window styles, and nine icon styles including Windows XP and Windows 7 sets drawn for this project. Linux keeps using whatever the desktop provides.
 - Themes can be dropped in on any platform. Put a GTK theme folder in `themes`, or an icon theme in `icons`, beside the settings file and it shows up in the lists.

@@ -424,3 +424,16 @@ if is_windows
     args: []
   )
 endif
+
+# The bookmark list lives in src/, not a library, so it is compiled straight in.
+if is_windows
+  test('First run test',
+    executable('test-nemo-first-run-win32',
+      [ 'test-nemo-first-run-win32.c', '../src/nemo-bookmark-list.c' ],
+      include_directories: [ rootInclude, include_directories('../src') ],
+      dependencies: [ gtk, nemo_private ],
+      c_args: nemo_definitions,
+    ),
+    args: []
+  )
+endif

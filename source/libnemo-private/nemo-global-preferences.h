@@ -133,6 +133,10 @@ typedef enum
 #define NEMO_WINDOW_STATE_DEVICES_EXPANDED      "devices-expanded"
 #define NEMO_WINDOW_STATE_NETWORK_EXPANDED      "network-expanded"
 
+/* App state - things nemo records about itself rather than settings anyone picks */
+#define NEMO_STATE_GROUP                        "state"
+#define NEMO_STATE_FIRST_RUN_DONE               "first-run-done"
+
 /* Sorting order */
 #define NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST		"sort-directories-first"
 #define NEMO_PREFERENCES_SORT_FAVORITES_FIRST		"sort-favorites-first"

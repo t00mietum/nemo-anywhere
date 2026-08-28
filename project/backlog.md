@@ -157,6 +157,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Bookmarks are kept in the toolkit's own file, not ours.
+	- Opened: 20260828
+	- They live in a `gtk-3.0` folder beside the config, which on Windows is the local profile while our settings are in the roaming one. So a roaming profile carries the settings and leaves the bookmarks behind.
+	- Sharing that file with other toolkit programs is the reason it is there, which is worth something on Linux and nothing on Windows.
+	- Moving it needs a one-time copy across, the same way the config folder already moves itself.
+
 - ✅ Windows: an option to leave the `.lnk` off a shortcut's name.
 	- Opened: 20260828-083458
 	- Closed: 20260828-090000
@@ -349,17 +355,27 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The point of preferring one: a junction needs no privilege. Making a folder link no longer wants Developer Mode or an elevated run, and the menu item stops greying out for a folder on a machine that has neither.
 	- Watched working: made from the menu, and the result reads back as a mount point rather than a symlink. A new check covers that, and was watched failing without the fix.
 
-- 🔘 New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
+- ✅ New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 	- Opened: 20260730-112038
+	- Closed: 20260828
+	- Every stored setting is dropped and the settings file itself is removed, so anything hand-written that nemo does not recognize goes too. Bookmarks and their side file go with it.
+	- It refuses while a copy is running, and says so. That copy holds the settings in memory and would write them straight back.
+	- The first-run marker is cleared along with everything else, so the next start puts the platform defaults back.
 
-- 🔘 If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
+- ✅ If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
 	- Opened: 20260722-172504
+	- Closed: 20260828
+	- On the first start the drive root and the user's own folders go in, taken from what Windows reports rather than spelled out, so a machine on another drive or in another language gets the right names.
+	- A bookmark that can only be a path from a POSIX machine is dropped, and so is any setting whose value is one. A set someone already curated on Windows is kept rather than replaced - that matters for anyone upgrading from a build without the marker.
+	- Marked by `state.first-run-done` in the settings file. Clearing that line by hand puts the defaults back on the next start.
 
-- 🔘 Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
+- ✅ Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
 	- Opened: 20260722-201512
-	- 🔘 '~' should work on Windows too.
-	- 🔘 Allow environment variables in bookmarks, pathnames, command-line, etc.
-		- E.g. $HOME on Linux, %USERPROFILE% on Windows.
+	- Closed: 20260828
+	- `~` at the start, and `%NAME%` or `$NAME` anywhere. Both variable spellings work on both platforms so a path can be carried between them.
+	- The literal text still wins: a folder really named with a `%` in it opens as itself, and only a name that is actually set in the environment is ever substituted. Watched both ways in the running app.
+	- Reaches the location bar, the bookmark editor and the command line.
+	- ✋ Not done: storing the shorthand *in* the bookmarks file so it follows the home folder around. That needs the file to keep an unexpanded form and re-expand on load, which is a bigger change than the input side.
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
