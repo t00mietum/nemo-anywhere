@@ -124,23 +124,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Move the Ext column between Size and Type in the default order.
+- ✅ Move the Ext column between Size and Type in the default order.
 	- Opened: 20260827-183930
-	- It sits between Name and Size today. It stays on by default either way.
+	- Closed: 20260827-194220
+	- It sat between Name and Size. It stays on by default either way.
+	- Both platform defaults moved, and the schema with them.
 
-- 🔘 Name and Location split the search row evenly.
+- ✅ Name and Location split the search row evenly.
 	- Opened: 20260827-183930
-	- The default is a third to Name and the rest to Location. Even is wanted instead.
+	- Closed: 20260827-194220
+	- The default was a third to Name and the rest to Location.
 	- A split dragged by hand still stands from then on.
 
-- 🔘 Location is off by default outside search.
+- ✅ Location is off by default outside search.
 	- Opened: 20260827-183930
+	- Closed: 20260827-194220
 	- It belongs in the search results list and nowhere else, unless it is turned on by hand.
+	- Already the case: it is in the default column order but not the default visible list, and a run against a clean config confirmed it does not appear. Wherever it was seen, it had been turned on for that folder and remembered.
 
-- 🔘 A preference for which terminal "Open in Terminal" runs.
+- ✅ A preference for which terminal "Open in Terminal" runs.
 	- Opened: 20260827-183930
-	- One field holding the command line. Anything the program needs beyond its own name is typed in by hand.
-	- Left empty it means the platform default, which is what happens now: the desktop's own choice on Linux, the first of the known shells found on PATH on Windows.
+	- Closed: 20260827-194220
+	- One field on the Behavior page, holding the command line. Anything the program needs beyond its own name is typed in by hand.
+	- Left empty it means the platform default, which is what happened before: the desktop's own choice on Linux, the first of the known shells found on PATH on Windows. Filled in, it wins over both.
+	- Splitting one field into a program and its arguments has three rules, in order: a quoted first word, then a string that names a program on its own (so an unquoted path with spaces still works), then the first space. Tested.
+	- Watched working on Windows: a terminal named with an argument was launched exactly as written.
 
 - 🔘 Make link is on by default, and Windows tells a shortcut from a symlink.
 	- Opened: 20260827-183930

@@ -5,6 +5,7 @@
 #include <config.h>
 
 #include <glib.h>
+#include <string.h>
 
 #ifdef G_OS_WIN32
 
@@ -97,46 +98,105 @@ nemo_view_win32_open_elevated (const gchar *path)
 	g_free (quoted);
 }
 
+/* The preference is one field, so the program and anything after it arrive
+   together. A quoted first word wins; failing that, a string that names a
+   program on its own is taken whole, so a path with spaces and no arguments
+   still works unquoted; otherwise it splits at the first space. */
+gchar *
+nemo_view_win32_split_terminal_command (const gchar *command, gchar **args)
+{
+	gchar *found;
+	const gchar *space;
+
+	*args = NULL;
+
+	if (command[0] == '"') {
+		const gchar *close = strchr (command + 1, '"');
+
+		if (close != NULL) {
+			gchar *exe = g_strndup (command + 1, close - command - 1);
+
+			close++;
+			while (*close == ' ') {
+				close++;
+			}
+			if (*close != '\0') {
+				*args = g_strdup (close);
+			}
+			return exe;
+		}
+	}
+
+	found = g_find_program_in_path (command);
+	if (found != NULL) {
+		return found;
+	}
+
+	space = strchr (command, ' ');
+	if (space == NULL) {
+		return g_strdup (command);
+	}
+
+	*args = g_strdup (space + 1);
+	return g_strndup (command, space - command);
+}
+
 void
 nemo_view_win32_open_terminal (const gchar *path)
 {
-	/* The candidate list is a setting so a preferred shell can be put first;
-	   the default is Windows Terminal, then PowerShell, then cmd (always
-	   present). ShellExecute rather than g_spawn so the child reliably gets a
-	   visible console. wt takes the folder via -d, the classic shells via the
-	   working directory. */
-	gchar **candidates;
-	gchar *found = NULL;
-	const gchar *exe;
-	gboolean is_wt;
+	/* With nothing chosen in preferences the candidate list decides, in order:
+	   Windows Terminal, then PowerShell, then cmd (always present).
+	   ShellExecute rather than g_spawn so the child reliably gets a visible
+	   console. wt takes the folder via -d, the classic shells via the working
+	   directory. */
+	gchar *chosen;
+	gchar *exe = NULL;
+	gchar *args = NULL;
 	wchar_t *wexe;
 	HINSTANCE res;
-	guint i;
 
-	candidates = nemo_config_get_strv (nemo_config_get_group ("terminal"), "win32-candidates");
+	chosen = nemo_config_get_string (nemo_config_get_group ("terminal"), "exec");
 
-	for (i = 0; candidates != NULL && candidates[i] != NULL; i++) {
-		found = g_find_program_in_path (candidates[i]);
-		if (found != NULL) {
-			break;
+	if (chosen != NULL && *chosen != '\0') {
+		exe = nemo_view_win32_split_terminal_command (chosen, &args);
+	} else {
+		gchar **candidates;
+		guint i;
+
+		candidates = nemo_config_get_strv (nemo_config_get_group ("terminal"), "win32-candidates");
+
+		for (i = 0; candidates != NULL && candidates[i] != NULL; i++) {
+			exe = g_find_program_in_path (candidates[i]);
+			if (exe != NULL) {
+				break;
+			}
+		}
+		g_strfreev (candidates);
+
+		if (exe == NULL) {
+			exe = g_strdup ("cmd.exe");
 		}
 	}
-	g_strfreev (candidates);
+	g_free (chosen);
 
-	exe = found ? found : "cmd.exe";
-	is_wt = g_str_has_suffix (exe, "wt.exe");
+	/* wt ignores the working directory it is handed, so it needs the folder
+	   spelled out - unless the user gave it arguments of their own. */
+	if (args == NULL && g_str_has_suffix (exe, "wt.exe")) {
+		gchar *quoted = nemo_view_win32_quote_arg (path);
+
+		args = g_strconcat ("-d ", quoted, NULL);
+		g_free (quoted);
+	}
 
 	wexe = (wchar_t *) g_utf8_to_utf16 (exe, -1, NULL, NULL, NULL);
 
-	if (is_wt) {
-		gchar *quoted = nemo_view_win32_quote_arg (path);
-		gchar *params = g_strconcat ("-d ", quoted, NULL);
-		wchar_t *wparams = (wchar_t *) g_utf8_to_utf16 (params, -1, NULL, NULL, NULL);
+	if (args != NULL) {
+		wchar_t *wargs = (wchar_t *) g_utf8_to_utf16 (args, -1, NULL, NULL, NULL);
+		wchar_t *wdir = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
 
-		res = ShellExecuteW (NULL, L"open", wexe, wparams, NULL, SW_SHOWNORMAL);
-		g_free (quoted);
-		g_free (params);
-		g_free (wparams);
+		res = ShellExecuteW (NULL, L"open", wexe, wargs, wdir, SW_SHOWNORMAL);
+		g_free (wargs);
+		g_free (wdir);
 	} else {
 		wchar_t *wdir = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
 
@@ -146,7 +206,8 @@ nemo_view_win32_open_terminal (const gchar *path)
 
 	shell_execute_ok (res, "Open in Terminal", path);
 
-	g_free (found);
+	g_free (exe);
+	g_free (args);
 	g_free (wexe);
 }
 

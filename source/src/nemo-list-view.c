@@ -248,7 +248,7 @@ static const char * default_favorites_columns_order[] = {
     "name", "size", "date_modified", NULL
 };
 
-/* Just the two: Name a third of the row, Location the rest. Anything else is
+/* Just the two: Name and Location split the row evenly. Anything else is
    the user's own addition, saved under search-visible-columns. */
 static const char * default_search_columns[] = {
     "name", "where", NULL
@@ -3050,8 +3050,8 @@ resize_columns_now (NemoListView *view)
 	if (in_search && name_index >= 0 && where_index >= 0) {
 		/* Search results divide the row differently: every other column
 		   keeps its measured width, and Name and Location split what is
-		   left - a third and two-thirds until the user drags either edge,
-		   and their split from then on. */
+		   left - evenly until the user drags either edge, and their
+		   split from then on. */
 		gint others = 0;
 		gint remainder;
 		gint split;
