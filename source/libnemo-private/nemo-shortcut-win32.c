@@ -277,6 +277,142 @@ nemo_shortcut_win32_launch (const char  *lnk_path,
 #define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x2
 #endif
 
+/* The reparse point a junction is made of. The real declaration is in ntifs.h,
+   a kernel header, so it gets spelled out here the way every user-mode program
+   that makes one has to. Only the mount-point arm is needed. */
+typedef struct {
+	DWORD ReparseTag;
+	WORD  ReparseDataLength;
+	WORD  Reserved;
+	WORD  SubstituteNameOffset;
+	WORD  SubstituteNameLength;
+	WORD  PrintNameOffset;
+	WORD  PrintNameLength;
+	WCHAR PathBuffer[1];
+} MountPointReparseBuffer;
+
+/* Through PrintNameLength - what precedes the two names in the buffer. */
+#define REPARSE_HEADER_BYTES 16
+
+/* A junction can only point at a fully qualified local path - not a relative
+   name and not a share. Returns the target spelled the way the reparse point
+   wants it, or NULL when a junction is not an option. */
+static char *
+junction_target (const char *target_path)
+{
+	char *native;
+	char *walk;
+	gsize len;
+
+	if (target_path == NULL || !g_ascii_isalpha (target_path[0]) || target_path[1] != ':') {
+		return NULL;
+	}
+
+	native = g_strdup (target_path);
+	for (walk = native; *walk != '\0'; walk++) {
+		if (*walk == '/') {
+			*walk = '\\';
+		}
+	}
+
+	/* A trailing separator makes the mount point resolve oddly. */
+	len = strlen (native);
+	while (len > 3 && native[len - 1] == '\\') {
+		native[--len] = '\0';
+	}
+
+	return native;
+}
+
+/* Make link_path a junction pointing at target_path. Junctions carry no
+   privilege requirement, which is the whole reason to prefer one: a folder link
+   works with Developer Mode off and without running elevated. */
+static gboolean
+try_junction (const char *target_path,
+              const char *link_path,
+              DWORD      *win_error)
+{
+	char *native = junction_target (target_path);
+	char *prefixed;
+	gunichar2 *substitute, *print_name, *w_link;
+	MountPointReparseBuffer *buffer;
+	gsize substitute_bytes, print_bytes, total;
+	HANDLE handle;
+	DWORD returned = 0;
+	gboolean ok;
+
+	*win_error = ERROR_NOT_SUPPORTED;
+	if (native == NULL) {
+		return FALSE;
+	}
+
+	prefixed = g_strconcat ("\\??\\", native, NULL);
+	substitute = to_utf16 (prefixed);
+	print_name = to_utf16 (native);
+	w_link = to_utf16 (link_path);
+	g_free (prefixed);
+	g_free (native);
+
+	if (substitute == NULL || print_name == NULL || w_link == NULL) {
+		g_free (substitute);
+		g_free (print_name);
+		g_free (w_link);
+		return FALSE;
+	}
+
+	if (!CreateDirectoryW ((LPCWSTR) w_link, NULL)) {
+		*win_error = GetLastError ();
+		g_free (substitute);
+		g_free (print_name);
+		g_free (w_link);
+		return FALSE;
+	}
+
+	handle = CreateFileW ((LPCWSTR) w_link, GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+	                      FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		*win_error = GetLastError ();
+		RemoveDirectoryW ((LPCWSTR) w_link);
+		g_free (substitute);
+		g_free (print_name);
+		g_free (w_link);
+		return FALSE;
+	}
+
+	/* Both names sit in one buffer, each with a terminator of its own. */
+	substitute_bytes = wcslen ((const wchar_t *) substitute) * sizeof (WCHAR);
+	print_bytes = wcslen ((const wchar_t *) print_name) * sizeof (WCHAR);
+	total = REPARSE_HEADER_BYTES + substitute_bytes + print_bytes + 2 * sizeof (WCHAR);
+
+	buffer = g_malloc0 (total);
+	buffer->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
+	buffer->ReparseDataLength = (WORD) (total - 8);
+	buffer->SubstituteNameOffset = 0;
+	buffer->SubstituteNameLength = (WORD) substitute_bytes;
+	buffer->PrintNameOffset = (WORD) (substitute_bytes + sizeof (WCHAR));
+	buffer->PrintNameLength = (WORD) print_bytes;
+	wcscpy (buffer->PathBuffer, (const wchar_t *) substitute);
+	wcscpy (buffer->PathBuffer + wcslen ((const wchar_t *) substitute) + 1,
+	        (const wchar_t *) print_name);
+
+	SetLastError (0);
+	ok = DeviceIoControl (handle, FSCTL_SET_REPARSE_POINT, buffer, (DWORD) total,
+	                      NULL, 0, &returned, NULL) != 0;
+	*win_error = ok ? 0 : GetLastError ();
+
+	CloseHandle (handle);
+	if (!ok) {
+		RemoveDirectoryW ((LPCWSTR) w_link);
+	}
+
+	g_free (buffer);
+	g_free (substitute);
+	g_free (print_name);
+	g_free (w_link);
+
+	return ok;
+}
+
 static gboolean
 try_symlink (const char *target_path,
              const char *link_path,
@@ -308,6 +444,20 @@ nemo_shortcut_win32_create_symlink (const char  *target_path,
                                     GError     **error)
 {
 	DWORD win_error = 0;
+
+	/* A folder gets a junction wherever one will do. It needs no privilege, so
+	 * a folder link works on a machine where a symlink is refused outright, and
+	 * nothing downstream can tell the two apart. */
+	if (g_file_test (target_path, G_FILE_TEST_IS_DIR)) {
+		if (try_junction (target_path, link_path, &win_error)) {
+			return TRUE;
+		}
+		if (win_error == ERROR_ALREADY_EXISTS || win_error == ERROR_FILE_EXISTS) {
+			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_EXISTS,
+					     _("A file with that name already exists."));
+			return FALSE;
+		}
+	}
 
 	/* The unprivileged flag is what makes this work under Developer Mode.
 	 * Windows before 1703 refuses the flag itself rather than the call, so a
