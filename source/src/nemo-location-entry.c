@@ -39,6 +39,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <eel/eel-vfs-extensions.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-entry.h>
 #include <libnemo-private/nemo-icon-dnd.h>
@@ -328,9 +329,13 @@ nemo_location_entry_activate (GtkEntry *entry)
 	entry_text = g_strdup (gtk_entry_get_text (entry));
 
 	if (entry_text != NULL && *entry_text != '\0') {
+		/* Something that expands is already a whole path, so it must not be
+		 * hung off the current folder - same reason as the ~ below. */
+		char *expandable = eel_expand_user_input (entry_text);
+
 		uri_scheme = g_uri_parse_scheme (entry_text);
 
-              if (!g_path_is_absolute (entry_text) && uri_scheme == NULL && entry_text[0] != '~') {
+              if (!g_path_is_absolute (entry_text) && uri_scheme == NULL && entry_text[0] != '~' && expandable == NULL) {
                   g_strstrip (entry_text); 
                   if (entry_text[0] == '/') {
                     gtk_entry_set_text (entry, entry_text);
@@ -344,6 +349,7 @@ nemo_location_entry_activate (GtkEntry *entry)
 
         g_free (entry_text);
 		g_free (uri_scheme);
+		g_free (expandable);
 	}
 
 	GTK_ENTRY_CLASS (nemo_location_entry_parent_class)->activate (entry);

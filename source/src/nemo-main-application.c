@@ -79,6 +79,7 @@
 #include <glib/gi18n.h>
 #include <gio/gio.h>
 #include <eel/eel-gtk-extensions.h>
+#include <eel/eel-vfs-extensions.h>
 #include <eel/eel-stock-dialogs.h>
 
 
@@ -1013,7 +1014,18 @@ post_registration:
 		file_array = g_ptr_array_new ();
 
 		for (idx = 0; remaining[idx] != NULL; idx++) {
+			char *expanded = eel_expand_user_input (remaining[idx]);
+
 			file = g_file_new_for_commandline_arg (remaining[idx]);
+
+			/* Same rule as the location bar: the literal wins, and a shell
+			 * that already expanded the argument leaves nothing to do here. */
+			if (expanded != NULL && !g_file_query_exists (file, NULL)) {
+				g_object_unref (file);
+				file = g_file_new_for_commandline_arg (expanded);
+			}
+			g_free (expanded);
+
 			if (file != NULL) {
 				g_ptr_array_add (file_array, file);
 			}
