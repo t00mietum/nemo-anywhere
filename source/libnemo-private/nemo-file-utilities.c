@@ -27,6 +27,7 @@
 #include <libnemo-private/nemo-posix-compat.h>
 
 #include "nemo-global-preferences.h"
+#include "nemo-dir-enum.h"
 #include "nemo-lib-self-check-functions.h"
 #include "nemo-metadata.h"
 #include "nemo-file.h"
@@ -1197,7 +1198,7 @@ nemo_find_file_insensitive_next (GFile *parent, const gchar *name)
 
 	/* Enumerate and compare insensitive */
 	filename = NULL;
-	children = g_file_enumerate_children (parent,
+	children = nemo_enumerate_children (parent,
 	                                      G_FILE_ATTRIBUTE_STANDARD_NAME,
 	                                      0, NULL, NULL);
 	if (children != NULL) {

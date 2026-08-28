@@ -405,3 +405,22 @@ test('Config schema drift test',
   ),
   args: [ meson.current_source_dir() / '..' / 'data' / 'nemo-anywhere.schema.shcl' ]
 )
+
+if is_windows
+  # The exe needs the app's own manifest or every long-path call fails on the
+  # file not being there, which is not what is under test.
+  testWinMod = import('windows')
+  longPathManifest = testWinMod.compile_resources('test-manifest.rc',
+    include_directories: include_directories('../src'),
+    depend_files:        files('../src/nemo-anywhere.manifest'),
+  )
+
+  test('Long path enumeration test',
+    executable('test-nemo-dir-enum-win32',
+      [ 'test-nemo-dir-enum-win32.c' ] + longPathManifest,
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif

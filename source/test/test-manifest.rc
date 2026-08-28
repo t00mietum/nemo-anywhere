@@ -1,0 +1,5 @@
+/* Long-path awareness is a property of the process, so a test that exercises a
+   path past MAX_PATH has to carry the same manifest the app does. 1 is the id
+   Windows looks for and 24 is RT_MANIFEST, both as numbers - see nemo-anywhere.rc.in. */
+
+1 24 "nemo-anywhere.manifest"

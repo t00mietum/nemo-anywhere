@@ -25,6 +25,7 @@
 #include <config.h>
 
 #include "nemo-directory-notify.h"
+#include "nemo-dir-enum.h"
 #include "nemo-directory-private.h"
 #include "nemo-file-attributes.h"
 #include "nemo-file-private.h"
@@ -2111,7 +2112,7 @@ enumerate_children_callback (GObject *source_object,
 	}
 	
 	error = NULL;
-	enumerator = g_file_enumerate_children_finish  (G_FILE (source_object),
+	enumerator = nemo_enumerate_children_finish  (G_FILE (source_object),
 							res, &error);
 
 	if (enumerator == NULL) {
@@ -2171,7 +2172,7 @@ start_monitoring_file_list (NemoDirectory *directory)
 	
 	directory->details->directory_load_in_progress = state;
 	
-	g_file_enumerate_children_async (directory->details->location,
+	nemo_enumerate_children_async (directory->details->location,
 					 NEMO_FILE_DEFAULT_ATTRIBUTES,
 					 FILE_INFO_FLAGS,
 					 G_PRIORITY_DEFAULT, /* prio */
@@ -2503,7 +2504,7 @@ count_children_callback (GObject *source_object,
 	}
 	
 	error = NULL;
-	enumerator = g_file_enumerate_children_finish  (G_FILE (source_object),
+	enumerator = nemo_enumerate_children_finish  (G_FILE (source_object),
 							res, &error);
 
 	if (enumerator == NULL) {
@@ -2575,7 +2576,7 @@ directory_count_start (NemoDirectory *directory,
 	}
 #endif
 
-	g_file_enumerate_children_async (location,
+	nemo_enumerate_children_async (location,
 					 G_FILE_ATTRIBUTE_STANDARD_NAME ","
 					 G_FILE_ATTRIBUTE_STANDARD_IS_HIDDEN ","
 					 G_FILE_ATTRIBUTE_STANDARD_IS_BACKUP,
@@ -2799,7 +2800,7 @@ deep_count_callback (GObject *source_object,
 
 	file = state->directory->details->deep_count_file;
 
-	enumerator = g_file_enumerate_children_finish  (G_FILE (source_object),	res, NULL);
+	enumerator = nemo_enumerate_children_finish  (G_FILE (source_object),	res, NULL);
 	
 	if (enumerator == NULL) {
 		file->details->deep_unreadable_count += 1;
@@ -2825,7 +2826,7 @@ deep_count_load (DeepCountState *state, GFile *location)
 #ifdef DEBUG_LOAD_DIRECTORY		
 	g_message ("load_directory called to get deep file count for %p", location);
 #endif	
-	g_file_enumerate_children_async (state->deep_count_location,
+	nemo_enumerate_children_async (state->deep_count_location,
 					 G_FILE_ATTRIBUTE_STANDARD_NAME ","
 					 G_FILE_ATTRIBUTE_STANDARD_TYPE ","
 					 G_FILE_ATTRIBUTE_STANDARD_SIZE ","
@@ -3123,7 +3124,7 @@ list_mime_enum_callback (GObject *source_object,
 	}
 	
 	error = NULL;
-	enumerator = g_file_enumerate_children_finish  (G_FILE (source_object),
+	enumerator = nemo_enumerate_children_finish  (G_FILE (source_object),
 							res, &error);
 
 	if (enumerator == NULL) {
@@ -3198,7 +3199,7 @@ mime_list_start (NemoDirectory *directory,
 	}
 #endif	
 	
-	g_file_enumerate_children_async (location,
+	nemo_enumerate_children_async (location,
 					 G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE "," G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE,
 					 0, /* flags */
 					 G_PRIORITY_LOW, /* prio */
@@ -3266,7 +3267,7 @@ win_dir_probe_callback (GObject *source_object,
 	GFileEnumerator *en;
 	GFileInfo *info = NULL;
 
-	en = g_file_enumerate_children_finish (G_FILE (source_object), res, NULL);
+	en = nemo_enumerate_children_finish (G_FILE (source_object), res, NULL);
 	if (en != NULL) {
 		char *bname = g_file_get_basename (G_FILE (source_object));
 
@@ -3346,7 +3347,7 @@ query_info_callback (GObject *source_object,
 		/* Async and cancellable: as a blocking enumerate on the main loop
 		 * this froze the whole window for the OS timeout whenever the drive
 		 * was spun down or the mapping was dead. */
-		g_file_enumerate_children_async (G_FILE (source_object),
+		nemo_enumerate_children_async (G_FILE (source_object),
 						 G_FILE_ATTRIBUTE_STANDARD_NAME,
 						 G_FILE_QUERY_INFO_NONE,
 						 G_PRIORITY_DEFAULT,

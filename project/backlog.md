@@ -98,12 +98,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Two causes. The title is only recomputed on a location or view change, so the setting did nothing until the next navigation. And the home folder answered "Home" before the setting was ever read, so in the one place most people would try it, it did nothing at all.
 	- Both fixed. The home folder now gives way to the setting, and the title, the tabs and the location widgets all refresh the moment it changes.
 
-- 🔘 Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
+- ✅ Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
 	- Opened: 20260821-150232
+	- Closed: 20260828-114000
 	- Found while proving the long-path manifest work. The toolkit's own directory walk is what breaks; every other call on the same path is right, which is why nothing showed up until a folder that deep was actually opened.
 	- In the window it reads as an empty folder, because each name it hands back is then checked against the folder that was asked for and none of them are in it. That is the harmless case. The one to worry about is search, which walks folders itself and would follow the wrong tree.
 	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
-	- Not ours to fix in place. Either the walk is done ourselves on Windows, or it goes upstream - nothing was found already filed for it.
+	- The walk is now done here on Windows once a path is long enough that the toolkit cannot be trusted with it. Everything shorter still goes straight to the toolkit, so the ordinary case is untouched.
+	- One entry point covers the lot: the file listing, search, copy, move, delete, the deep count and the archive scan all go through it.
+	- A folder 308 characters deep lists its real contents in the window now, with sizes, types and dates. New checks cover it both ways round, and were watched failing without the fix.
 
 - ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Opened: 20260821-144459

@@ -20,6 +20,7 @@
 #include <config.h>
 #include "nemo-file.h"
 #include "nemo-directory.h"
+#include "nemo-dir-enum.h"
 #include "nemo-file-utilities.h"
 #include "nemo-search-engine-advanced.h"
 #include "nemo-global-preferences.h"
@@ -1020,7 +1021,7 @@ visit_directory (GFile *dir, SearchThreadData *data)
     else
         attrs = STD_ATTRIBUTES;
 
-    enumerator = g_file_enumerate_children (dir,
+    enumerator = nemo_enumerate_children (dir,
                                             attrs,
                                             0, data->cancellable, NULL);
 
