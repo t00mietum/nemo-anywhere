@@ -147,36 +147,16 @@ real_path_for_uri (const char *uri)
 	return g_uri_unescape_string (uri + strlen (TRASH_ROOT_URI), NULL);
 }
 
-/* Puts a path in the Recycle Bin without any of the shell's dialogs. GLib's
- * g_file_trash leaves the confirmations on, which no unattended run can answer. */
+/* Recycles the way a delete in the app does, so the tests exercise the real one. */
 static gboolean
 recycle_quietly (const char *path)
 {
-	SHFILEOPSTRUCTW op;
-	wchar_t *wide;
-	glong len;
+	GFile *file;
 	gboolean ok;
 
-	/* glong, and no cast: g_utf8_to_utf16 writes a 32-bit long here, so through
-	   a gsize pointer the top half stayed stack garbage - and that value then
-	   sized and indexed the buffer below. */
-	wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, &len, NULL);
-	if (wide == NULL) {
-		return FALSE;
-	}
-
-	/* pFrom is a double-NUL terminated list, so it needs one NUL past the string. */
-	wide = g_renew (wchar_t, wide, len + 2);
-	wide[len] = L'\0';
-	wide[len + 1] = L'\0';
-
-	memset (&op, 0, sizeof (op));
-	op.wFunc = FO_DELETE;
-	op.pFrom = wide;
-	op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
-
-	ok = (SHFileOperationW (&op) == 0) && !op.fAnyOperationsAborted;
-	g_free (wide);
+	file = g_file_new_for_path (path);
+	ok = nemo_trash_win32_recycle (file, NULL);
+	g_object_unref (file);
 
 	return ok;
 }

@@ -48,6 +48,14 @@ int
 main (int argc, char *argv[])
 {
 	char *name;
+	char *tmp;
+
+	/* A throwaway config root, or the separator the real user chose decides
+	 * what a drive root is called and the spellings below fail. */
+	tmp = g_dir_make_tmp ("nemo-drive-root-test-XXXXXX", NULL);
+	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
+	g_setenv ("APPDATA", tmp, TRUE);
+	g_setenv ("HOME", tmp, TRUE);
 
 	/* The whole point: a drive root is named by its letter, with the
 	 * trailing separator, so it reads as a path and not as a bare word. */
@@ -103,6 +111,8 @@ main (int argc, char *argv[])
 	 * they have not established is real yet. */
 	check (!nemo_location_is_drive_root (NULL));
 	check (nemo_get_drive_root_name (NULL) == NULL);
+
+	g_free (tmp);
 
 	if (failures == 0) {
 		g_print ("drive-root-name: all checks passed\n");
