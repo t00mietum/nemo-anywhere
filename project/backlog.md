@@ -39,104 +39,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- Search doesn't fully work.
+- 🔘 Search doesn't fully work.
 
-- ✅ The Win32 argument quoting check depends on what is installed on the machine.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- It split `wt.exe` and expected the name back unchanged, but a box with Windows Terminal installed resolves it to a full path, so the check went red there and nowhere else.
-	- It uses a name that cannot be on the path now. The case where a program is found is still covered, by the check below it that looks one up first.
-
-- ✅ The config schema check goes red on a fresh Windows checkout.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- Git checks the schema out with Windows line endings, and the check split it on newlines only, so every field name carried a stray carriage return and matched nothing. It then reported all 169 settings as missing from the schema.
-	- The config parser itself was never affected - it treats a carriage return as whitespace. Only the check's own reader did.
-
-- ✅ The first folder listed after launch is still slow when the start location is full of links.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- Same folder and same symptom as the item below, which fixed only the first of two causes. The listing itself now appears in about three seconds; what came after it took another sixty-four.
-	- Two things chased each link off the machine, one at a time, with the folder waiting: counting a folder's items, and asking what a share is mounted under. One link to a host that is not answering costs twenty to fifty seconds per question.
-	- The preference for item counts already says "local only" by default, but a share is native as far as the toolkit is concerned, so nothing ever held it back. Both questions are now skipped for anything on a share, or any link pointing at one.
-	- The mount question is skipped outright there: a share is not a mount on Windows, so the answer was never of use.
-	- Measured against a host that really was not answering: sixty-seven seconds before, three and a half after. The item count for such a folder now reads "--", which is what the preference has always meant.
-
-- ✅ The first folder listed after launch takes a very long time when the start location is full of links.
-	- Opened: 20260827-183930
-	- Closed: 20260827-193152
-	- Seen launching straight into a folder of shortcuts and junctions. Folders opened after that are normal, so it is the first listing that pays.
-	- Measured: one link pointing at a share that is not answering costs twenty seconds, and the whole listing waits behind it. The folder in question has one, and took over a minute to show anything at all. It is only slow the first time because Windows remembers the failure for a while afterwards.
-	- Cause: listing a folder asked for each child's details with links followed, so every reparse point was chased to whatever it pointed at, over the network if that is where it led.
-	- Windows puts the directory bit on the link itself, so the type still comes out right without the trip. The listing no longer follows them there, and the same folder now appears in about a second.
-	- Trade: a link to a file reports the link's own size rather than the target's, and a link whose target is gone no longer shows as broken until it is opened.
-	- The drive-root test was reading the real config while it ran, so it failed on any machine where the forward slash had been chosen. It gets its own throwaway config now.
-
-- ✅ Deleting to the trash puts the progress popup on top of the confirmation prompt.
-	- Opened: 20260827-183930
-	- Closed: 20260827-191128
-	- The yes/no dialog is behind it, so the delete reads as stuck until the popup is dragged out of the way.
-	- The prompt was the Windows shell's, not ours: GLib's trash call leaves the shell confirmation switched on, so every file was asked about twice and the second dialog was not one we could place.
-	- A delete now goes to the Recycle Bin through the shell directly with the confirmations off, so our own prompt is the only one and nothing covers it. Watched end to end on Windows.
-	- The trash test drops its private copy of the same code and calls the shipped one, and its timeout goes to ten minutes - a full recycle bin can take four and a half.
+- 🔘 Trying to drag 'C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\project\backlog.md' to another application - even before the file was dragged off nemo-anywhere - crashed the application.
 
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
 	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
 	- So it depends on something only the real session has - most likely where the focus was sitting. Needs one hands-on run to pin down.
-
-- ✅ Switching the path separator to `/` does not take effect until the folder is revisited.
-	- Opened: 20260826-103001
-	- Closed: 20260828-124500
-	- Note: the rest of the Paths group on the Display page applies straight away, so this one is the odd man out.
-	- Cause: the title, the location entry and the breadcrumb are only rebuilt on a location or view change, so changing how a path is spelled never asked for one.
-	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way.
-	- Two more halves showed up on Windows, where the separator can really change. The breadcrumb was redrawing a step behind - it read the separator before the setting had been taken in. And the sidebar, which spells a drive root as `C:\`, was not redrawing at all.
-	- Both fixed. Title, breadcrumb, location bar and sidebar now all move together the moment the setting changes, with no navigation. A new check covers the ordering and was watched failing without the fix.
-
-- ✅ "Show the full path in the title bar and tab bars" does nothing.
-	- Opened: 20260826-103001
-	- Closed: 20260826-180755
-	- Note: on the Display page, under Windows and Tab Titles. Turning it on leaves the window title and the tabs showing the folder name only.
-	- Two causes. The title is only recomputed on a location or view change, so the setting did nothing until the next navigation. And the home folder answered "Home" before the setting was ever read, so in the one place most people would try it, it did nothing at all.
-	- Both fixed. The home folder now gives way to the setting, and the title, the tabs and the location widgets all refresh the moment it changes.
-
-- ✅ Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
-	- Opened: 20260821-150232
-	- Closed: 20260828-114000
-	- Found while proving the long-path manifest work. The toolkit's own directory walk is what breaks; every other call on the same path is right, which is why nothing showed up until a folder that deep was actually opened.
-	- In the window it reads as an empty folder, because each name it hands back is then checked against the folder that was asked for and none of them are in it. That is the harmless case. The one to worry about is search, which walks folders itself and would follow the wrong tree.
-	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
-	- The walk is now done here on Windows once a path is long enough that the toolkit cannot be trusted with it. Everything shorter still goes straight to the toolkit, so the ordinary case is untouched.
-	- One entry point covers the lot: the file listing, search, copy, move, delete, the deep count and the archive scan all go through it.
-	- A folder 308 characters deep lists its real contents in the window now, with sizes, types and dates. New checks cover it both ways round, and were watched failing without the fix.
-
-- ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
-	- Opened: 20260821-144459
-	- Closed: 20260826-180755
-	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
-	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
-	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
-	- It found thirteen real mismatches on its first run: eight settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
-
-- ✅ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
-	- Opened: 20260818-155550
-	- Closed: 20260828-134500
-	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
-	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
-	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
-	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app.
-	- Exercised on Windows against a scratch install, and it turned up three real faults, all fixed:
-		- An in-place upgrade died outright. The in-use check hands back an empty list as nothing at all, and asking that for a count is an error, so every upgrade over an existing folder failed before it started. Only a first install had ever been run.
-		- The check compared two spellings of the same folder and so found nothing. It long-forms the folder it was given but takes a running program's path as reported, and those two do not have to agree.
-		- If the swap failed anyway, for a reason no process scan can see, the failure came out as a raw runtime error. It now says which folder is stuck and what to do.
-	- The round trip is now clean: install, run, close, upgrade over it, uninstall. The PATH comes back byte for byte and nothing is left behind.
-
-- ✅ The installer leaves the user PATH very slightly different from how it found it.
-	- Opened: 20260818-155550
-	- Closed: 20260826-180755
-	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
-	- Both halves now carry the trailing separator through, so what an uninstall writes back is what the install found. Checked against an empty PATH, one with a trailing separator and one without.
 
 - 🔘 Windows network browsing cannot be proved to report a missing network or a refused share.
 	- Opened: 20260804-230307
@@ -425,6 +335,98 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
+	- Opened: 20260821-144459
+	- Closed: 20260826-180755
+	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
+	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
+	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
+	- It found 13 real mismatches on its first run: 8 settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
+
+- ✅ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+	- Opened: 20260818-155550
+	- Closed: 20260828-134500
+	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
+	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
+	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
+	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app.
+	- Exercised on Windows against a scratch install, and it turned up three real faults, all fixed:
+		- An in-place upgrade died outright. The in-use check hands back an empty list as nothing at all, and asking that for a count is an error, so every upgrade over an existing folder failed before it started. Only a first install had ever been run.
+		- The check compared two spellings of the same folder and so found nothing. It long-forms the folder it was given but takes a running program's path as reported, and those two do not have to agree.
+		- If the swap failed anyway, for a reason no process scan can see, the failure came out as a raw runtime error. It now says which folder is stuck and what to do.
+	- The round trip is now clean: install, run, close, upgrade over it, uninstall. The PATH comes back byte for byte and nothing is left behind.
+
+- ✅ The installer leaves the user PATH very slightly different from how it found it.
+	- Opened: 20260818-155550
+	- Closed: 20260826-180755
+	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
+	- Both halves now carry the trailing separator through, so what an uninstall writes back is what the install found. Checked against an empty PATH, one with a trailing separator and one without.
+
+- ✅ Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
+	- Opened: 20260821-150232
+	- Closed: 20260828-114000
+	- Found while proving the long-path manifest work. The toolkit's own directory walk is what breaks; every other call on the same path is right, which is why nothing showed up until a folder that deep was actually opened.
+	- In the window it reads as an empty folder, because each name it hands back is then checked against the folder that was asked for and none of them are in it. That is the harmless case. The one to worry about is search, which walks folders itself and would follow the wrong tree.
+	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
+	- The walk is now done here on Windows once a path is long enough that the toolkit cannot be trusted with it. Everything shorter still goes straight to the toolkit, so the ordinary case is untouched.
+	- One entry point covers the lot: the file listing, search, copy, move, delete, the deep count and the archive scan all go through it.
+	- A folder 308 characters deep lists its real contents in the window now, with sizes, types and dates. New checks cover it both ways round, and were watched failing without the fix.
+
+- ✅ Switching the path separator to `/` does not take effect until the folder is revisited.
+	- Opened: 20260826-103001
+	- Closed: 20260828-124500
+	- Note: the rest of the Paths group on the Display page applies straight away, so this one is the odd man out.
+	- Cause: the title, the location entry and the breadcrumb are only rebuilt on a location or view change, so changing how a path is spelled never asked for one.
+	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way.
+	- Two more halves showed up on Windows, where the separator can really change. The breadcrumb was redrawing a step behind - it read the separator before the setting had been taken in. And the sidebar, which spells a drive root as `C:\`, was not redrawing at all.
+	- Both fixed. Title, breadcrumb, location bar and sidebar now all move together the moment the setting changes, with no navigation. A new check covers the ordering and was watched failing without the fix.
+
+- ✅ "Show the full path in the title bar and tab bars" does nothing.
+	- Opened: 20260826-103001
+	- Closed: 20260826-180755
+	- Note: on the Display page, under Windows and Tab Titles. Turning it on leaves the window title and the tabs showing the folder name only.
+	- Two causes. The title is only recomputed on a location or view change, so the setting did nothing until the next navigation. And the home folder answered "Home" before the setting was ever read, so in the one place most people would try it, it did nothing at all.
+	- Both fixed. The home folder now gives way to the setting, and the title, the tabs and the location widgets all refresh the moment it changes.
+
+- ✅ The first folder listed after launch is still slow when the start location is full of links.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- Same folder and same symptom as the item below, which fixed only the first of two causes. The listing itself now appears in about three seconds; what came after it took another ~minute.
+	- Two things chased each link off the machine, one at a time, with the folder waiting: counting a folder's items, and asking what a share is mounted under. One link to a host that is not answering cost a lot of time per query.
+	- The preference for item counts already says "local only" by default, but a share is native as far as the toolkit is concerned, so nothing ever held it back. Both questions are now skipped for anything on a share, or any link pointing at one.
+	- The mount question is skipped outright there: a share is not a mount on Windows, so the answer was never of use.
+	- Measured against a host that really was not answering: > a minute before, ~3 seconds after. The item count for such a folder now reads "--", which is what the preference has always meant.
+
+- ✅ The first folder listed after launch takes a very long time when the start location is full of links.
+	- Opened: 20260827-183930
+	- Closed: 20260827-193152
+	- Seen launching straight into a folder of shortcuts and junctions. Folders opened after that are normal, so it is the first listing that pays.
+	- Measured: one link pointing at a share that is not answering costs ~20s, and the whole listing waits for it. The folder in question has one, and took over a minute to show anything at all. It is only slow the first time because Windows remembers the failure for a while afterwards.
+	- Cause: listing a folder asked for each child's details with links followed, so every reparse point was chased to whatever it pointed at, over the network if that is where it led.
+	- Windows puts the directory bit on the link itself, so the type still comes out right without the trip. The listing no longer follows them there, and the same folder now appears in about a second.
+	- Trade: a link to a file reports the link's own size rather than the target's, and a link whose target is gone no longer shows as broken until it is opened.
+	- The drive-root test was reading the real config while it ran, so it failed on any machine where the forward slash had been chosen. It gets its own throwaway config now.
+
+- ✅ Deleting to the trash puts the progress popup on top of the confirmation prompt.
+	- Opened: 20260827-183930
+	- Closed: 20260827-191128
+	- The yes/no dialog is behind it, so the delete reads as stuck until the popup is dragged out of the way.
+	- The prompt was the Windows shell's, not ours: GLib's trash call leaves the shell confirmation switched on, so every file was asked about twice and the second dialog was not one we could place.
+	- A delete now goes to the Recycle Bin through the shell directly with the confirmations off, so our own prompt is the only one and nothing covers it. Watched end to end on Windows.
+	- The trash test drops its private copy of the same code and calls the shipped one, and its timeout goes to ten minutes - a full recycle bin can take four and a half.
+
+- ✅ The Win32 argument quoting check depends on what is installed on the machine.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- It split `wt.exe` and expected the name back unchanged, but a box with Windows Terminal installed resolves it to a full path, so the check went red there and nowhere else.
+	- It uses a name that cannot be on the path now. The case where a program is found is still covered, by the check below it that looks one up first.
+
+- ✅ The config schema check goes red on a fresh Windows checkout.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- Git checks the schema out with Windows line endings, and the check split it on newlines only, so every field name carried a stray carriage return and matched nothing. It then reported all 169 settings as missing from the schema.
+	- The config parser itself was never affected - it treats a carriage return as whitespace. Only the check's own reader did.
 
 - ✅ In dark mode the breadcrumb bar and the checked view buttons kept a light background, unreadable against everything around them.
 	- Opened: n/a
