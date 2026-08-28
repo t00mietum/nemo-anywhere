@@ -95,6 +95,15 @@ test('Search invalid regex test',
   args: []
 )
 
+test('Search content test',
+  executable('test-nemo-search-content',
+    [ 'test-nemo-search-content.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 if not is_windows
   test('DnD selection parser test',
     executable('test-nemo-dnd',

@@ -214,7 +214,13 @@ check_entry_text (NemoQueryEditor *editor)
 static void
 entry_activate_cb (GtkWidget *entry, NemoQueryEditor *editor)
 {
-    g_clear_handle_id (&editor->priv->typing_timeout_id, g_source_remove);
+    /* Enter usually beats the pending check, which is what decides whether the search
+     * may run at all. Run it now rather than dropping it, or a query typed quickly is
+     * refused on the answer for the text before it. */
+    if (editor->priv->typing_timeout_id != 0) {
+        g_clear_handle_id (&editor->priv->typing_timeout_id, g_source_remove);
+        check_entry_text (editor);
+    }
 
     if (!gtk_entry_get_icon_activatable (GTK_ENTRY (editor->priv->file_entry), GTK_ENTRY_ICON_SECONDARY)) {
         return;
