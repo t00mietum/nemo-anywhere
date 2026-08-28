@@ -41,10 +41,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - Search doesn't fully work.
 
-- 🔘 The first folder listed after launch takes a very long time when the start location is full of links.
+- ✅ The first folder listed after launch takes a very long time when the start location is full of links.
 	- Opened: 20260827-183930
+	- Closed: 20260827-193152
 	- Seen launching straight into a folder of shortcuts and junctions. Folders opened after that are normal, so it is the first listing that pays.
-	- Wants a measurement before a fix - what is actually slow is not yet known.
+	- Measured: one link pointing at a share that is not answering costs twenty seconds, and the whole listing waits behind it. The folder in question has one, and took over a minute to show anything at all. It is only slow the first time because Windows remembers the failure for a while afterwards.
+	- Cause: listing a folder asked for each child's details with links followed, so every reparse point was chased to whatever it pointed at, over the network if that is where it led.
+	- Windows puts the directory bit on the link itself, so the type still comes out right without the trip. The listing no longer follows them there, and the same folder now appears in about a second.
+	- Trade: a link to a file reports the link's own size rather than the target's, and a link whose target is gone no longer shows as broken until it is opened.
+	- The drive-root test was reading the real config while it ran, so it failed on any machine where the forward slash had been chosen. It gets its own throwaway config now.
 
 - ✅ Deleting to the trash puts the progress popup on top of the confirmation prompt.
 	- Opened: 20260827-183930
