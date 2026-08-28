@@ -274,6 +274,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, "Column to sort on when viewing search results" },
 	{ "search", "search-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_visible_columns, NULL, "Saved list of columns visible in the search view." },
 	{ "sidebar-panels.tree", "show-only-directories", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Only show folders in the tree side pane" },
+	{ "state", "first-run-done", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Set once first-run setup has run. Clear it to get the platform's default bookmarks back on the next start." },
 	{ "thumbnailers", "disable", NEMO_CONFIG_STRING_LIST, NULL, deflist_thumbnailers_disable, NULL, "Disable external thumbnailers for these mime types" },
 	{ "thumbnailers", "disable-all", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Disable all external thumbnailers" },
 	{ "window-state", "bookmarks-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Expand Bookmark section in places sidebar" },

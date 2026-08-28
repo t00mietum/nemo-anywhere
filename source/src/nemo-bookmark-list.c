@@ -30,9 +30,11 @@
 
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file.h>
+#include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-icon-names.h>
 
 #include <gio/gio.h>
+#include <glib/gstdio.h>
 #include <string.h>
 #include <stdlib.h>
 #ifdef G_OS_UNIX
@@ -690,6 +692,15 @@ nemo_bookmark_list_length (NemoBookmarkList *bookmarks)
 	return g_list_length (bookmarks->list);
 }
 
+static gchar *
+bookmark_metadata_path (void)
+{
+    return g_build_filename (nemo_get_user_config_root (),
+                             NEMO_APP_SLUG,
+                             "bookmark-metadata",
+                             NULL);
+}
+
 static GList *
 load_bookmark_metadata_file (NemoBookmarkList *list)
 {   /* Part of load_files thread */
@@ -697,12 +708,7 @@ load_bookmark_metadata_file (NemoBookmarkList *list)
     GKeyFile *kfile = g_key_file_new ();
     GList *ret = NULL;
 
-    gchar *filename;
-
-    filename = g_build_filename (nemo_get_user_config_root (),
-                                 NEMO_APP_SLUG,
-                                 "bookmark-metadata",
-                                 NULL);
+    gchar *filename = bookmark_metadata_path ();
 
     if (g_key_file_load_from_file (kfile,
                                    filename,
@@ -868,12 +874,7 @@ save_bookmark_metadata_file (NemoBookmarkList *list)
     GError *error = NULL;
     GKeyFile *kfile = g_key_file_new ();
 
-    gchar *filename;
-
-    filename = g_build_filename (nemo_get_user_config_root (),
-                                 NEMO_APP_SLUG,
-                                 "bookmark-metadata",
-                                 NULL);
+    gchar *filename = bookmark_metadata_path ();
 
     GFile *file = g_file_new_for_path (filename);
     GFile *parent = g_file_get_parent (file);
@@ -1141,6 +1142,152 @@ nemo_bookmark_list_set_window_geometry (NemoBookmarkList *bookmarks,
 	window_geometry = g_strdup (geometry);
 
 	nemo_bookmark_list_save_file (bookmarks);
+}
+
+#ifdef G_OS_WIN32
+
+/* A local file URI with no drive letter after file:/// came from a POSIX box -
+ * it would read here as a path on whatever drive happens to be current. */
+static gboolean
+bookmark_line_is_foreign (const char *line)
+{
+    const char *path;
+
+    if (!g_str_has_prefix (line, "file:///")) {
+        return FALSE;
+    }
+
+    /* file:///C:/... or the percent-encoded file:///C%3A/... */
+    path = line + strlen ("file:///");
+    return !(g_ascii_isalpha (path[0]) && (path[1] == ':' || path[1] == '%'));
+}
+
+static void
+add_default (GString *out, const char *path)
+{
+    GFile *file;
+    char  *uri;
+
+    if (path == NULL || !g_file_test (path, G_FILE_TEST_IS_DIR)) {
+        return;
+    }
+
+    file = g_file_new_for_path (path);
+    uri = g_file_get_uri (file);
+    g_string_append_printf (out, "%s\n", uri);
+
+    g_free (uri);
+    g_object_unref (file);
+}
+
+/* No labels: each of these has a display name Windows already localizes, and
+ * the drive root gets its volume label from the naming code. */
+static char *
+windows_default_bookmarks (void)
+{
+    GString *out = g_string_new (NULL);
+    const char *appdata = g_getenv ("APPDATA");
+    const char *drive = g_getenv ("SystemDrive");
+    char *root;
+
+    root = g_strdup_printf ("%s\\", drive != NULL ? drive : "C:");
+    add_default (out, root);
+    g_free (root);
+
+    add_default (out, g_get_user_special_dir (G_USER_DIRECTORY_DESKTOP));
+    add_default (out, g_get_user_special_dir (G_USER_DIRECTORY_DOCUMENTS));
+    add_default (out, g_get_user_special_dir (G_USER_DIRECTORY_DOWNLOAD));
+    add_default (out, g_get_user_special_dir (G_USER_DIRECTORY_PICTURES));
+    add_default (out, g_get_user_special_dir (G_USER_DIRECTORY_VIDEOS));
+
+    if (appdata != NULL) {
+        /* The Roaming folder itself is rarely what anyone means by AppData. */
+        char *parent = g_path_get_dirname (appdata);
+
+        add_default (out, parent);
+        g_free (parent);
+    }
+
+    return g_string_free (out, FALSE);
+}
+
+/* Drop anything that cannot be a path here, and seed the defaults if that
+ * leaves nothing. Keeping a set someone already curated matters more than the
+ * defaults, so an upgrade from a build without the marker is not wiped. */
+static void
+first_run_setup_win32 (void)
+{
+    GFile *file = nemo_bookmark_list_get_file ();
+    char  *contents = NULL;
+    char  *kept = NULL;
+
+    if (g_file_load_contents (file, NULL, &contents, NULL, NULL, NULL)) {
+        GString *keep = g_string_new (NULL);
+        char **lines = g_strsplit (contents, "\n", -1);
+        int i;
+
+        for (i = 0; lines[i] != NULL; i++) {
+            if (lines[i][0] != '\0' && !bookmark_line_is_foreign (lines[i])) {
+                g_string_append_printf (keep, "%s\n", lines[i]);
+            }
+        }
+
+        g_strfreev (lines);
+        g_free (contents);
+        kept = g_string_free (keep, FALSE);
+    }
+
+    if (kept == NULL || *kept == '\0') {
+        g_free (kept);
+        kept = windows_default_bookmarks ();
+    }
+
+    if (*kept != '\0') {
+        GFile *parent = g_file_get_parent (file);
+        char  *dir = g_file_get_path (parent);
+
+        g_mkdir_with_parents (dir, 0700);
+        g_file_replace_contents (file, kept, strlen (kept), NULL, FALSE, 0,
+                                 NULL, NULL, NULL);
+
+        g_free (dir);
+        g_object_unref (parent);
+    }
+
+    g_free (kept);
+    g_object_unref (file);
+}
+
+#endif /* G_OS_WIN32 */
+
+void
+nemo_bookmark_list_first_run_setup (void)
+{
+    NemoConfigGroup *state = nemo_config_get_group (NEMO_STATE_GROUP);
+
+    if (nemo_config_get_boolean (state, NEMO_STATE_FIRST_RUN_DONE)) {
+        return;
+    }
+
+#ifdef G_OS_WIN32
+    first_run_setup_win32 ();
+    nemo_config_drop_foreign_paths ();
+#endif
+
+    nemo_config_set_boolean (state, NEMO_STATE_FIRST_RUN_DONE, TRUE);
+}
+
+void
+nemo_bookmark_list_reset_files (void)
+{
+    GFile *file = nemo_bookmark_list_get_file ();
+    char  *metadata = bookmark_metadata_path ();
+
+    g_file_delete (file, NULL, NULL);
+    g_unlink (metadata);
+
+    g_free (metadata);
+    g_object_unref (file);
 }
 
 

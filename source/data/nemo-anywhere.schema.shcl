@@ -797,6 +797,11 @@ field: sidebar-panels.tree.show-only-directories
 	default: true
 	desc: Only show folders in the tree side pane
 
+field: state.first-run-done
+	type: bool
+	default: false
+	desc: Set once first-run setup has run. Clear it to get the platform's default bookmarks back on the next start.
+
 field: thumbnailers.disable
 	type: string-array
 	desc: Disable external thumbnailers for these mime types

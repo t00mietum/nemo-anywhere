@@ -28,6 +28,7 @@
 #include "nemo-main-application.h"
 
 #if ENABLE_EMPTY_VIEW
+#include "nemo-bookmark-list.h"
 #include "nemo-empty-view.h"
 #endif /* ENABLE_EMPTY_VIEW */
 
@@ -817,6 +818,7 @@ nemo_main_application_local_command_line (GApplication *application,
 	gboolean no_default_window = FALSE;
     gboolean no_desktop_ignored = FALSE;
 	gboolean fix_cache = FALSE;
+	gboolean reset_config = FALSE;
     gboolean debug = FALSE;
 	gchar **remaining = NULL;
     GApplicationFlags init_flags;
@@ -847,6 +849,8 @@ nemo_main_application_local_command_line (GApplication *application,
 		  N_("Open URIs in an existing window."), NULL },
 		{ "fix-cache", '\0', 0, G_OPTION_ARG_NONE, &fix_cache,
 		  N_("Repair the user thumbnail cache - this can be useful if you're having trouble with file thumbnails.  Must be run as root"), NULL },
+		{ "reset", '\0', 0, G_OPTION_ARG_NONE, &reset_config,
+		  N_("Clear the settings and bookmarks, putting everything back to defaults. Nemo must not be running."), NULL },
         { "debug", 0, 0, G_OPTION_ARG_NONE, &debug,
           "Enable debugging code.  Example usage: 'NEMO_DEBUG=Actions,Window nemo --debug'.  Use NEMO_DEBUG=help for more topics.", NULL },
 		{ "quit", 'q', 0, G_OPTION_ARG_NONE, &kill_shell, 
@@ -962,6 +966,31 @@ nemo_main_application_local_command_line (GApplication *application,
     }
 
 post_registration:
+
+	/* After registration, so a running copy is caught: it holds the settings in
+	 * memory and would write them straight back over anything cleared here. */
+	if (reset_config) {
+		if (g_application_get_is_remote (application)) {
+			g_printerr ("Nemo is already running - quit it first, then --reset.\n");
+			*exit_status = EXIT_FAILURE;
+		} else {
+			char *settings;
+
+			/* Clear the live store first so the flush leaves nothing queued,
+			 * then take the file itself - anything hand-written that nemo does
+			 * not recognise is part of "back to defaults" too. */
+			nemo_config_reset_all ();
+			nemo_config_flush ();
+
+			settings = nemo_config_get_path ();
+			g_unlink (settings);
+			g_free (settings);
+
+			nemo_bookmark_list_reset_files ();
+			g_print ("Settings and bookmarks cleared.\n");
+		}
+		goto out;
+	}
 
 	if (kill_shell) {
 		DEBUG ("Killing application, as requested");

@@ -1192,6 +1192,106 @@ nemo_config_reset (NemoConfigGroup *group, const char *key)
 	emit_changed (k->group, k->key);
 }
 
+/* How the key stands in the file. Only stored keys are worth touching - a
+ * default was never written, so resetting one would emit a change nobody made. */
+static int
+key_status (const NemoConfigKey *k)
+{
+	char          *path = key_path (k);
+	shcl_read_str  r;
+
+	g_mutex_lock (&config_lock);
+	r = shcl_read_string (config_doc, path, strlen (path));
+	g_mutex_unlock (&config_lock);
+	g_free (path);
+
+	return r.status;
+}
+
+static gboolean
+key_is_stored (const NemoConfigKey *k)
+{
+	return key_status (k) != SHCL_NOT_FOUND;
+}
+
+void
+nemo_config_reset_all (void)
+{
+	const NemoConfigKey *k;
+
+	g_return_if_fail (config_ready);
+
+	for (k = nemo_config_keys; k->key != NULL; k++) {
+		if (key_is_stored (k))
+			nemo_config_reset (nemo_config_get_group (k->group), k->key);
+	}
+}
+
+#ifdef G_OS_WIN32
+/* A leading slash that is not a UNC share. Nothing a Windows install writes
+ * starts that way, so it can only be a path from a POSIX machine. */
+static gboolean
+is_posix_absolute (const char *value)
+{
+	return value != NULL && value[0] == '/' && value[1] != '/';
+}
+#endif
+
+void
+nemo_config_drop_foreign_paths (void)
+{
+#ifdef G_OS_WIN32
+	const NemoConfigKey *k;
+
+	g_return_if_fail (config_ready);
+
+	for (k = nemo_config_keys; k->key != NULL; k++) {
+		NemoConfigGroup *group;
+		int              status = key_status (k);
+
+		if (k->type != NEMO_CONFIG_STRING && k->type != NEMO_CONFIG_STRING_LIST)
+			continue;
+		/* A key the reader cannot make sense of - written twice, say - falls
+		 * back to the default on a read, and writing that back would replace a
+		 * line the user can still fix by hand with one they never typed. */
+		if (status != SHCL_GOOD && status != SHCL_EMPTY)
+			continue;
+
+		group = nemo_config_get_group (k->group);
+
+		if (k->type == NEMO_CONFIG_STRING) {
+			char *value = nemo_config_get_string (group, k->key);
+
+			if (is_posix_absolute (value))
+				nemo_config_reset (group, k->key);
+			g_free (value);
+		} else {
+			char **values = nemo_config_get_strv (group, k->key);
+			GPtrArray *kept = g_ptr_array_new ();
+			guint i;
+
+			for (i = 0; values[i] != NULL; i++) {
+				if (!is_posix_absolute (values[i]))
+					g_ptr_array_add (kept, values[i]);
+			}
+
+			if (kept->len != g_strv_length (values)) {
+				if (kept->len == 0) {
+					nemo_config_reset (group, k->key);
+				} else {
+					g_ptr_array_add (kept, NULL);
+					nemo_config_set_strv (group, k->key,
+					                      (const char *const *) kept->pdata);
+				}
+			}
+
+			g_ptr_array_free (kept, TRUE);
+			g_strfreev (values);
+		}
+	}
+#endif
+}
+
 char **
 nemo_config_list_keys (NemoConfigGroup *group)
 {
