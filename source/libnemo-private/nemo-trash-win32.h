@@ -30,8 +30,13 @@
 #ifndef NEMO_TRASH_WIN32_H
 #define NEMO_TRASH_WIN32_H
 
-#include <glib.h>
+#include <gio/gio.h>
 
 void nemo_trash_win32_register (void);
+
+#ifdef G_OS_WIN32
+/* Move one file to the Recycle Bin with the shell's own prompts off. */
+gboolean nemo_trash_win32_recycle (GFile *file, GError **error);
+#endif
 
 #endif /* NEMO_TRASH_WIN32_H */

@@ -1457,6 +1457,69 @@ trash_vfs_lookup (GVfs *vfs, const char *identifier, gpointer user_data)
 	return NULL;
 }
 
+/* GLib's g_file_trash leaves the shell's confirmation on, so Windows asked
+   again for every file - and asked from behind nemo's progress window, which
+   made a delete look wedged. NOCONFIRMATION on its own would also silently
+   destroy anything the bin cannot hold, so the nuke warning is asked back. */
+gboolean
+nemo_trash_win32_recycle (GFile *file, GError **error)
+{
+	SHFILEOPSTRUCTW op;
+	char *path;
+	wchar_t *wide;
+	glong len;
+	int res;
+	gboolean aborted;
+
+	path = g_file_get_path (file);
+	if (path == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("Only a file on this computer can go to the Recycle Bin."));
+		return FALSE;
+	}
+
+	/* glong, and no cast: g_utf8_to_utf16 writes a 32-bit long here. */
+	wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, &len, NULL);
+	if (wide == NULL) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_FILENAME,
+			     _("\"%s\" is not a name Windows can use."), path);
+		g_free (path);
+		return FALSE;
+	}
+	g_free (path);
+
+	/* pFrom is a double-NUL terminated list, so it needs one NUL past the string. */
+	wide = g_renew (wchar_t, wide, len + 2);
+	wide[len] = L'\0';
+	wide[len + 1] = L'\0';
+
+	memset (&op, 0, sizeof (op));
+	op.wFunc = FO_DELETE;
+	op.pFrom = wide;
+	op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING |
+		    FOF_NOERRORUI | FOF_SILENT;
+
+	res = SHFileOperationW (&op);
+	aborted = op.fAnyOperationsAborted;
+	g_free (wide);
+
+	if (res != 0) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+			     _("The Recycle Bin refused it (error %d)."), res);
+		return FALSE;
+	}
+
+	if (aborted) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+				     _("Cancelled."));
+		return FALSE;
+	}
+
+	trash_monitor_emit_changed ();
+
+	return TRUE;
+}
+
 void
 nemo_trash_win32_register (void)
 {

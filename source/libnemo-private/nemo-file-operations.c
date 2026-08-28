@@ -70,6 +70,7 @@
 #include "nemo-file-undo-manager.h"
 #include "nemo-job-queue.h"
 #include "nemo-shortcut-win32.h"
+#include "nemo-trash-win32.h"
 
 /* TODO: TESTING!!! */
 
@@ -2056,6 +2057,19 @@ report_trash_progress (CommonJob *job,
 }
 
 
+/* Not g_file_trash on Windows: it leaves the shell's own confirmation on, so
+   the delete was asked about twice, the second time from behind the progress
+   window. */
+static gboolean
+trash_one_file (GFile *file, GCancellable *cancellable, GError **error)
+{
+#ifdef G_OS_WIN32
+	return nemo_trash_win32_recycle (file, error);
+#else
+	return g_file_trash (file, cancellable, error);
+#endif
+}
+
 static void
 trash_files (CommonJob *job, GList *files, guint *files_skipped)
 {
@@ -2084,7 +2098,7 @@ trash_files (CommonJob *job, GList *files, guint *files_skipped)
 
 		error = NULL;
 
-		if (!g_file_trash (file, job->cancellable, &error)) {
+		if (!trash_one_file (file, job->cancellable, &error)) {
 			if (job->skip_all_error) {
 				(*files_skipped)++;
 				goto skip;

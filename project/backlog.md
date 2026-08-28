@@ -41,6 +41,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - Search doesn't fully work.
 
+- 🔘 The first folder listed after launch takes a very long time when the start location is full of links.
+	- Opened: 20260827-183930
+	- Seen launching straight into a folder of shortcuts and junctions. Folders opened after that are normal, so it is the first listing that pays.
+	- Wants a measurement before a fix - what is actually slow is not yet known.
+
+- ✅ Deleting to the trash puts the progress popup on top of the confirmation prompt.
+	- Opened: 20260827-183930
+	- Closed: 20260827-191128
+	- The yes/no dialog is behind it, so the delete reads as stuck until the popup is dragged out of the way.
+	- The prompt was the Windows shell's, not ours: GLib's trash call leaves the shell confirmation switched on, so every file was asked about twice and the second dialog was not one we could place.
+	- A delete now goes to the Recycle Bin through the shell directly with the confirmations off, so our own prompt is the only one and nothing covers it. Watched end to end on Windows.
+	- The trash test drops its private copy of the same code and calls the shipped one, and its timeout goes to ten minutes - a full recycle bin can take four and a half.
+
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
 	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
@@ -105,6 +118,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
 
 ### Features and enhancements
+
+- 🔘 Move the Ext column between Size and Type in the default order.
+	- Opened: 20260827-183930
+	- It sits between Name and Size today. It stays on by default either way.
+
+- 🔘 Name and Location split the search row evenly.
+	- Opened: 20260827-183930
+	- The default is a third to Name and the rest to Location. Even is wanted instead.
+	- A split dragged by hand still stands from then on.
+
+- 🔘 Location is off by default outside search.
+	- Opened: 20260827-183930
+	- It belongs in the search results list and nowhere else, unless it is turned on by hand.
+
+- 🔘 A preference for which terminal "Open in Terminal" runs.
+	- Opened: 20260827-183930
+	- One field holding the command line. Anything the program needs beyond its own name is typed in by hand.
+	- Left empty it means the platform default, which is what happens now: the desktop's own choice on Linux, the first of the known shells found on PATH on Windows.
+
+- 🔘 Make link is on by default, and Windows tells a shortcut from a symlink.
+	- Opened: 20260827-183930
+	- The menu item ships turned off today.
+	- Renamed "Make symlink" on every platform, since a symlink is what it makes.
+	- Windows gains a second item, "Make shortcut", for what the existing one does there. Both on by default.
+	- Windows only lets a program create a symlink with Developer Mode on or when running elevated, so the item is greyed out when neither holds.
 
 - ✅ Update the vendored SHCL to the current release.
 	- Opened: 20260826-103001
