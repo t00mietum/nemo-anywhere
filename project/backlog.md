@@ -226,7 +226,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: Fetch it from the source.
 	- Moved from 1.2.0 to 2.0.0. Nothing in the settings layer had to change: none of the calls made here changed shape, and neither of the two breaking changes is reachable from plain key names.
 	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
-	- Its new file tier is deliberately compiled out. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save. Revisit if the codepage item below is taken.
+	- Its new file tier was deliberately compiled out at first. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save.
+	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind - watched happening, and watched surviving afterwards.
+	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it is worth keeping; the reader also hands back the exact bytes the "was this our own write" check compares against.
+	- The trap: the library names its temp file by splitting the path on a forward slash and nothing else, so a Windows path spelled with backslashes puts the temp somewhere impossible and every save fails. The path is handed over spelled with slashes. The existing config checks caught this immediately.
 
 - ✅ Ask for UTF-8 as the process codepage in the Windows manifest.
 	- Opened: 20260827-075015
@@ -235,7 +238,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
 	- Looked. Nothing of ours narrows: every Windows call in the tree is the wide form, and the only conversions are explicit UTF-8 ones. What the change reaches is the libraries underneath and the C runtime, which is the point of it.
 	- In: the code page reads 65001 with the manifest and 1252 without. The app was run with its config under a folder named in German and Japanese, and read, wrote and live-reloaded it. Suite unchanged.
-	- Follow-on, not taken here: the config engine could now use its library's own writer, which keeps a file's permissions, attributes and alternate streams across a save where ours does not. Small gain against a change on the path every setting is saved through, so it was left alone.
+	- Follow-on, taken: the config engine now saves through its library's own writer. See the SHCL item above.
 
 - ✅ The whole `desktop` group of settings is dead weight.
 	- Opened: 20260827-075015
