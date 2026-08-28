@@ -119,12 +119,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
 	- It found thirteen real mismatches on its first run: eight settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
 
-- 🛠️ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
+- ✅ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
 	- Opened: 20260818-155550
+	- Closed: 20260828-134500
 	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
 	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
 	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
-	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app. Written but not yet exercised on Windows.
+	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app.
+	- Exercised on Windows against a scratch install, and it turned up three real faults, all fixed:
+		- An in-place upgrade died outright. The in-use check hands back an empty list as nothing at all, and asking that for a count is an error, so every upgrade over an existing folder failed before it started. Only a first install had ever been run.
+		- The check compared two spellings of the same folder and so found nothing. It long-forms the folder it was given but takes a running program's path as reported, and those two do not have to agree.
+		- If the swap failed anyway, for a reason no process scan can see, the failure came out as a raw runtime error. It now says which folder is stuck and what to do.
+	- The round trip is now clean: install, run, close, upgrade over it, uninstall. The PATH comes back byte for byte and nothing is left behind.
 
 - ✅ The installer leaves the user PATH very slightly different from how it found it.
 	- Opened: 20260818-155550
