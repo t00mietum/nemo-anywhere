@@ -77,7 +77,7 @@ main (int argc, char *argv[])
 	test_expansion (tmpdir);
 
 	real_file = g_build_filename (tmpdir, "plain.txt", NULL);
-	g_file_set_contents (real_file, "x", -1, NULL);
+	g_assert (g_file_set_contents (real_file, "x", -1, NULL));
 
 	/* backslash-separated form of an existing path resolves to it */
 	typed = g_strdelimit (g_strdup (real_file), "/", '\\');
@@ -110,7 +110,7 @@ main (int argc, char *argv[])
 	/* a file literally named with a backslash keeps working on POSIX */
 	{
 		char *bs_file = g_build_filename (tmpdir, "a\\b.txt", NULL);
-		g_file_set_contents (bs_file, "y", -1, NULL);
+		g_assert (g_file_set_contents (bs_file, "y", -1, NULL));
 
 		location = eel_g_file_new_for_user_input (bs_file);
 		resolved = g_file_get_path (location);

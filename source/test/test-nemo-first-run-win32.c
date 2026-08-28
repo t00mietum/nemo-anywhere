@@ -53,7 +53,7 @@ write_bookmarks (const char *text)
 	char *dir = g_path_get_dirname (path);
 
 	g_mkdir_with_parents (dir, 0700);
-	g_file_set_contents (path, text, -1, NULL);
+	g_assert (g_file_set_contents (path, text, -1, NULL));
 
 	g_free (dir);
 	g_free (path);
