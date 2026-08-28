@@ -337,6 +337,10 @@ nemo_search_engine_advanced_create_filename_regex (NemoQuery  *query,
     }
 
     text = nemo_query_get_file_pattern (query);
+    if (text == NULL) {
+        text = g_strdup ("");
+    }
+
     normalized = g_utf8_normalize (text, -1, G_NORMALIZE_NFD);
 
     flags = G_REGEX_OPTIMIZE;
@@ -448,7 +452,13 @@ search_thread_data_new (NemoSearchEngineAdvanced *engine,
         gchar *text, *normalized, *cased;
         gchar **words;
 
+        /* A content-only search leaves the file pattern unset, and everything below
+         * walks off a NULL. Empty means "every name", which the fallback below spells. */
         text = nemo_query_get_file_pattern (query);
+        if (text == NULL) {
+            text = g_strdup ("");
+        }
+
         normalized = g_utf8_normalize (text, -1, G_NORMALIZE_NFD);
 
         if (!data->file_case_sensitive) {
@@ -967,6 +977,59 @@ should_skip_child (SearchThreadData *data, GFileInfo *info, GFile *file, gboolea
     return TRUE;
 }
 
+/* Win32 calls the extension the content type (".txt"), and an extension it does not
+ * know maps to application/x-ext-<ext>, so the plain is_a() check answers no for every
+ * file. Convert first, and when the answer is still nothing useful, read the head of the
+ * file and let GIO decide from the bytes. */
+static gboolean
+content_type_is_text (const gchar  *content_type,
+                      GFile        *file,
+                      GCancellable *cancellable)
+{
+#ifdef G_OS_WIN32
+    gchar buf[4096];
+    gsize len = 0;
+    GFileInputStream *stream;
+    gboolean is_text = FALSE;
+
+    g_autofree gchar *mime = content_type != NULL ? g_content_type_get_mime_type (content_type) : NULL;
+
+    if (mime != NULL) {
+        if (g_content_type_is_a (mime, "text/plain")) {
+            return TRUE;
+        }
+
+        /* A type we do know, and it is not text. */
+        if (!g_str_has_prefix (mime, "application/x-ext-") &&
+            g_strcmp0 (mime, "application/octet-stream") != 0) {
+            return FALSE;
+        }
+    }
+
+    stream = g_file_read (file, cancellable, NULL);
+
+    if (stream == NULL) {
+        return FALSE;
+    }
+
+    if (g_input_stream_read_all (G_INPUT_STREAM (stream), buf, sizeof (buf), &len, cancellable, NULL) && len > 0) {
+        g_autofree gchar *guessed = g_content_type_guess (NULL, (const guchar *) buf, len, NULL);
+        g_autofree gchar *guessed_mime = guessed != NULL ? g_content_type_get_mime_type (guessed) : NULL;
+
+        is_text = guessed_mime != NULL && g_content_type_is_a (guessed_mime, "text/plain");
+    }
+
+    g_object_unref (stream);
+
+    return is_text;
+#else
+    (void) file;
+    (void) cancellable;
+
+    return g_content_type_is_a (content_type, "text/plain");
+#endif
+}
+
 typedef struct
 {
     GList *helpers;
@@ -1127,7 +1190,7 @@ visit_directory (GFile *dir, SearchThreadData *data)
                         g_message ("Evaluating '%s'", g_file_peek_path (child));
                     }
 
-                    if (g_content_type_is_a (content_type, "text/plain")) {
+                    if (content_type_is_text (content_type, child, data->cancellable)) {
                         search_for_content_hits (data, child, NULL);
                     } else {
                         GList *helpers = lookup_helpers_for_content_type (content_type);

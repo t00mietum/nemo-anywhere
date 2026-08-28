@@ -57,5 +57,7 @@ void                  eel_gtk_message_dialog_set_details_label        (GtkMessag
 gulong                eel_gtk_get_window_xid                          (GtkWindow *window);
 gboolean              eel_gtk_get_treeview_pointer_location           (GtkTreeView *treeview,
                                                                        gint *x, gint *y);
+gboolean              eel_gtk_get_treeview_row_text_at_pos           (GtkTreeView *tree_view,
+                                                                       gint x, gint y);
 gboolean              eel_gtk_get_treeview_row_text_is_under_pointer  (GtkTreeView *tree_view);
 #endif /* EEL_GTK_EXTENSIONS_H */

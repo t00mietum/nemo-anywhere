@@ -39,10 +39,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Search doesn't fully work.
-
-- 🔘 Trying to drag 'C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\project\backlog.md' to another application - even before the file was dragged off nemo-anywhere - crashed the application.
-
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
 	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
@@ -61,146 +57,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
 
-- 🛠️ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
-	- Opened: 20260802-095853
-	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
-
 ### Features and enhancements
+
+- 🔘 Windows: content search cannot read documents, because the search helpers are not packaged there.
+	- Opened: 20260828-160000
+	- On Linux a helper turns a document into text so "Containing:" can search it. The Windows layout carries the executable and the toolkit and nothing else.
+	- Two of the helpers are ours and would build for Windows; the rest are shell scripts and would need rewriting.
+	- Also needs checking: whether a helper is still found when its name has to gain a `.exe`.
 
 - 🔘 Bookmarks are kept in the toolkit's own file, not ours.
 	- Opened: 20260828
 	- They live in a `gtk-3.0` folder beside the config, which on Windows is the local profile while our settings are in the roaming one. So a roaming profile carries the settings and leaves the bookmarks behind.
 	- Sharing that file with other toolkit programs is the reason it is there, which is worth something on Linux and nothing on Windows.
 	- Moving it needs a one-time copy across, the same way the config folder already moves itself.
-
-- ✅ Windows: an option to leave the `.lnk` off a shortcut's name.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- The shell never shows it, so nor do we unless the new switch on the Display page is turned on. Off by default.
-	- Only the name shown loses the extension. The Ext column still says `lnk`, and a rename typed as the shown name puts the extension back, the same way a renamed `.desktop` file keeps its own - without that a rename would quietly turn the shortcut into an ordinary file.
-
-- ✅ Let the Type column take the width it needs when there is room for it.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- It was held to twice the width of the Ext column, so it read "Folde" and "Link t" in a window with plenty of room to spare.
-	- That ceiling is gone. Type still gives its width back first when the window is too narrow, and still stops at a share of Name so one long value cannot take the row.
-
-- ✅ The preferences dialog opens too short for the Display page, and does not follow a fractional display scale.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- It sized itself to the Views page alone, so every longer page opened behind a scrollbar. Measured: Views 690, Display 832, Behavior 1045, against an opening height of 700.
-	- It now measures every page and takes the longest, and the width the widest page needs, both still capped at nine tenths of the screen.
-	- The minimum size it will not go below is written in pixels for a 96dpi screen, so at 150% it quietly meant two thirds of what it said. It is scaled by the same font size Windows hands the toolkit.
-	- A check now compares the page list the sizing walks against the pages the dialog actually holds. It found one missing on its first run - Document templates, whose page had no name at all.
-
-- ✅ The two command fields on the Behavior page crowd their labels and run past the section.
-	- Opened: 20260828-083458
-	- Closed: 20260828-090000
-	- Four pixels between the label and the field, and the field itself pushed past the right-hand margin every other section keeps.
-	- Twelve pixels now, the field stops where the rest of the page does, and the two fields start at the same place as each other.
-
-- ✅ Move the Ext column between Size and Type in the default order.
-	- Opened: 20260827-183930
-	- Closed: 20260827-194220
-	- It sat between Name and Size. It stays on by default either way.
-	- Both platform defaults moved, and the schema with them.
-
-- ✅ Name and Location split the search row evenly.
-	- Opened: 20260827-183930
-	- Closed: 20260827-194220
-	- The default was a third to Name and the rest to Location.
-	- A split dragged by hand still stands from then on.
-
-- ✅ Location is off by default outside search.
-	- Opened: 20260827-183930
-	- Closed: 20260827-194220
-	- It belongs in the search results list and nowhere else, unless it is turned on by hand.
-	- Already the case: it is in the default column order but not the default visible list, and a run against a clean config confirmed it does not appear. Wherever it was seen, it had been turned on for that folder and remembered.
-
-- ✅ A preference for which terminal "Open in Terminal" runs.
-	- Opened: 20260827-183930
-	- Closed: 20260827-194220
-	- One field on the Behavior page, holding the command line. Anything the program needs beyond its own name is typed in by hand.
-	- Left empty it means the platform default, which is what happened before: the desktop's own choice on Linux, the first of the known shells found on PATH on Windows. Filled in, it wins over both.
-	- Splitting one field into a program and its arguments has three rules, in order: a quoted first word, then a string that names a program on its own (so an unquoted path with spaces still works), then the first space. Tested.
-	- Watched working on Windows: a terminal named with an argument was launched exactly as written.
-
-- ✅ Make link is on by default, and Windows tells a shortcut from a symlink.
-	- Opened: 20260827-183930
-	- Closed: 20260827-195422
-	- The menu item shipped turned off.
-	- Renamed "Make symlink" on every platform, since a symlink is what it makes.
-	- Windows gained a second item, "Make shortcut", for the .lnk the shell understands. Both are on by default and share one switch in Context menus - two toggles for nearly the same thing would only be confusing.
-	- Windows allows a symlink only with Developer Mode on or when running elevated, so the item goes grey when neither holds. The check is made once by making a throwaway symlink and deleting it, which is a plainer answer than reading a token and a registry key.
-	- A drag with the link modifier still makes a shortcut on Windows, which is what Explorer does.
-	- Both watched working on Windows against a real folder. Not seen: the greyed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
-
-- ✅ Update the vendored SHCL to the current release.
-	- Opened: 20260826-103001
-	- Closed: 20260827-075015
-	- It manages its own file creation and updating now, which is one of the rough edges hit here.
-	- Note: Fetch it from the source.
-	- Moved from 1.2.0 to 2.0.0. Nothing in the settings layer had to change: none of the calls made here changed shape, and neither of the two breaking changes is reachable from plain key names.
-	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
-	- Its new file tier was deliberately compiled out at first. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save.
-	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind - watched happening, and watched surviving afterwards.
-	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it is worth keeping; the reader also hands back the exact bytes the "was this our own write" check compares against.
-	- The trap: the library names its temp file by splitting the path on a forward slash and nothing else, so a Windows path spelled with backslashes puts the temp somewhere impossible and every save fails. The path is handed over spelled with slashes. The existing config checks caught this immediately.
-
-- ✅ Ask for UTF-8 as the process codepage in the Windows manifest.
-	- Opened: 20260827-075015
-	- Closed: 20260828-142000
-	- Windows 10 1903 and later read `activeCodePage` and make every narrow call UTF-8. Without it a narrow call anywhere in the process is at the mercy of whatever codepage the machine is set to, which is how a non-ASCII user name breaks things that otherwise look fine.
-	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
-	- Looked. Nothing of ours narrows: every Windows call in the tree is the wide form, and the only conversions are explicit UTF-8 ones. What the change reaches is the libraries underneath and the C runtime, which is the point of it.
-	- In: the code page reads 65001 with the manifest and 1252 without. The app was run with its config under a folder named in German and Japanese, and read, wrote and live-reloaded it. Suite unchanged.
-	- Follow-on, taken: the config engine now saves through its library's own writer. See the SHCL item above.
-
-- ✅ The whole `desktop` group of settings is dead weight.
-	- Opened: 20260827-075015
-	- Closed: 20260827-081500
-	- Fifteen keys left behind when the desktop shell came out. They still ship in the schema and still appear in a generated starter config, so a user can set them and nothing happens.
-	- Two of the fifteen are not clearly dead on a quick look - one leaf name is shared with a live setting in another group - so this wants checking key by key rather than deleting the group.
-	- Checked key by key. Twelve had no reader anywhere and are gone from the table, the schema and the preference names. Three still have live readers and stay: the deprecated manage-the-desktop switch, the grid switch, and the desktop text ellipsis limit, which shares its leaf name with the icon view's own.
-
-- ✅ Windows: open a `.lnk` the way Explorer does, by what it points at.
-	- Opened: 20260826-103001
-	- Closed: 20260827-090000
-	- A shortcut to a file opens in the file's associated program.
-	- A shortcut to a program runs it.
-	- A shortcut to a folder goes to that path in the current tab.
-	- Use an appropriate icon.
-	- Note: following a shortcut through to its target already works. What is missing is treating each kind of target differently.
-	- A shortcut to a folder still opens in the current tab, which is the one case worth doing differently from the shell. Everything else is now handed to the shell as the shortcut, not as its target.
-	- That is what fixes the program case. A shortcut carries a command line, a working directory and a window state, and none of them survive being reduced to a target path - a shortcut to a shell with arguments used to open a bare shell. Shortcuts to virtual items (Recycle Bin, a control panel page) now open too, having no path to reduce to in the first place.
-	- Proven that a launched shortcut's arguments and working directory both arrive.
-	- Icon split off below - it is a bigger piece than the rest of this and applies to more than shortcuts.
-
-- 🔘 Windows: show the icon the shell would show.
-	- Opened: 20260827-090000
-	- Split out of the shortcut item above. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
-	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
-
-- ✅ Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
-	- Opened: 20260826-103001
-	- Closed: 20260827-100000
-	- The build number is the minutes elapsed since the start of 2000, Crockford base32 encoded, lower case.
-	- General format: "<program name> v<version> build <build>" [copyright ...]
-	- Five characters at the moment. It comes off the same commit date the reproducible builds already use, so two builds of one commit agree; a build outside the release lanes falls back to the clock.
-	- `--about` is new, and prints the version line, the copyright, the project home and the license. Help > About gained the copyright and a link to the project, which it had never shown.
-	- Checked on both platforms: the two command line outputs, the About dialog, and the splash.
-
-- ✅ Ctrl+H toggles dot-files and Windows hidden files together.
-	- Opened: 20260826-103001
-	- Closed: 20260827-110000
-	- If the two are out of step, take the Windows hidden setting as the current value and match the other to it.
-	- Ctrl+Shift+H stays as it is, Windows only.
-	- Both the setting and the dot-file menu item move with it now. The item had to be ticked directly - neither of the two toggles watches for a change made anywhere else, they are only read when the menus are built, which is a wider gap worth closing on its own some time.
-	- Nothing changes off Windows, where one switch already covered both.
-
-- ✅ Ctrl+, opens Preferences.
-	- Opened: 20260826-103001
-	- Closed: 20260827-110000
 
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
@@ -256,6 +125,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
 	- Opened: 20260730-112038
 	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
+
+- Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
 
 - ✅ Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
 	- Opened: 20260823-142431
@@ -335,6 +206,28 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
+	- Opened: 20260802-095853
+	- Closed: 20260828-164500
+	- Fixed by the path-button menu work: the menu now opens inside the press itself rather than after an attribute load that could finish late.
+	- Confirmed by hand on Windows - eight right-clicks in a row, the menu up and staying up every time.
+
+- ✅ Dragging a file towards another application crashed the app, before it had even left the window.
+	- Opened: 20260828
+	- Closed: 20260828-163000
+	- Nothing to do with the other application. Any drag that passed over the empty space below the last row did it, which a drag out of the window does on its way.
+	- The toolkit is asked which row sits under the pointer. Past the last row it answers "none" without filling in the row it was handed, and that leftover value was then read and released.
+	- A new check asks the same question at a position below the rows, and was watched failing without the fix.
+
+- ✅ Search doesn't fully work.
+	- Opened: 20260826-103001
+	- Closed: 20260828-160000
+	- Three faults, all on Windows. Searching by name already worked, and still does - substring, wildcards, a regex, and the switch that keeps the search out of subfolders.
+	- "Containing:" found nothing at all, ever. Windows calls the extension the file's type, so the test for "is this text" answered no for every file. It converts first now, and where the extension means nothing to Windows it decides from the first few kilobytes instead. A file with no extension is searched, and a binary one is left alone.
+	- Pressing Enter straight after typing did nothing, and left the box outlined in red. The check that decides whether a search may run at all is on a short delay, and Enter threw it away rather than waiting for it.
+	- A search with only a "Containing:" pattern and no name crashed outright. Nothing typed in the name box means every name, which is what it now says.
+	- Left open, as its own item: nothing that needs a helper program (documents, spreadsheets, PDFs) can be searched on Windows, because none of the helpers are packaged there.
 
 - ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Opened: 20260821-144459
@@ -1110,6 +1003,135 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Windows: an option to leave the `.lnk` off a shortcut's name.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- The shell never shows it, so nor do we unless the new switch on the Display page is turned on. Off by default.
+	- Only the name shown loses the extension. The Ext column still says `lnk`, and a rename typed as the shown name puts the extension back, the same way a renamed `.desktop` file keeps its own - without that a rename would quietly turn the shortcut into an ordinary file.
+
+- ✅ Let the Type column take the width it needs when there is room for it.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- It was held to twice the width of the Ext column, so it read "Folde" and "Link t" in a window with plenty of room to spare.
+	- That ceiling is gone. Type still gives its width back first when the window is too narrow, and still stops at a share of Name so one long value cannot take the row.
+
+- ✅ The preferences dialog opens too short for the Display page, and does not follow a fractional display scale.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- It sized itself to the Views page alone, so every longer page opened behind a scrollbar. Measured: Views 690, Display 832, Behavior 1045, against an opening height of 700.
+	- It now measures every page and takes the longest, and the width the widest page needs, both still capped at nine tenths of the screen.
+	- The minimum size it will not go below is written in pixels for a 96dpi screen, so at 150% it quietly meant two thirds of what it said. It is scaled by the same font size Windows hands the toolkit.
+	- A check now compares the page list the sizing walks against the pages the dialog actually holds. It found one missing on its first run - Document templates, whose page had no name at all.
+
+- ✅ The two command fields on the Behavior page crowd their labels and run past the section.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- Four pixels between the label and the field, and the field itself pushed past the right-hand margin every other section keeps.
+	- Twelve pixels now, the field stops where the rest of the page does, and the two fields start at the same place as each other.
+
+- ✅ Move the Ext column between Size and Type in the default order.
+	- Opened: 20260827-183930
+	- Closed: 20260827-194220
+	- It sat between Name and Size. It stays on by default either way.
+	- Both platform defaults moved, and the schema with them.
+
+- ✅ Name and Location split the search row evenly.
+	- Opened: 20260827-183930
+	- Closed: 20260827-194220
+	- The default was a third to Name and the rest to Location.
+	- A split dragged by hand still stands from then on.
+
+- ✅ Location is off by default outside search.
+	- Opened: 20260827-183930
+	- Closed: 20260827-194220
+	- It belongs in the search results list and nowhere else, unless it is turned on by hand.
+	- Already the case: it is in the default column order but not the default visible list, and a run against a clean config confirmed it does not appear. Wherever it was seen, it had been turned on for that folder and remembered.
+
+- ✅ A preference for which terminal "Open in Terminal" runs.
+	- Opened: 20260827-183930
+	- Closed: 20260827-194220
+	- One field on the Behavior page, holding the command line. Anything the program needs beyond its own name is typed in by hand.
+	- Left empty it means the platform default, which is what happened before: the desktop's own choice on Linux, the first of the known shells found on PATH on Windows. Filled in, it wins over both.
+	- Splitting one field into a program and its arguments has three rules, in order: a quoted first word, then a string that names a program on its own (so an unquoted path with spaces still works), then the first space. Tested.
+	- Watched working on Windows: a terminal named with an argument was launched exactly as written.
+
+- ✅ Make link is on by default, and Windows tells a shortcut from a symlink.
+	- Opened: 20260827-183930
+	- Closed: 20260827-195422
+	- The menu item shipped turned off.
+	- Renamed "Make symlink" on every platform, since a symlink is what it makes.
+	- Windows gained a second item, "Make shortcut", for the .lnk the shell understands. Both are on by default and share one switch in Context menus - two toggles for nearly the same thing would only be confusing.
+	- Windows allows a symlink only with Developer Mode on or when running elevated, so the item goes grey when neither holds. The check is made once by making a throwaway symlink and deleting it, which is a plainer answer than reading a token and a registry key.
+	- A drag with the link modifier still makes a shortcut on Windows, which is what Explorer does.
+	- Both watched working on Windows against a real folder. Not seen: the greyed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
+
+- ✅ Update the vendored SHCL to the current release.
+	- Opened: 20260826-103001
+	- Closed: 20260827-075015
+	- It manages its own file creation and updating now, which is one of the rough edges hit here.
+	- Note: Fetch it from the source.
+	- Moved from 1.2.0 to 2.0.0. Nothing in the settings layer had to change: none of the calls made here changed shape, and neither of the two breaking changes is reachable from plain key names.
+	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
+	- Its new file tier was deliberately compiled out at first. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save.
+	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind - watched happening, and watched surviving afterwards.
+	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it is worth keeping; the reader also hands back the exact bytes the "was this our own write" check compares against.
+	- The trap: the library names its temp file by splitting the path on a forward slash and nothing else, so a Windows path spelled with backslashes puts the temp somewhere impossible and every save fails. The path is handed over spelled with slashes. The existing config checks caught this immediately.
+
+- ✅ Ask for UTF-8 as the process codepage in the Windows manifest.
+	- Opened: 20260827-075015
+	- Closed: 20260828-142000
+	- Windows 10 1903 and later read `activeCodePage` and make every narrow call UTF-8. Without it a narrow call anywhere in the process is at the mercy of whatever codepage the machine is set to, which is how a non-ASCII user name breaks things that otherwise look fine.
+	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
+	- Looked. Nothing of ours narrows: every Windows call in the tree is the wide form, and the only conversions are explicit UTF-8 ones. What the change reaches is the libraries underneath and the C runtime, which is the point of it.
+	- In: the code page reads 65001 with the manifest and 1252 without. The app was run with its config under a folder named in German and Japanese, and read, wrote and live-reloaded it. Suite unchanged.
+	- Follow-on, taken: the config engine now saves through its library's own writer. See the SHCL item above.
+
+- ✅ The whole `desktop` group of settings is dead weight.
+	- Opened: 20260827-075015
+	- Closed: 20260827-081500
+	- Fifteen keys left behind when the desktop shell came out. They still ship in the schema and still appear in a generated starter config, so a user can set them and nothing happens.
+	- Two of the fifteen are not clearly dead on a quick look - one leaf name is shared with a live setting in another group - so this wants checking key by key rather than deleting the group.
+	- Checked key by key. Twelve had no reader anywhere and are gone from the table, the schema and the preference names. Three still have live readers and stay: the deprecated manage-the-desktop switch, the grid switch, and the desktop text ellipsis limit, which shares its leaf name with the icon view's own.
+
+- ✅ Windows: open a `.lnk` the way Explorer does, by what it points at.
+	- Opened: 20260826-103001
+	- Closed: 20260827-090000
+	- A shortcut to a file opens in the file's associated program.
+	- A shortcut to a program runs it.
+	- A shortcut to a folder goes to that path in the current tab.
+	- Use an appropriate icon.
+	- Note: following a shortcut through to its target already works. What is missing is treating each kind of target differently.
+	- A shortcut to a folder still opens in the current tab, which is the one case worth doing differently from the shell. Everything else is now handed to the shell as the shortcut, not as its target.
+	- That is what fixes the program case. A shortcut carries a command line, a working directory and a window state, and none of them survive being reduced to a target path - a shortcut to a shell with arguments used to open a bare shell. Shortcuts to virtual items (Recycle Bin, a control panel page) now open too, having no path to reduce to in the first place.
+	- Proven that a launched shortcut's arguments and working directory both arrive.
+	- Icon split off below - it is a bigger piece than the rest of this and applies to more than shortcuts.
+
+- 🔘 Windows: show the icon the shell would show.
+	- Opened: 20260827-090000
+	- Split out of the shortcut item above. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
+	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
+
+- ✅ Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
+	- Opened: 20260826-103001
+	- Closed: 20260827-100000
+	- The build number is the minutes elapsed since the start of 2000, Crockford base32 encoded, lower case.
+	- General format: "<program name> v<version> build <build>" [copyright ...]
+	- Five characters at the moment. It comes off the same commit date the reproducible builds already use, so two builds of one commit agree; a build outside the release lanes falls back to the clock.
+	- `--about` is new, and prints the version line, the copyright, the project home and the license. Help > About gained the copyright and a link to the project, which it had never shown.
+	- Checked on both platforms: the two command line outputs, the About dialog, and the splash.
+
+- ✅ Ctrl+H toggles dot-files and Windows hidden files together.
+	- Opened: 20260826-103001
+	- Closed: 20260827-110000
+	- If the two are out of step, take the Windows hidden setting as the current value and match the other to it.
+	- Ctrl+Shift+H stays as it is, Windows only.
+	- Both the setting and the dot-file menu item move with it now. The item had to be ticked directly - neither of the two toggles watches for a change made anywhere else, they are only read when the menus are built, which is a wider gap worth closing on its own some time.
+	- Nothing changes off Windows, where one switch already covered both.
+
+- ✅ Ctrl+, opens Preferences.
+	- Opened: 20260826-103001
+	- Closed: 20260827-110000
 
 - ✅ Build timestamps come from the commit being built, not the clock, so a release can be reproduced.
 	- Opened: n/a
