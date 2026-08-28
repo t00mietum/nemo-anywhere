@@ -41,6 +41,27 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - Search doesn't fully work.
 
+- ✅ The Win32 argument quoting check depends on what is installed on the machine.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- It split `wt.exe` and expected the name back unchanged, but a box with Windows Terminal installed resolves it to a full path, so the check went red there and nowhere else.
+	- It uses a name that cannot be on the path now. The case where a program is found is still covered, by the check below it that looks one up first.
+
+- ✅ The config schema check goes red on a fresh Windows checkout.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- Git checks the schema out with Windows line endings, and the check split it on newlines only, so every field name carried a stray carriage return and matched nothing. It then reported all 169 settings as missing from the schema.
+	- The config parser itself was never affected - it treats a carriage return as whitespace. Only the check's own reader did.
+
+- ✅ The first folder listed after launch is still slow when the start location is full of links.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- Same folder and same symptom as the item below, which fixed only the first of two causes. The listing itself now appears in about three seconds; what came after it took another sixty-four.
+	- Two things chased each link off the machine, one at a time, with the folder waiting: counting a folder's items, and asking what a share is mounted under. One link to a host that is not answering costs twenty to fifty seconds per question.
+	- The preference for item counts already says "local only" by default, but a share is native as far as the toolkit is concerned, so nothing ever held it back. Both questions are now skipped for anything on a share, or any link pointing at one.
+	- The mount question is skipped outright there: a share is not a mount on Windows, so the answer was never of use.
+	- Measured against a host that really was not answering: sixty-seven seconds before, three and a half after. The item count for such a folder now reads "--", which is what the preference has always meant.
+
 - ✅ The first folder listed after launch takes a very long time when the start location is full of links.
 	- Opened: 20260827-183930
 	- Closed: 20260827-193152
@@ -123,6 +144,32 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Believed fixed with the path-button menu work (menu now pops synchronously inside the press instead of async after an attribute load); awaiting hands-on confirm.
 
 ### Features and enhancements
+
+- ✅ Windows: an option to leave the `.lnk` off a shortcut's name.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- The shell never shows it, so nor do we unless the new switch on the Display page is turned on. Off by default.
+	- Only the name shown loses the extension. The Ext column still says `lnk`, and a rename typed as the shown name puts the extension back, the same way a renamed `.desktop` file keeps its own - without that a rename would quietly turn the shortcut into an ordinary file.
+
+- ✅ Let the Type column take the width it needs when there is room for it.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- It was held to twice the width of the Ext column, so it read "Folde" and "Link t" in a window with plenty of room to spare.
+	- That ceiling is gone. Type still gives its width back first when the window is too narrow, and still stops at a share of Name so one long value cannot take the row.
+
+- ✅ The preferences dialog opens too short for the Display page, and does not follow a fractional display scale.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- It sized itself to the Views page alone, so every longer page opened behind a scrollbar. Measured: Views 690, Display 832, Behavior 1045, against an opening height of 700.
+	- It now measures every page and takes the longest, and the width the widest page needs, both still capped at nine tenths of the screen.
+	- The minimum size it will not go below is written in pixels for a 96dpi screen, so at 150% it quietly meant two thirds of what it said. It is scaled by the same font size Windows hands the toolkit.
+	- A check now compares the page list the sizing walks against the pages the dialog actually holds. It found one missing on its first run - Document templates, whose page had no name at all.
+
+- ✅ The two command fields on the Behavior page crowd their labels and run past the section.
+	- Opened: 20260828-083458
+	- Closed: 20260828-090000
+	- Four pixels between the label and the field, and the field itself pushed past the right-hand margin every other section keeps.
+	- Twelve pixels now, the field stops where the rest of the page does, and the two fields start at the same place as each other.
 
 - ✅ Move the Ext column between Size and Type in the default order.
 	- Opened: 20260827-183930

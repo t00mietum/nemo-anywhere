@@ -1735,6 +1735,13 @@ lacks_thumbnail (NemoFile *file)
 static gboolean
 lacks_mount (NemoFile *file)
 {
+	/* Asking what a share is mounted under means going and asking the share,
+	   which is fifty seconds when the host is not answering - and the answer
+	   is of no use on Windows, where a share is not a mount. */
+	if (nemo_file_is_on_a_share (file)) {
+		return FALSE;
+	}
+
 	return (!file->details->mount_is_up_to_date &&
 		(
 		 /* Unix mountpoint, could be a GMount */

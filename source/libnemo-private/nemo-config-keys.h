@@ -206,6 +206,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "show-reload-icon-toolbar", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show refresh button in nemo toolbar" },
 	{ "preferences", "show-root-warning", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show warning when opening as root" },
 	{ "preferences", "show-search-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show Search button in nemo toolbar" },
+	{ "preferences", "show-shortcut-extension", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether a shortcut's .lnk extension is part of the name shown (Windows only)" },
 	{ "preferences", "show-show-thumbnails-toolbar", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show Thumbnails button in nemo toolbar" },
 	{ "preferences", "show-toggle-extra-pane-toolbar", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show Extra Pane button in nemo toolbar" },
 	{ "preferences", "show-up-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show Up button in nemo toolbar" },
