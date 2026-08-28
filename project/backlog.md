@@ -228,11 +228,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
 	- Its new file tier is deliberately compiled out. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save. Revisit if the codepage item below is taken.
 
-- 🔘 Ask for UTF-8 as the process codepage in the Windows manifest.
+- ✅ Ask for UTF-8 as the process codepage in the Windows manifest.
 	- Opened: 20260827-075015
+	- Closed: 20260828-142000
 	- Windows 10 1903 and later read `activeCodePage` and make every narrow call UTF-8. Without it a narrow call anywhere in the process is at the mercy of whatever codepage the machine is set to, which is how a non-ASCII user name breaks things that otherwise look fine.
-	- Would let the config engine use its library's own writer, which preserves a file's permissions, attributes and alternate streams across a save where the current one does not.
 	- Not free: it changes the codepage for everything in the process, not just our own calls, and it does nothing on the older versions the manifest still claims. Wants a look at what else narrows before it goes in.
+	- Looked. Nothing of ours narrows: every Windows call in the tree is the wide form, and the only conversions are explicit UTF-8 ones. What the change reaches is the libraries underneath and the C runtime, which is the point of it.
+	- In: the code page reads 65001 with the manifest and 1252 without. The app was run with its config under a folder named in German and Japanese, and read, wrote and live-reloaded it. Suite unchanged.
+	- Follow-on, not taken here: the config engine could now use its library's own writer, which keeps a file's permissions, attributes and alternate streams across a save where ours does not. Small gain against a change on the path every setting is saved through, so it was left alone.
 
 - ✅ The whole `desktop` group of settings is dead weight.
 	- Opened: 20260827-075015
