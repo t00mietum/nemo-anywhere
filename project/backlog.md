@@ -59,9 +59,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
-	- Opened: 20260826-103001
-
 - 🔘 Windows: show the icon the shell would show for .lnk files (without requiring Explorer to run).
 	- Opened: 20260827-090000
 	- Split out of the done item for opening a shortcut the way Explorer does. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
@@ -980,6 +977,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
+	- Opened: 20260826-103001
+	- Closed: 20260829-100000
+	- Added: Properties on a shortcut shows Target, Arguments, Start in and Comment below the name, each saved as it is edited. A file dropped on Target or Start in fills it in. A shortcut with no file target still opens for editing.
 
 - ✅ Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
 	- Opened: 20260730-203115
