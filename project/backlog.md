@@ -108,6 +108,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
 	- Opened: 20260829-071437
+	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
+	- Options for a separate desktop, each needing a decision:
+		- A Hyper-V virtual machine, driven from the host without any network or display of its own. The cleanest separation and the only one that can also record video. Needs the Hyper-V feature switched on and a Windows image for the guest.
+		- Windows Sandbox: a throwaway Windows started from a small config file, with a shared folder. Nothing drives it from outside except what a startup command inside it does, so the driving script would have to live in the shared folder and be polled. Needs the Sandbox feature switched on.
+		- A second Windows desktop in the same session (the way the secure desktop works). Windows can be photographed there but not driven, and switching to it takes the screen. Not enough on its own.
+	- Recommended: the virtual machine.
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
