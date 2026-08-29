@@ -59,13 +59,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Bookmarks are kept in the toolkit's own file, not ours.
-	- Opened: 20260828
-	- Only relevant on Windows.
-	- They live in a `gtk-3.0` folder beside the config, which on Windows is the local profile while our settings are in the roaming one. So a roaming profile carries the settings and leaves the bookmarks behind.
-	- Sharing that file with other toolkit programs is the reason it is there, which is worth something on Linux and nothing on Windows.
-	- Moving it needs a one-time copy across, the same way the config folder already moves itself.
-
 - 🔘 Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
 	- Opened: 20260730-203115
 	- Overrides launch directly. All settings and overrides live in the settings file, never written to the registry.
@@ -992,6 +985,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Bookmarks are kept in the toolkit's own file, not ours.
+	- Opened: 20260828
+	- Closed: 20260829-090000
+	- Only relevant on Windows. The toolkit's file sits in the local profile while the settings are in the roaming one, so a roaming profile carried the settings and left the bookmarks behind.
+	- Fixed: on Windows the list lives beside the settings. A list an older version kept in the toolkit's file is copied across the first time, and a reset clears both so the old list cannot come back.
 
 - ✅ Windows: content search cannot read documents, because the search helpers are not packaged there.
 	- Opened: 20260828-160000

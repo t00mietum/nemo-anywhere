@@ -155,8 +155,9 @@ nemo_bookmark_list_get_legacy_file (void)
 	return file;
 }
 
+/* The toolkit's own bookmark file, shared with every other GTK program. */
 static GFile *
-nemo_bookmark_list_get_file (void)
+nemo_bookmark_list_get_toolkit_file (void)
 {
     char *filename;
     GFile *file;
@@ -170,6 +171,33 @@ nemo_bookmark_list_get_file (void)
     g_free (filename);
 
     return file;
+}
+
+static GFile *
+nemo_bookmark_list_get_file (void)
+{
+#ifdef G_OS_WIN32
+    /* Beside the settings, in the roaming profile. The toolkit's file sits in
+     * the local one and stays behind on a machine change, so it is copied
+     * across the first time this one is found missing. */
+    char *user_directory = nemo_get_user_directory ();
+    char *filename = g_build_filename (user_directory, "bookmarks", NULL);
+    GFile *file = g_file_new_for_path (filename);
+
+    if (!g_file_query_exists (file, NULL)) {
+        GFile *toolkit = nemo_bookmark_list_get_toolkit_file ();
+
+        g_file_copy (toolkit, file, G_FILE_COPY_NONE, NULL, NULL, NULL, NULL);
+        g_object_unref (toolkit);
+    }
+
+    g_free (filename);
+    g_free (user_directory);
+
+    return file;
+#else
+    return nemo_bookmark_list_get_toolkit_file ();
+#endif
 }
 
 /* Initialization.  */
@@ -1285,6 +1313,16 @@ nemo_bookmark_list_reset_files (void)
 
     g_file_delete (file, NULL, NULL);
     g_unlink (metadata);
+
+#ifdef G_OS_WIN32
+    {
+        /* or the next start would copy the old list straight back in */
+        GFile *toolkit = nemo_bookmark_list_get_toolkit_file ();
+
+        g_file_delete (toolkit, NULL, NULL);
+        g_object_unref (toolkit);
+    }
+#endif
 
     g_free (metadata);
     g_object_unref (file);
