@@ -41,21 +41,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
-	- Could not be reproduced headlessly: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
-	- So it depends on something only the real session has - most likely where the focus was sitting. Needs one hands-on run to pin down.
+	- Not reproduced: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
+	- Note: it depends on something only the real session has, most likely where the focus was sitting. Needs one hands-on run to pin down.
 
 - 🔘 Windows network browsing cannot be proved to report a missing network or a refused share.
 	- Opened: 20260804-230307
-	- From code review 20260804. The address building and the not-found answer are fixed and verified against real shares.
+	- Fixed so far: the address building and the not-found answer, both verified against real shares. From code review 20260804.
 	- Note: both halves need a machine that fails in those specific ways, which this one does not.
 
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
-	- The Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
-	- The second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed - is fixed. A file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
-	- A regression check lists a folder and fails on anything logged at warning level or worse.
-	- Not reproducible in the build container. Tried, with none of it producing a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
-	- So it depends on something only the real session has. Needs one capture from the host to place it; the exact command is in the private notes.
+	- Fixed so far: the Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
+	- Fixed: the second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed. Cause: a file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
+	- Note: a regression check lists a folder and fails on anything logged at warning level or worse.
+	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
+	- Note: it depends on something only the real session has. Needs one capture from the host to place it, and the exact command is in the private notes.
 
 ### Features and enhancements
 
@@ -67,9 +67,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Bookmarks are kept in the toolkit's own file, not ours.
 	- Opened: 20260828
+	- Only relevant on Windows.
 	- They live in a `gtk-3.0` folder beside the config, which on Windows is the local profile while our settings are in the roaming one. So a roaming profile carries the settings and leaves the bookmarks behind.
 	- Sharing that file with other toolkit programs is the reason it is there, which is worth something on Linux and nothing on Windows.
 	- Moving it needs a one-time copy across, the same way the config folder already moves itself.
+
+- 🔘 Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
+	- Opened: 20260730-203115
+	- Overrides launch directly. All settings and overrides live in the settings file, never written to the registry.
+	- Not blocked any more; the config engine is in.
+
+- 🔘 Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
+	- Opened: 20260826-103001
+
+- 🔘 Windows: show the icon the shell would show.
+	- Opened: 20260827-090000
+	- Split out of the done item for opening a shortcut the way Explorer does. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
+	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
 
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
@@ -82,14 +96,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Right-clicking off an existing selection selects first and then opens the menu, to save a step.
 
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
-	- Opened: 20260826-103001
-
-- 🔘 Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
-	- Opened: 20260730-203115
-	- Overrides launch directly. All settings and overrides live in the settings file, never written to the registry.
-	- Not blocked any more; the config engine is in.
-
-- 🔘 Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
 	- Opened: 20260826-103001
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
@@ -124,39 +130,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
 	- Opened: 20260730-112038
-	- 🔘 A major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
+	- Note: a major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 
-- Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
-
-- ✅ Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
-	- Opened: 20260823-142431
-	- Closed: 20260828-151500
-	- The hidden-files half of this item became "Two kinds of hidden file, two options", now done - it asks for the same thing as two switches rather than one.
-	- A link to a folder is now a junction. One place decides it, so every route into "Make symlink" gets the same answer, and a symlink is still the fallback for anything a junction cannot hold - a file, a share, a relative target.
-	- The point of preferring one: a junction needs no privilege. Making a folder link no longer wants Developer Mode or an elevated run, and the menu item stops greying out for a folder on a machine that has neither.
-	- Watched working: made from the menu, and the result reads back as a mount point rather than a symlink. A new check covers that, and was watched failing without the fix.
-
-- ✅ New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
-	- Opened: 20260730-112038
-	- Closed: 20260828
-	- Every stored setting is dropped and the settings file itself is removed, so anything hand-written that nemo does not recognize goes too. Bookmarks and their side file go with it.
-	- It refuses while a copy is running, and says so. That copy holds the settings in memory and would write them straight back.
-	- The first-run marker is cleared along with everything else, so the next start puts the platform defaults back.
-
-- ✅ If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
-	- Opened: 20260722-172504
-	- Closed: 20260828
-	- On the first start the drive root and the user's own folders go in, taken from what Windows reports rather than spelled out, so a machine on another drive or in another language gets the right names.
-	- A bookmark that can only be a path from a POSIX machine is dropped, and so is any setting whose value is one. A set someone already curated on Windows is kept rather than replaced - that matters for anyone upgrading from a build without the marker.
-	- Marked by `state.first-run-done` in the settings file. Clearing that line by hand puts the defaults back on the next start.
-
-- ✅ Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
-	- Opened: 20260722-201512
-	- Closed: 20260828
-	- `~` at the start, and `%NAME%` or `$NAME` anywhere. Both variable spellings work on both platforms so a path can be carried between them.
-	- The literal text still wins: a folder really named with a `%` in it opens as itself, and only a name that is actually set in the environment is ever substituted. Watched both ways in the running app.
-	- Reaches the location bar, the bookmark editor and the command line.
-	- ✋ Not done: storing the shorthand *in* the bookmarks file so it follows the home folder around. That needs the file to keep an unexpanded form and re-expand on load, which is a bigger change than the input side.
+- 🔘 Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
+	- Opened: 20260829-071437
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
@@ -210,51 +187,52 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
 	- Opened: 20260802-095853
 	- Closed: 20260828-164500
-	- Fixed by the path-button menu work: the menu now opens inside the press itself rather than after an attribute load that could finish late.
-	- Confirmed by hand on Windows - eight right-clicks in a row, the menu up and staying up every time.
+	- Fixed: by the path-button menu work. The menu opens inside the press itself now, rather than after an attribute load that could finish late.
+	- Verified on Windows: eight right-clicks in a row, the menu up and staying up every time.
 
 - ✅ Dragging a file towards another application crashed the app, before it had even left the window.
 	- Opened: 20260828
 	- Closed: 20260828-163000
-	- Nothing to do with the other application. Any drag that passed over the empty space below the last row did it, which a drag out of the window does on its way.
-	- The toolkit is asked which row sits under the pointer. Past the last row it answers "none" without filling in the row it was handed, and that leftover value was then read and released.
-	- A new check asks the same question at a position below the rows, and was watched failing without the fix.
+	- Reproduced: nothing to do with the other application. Any drag that passed over the empty space below the last row did it, which a drag out of the window does on its way.
+	- Cause: the toolkit is asked which row sits under the pointer. Past the last row it answers "none" without filling in the row it was handed, and that leftover value was then read and released.
+	- Fixed: the row is only read when the toolkit really filled it in. A new check asks the same question at a position below the rows.
 
 - ✅ Search doesn't fully work.
 	- Opened: 20260826-103001
 	- Closed: 20260828-160000
-	- Three faults, all on Windows. Searching by name already worked, and still does - substring, wildcards, a regex, and the switch that keeps the search out of subfolders.
-	- "Containing:" found nothing at all, ever. Windows calls the extension the file's type, so the test for "is this text" answered no for every file. It converts first now, and where the extension means nothing to Windows it decides from the first few kilobytes instead. A file with no extension is searched, and a binary one is left alone.
-	- Pressing Enter straight after typing did nothing, and left the box outlined in red. The check that decides whether a search may run at all is on a short delay, and Enter threw it away rather than waiting for it.
-	- A search with only a "Containing:" pattern and no name crashed outright. Nothing typed in the name box means every name, which is what it now says.
-	- Left open, as its own item: nothing that needs a helper program (documents, spreadsheets, PDFs) can be searched on Windows, because none of the helpers are packaged there.
+	- Note: three faults, all on Windows. Searching by name already worked, and still does - substring, wildcards, a regex, and the switch that keeps the search out of subfolders.
+	- Fixed: "Containing:" found nothing at all, ever. Windows calls the extension the file's type, so the test for "is this text" answered no for every file. It converts first now, and where the extension means nothing to Windows it decides from the first few kilobytes instead. A file with no extension is searched, and a binary one is left alone.
+	- Fixed: pressing Enter straight after typing did nothing, and left the box outlined in red. The check that decides whether a search may run at all is on a short delay, and Enter threw it away rather than waiting for it.
+	- Fixed: a search with only a "Containing:" pattern and no name crashed outright. Nothing typed in the name box means every name, which is what it now says.
+	- Note: left open as its own item - nothing that needs a helper program (documents, spreadsheets, PDFs) can be searched on Windows, because none of the helpers are packaged there.
 
 - ✅ The settings schema shipped for `shcl check` is kept in step with the key table in the code by hand, and nothing notices when it drifts.
 	- Opened: 20260821-144459
 	- Closed: 20260826-180755
-	- Two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
-	- Noticed adding two settings at once. Wants a check that walks both and fails on a mismatch.
-	- A test now walks both and fails on any name, type, allowed set or default that does not line up. It compiles the real key table rather than reading the source as text, so the macro-named keys and the per-platform ones are all covered.
-	- It found 13 real mismatches on its first run: 8 settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
+	- Cause: two files have to be edited for every new setting. Miss the second and a hand-edited config validates against a schema that does not know the key.
+	- Reproduced: turned up while adding two settings at once.
+	- Fixed: a test walks both and fails on any name, type, allowed set or default that does not line up. It reads the real key table rather than the source text, so the macro-named keys and the per-platform ones are all covered.
+	- Note: it found 13 real mismatches on its first run: 8 settings the schema had never heard of, two archive command lines missing the thread count, the two list-view column lists missing the extension column, and the sidebar width. All corrected.
 
 - ✅ A leftover helper from the install folder blocks uninstall and in-place upgrade, and the message blames the app.
 	- Opened: 20260818-155550
 	- Closed: 20260828-134500
-	- The session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
-	- Seen doing the installer round trip: uninstall failed, then succeeded a few seconds later with nothing else changed.
-	- Wants either a wait-and-retry, or a message that names what is actually holding the folder.
-	- Both done: the installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app.
-	- Exercised on Windows against a scratch install, and it turned up three real faults, all fixed:
+	- Cause: the session bus the app autolaunches lives in the install folder and outlives the window, so the in-use check still sees the folder busy. It says "Nemo Anywhere is still running", which reads as wrong to someone who just closed it.
+	- Reproduced: uninstall failed on the installer round trip, then succeeded a few seconds later with nothing else changed.
+	- Note: wants either a wait-and-retry, or a message that names what is actually holding the folder.
+	- Fixed: both. The installer waits up to ten seconds, says what it is waiting on, and if it gives up names the executables actually holding the folder instead of the app.
+	- Verified on Windows against a scratch install, which turned up three more faults, all fixed:
 		- An in-place upgrade died outright. The in-use check hands back an empty list as nothing at all, and asking that for a count is an error, so every upgrade over an existing folder failed before it started. Only a first install had ever been run.
 		- The check compared two spellings of the same folder and so found nothing. It long-forms the folder it was given but takes a running program's path as reported, and those two do not have to agree.
 		- If the swap failed anyway, for a reason no process scan can see, the failure came out as a raw runtime error. It now says which folder is stuck and what to do.
-	- The round trip is now clean: install, run, close, upgrade over it, uninstall. The PATH comes back byte for byte and nothing is left behind.
+	- Verified: the round trip is clean - install, run, close, upgrade over it, uninstall. The PATH comes back byte for byte and nothing is left behind.
 
 - ✅ The installer leaves the user PATH very slightly different from how it found it.
 	- Opened: 20260818-155550
 	- Closed: 20260826-180755
-	- Adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
-	- Both halves now carry the trailing separator through, so what an uninstall writes back is what the install found. Checked against an empty PATH, one with a trailing separator and one without.
+	- Cause: adding then removing the entry also drops a pre-existing trailing separator, so an install/uninstall round trip is not byte-identical. Harmless - an empty trailing entry means nothing - but it is a change nobody asked for.
+	- Fixed: both halves carry the trailing separator through, so what an uninstall writes back is what the install found.
+	- Verified against an empty PATH, one with a trailing separator and one without.
 
 - ✅ Listing a folder whose path is past 260 characters quietly lists a different folder instead - whichever one the program happens to be running from.
 	- Opened: 20260821-150232
@@ -264,7 +242,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Reproduced three ways: the failing call from two different working directories returns the contents of each in turn, while the platform's own call on the same path returns the right thing.
 	- The walk is now done here on Windows once a path is long enough that the toolkit cannot be trusted with it. Everything shorter still goes straight to the toolkit, so the ordinary case is untouched.
 	- One entry point covers the lot: the file listing, search, copy, move, delete, the deep count and the archive scan all go through it.
-	- A folder 308 characters deep lists its real contents in the window now, with sizes, types and dates. New checks cover it both ways round, and were watched failing without the fix.
+	- A folder 308 characters deep lists its real contents in the window now, with sizes, types and dates. New checks cover it both ways round.
 
 - ✅ Switching the path separator to `/` does not take effect until the folder is revisited.
 	- Opened: 20260826-103001
@@ -273,7 +251,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Cause: the title, the location entry and the breadcrumb are only rebuilt on a location or view change, so changing how a path is spelled never asked for one.
 	- Fixed: all three now refresh as soon as the setting changes. Verified on Linux against the full-path title, which lags the same way.
 	- Two more halves showed up on Windows, where the separator can really change. The breadcrumb was redrawing a step behind - it read the separator before the setting had been taken in. And the sidebar, which spells a drive root as `C:\`, was not redrawing at all.
-	- Both fixed. Title, breadcrumb, location bar and sidebar now all move together the moment the setting changes, with no navigation. A new check covers the ordering and was watched failing without the fix.
+	- Both fixed. Title, breadcrumb, location bar and sidebar now all move together the moment the setting changes, with no navigation. A new check covers the ordering.
 
 - ✅ "Show the full path in the title bar and tab bars" does nothing.
 	- Opened: 20260826-103001
@@ -285,11 +263,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ The first folder listed after launch is still slow when the start location is full of links.
 	- Opened: 20260828-083458
 	- Closed: 20260828-090000
-	- Same folder and same symptom as the item below, which fixed only the first of two causes. The listing itself now appears in about three seconds; what came after it took another ~minute.
-	- Two things chased each link off the machine, one at a time, with the folder waiting: counting a folder's items, and asking what a share is mounted under. One link to a host that is not answering cost a lot of time per query.
-	- The preference for item counts already says "local only" by default, but a share is native as far as the toolkit is concerned, so nothing ever held it back. Both questions are now skipped for anything on a share, or any link pointing at one.
-	- The mount question is skipped outright there: a share is not a mount on Windows, so the answer was never of use.
-	- Measured against a host that really was not answering: > a minute before, ~3 seconds after. The item count for such a folder now reads "--", which is what the preference has always meant.
+	- Note: same folder and same symptom as the item below, which fixed only the first of two causes. The listing itself now appears in about three seconds; what came after it took another ~minute.
+	- Cause: two things chased each link off the machine, one at a time, with the folder waiting: counting a folder's items, and asking what a share is mounted under. One link to a host that is not answering cost a lot of time per query.
+	- Fixed: the preference for item counts already says "local only" by default, but a share is native as far as the toolkit is concerned, so nothing ever held it back. Both questions are now skipped for anything on a share, or any link pointing at one.
+	- Fixed: the mount question is skipped outright there. A share is not a mount on Windows, so the answer was never of use.
+	- Verified against a host that really was not answering: over a minute before, about three seconds after. The item count for such a folder now reads "--", which is what the preference has always meant.
 
 - ✅ The first folder listed after launch takes a very long time when the start location is full of links.
 	- Opened: 20260827-183930
@@ -304,28 +282,28 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Deleting to the trash puts the progress popup on top of the confirmation prompt.
 	- Opened: 20260827-183930
 	- Closed: 20260827-191128
-	- The yes/no dialog is behind it, so the delete reads as stuck until the popup is dragged out of the way.
-	- The prompt was the Windows shell's, not ours: GLib's trash call leaves the shell confirmation switched on, so every file was asked about twice and the second dialog was not one we could place.
-	- A delete now goes to the Recycle Bin through the shell directly with the confirmations off, so our own prompt is the only one and nothing covers it. Watched end to end on Windows.
-	- The trash test drops its private copy of the same code and calls the shipped one, and its timeout goes to ten minutes - a full recycle bin can take four and a half.
+	- Note: the yes/no dialog is behind it, so the delete reads as stuck until the popup is dragged out of the way.
+	- Cause: the prompt was the Windows shell's, not ours. GLib's trash call leaves the shell confirmation switched on, so every file was asked about twice and the second dialog was not one we could place.
+	- Fixed: a delete goes to the Recycle Bin through the shell directly with the confirmations off, so our own prompt is the only one and nothing covers it. Verified on Windows end to end.
+	- Note: the trash test drops its private copy of the same code and calls the shipped one, and its timeout goes to ten minutes - a full recycle bin can take four and a half.
 
 - ✅ The Win32 argument quoting check depends on what is installed on the machine.
 	- Opened: 20260828-083458
 	- Closed: 20260828-090000
-	- It split `wt.exe` and expected the name back unchanged, but a box with Windows Terminal installed resolves it to a full path, so the check went red there and nowhere else.
-	- It uses a name that cannot be on the path now. The case where a program is found is still covered, by the check below it that looks one up first.
+	- Cause: it split `wt.exe` and expected the name back unchanged, but a box with Windows Terminal installed resolves it to a full path, so the check failed there and nowhere else.
+	- Fixed: it uses a name that cannot be on the path. The case where a program is found is still covered, by the check below it that looks one up first.
 
 - ✅ The config schema check goes red on a fresh Windows checkout.
 	- Opened: 20260828-083458
 	- Closed: 20260828-090000
-	- Git checks the schema out with Windows line endings, and the check split it on newlines only, so every field name carried a stray carriage return and matched nothing. It then reported all 169 settings as missing from the schema.
-	- The config parser itself was never affected - it treats a carriage return as whitespace. Only the check's own reader did.
+	- Cause: git checks the schema out with Windows line endings, and the check split it on newlines only, so every field name carried a stray carriage return and matched nothing. It then reported all 169 settings as missing from the schema.
+	- Note: the config parser itself was never affected - it treats a carriage return as whitespace. Only the check's own reader did.
 
 - ✅ In dark mode the breadcrumb bar and the checked view buttons kept a light background, unreadable against everything around them.
 	- Opened: n/a
 	- Closed: 20260819-141014
 	- Cause: a bundled theme is loaded as a stylesheet of our own, but the theme *name* was left pointing at it. GTK cannot resolve a name it has never seen on disk, falls back to its packaged sheet, and drops the dark half while doing so - so the layer under ours was the light one. Anything our sheet did not itself paint showed it through.
-	- Fixed: the name now points at a theme GTK really has, so the base follows light/dark while our sheet sits on top. Confirmed by eye, and by reproducing it the other way first.
+	- Fixed: the name now points at a theme GTK really has, so the base follows light/dark while our sheet sits on top. Verified against both the light and the dark base.
 	- Also fixed alongside: choosing a theme that cannot be found left the previous one on screen, so a bad name looked like nothing had happened.
 
 - ✅ The three view buttons at the bottom left drew as broken-image placeholders.
@@ -346,7 +324,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
 	- Three different sources were in play: the basename, which is `\` for every drive alike; the volume monitor, which says `(C:) Windows`; and the sidebar's own string.
 	- Fixed: a drive root is `C:\` everywhere - title, breadcrumb and sidebar all ask the same helper. The volume label moved to the sidebar tooltip, where it cannot be mistaken for the path.
-	- Verified on Windows: a new test covers the naming, including that the first folder inside a drive keeps its own name; the three surfaces were then checked by eye. Pre-fix the checks fail.
+	- Verified on Windows: a new test covers the naming, including that the first folder inside a drive keeps its own name; and all three surfaces agree.
 
 - ✅ "Set as default" in the Open With tab did nothing on Windows, and said nothing either.
 	- Opened: n/a
@@ -382,73 +360,78 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Full code, security and performance review of the whole tree, first-party and inherited. Everything below was re-checked before it went in, worst first. Technical detail is kept out of this file. Numbers are continuous and match the private detail notes.
 	- ✅ High.
 		- ✅ Item 1. Windows trash acts on file paths from the address with no check that they belong to the recycle bin.
-			- Cause: delete, move and read take the raw path straight from a `trash:///` address, so a crafted address can read or permanently delete any file.
-			- Cause: the one place that does check compares un-normalized text, so a `..` inside a bin item's path escapes it.
-			- Fixed: a path from a trash address is resolved to its canonical form and has to name something the recycle bin actually holds before it is read, moved or deleted.
-			- Verified on Windows: new test aims a trash address at a file outside the bin and at a real bin item walked back out of it with `..`, and checks delete, move and read each refuse and leave the file alone. Each is re-seeded so one succeeding cannot mask the next. Pre-fix all four checks fail and the file is really gone.
+			- Cause: delete, move and read take the path straight from a `trash:///` address, so a crafted address can read or permanently delete any file.
+			- Cause: the one place that does check compares the text as it was typed, so a `..` inside a bin item's path walks back out of the bin.
+			- Fixed: a path from a trash address is resolved to its real form and has to name something the recycle bin actually holds before it is read, moved or deleted.
+			- Verified on Windows: an address aimed at a file outside the bin, and one walked back out of the bin, are each refused for delete, move and read, and the file is left where it was.
 
 		- ✅ Item 2. Reading dragged icon-list data can walk off the end of the buffer.
-			- Cause: on the no-geometry branch the remaining-length bookkeeping is skipped and the end-of-data guard tests a pointer that is never null, so the scan runs past the buffer.
-			- Fix: decrement size on that branch too, test `*p` not `p`. Guard-page regression test (test-nemo-dnd).
+			- Cause: one branch of the parser skips the length bookkeeping every other branch does, and its end-of-data guard tests something that can never be empty, so the scan runs past the buffer.
+			- Fixed: the length is kept up to date on that branch too, and the guard tests the data rather than the pointer.
+			- Note: inherited from upstream. Covered by a new check.
 
 		- ✅ Item 3. "Open in Terminal" crashes when no known terminal is installed.
-			- Cause: with no terminal found the prefix stays empty and is then dereferenced anyway. Likely on a minimal or KDE-only box, which is exactly the de-Cinnamon target.
-			- Fix: return NULL with no terminal, caller declines. Regression test (test-eel-terminal).
+			- Cause: with nothing found the command prefix is left empty and used anyway. Likely on a minimal or KDE-only box, which is exactly the de-Cinnamon target.
+			- Fixed: with nothing found the caller declines instead of going ahead. Covered by a new check.
 
 		- ✅ Item 4. Freeing an extension column object corrupts the heap.
-			- Cause: finalize frees memory the type system owns. Latent only because built columns are cached for the process life; any extension that discards a column hits it.
-			- Fix: drop the g_free of the instance-private block. Regression test (test-nemo-column).
+			- Cause: teardown frees memory the type system owns. Latent only because built columns are kept for the life of the process; any extension that discards one hits it.
+			- Fixed: it no longer frees what it does not own. Covered by a new check.
 
 		- ✅ Item 5. An unreadable settings file is treated as empty, and a queued save can then erase it.
-			- Cause: any read failure (a sync/AV/editor lock, or the delete half of a non-atomic external save) loads defaults into memory; a pending save then writes the near-empty document over the real file.
-			- Fix: keep the in-memory doc on a transient read failure; only a truly absent file resets to defaults. Regression test (test-nemo-config).
+			- Cause: any read failure - a sync, antivirus or editor lock, or the delete half of someone else's non-atomic save - loads defaults into memory, and a save already queued then writes that near-empty document over the real file.
+			- Fixed: a failed read keeps what is already in memory. Only a file that is genuinely absent goes back to defaults. Covered by a new check.
 
 		- ✅ Item 6. A NUL byte anywhere in the settings file truncates it on the next save.
-			- Cause: the file is written using string length, which stops at the first NUL, dropping every key after it. The follow-up check is fooled the same way, so the loss is invisible.
-			- Fix: write and compare by byte length (g_memdup2 + canon.n), never strlen. Regression test (test-nemo-config).
+			- Cause: the file is written by text length, which stops at the first NUL and drops every setting after it. The check that follows the write is fooled the same way, so the loss goes unnoticed.
+			- Fixed: the write and the check both count bytes. Covered by a new check.
 
 		- ✅ Item 7. The thumbnail enable-check reads the disabled-types list without its lock.
-			- Cause: one reader skips the lock the writers and the other reader use, so a settings change on another thread can free the list mid-read.
-			- Fix: take priv->lock around is_disabled at the can_thumbnail site (generate_thumbnail already does); is_disabled documented as caller-holds-lock. Threading race, no deterministic test.
+			- Cause: one reader skips the lock the writers and the other reader take, so a settings change on another thread can free the list mid-read.
+			- Fixed: that reader takes the lock too, and the inner call now says it expects its caller to hold it.
+			- Note: a threading race, so there is no check that would fail reliably.
 
 		- ✅ Item 8. Replacing a folder deletes through directory symlinks inside it.
-			- Cause: the recursive remove never checks the child type, so a symlink to another directory is followed and its contents are deleted, outside the folder the user agreed to replace.
-			- Fix: NOFOLLOW type-gate before recursing (mirrors delete_trash_file/set_permissions_file); only real dirs recurse, everything else is unlinked. Premise test (test-nemo-symlink-recurse); the static fn behind a modal Replace dialog can't be driven unattended.
+			- Cause: the recursive remove never checks what each child is, so a link to another folder is followed and its contents deleted, outside the folder that was agreed to.
+			- Fixed: only real folders are recursed into; everything else is removed as itself.
+			- Note: the premise has a check of its own. The code path itself sits behind a modal Replace dialog.
 
 		- ✅ Item 9. An invalid filename search pattern crashes the search.
-			- Cause: a regex that fails to compile leaves a null pattern but the search runs anyway, then frees an uninitialized match on every file. Reachable by pressing Enter before the typing check catches up.
-			- Fix: guard NULL filename_re (match nothing), init match_info NULL and g_clear_pointer it. Regression test (test-nemo-search-regex).
+			- Cause: a pattern that fails to compile leaves nothing to match with, but the search runs anyway and then releases an uninitialised result for every file. Reachable by pressing Enter before the typing check catches up.
+			- Fixed: a pattern that will not compile matches nothing rather than running on. Covered by a new check.
 
 		- ✅ Item 10. Restoring an item from the Windows trash drops its file extension.
 			- Cause: the original name is taken from the shell display name, which hides known extensions by default, and that shortened name is what restore writes.
 			- Fixed: the real extension is taken from the backing file, so the listed name and the restored name both keep it.
-			- Verified on Windows: the round trip is covered by a new test - a recycled file is found under its full name, reports the original location it came from, and restores to it. That part holds.
-			- But the cause does not reproduce on Windows 11: with "hide extensions for known file types" switched on, the recycle bin still reports full names, in this app and at any setting. So the repair is inert here rather than load-bearing, and the test passes with it removed. Kept for older Windows, and corrected while checking - it used to give up on any name containing a dot, so `report.2026.txt` would have been repaired to `report.2026`.
+			- Verified on Windows: a recycled file is found under its full name, reports the original location it came from, and restores to it.
+			- Note: the cause does not reproduce on Windows 11. With "hide extensions for known file types" switched on, the recycle bin still reports full names, in this app and at any setting. So the repair is kept for older Windows rather than being load-bearing here.
+			- Note: corrected while checking - it used to give up on any name containing a dot, so `report.2026.txt` would have been repaired to `report.2026`.
 
 		- ✅ Item 11. Opening certain images can crash if the tab is closed first.
-			- Cause: the image-viewer sort path dereferences the originating tab with no null check, and that pointer is cleared when the tab closes mid-open. This is the default double-click-an-image path on Mint-family setups.
-			- Fix: guard the NULL weak slot/content_view in add_sorted_view_uris; the image still opens without the wrap-around loop. GUI-async path, no isolated test.
+			- Cause: the image-viewer sort path reads the tab it came from with no check, and that is cleared when the tab closes mid-open. This is the ordinary double-click-an-image path on Mint-family setups.
+			- Fixed: guarded. The image still opens, without the wrap-around through the rest of the folder.
+			- Note: an asynchronous path through the interface, so no check of its own.
 
 		- ✅ Item 12. The places sidebar keeps reacting to settings after it is destroyed.
-			- Cause: two preference handlers are left connected at teardown, so a later settings change (including a live edit of the settings file) fires on freed memory. Triggered by hiding the sidebar or switching to the tree sidebar.
-			- Fix: dispose now disconnects desktop_setting_changed_callback from nemo_desktop_preferences and reset_menu from nemo_preferences.
+			- Cause: two preference handlers are left connected at teardown, so a later settings change - including a live edit of the settings file - fires on freed memory. Triggered by hiding the sidebar or switching to the tree sidebar.
+			- Fixed: both are disconnected at teardown.
 
 		- ✅ Item 13. New Folder in the tree sidebar aborts the app when creation fails.
-			- Cause: the callback ignores the failure flag and passes a null location on, which asserts. A permission race or a dismissed error dialog triggers it.
-			- Fix: bail on !success || new_folder == NULL (matches the directory-view twin).
+			- Cause: the callback ignores the failure and passes nothing on, which aborts. A permission race or a dismissed error dialog triggers it.
+			- Fixed: it gives up on failure, the way the twin in the folder view already did.
 
 		- ✅ Item 14. Jumping more than one step forward corrupts the history lists.
-			- Cause: the transfer loop reads one list but edits the other two, so the back and forward lists end up sharing and leaking nodes; a later navigation then frees entries still in use.
-			- Fix: remove from forward_list / prepend to back_list (mirrors handle_go_back's symmetric form).
+			- Cause: the transfer loop reads one list but edits the other two, so the back and forward lists end up sharing entries, and a later navigation frees ones still in use.
+			- Fixed: the entry is taken off the forward list and put on the back list, mirroring how going back already worked.
 
 		- ✅ Item 15. On Windows every file reports as changed on every refresh.
-			- Cause: the per-type icon override is compared against the plain system icon, which never matches, so each refresh marks the whole folder changed and re-sorts, redraws and re-checks thumbnails, plus a per-file registry lookup and allocation.
-			- Fixed: the icon is judged on where it ends up rather than mid-update, so a Windows refresh no longer reports every file as changed.
-			- Verified on Windows: a new test refreshes real files of several types five times over and requires everything after the first sighting to report nothing changed, plus a real change that still has to come through. Pre-fix every file reports changed on all five passes.
+			- Cause: the per-type icon is compared against the plain system icon, which never matches, so each refresh marks the whole folder changed and re-sorts, redraws and re-checks thumbnails, with a registry lookup per file on top.
+			- Fixed: the icon is judged on where it ends up rather than mid-update, so a refresh no longer reports every file as changed.
+			- Verified on Windows: five refreshes over real files of several types, with everything after the first sighting reporting nothing changed, and a real change still coming through.
 
 		- ✅ Item 16. Sidebar rebuilds block the whole window on filesystem queries.
-			- Cause: free-space and drive-type checks run on the UI thread for every drive and mount, on every rebuild. A slow or hung mount freezes the window, and a mount change is often what triggers the rebuild.
-			- Fix: back get_disk_full with a per-sidebar cache; it only ever reads the cache, so the build never waits. A miss or stale (>8s) entry fires an async filesystem-info query off the UI thread that fills the cache and coalesces a rebuild. Cancellable torn down in dispose; a hung mount leaves one entry pending and never blocks. All the inline tooltip/show-df composition is untouched.
+			- Cause: free-space and drive-type checks run on the interface thread for every drive and mount, on every rebuild. A slow or hung mount freezes the window, and a mount change is often what triggers the rebuild.
+			- Fixed: the free-space answer is cached per sidebar, and the rebuild only ever reads the cache, so it never waits. A missing or stale entry starts a query off the interface thread that fills the cache and asks for one rebuild afterwards. A hung mount leaves one entry pending and blocks nothing.
 	- ✅ Medium.
 		- ✅ Item 17. The code-signing password is passed on the command line, visible to other local processes.
 			- Fixed: the certificate is imported and signed by fingerprint, so the password never appears on a command line another process can read.
@@ -458,151 +441,155 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Fixed: every package is checked against the checksum the database already carries, and a mismatch stops the build.
 
 		- ✅ Item 19. A malformed D-Bus Open hint from any local process crashes the running app.
-			- Cause: a hint with no `=` yields a null that is parsed without a check.
-			- Fix: guard split_options[1] != NULL before sscanf.
+			- Cause: a hint with no `=` in it yields nothing, and that is parsed without a check.
+			- Fixed: guarded.
 
 		- ✅ Item 20. A pathological settings file can kill the app during parse.
-			- Cause: the file is read with no size cap, the parser keeps every decoded byte for the document's life, and an allocation failure exits the whole process from library code.
-			- Fix: 8 MiB read cap in load_locked; oversized file refused, in-memory doc kept. Regression test (test-nemo-config).
+			- Cause: the file is read with no size cap, the parser keeps every decoded byte for the document's life, and a failed allocation ends the whole process from inside the library.
+			- Fixed: an 8 MiB read cap. An oversized file is refused and what is already in memory is kept. Covered by a new check.
 
 		- ✅ Item 21. In the Windows pipeline, an abort between stash and pop strands the working changes, and a rerun can commit conflict markers.
-			- Fixed: a conflicting restore now stops and says where the work is and how to get it back, instead of leaving a rerun to commit a half-merged tree.
+			- Fixed: a conflicting restore stops and says where the work is and how to get it back, instead of leaving a rerun to commit a half-merged tree.
 
 		- ✅ Item 22. In cicd.bash, a remote-sync stash-pop conflict aborts with no guidance and the stash still held.
 			- Note: the natural rerun with sync off then builds and publishes a tree missing the stashed changes.
 			- Fixed: same as above - it stops with the stash named and the two ways out spelled out.
 
 		- ✅ Item 23. The version-bump guard blocks the beta-to-final release push.
-			- Cause: version sort orders `1.0.0` before `1.0.0-beta2`, the reverse of release order, so cutting final over the current beta fails the guard. This exact transition is next.
-			- Fix: map '-' to '~' before sort -V (as package.bash does) so a prerelease sorts below its release.
+			- Cause: version sort puts `1.0.0` before `1.0.0-beta2`, the reverse of release order, so cutting final over the current beta fails the guard. That exact transition is next.
+			- Fixed: a prerelease is made to sort below its release, the way the packaging script already did it.
 
 		- ✅ Item 24. Accessibility paste reads a freed stack value.
-			- Fix: heap-allocate the paste struct, free it in the receive callback.
-			- Cause: a stack struct is handed to an async clipboard callback that runs after the function returns.
+			- Cause: a stack value is handed to a clipboard callback that runs after the function has returned.
+			- Fixed: it is allocated to last, and released in the callback.
 
 		- ✅ Item 25. install.bash deletes the existing install before the replacement is in place.
-			- Fix: stage beside the prefix (cp onto its own filesystem first), then swap with same-filesystem renames and roll back on failure; the old install is only dropped once the new one is in place.
-			- Cause: a cross-filesystem move that fails partway leaves nothing installed, and the temp copy is then wiped on abort.
+			- Cause: a cross-filesystem move that fails partway leaves nothing installed, and the temporary copy is then wiped on abort.
+			- Fixed: the replacement is staged beside the existing install and swapped in, with a rollback on failure, so the old one is only dropped once the new one is there.
 
 		- ✅ Item 26. install.ps1 can half-delete a running install.
-			- Fix: same stage-beside-then-swap as bash, plus fInUse now reads paths via Win32_Process (covers protected/cross-session processes) with a separator boundary guard. Windows file-locking edge cases still want the real-Windows pass.
-			- Cause: a process whose path cannot be read is treated as not running, so the delete proceeds against a locked copy and throws partway.
+			- Cause: a process whose path cannot be read is treated as not running, so the delete goes ahead against a locked copy and throws partway.
+			- Fixed: the same stage-beside-then-swap as the bash installer, and the in-use check reads paths in a way that covers protected and cross-session processes.
+			- Note: Windows file-locking edge cases still want the real-Windows pass.
 
 		- ✅ Item 27. A partial extension crashes every location load.
-			- Fix: guard the get_widget vfunc != NULL (as the column provider does).
-			- Cause: one provider dispatch skips the null-vfunc guard its siblings have, so an extension that leaves the function unset is called through null.
+			- Cause: one provider dispatch skips the guard its siblings have, so an extension that leaves the function unset is called through nothing.
+			- Fixed: guarded, the way the column provider already was.
 
 		- ✅ Item 28. An action's exec condition decides on an uninitialized value when the spawn fails.
-			- Fix: init return_code = -1 and return FALSE on spawn failure.
-			- Cause: a missing binary or a parse error leaves the result unset, so menu visibility is decided by stack garbage.
+			- Cause: a missing program or a parse error leaves the result unset, so menu visibility is decided by whatever happened to be on the stack.
+			- Fixed: the result is seeded, and a failed spawn answers no.
 
 		- ✅ Item 29. Actions stored in a path with spaces run the wrong command.
-			- Fix: quote the dir+separator as one token so the program name joins to it through the shell split; also fixes the win32 backslash separator.
-			- Cause: the action directory is prepended unquoted before the command is split on whitespace. Normal on Windows and on Linux homes with spaces.
+			- Cause: the action directory is put in front of the command unquoted, and the whole thing is then split on whitespace. Normal on Windows, and on Linux homes with spaces.
+			- Fixed: the directory and its separator are quoted as one word, which also settles the Windows separator.
 
 		- ✅ Item 30. Any drag-and-drop clears a pending cut or copy.
-			- Fix: search the clipboard's uris, not the incoming list against itself.
 			- Cause: the collision check compares the dragged list against itself, so it always matches and always clears the clipboard.
+			- Fixed: it searches the clipboard instead.
 
 		- ✅ Item 31. The settings-groups table is read from worker threads and grown on the main thread with no lock.
-			- Fix: guard the table lookup/insert with config_lock; emit still fires outside the lock so handlers can re-enter.
-			- Cause: a lazy insert can resize the table while a worker thread is reading it. Narrow window, but memory-unsafe.
+			- Cause: a lazy insert can grow the table while a worker thread is reading it. A narrow window, but memory-unsafe.
+			- Fixed: the lookup and the insert are both under the lock. Announcing a change still happens outside it, so a handler can come back in.
 
 		- ✅ Item 32. The favorites change-timer id is touched from worker threads without a lock.
-			- Fix: guard changed_timer_id under the existing infos_lock in queue/callback/dispose.
-			- Cause: a worker can remove a timer id the main thread already reused, silently killing an unrelated source.
+			- Cause: a worker can remove a timer the main thread has already reused, silently killing an unrelated one.
+			- Fixed: the timer is taken under the lock that already covers the rest of that structure.
 
 		- ✅ Item 33. Two favorites with the same name in same-named parents collide.
-			- Fix: disambiguate with the home-relative/native parent path (ellipsized), plus a counter guard so the name is always unique. Regression: new dedup case.
-			- Cause: disambiguation appends only the parent's name, and the display name is the favorite's identity, so operations on one can hit the other.
+			- Cause: disambiguation appends only the parent's name, and the displayed name is the favorite's identity, so an operation on one can hit the other.
+			- Fixed: the parent path is used, shortened, with a counter behind it so the name is always unique.
 
 		- ✅ Item 34. Trashing a file drops favorites of unrelated sibling paths.
-			- Fix: boundary-guard the prefix (exact or '/' at the split), not a bare has_prefix.
 			- Cause: the removal matches by raw prefix with no path boundary, so trashing `ab` also drops the favorite for `abc.txt`.
+			- Fixed: the match has to land on a separator or be exact.
 
 		- ✅ Item 35. The mount lookup matches sibling paths by prefix.
-			- Fix: same boundary guard on the mount-root prefix test.
-			- Cause: no trailing-separator check, so a path can be matched to the wrong mount and misclassified as local or network.
+			- Cause: the same missing boundary check, so a path can be matched to the wrong mount and then called local when it is not.
+			- Fixed: the same boundary guard.
 
 		- ✅ Item 36. Successful direct-save drops are reported as failed.
-			- Fix: the dead XDS branch checked 'F' twice; the success branch now checks 'S'.
-			- Cause: the success branch repeats the fallback branch's test and is unreachable, so a saved file is reported as a failed drop.
+			- Cause: the success branch repeats the test the fallback branch makes, so it can never run and a saved file is reported as a failed drop.
+			- Fixed: it tests for success.
 
 		- ✅ Item 37. A failed metadata save is silent and throws away the pending metadata.
-			- Fix: check g_file_set_contents; only clear dirty on success, warn on failure.
-			- Cause: the write error is ignored and the data is marked saved, so it is never written again and is lost on restart.
+			- Cause: the write error is ignored and the data marked saved, so it is never written again and is lost on restart.
+			- Fixed: the write is checked, it is only marked saved when it worked, and a failure is reported.
 
 		- ✅ Item 38. Large-zoom images render blurry on Windows.
-			- Cause: the can-load check misses the content-type conversion the rest of the code uses, so the full-resolution path never triggers.
-			- Fixed: the check converts the type first, the way the rest of the code does, so the full-resolution path runs.
-			- Verified on Windows: a new test writes real images and requires the internal-thumbnail check to accept them, and to keep refusing text. Pre-fix both image cases fail. Confirmed here that the stored type for a `.png` really is ".png", which is why the conversion is needed at all.
+			- Cause: the can-load check misses the content-type conversion the rest of the code does, so the full-resolution path never runs.
+			- Fixed: the check converts the type first, so the full-resolution path runs.
+			- Verified on Windows: real images are accepted by the internal-thumbnail check and text is still refused.
+			- Note: the stored type for a `.png` on Windows really is ".png", which is why the conversion is needed at all.
 
 		- ✅ Item 39. A trashed folder whose status can't be read is shown as a healthy file.
-			- Cause: the fallback fabricates a regular-file entry with no error inspection, and an item deleted behind the app's back still lists as existing until the next full refresh.
+			- Cause: the fallback invents a regular-file entry without looking at the error, and an item deleted behind the app's back still lists as existing until the next full refresh.
 			- Fixed: a folder is shown as a folder, and something that has gone is no longer presented as readable.
-			- Verified on Windows: a new test lists the bin, removes an item behind the backend's back, and requires the entry to come back saying outright that it cannot be read. Pre-fix it reads as a healthy file. The folder half is covered only by a live trashed folder listing as a folder - forcing a folder that is present but unreadable was not attempted.
+			- Verified on Windows: an item removed from the bin behind the backend's back comes back saying outright that it cannot be read.
+			- Note: the folder half is covered only by a live trashed folder listing as a folder. Forcing a folder that is present but unreadable was not attempted.
 
 		- ✅ Item 40. Freshly trashed items get a wrong parent until the next poll.
-			- Cause: the top-level check does not refresh on a miss, unlike the sibling lookup, so a not-yet-seen item is filed under a bogus parent.
+			- Cause: the top-level check does not refresh on a miss, unlike the sibling lookup, so an item not yet seen is filed under a parent that is not in the bin at all.
 			- Fixed: the top-level check refreshes on a miss, like the sibling lookup.
-			- Verified on Windows: a new test warms the snapshot, recycles a file, then finds its backing path by reading the bin off disk rather than through the enumerator - which would refresh and hide the whole thing - and requires the item's parent to be the bin root. Pre-fix the parent comes back as the per-user bin folder, which is not in the bin at all.
+			- Verified on Windows: a freshly recycled file reports the bin root as its parent.
 
 		- ✅ Item 41. The bookmarks window's no-selection guard never fires and can abort.
-			- Fix: get_selected_row and its local are gint, so the < 0 no-selection check works.
-			- Cause: an unsigned row holds a would-be -1, so the guard is dead and an assert or a wrapped index is reachable.
+			- Cause: an unsigned row number holds what should be a -1, so the guard is dead and an assert or a wrapped index is reachable.
+			- Fixed: the row number is signed, so the guard works.
 
 		- ✅ Item 42. A failed or empty drop on the .desktop launcher editor crashes.
-			- Fix: guard NULL data / negative length before g_strsplit in both drag handlers.
-			- Cause: both drag handlers split the data and index the first element with no length check.
+			- Cause: both drag handlers split the data and read the first piece with no length check.
+			- Fixed: an empty or failed drop is guarded in both.
 
 		- ✅ Item 43. Rename-pending activation relies on a garbage return value and leaks the selection each tick.
-			- Fix: free file_list on the renaming early-return; real GSourceFunc wrapper returns G_SOURCE_REMOVE.
-			- Cause: a void function is installed as a repeating timeout, and the still-renaming early return does not free the selection it fetched.
+			- Cause: a function that returns nothing is installed as a repeating timer, and the still-renaming early return does not free the selection it fetched.
+			- Fixed: a proper wrapper decides whether to repeat, and the selection is freed on that path.
 
 		- ✅ Item 44. Two invalid search patterns warn fatally and show the wrong message.
-			- Fix: g_clear_error between the filename and content checks.
-			- Cause: the content check is handed an error that is already set from the filename check.
+			- Cause: the content check is handed an error the filename check already set.
+			- Fixed: the error is cleared between the two.
 
 		- ✅ Item 45. Tree-sidebar Paste races a freed file and holds a stale view pointer.
-			- Fix: ref the view over the async request and guard NULL popup_file in the reply.
-			- Cause: the clipboard request keeps no reference and an idle frees the target first, so paste from another app degrades to nothing, and a closed sidebar leaves a dangling pointer.
+			- Cause: the clipboard request keeps no hold on the view, and an idle can free the target first. Paste from another program degrades to nothing, and a closed sidebar leaves a dangling pointer.
+			- Fixed: the view is held for the length of the request, and the reply guards against the target having gone.
 
 		- ✅ Item 46. The script debug log reads a path after freeing it.
-			- Fix: free local_file_path after the DEBUG that reads it, not before.
-			- Cause: the path is freed just before the debug line that formats it. Fires when the directory-view debug domain is on.
+			- Cause: the path is freed just before the line that prints it. Fires with the folder-view debug output turned on.
+			- Fixed: it is freed after.
 
 		- ✅ Item 47. The failed-home fallback reopens the failing location instead of root.
-			- Fix: open root (not the same failing location) so an undisplayable home stops retrying.
-			- Cause: the root fallback is built but never used, so an unreadable home retries itself in a loop. The hardcoded root also resolves to the current drive on Windows.
+			- Cause: the root fallback is built and never used, so an unreadable home retries itself in a loop. The hardcoded root also resolves to the current drive on Windows.
+			- Fixed: it opens root, so an undisplayable home stops retrying.
 
 		- ✅ Item 48. The Windows trash test writes past a buffer.
-			- Cause: a 64-bit size is written through a 32-bit pointer on Windows, so half the length is stack garbage that then sizes and indexes a buffer.
-			- Fixed: the length is taken in the right size, so nothing past the buffer is written or read.
-			- Verified on Windows: the trash test used to report itself skipped on this box whatever it had done. It now works the recycle bin directly and reports a real result, so this code runs natively on every run.
+			- Cause: a 64-bit length is written through a 32-bit pointer, so half of it is stack garbage that then sizes and indexes a buffer.
+			- Fixed: the length is taken at the right width.
+			- Note: the trash test used to report itself skipped on this box whatever it had done. It works the recycle bin directly now and reports a real result, so this code runs natively on every run.
 
 		- ✅ Item 49. The dogfood launcher mangles pass-through arguments containing quotes or trailing backslashes.
-			- Fix: fQuoteArg now does full MSVCRT-style quoting and is applied to every Start-Process ArgumentList element (not just whitespace ones), and the sh round-trip uses a clean `exec "$0" "$@"` script. Verified end-to-end on Linux with space/quote/trailing-backslash args; the old form also split plain spaced args.
-			- Cause: Start-Process joins ArgumentList with a naive space join and the target re-splits it, so only-whitespace bare-quoting lost quotes, backslashes, and even split spaced args in the sh round trip.
+			- Cause: the launcher joins its arguments with a plain space and the target splits them again, so quotes, backslashes and even plainly spaced arguments were lost.
+			- Fixed: every argument is quoted the way the Windows runtime expects, and the shell round trip passes them through untouched.
+			- Verified on Linux: arguments carrying spaces, quotes and a trailing backslash all arrive as written.
 
 		- ✅ Item 50. Typing a UNC path blocks the whole window on a network probe.
-			- Fix: skip the sync existence probe for `\\host\share` input (structural backslashes, not a pasted local path) and hand it to the async load path.
-			- Cause: the backslash-to-slash retry does synchronous existence checks on the UI thread, so an unreachable host stalls for the full network timeout before the location even opens.
+			- Cause: the backslash-to-slash retry does its existence checks on the interface thread, so an unreachable host stalls for the whole network timeout before the location even opens.
+			- Fixed: input that is structurally a `\\host\share` skips the check and goes straight to the asynchronous load.
 
 		- ✅ Item 51. Failed thumbnails are re-decoded on every icon fetch.
-			- Cause: the app records failures under its own name, which the system's "failed" flag never reads, so every failed file re-hashes and re-decodes a PNG on each fetch. In list view that is per row per draw.
-			- Fix: cache the negative can-thumbnail verdict per file (thumbnail_try_ruled_out); reset on clear_info, info init and mtime change so a changed file re-attempts.
+			- Cause: the app records a failure under its own name, which the system's failed flag never reads, so every failed file re-reads and re-decodes an image on each fetch. In list view that is once per row per draw.
+			- Fixed: the negative answer is cached per file, and cleared when the file changes so a changed file is tried again.
 
 		- ✅ Item 52. Content search buffers whole files into memory with no cap.
-			- Fix: cap the per-file read at 16 MB (it is copied twice more downstream), so an unbounded stream can't exhaust the worker thread.
-			- Cause: each candidate text file is read entirely, then copied again to validate and strip, so a multi-gigabyte file can freeze or exhaust memory.
+			- Cause: each candidate text file is read whole, then copied again to check and strip, so a multi-gigabyte file can freeze the search or exhaust memory.
+			- Fixed: the per-file read is capped at 16 MB.
 
 		- ✅ Item 53. The list view rebuilds and rescales each icon on every row draw.
-			- Cause: the icon, emblems and a fresh surface are assembled with no caching, and thumbnails are rescaled every time, so any redraw re-does the work for every visible row.
-			- Fix: cache the rendered surface on the FileEntry keyed by (column, scale, thumb-shown); reuse across draws, invalidate on file change and free. Drag-accept and cut-highlight still render live.
+			- Cause: the icon, its emblems and a fresh surface are assembled with no caching, and thumbnails are rescaled every time, so any redraw re-does the work for every visible row.
+			- Fixed: the rendered row is cached and reused across draws, and dropped when the file changes. Drag and cut highlighting still draw live.
 
 		- ✅ Item 54. The list view re-invalidates visible thumbnails on every scroll pause.
-			- Fix: drop the unused shown fetch and invalidate only on the first-in-view transition (deferred-attrs NO->YES), matching the icon-container twin.
-			- Cause: an already-loaded flag is fetched and then ignored, so every visible file's thumbnail and extension info are re-read at each scroll settle.
+			- Cause: an already-loaded flag is read and then ignored, so every visible file's thumbnail and extension details are re-read at each scroll settle.
+			- Fixed: the work happens once, when a row first comes into view, matching the icon view's twin.
 	- ✅ Low.
 		- Terse by design; file and mechanism are in the private detail notes. All confirmed on read, minor impact or rare paths, mostly inherited.
 		- ✅ Item 55. Vendored-theme staging uses a fixed temp path instead of a unique one (symlink race on a shared box).
@@ -692,7 +679,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 		- ✅ Item 83. The count-based recycle-bin monitor misses same-count changes.
 			- Fixed: the check now also watches total size, so a change that leaves the count the same is noticed.
-			- Verified on Windows: a new test watches the bin, swaps one item for a much larger one with the main loop parked so no poll can catch the count mid-swing, and requires the watcher to be told. It sits quiet through a poll turn first, so a monitor that cried change every time would fail rather than pass. Pre-fix nothing is reported at all.
+			- Verified on Windows: swapping one bin item for a much larger one is reported, while a quiet spell is not.
 			- Learned here: rewriting a bin item's backing file does not move the reported size - Windows answers with the size recorded when the item was recycled. An item leaving and a differently-sized one arriving does move it, which is the case the fix is for.
 
 		- ✅ Item 84. A static global for the connect-server result is clobbered by concurrent dialogs.
@@ -735,16 +722,17 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Fixed: released when nothing takes them on.
 
 		- ✅ Item 97. The copy test has no assertions and can pass before the async work appears.
-			- Fixed: it builds its own files, copies them, and checks the result - and was proven to fail without a working copy.
+			- Fixed: it builds its own files, copies them, and checks the result.
 
 		- ✅ Item 98. The editable-label test is not wired into any build, so it never runs.
-			- Removed: it was an interactive demo with no build wiring and no way to run unattended.
+			- Removed: it was an interactive demo with no build wiring behind it.
 
 		- ✅ Item 99. The config test never makes warnings fatal, so its negative checks cannot fail.
 			- Fixed: an unexpected complaint now fails the run.
 
 		- ✅ Item 100. The favorites test never removes its temp directories.
 			- Fixed: the temp tree is removed.
+
 		- ✅ Item 102. The row-under-pointer helper leaks a tree path on every call (per drag-motion).
 			- Fixed: released.
 
@@ -756,6 +744,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 		- ✅ Item 105. A move leaks the source's parent object on every non-desktop move.
 			- Fixed: released.
+
 		- ✅ Item 107. Thumbnail creation falls back to a synchronous stat on the main thread.
 			- Fixed: the fallback lookup happens on the worker instead of the main loop.
 
@@ -785,7 +774,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Cause: dropping a link onto a location that is not a real folder returns a failure with no message attached, and reading that message crashes.
 		- Fixed: creating a shortcut now refuses to write over anything already at that name and reports the clash, so the existing renaming retry takes over.
 		- Fixed: a link dropped somewhere with no real folder behind it now says so instead of failing silently into a crash.
-		- Verified: the destruction is reproducible. With the fix backed out, the test overwrites a file it was told not to touch; with it in, the file survives and the clash is reported.
+		- Verified: a file sitting at the name a new shortcut would take survives, and the clash is reported.
 		- Note: the shortcut test was failing two checks before any of this, on a correct product - it compared a short-form temporary path against the long form the system reports. Fixed alongside.
 
 	- ✅ Item 5. Repairing the thumbnail cache as an administrator can change ownership of unrelated files.
@@ -804,7 +793,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Fixed: entries are stored the other way round, mimetype first, which cannot be split in the wrong place. Entries in the old order are still read, and rewritten on the next change.
 		- Fixed: blank entries are dropped, and a favorite with no mimetype or an unreachable target still lists and draws.
 		- Fixed: the inside-that-one test compares the right way round and stops at the end of the text.
-		- Verified: new test, every check proven against the old code. The listing spin runs until killed; the concurrent read segfaults; the missing target aborts on a critical; the rest fail their checks.
+		- Verified: the listing always finishes, concurrent reads are safe, and a missing target is skipped rather than ending the listing.
 		- Note: settings written by older versions keep working - only the write order changed, and both are read.
 
 	- ✅ Item 7. Favorites and thumbnails keep working after the object they belong to is gone.
@@ -813,7 +802,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Fixed: neither releases the shared settings any more - it belongs to the settings store and outlives them both.
 		- Fixed: teardown now cancels the queued callback and disconnects the change handlers before anything else goes.
 		- Fixed: the favorites file also stopped taking a hold on the settings it never gave back, and three error paths no longer walk away still holding a lock.
-		- Verified: with the fixes backed out, the shared settings object really is destroyed while still in use, and a change after teardown lands on a freed object.
+		- Verified: the shared settings object outlives both, and a change after teardown reaches nothing.
 
 	- ✅ Item 8. A stuck thumbnail helper is never given up on.
 		- Cause: there is no time limit on an external thumbnail program, so one hung file permanently costs a worker slot until restart.
@@ -822,7 +811,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Fixed: a helper that has not finished in 30 seconds is stopped, logged and moved on from, so the slot comes back. Thumbnailing on a one-thread machine no longer ends for the session.
 		- Fixed: the reload walk stops at the entry it removed instead of stepping off it.
 		- Fixed: a thumbnail is never asked for at zero pixels wide or tall, so a 5000x1 image thumbnails instead of failing.
-		- Verified: new test. With the fixes backed out the hung helper is still blocking after 75 seconds and the thin image produces nothing. The freed-entry read is fixed by inspection - it is invisible at runtime - with the test covering the path it happens on.
+		- Verified: a hung helper gives up its slot inside the time limit, and a very thin image thumbnails. The freed-entry read is invisible at runtime, so it rests on reading the code.
 
 	- ✅ Item 9. Emptying the Windows trash fails whenever it holds a folder.
 		- Cause: trashed folders are reported as folders but refuse to list their contents, and the delete path needs to list them.
@@ -830,7 +819,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Fixed: a trashed folder now goes with everything inside it, so emptying the trash gets through a bin holding folders.
 		- Fixed: a trashed folder lists its contents. Permanently deleting one counts what is in it first, and that count used to fail before the delete even started - a second, separate stopping point.
 		- Fixed: with that, a trashed folder can be opened and browsed rather than showing an error page. Its contents carry no original location or deletion date of their own, which is correct - only the folder was trashed.
-		- Verified: new case in the trash test that recycles a folder of its own for real, so it runs on Windows rather than only under wine. Pre-fix, listing says "not a directory" and the delete says "directory not empty".
+		- Verified on Windows against a real recycled folder. The old failures were "not a directory" on the listing and "directory not empty" on the delete.
 		- Note: a link or junction inside a trashed folder is deleted as the link it is, never followed out of the bin.
 
 	- ✅ Item 10. Windows trash items can go missing, and restore can aim at the wrong place.
@@ -851,7 +840,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Cause: any typed network address is presented as a valid empty folder rather than "not found".
 		- Cause: nothing limits how deep the enumeration recurses.
 		- Fixed: a share's address is joined with a separator, no-network and access-denied are reported instead of reading as an empty folder, an address that cannot be reached comes back as not found, and the enumeration is depth-limited.
-		- Verified on Windows: new test covers the address building - a share now lands under its server, and two server/share pairs that used to run together into one address stay apart. Pre-fix both checks fail.
+		- Verified on Windows: new test covers the address building - a share now lands under its server, and two server/share pairs that used to run together into one address stay apart.
 		- Also verified against real shares: this box serves four of its own, and the test now browses them for real - each comes back as a link to its UNC path, and each is opened to prove the link goes somewhere. The one that does not open is an empty optical drive, which the test names rather than counting against the backend.
 		- Still open: the no-network and access-denied halves. Both need a machine that fails in those specific ways, which this one does not.
 
@@ -859,14 +848,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Cause: "Open as Administrator" passes the folder unquoted, so anything with a space arrives as two separate locations.
 		- Cause: "Open in Terminal" at a drive root passes a trailing backslash that swallows the closing quote.
 		- Fixed: both paths quote properly, so a folder with spaces and a drive root each work.
-		- Verified on Windows: new test over the quoting itself - drive roots, UNC roots, spaces and embedded quotes. Pre-fix, both root cases fail. The two hand-offs themselves can't run unattended, since one raises a UAC prompt and the other opens a console.
+		- Verified on Windows: drive roots, UNC roots, spaces and embedded quotes all come out right. The two hand-offs themselves are not covered - one raises a UAC prompt and the other opens a console.
 
 	- ✅ Item 14. Opening a Windows shortcut can truncate its target or hang the app.
 		- Cause: targets past the old length limit are silently cut short and then opened, wrongly.
 		- Cause: a shortcut pointing at itself, or at a loop of shortcuts, recurses until the app runs out of stack.
 		- Fixed: the target is read at full length, a chain of shortcuts is followed to its end with a loop guard, and a failed read leaves an error behind.
 		- Verified on Windows: new test creates and reads back a shortcut, including one aimed past the old length limit.
-		- Also found and fixed while checking it: Windows itself refuses to store a target that long, and we were not looking at the answer - so "Make Link" wrote a shortcut pointing at nothing and called it a success. It now refuses and says why, and leaves no file behind. Pre-fix the new checks fail.
+		- Also found and fixed while checking it: Windows itself refuses to store a target that long, and we were not looking at the answer - so "Make Link" wrote a shortcut pointing at nothing and called it a success. It now refuses and says why, and leaves no file behind.
 
 	- ✅ Item 15. A duplicated line in the settings file empties a list instead of falling back.
 		- Cause: an unreadable list is treated as a deliberately empty one. Only lists behave this way; single values fall back correctly.
@@ -1004,6 +993,36 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
+	- Opened: 20260823-142431
+	- Closed: 20260828-151500
+	- The hidden-files half of this item became "Two kinds of hidden file, two options", now done - it asks for the same thing as two switches rather than one.
+	- A link to a folder is now a junction. One place decides it, so every route into "Make symlink" gets the same answer, and a symlink is still the fallback for anything a junction cannot hold - a file, a share, a relative target.
+	- The point of preferring one: a junction needs no privilege. Making a folder link no longer wants Developer Mode or an elevated run, and the menu item stops greying out for a folder on a machine that has neither.
+	- Verified: a folder link made from the menu reads back as a mount point rather than a symlink, and a new check covers it.
+
+- ✅ New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
+	- Opened: 20260730-112038
+	- Closed: 20260828
+	- Every stored setting is dropped and the settings file itself is removed, so anything hand-written that nemo does not recognize goes too. Bookmarks and their side file go with it.
+	- It refuses while a copy is running, and says so. That copy holds the settings in memory and would write them straight back.
+	- The first-run marker is cleared along with everything else, so the next start puts the platform defaults back.
+
+- ✅ If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
+	- Opened: 20260722-172504
+	- Closed: 20260828
+	- On the first start the drive root and the user's own folders go in, taken from what Windows reports rather than spelled out, so a machine on another drive or in another language gets the right names.
+	- A bookmark that can only be a path from a POSIX machine is dropped, and so is any setting whose value is one. A set someone already curated on Windows is kept rather than replaced - that matters for anyone upgrading from a build without the marker.
+	- Marked by `state.first-run-done` in the settings file. Clearing that line by hand puts the defaults back on the next start.
+
+- ✅ Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
+	- Opened: 20260722-201512
+	- Closed: 20260828
+	- `~` at the start, and `%NAME%` or `$NAME` anywhere. Both variable spellings work on both platforms so a path can be carried between them.
+	- The literal text still wins: a folder really named with a `%` in it opens as itself, and only a name that is actually set in the environment is ever substituted. Verified both ways.
+	- Reaches the location bar, the bookmark editor and the command line.
+	- ✋ Not done: storing the shorthand *in* the bookmarks file so it follows the home folder around. That needs the file to keep an unexpanded form and re-expand on load, which is a bigger change than the input side.
+
 - ✅ Windows: an option to leave the `.lnk` off a shortcut's name.
 	- Opened: 20260828-083458
 	- Closed: 20260828-090000
@@ -1054,7 +1073,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- One field on the Behavior page, holding the command line. Anything the program needs beyond its own name is typed in by hand.
 	- Left empty it means the platform default, which is what happened before: the desktop's own choice on Linux, the first of the known shells found on PATH on Windows. Filled in, it wins over both.
 	- Splitting one field into a program and its arguments has three rules, in order: a quoted first word, then a string that names a program on its own (so an unquoted path with spaces still works), then the first space. Tested.
-	- Watched working on Windows: a terminal named with an argument was launched exactly as written.
+	- Verified on Windows: a terminal named with an argument is launched exactly as written.
 
 - ✅ Make link is on by default, and Windows tells a shortcut from a symlink.
 	- Opened: 20260827-183930
@@ -1064,7 +1083,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Windows gained a second item, "Make shortcut", for the .lnk the shell understands. Both are on by default and share one switch in Context menus - two toggles for nearly the same thing would only be confusing.
 	- Windows allows a symlink only with Developer Mode on or when running elevated, so the item goes grey when neither holds. The check is made once by making a throwaway symlink and deleting it, which is a plainer answer than reading a token and a registry key.
 	- A drag with the link modifier still makes a shortcut on Windows, which is what Explorer does.
-	- Both watched working on Windows against a real folder. Not seen: the greyed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
+	- Both verified on Windows against a real folder. Not covered: the greyed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
 
 - ✅ Update the vendored SHCL to the current release.
 	- Opened: 20260826-103001
@@ -1074,7 +1093,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Moved from 1.2.0 to 2.0.0. Nothing in the settings layer had to change: none of the calls made here changed shape, and neither of the two breaking changes is reachable from plain key names.
 	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
 	- Its new file tier was deliberately compiled out at first. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save.
-	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind - watched happening, and watched surviving afterwards.
+	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind.
 	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it is worth keeping; the reader also hands back the exact bytes the "was this our own write" check compares against.
 	- The trap: the library names its temp file by splitting the path on a forward slash and nothing else, so a Windows path spelled with backslashes puts the temp somewhere impossible and every save fails. The path is handed over spelled with slashes. The existing config checks caught this immediately.
 
@@ -1104,13 +1123,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: following a shortcut through to its target already works. What is missing is treating each kind of target differently.
 	- A shortcut to a folder still opens in the current tab, which is the one case worth doing differently from the shell. Everything else is now handed to the shell as the shortcut, not as its target.
 	- That is what fixes the program case. A shortcut carries a command line, a working directory and a window state, and none of them survive being reduced to a target path - a shortcut to a shell with arguments used to open a bare shell. Shortcuts to virtual items (Recycle Bin, a control panel page) now open too, having no path to reduce to in the first place.
-	- Proven that a launched shortcut's arguments and working directory both arrive.
+	- Verified: a launched shortcut's arguments and working directory both arrive.
 	- Icon split off below - it is a bigger piece than the rest of this and applies to more than shortcuts.
-
-- 🔘 Windows: show the icon the shell would show.
-	- Opened: 20260827-090000
-	- Split out of the shortcut item above. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
-	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
 
 - ✅ Show a build number in `--version`, `--about`, Help > About, the Windows splash screen, and the release notes.
 	- Opened: 20260826-103001
@@ -1175,7 +1189,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A folder opens in Explorer; anything else is revealed and picked out inside its own folder.
 	- A deliberate escape hatch rather than a dependency. The standing "depend on Explorer as little as possible" rule is about core function; this one says Explorer on the label.
 	- Two routes, because one is not enough: the shell item API, which handles any name, falling back to a command line when that is refused. Running elevated is when it gets refused, and nemo can be running elevated - "Open as administrator" puts it there.
-	- Both routes watched working. The item itself cannot be clicked unattended, so it is covered by a probe behind `NEMO_PROBE_EXPLORER` rather than by a test that would open windows on every run.
+	- Both routes verified. The item opens a window, so it sits behind `NEMO_PROBE_EXPLORER` rather than running on every pass of the suite.
 
 - ✅ Column widths and the Ext column, second pass. Overrides the earlier column rules where they disagree.
 	- Opened: n/a
@@ -1186,7 +1200,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Type, and any other column with no natural length, never ends up wider than Name or Location.
 	- Zooming in or out re-measures the rows. Before this the widths were thrown away and never worked out again, so one Ctrl+= left Location taking most of the row and every date cut short. Same for a column switched on that had not been on screen to be measured.
 	- A small gap keeps the first and last columns off the window frame.
-	- All of it watched in the running app, including the zoom case with the fix backed out.
+	- All of it verified in the running app, the zoom case included.
 
 - ✅ The preferences dialog opens larger, and big enough for the Views page to fit without a scrollbar.
 	- Opened: n/a
@@ -1216,7 +1230,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260822-075741
 	- A column with no natural width limit that the user resizes keeps that width as its ceiling from then on, through any window resizing in either direction, saved in settings.
 	- Name still takes all remaining space - except in find mode, where Name and Location split the row one-third/two-thirds by default, and an adjusted split is remembered forever and kept as the window resizes. Supersedes the find-mode column note, now canceled.
-	- Both were watched working in the running app: the dragged ceiling survives narrow-then-wide, and the find-mode split held at the adjusted ratio across sizes.
+	- Both verified in the running app: the dragged ceiling survives narrow-then-wide, and the find-mode split holds at the adjusted ratio across sizes.
 
 - ✅ Properties on Windows opens the one Windows itself shows, instead of ours.
 	- Opened: n/a
@@ -1225,7 +1239,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Ours stays on a second item, "Advanced properties" (Ctrl+Enter), because the Windows sheet has nowhere to put a custom icon, an emblem, an annotation or the image details page. It is hidden everywhere else, where both items would open the same window.
 	- Anything the shell cannot name falls back to ours rather than doing nothing: a virtual location, a selection spanning folders (which is what a search result set is), or an item that has gone away since it was clicked.
 	- The sheet runs off the main loop, so the window behind it stays live while it is open, and it is waited out rather than abandoned - the extra threads go when it closes.
-	- Verified on Windows by eye and by test: the fallback rule has checks of its own, and the two that matter go red with the rule taken back out.
+	- Verified on Windows, and the fallback rule has checks of its own.
 
 - ✅ Every piece of text in the interface reads as a sentence, not as a headline - only the first word capitalised, and anything that is a name left alone.
 	- Opened: n/a
@@ -1235,7 +1249,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Names keep their capital: the platforms, the toolkit, Trash and the other places in the sidebar, file and disc formats, acronyms. So does a sentence that names a menu item or a tab, since the item itself is still called that.
 	- Left alone on purpose: the licence text, which is quoted verbatim, and the name a new folder or document is given, which is written to disk rather than shown.
 	- It is checked rather than trusted, because a label copied from upstream arrives in Title Case: `cicd/utility/lint-ui-case.py` reads every translatable string in the tree and fails the lint step on any that is not a sentence. The whole exception list lives in that one file, each entry with its reason.
-	- The check found what a first pass by eye did not - the plural labels, where two spellings sit in one call, which is what had left "Copy Paths" and "Make Links" behind. Proven to go red on a label put back to Title Case.
+	- The check found what a first pass by eye did not - the plural labels, where two spellings sit in one call, which is what had left "Copy Paths" and "Make Links" behind.
 
 - ✅ One setting for how much of the machine's CPU any compression may use, as a percentage of the cores it finds. Default 50% - the best balance on a hyperthreaded CPU.
 	- Opened: n/a
@@ -1244,7 +1258,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Reaches the 7z and rar create lines through a `{{THREADS}}` marker of their own, and tar.xz through the library that writes it. Zip, gzip and the built-in 7z have no such option, so they are left alone rather than handed one they would refuse.
 	- It is the one marker that does not stand for a control in the Compress dialog, so a line edited past it says nothing - the program simply picks for itself.
 	- Rounds up, so a single-core machine still gets one thread and the answer is never nothing.
-	- Verified: each program is handed the switch it spells its own way, and both checks fail with the marker taken back out.
+	- Verified: each program is handed the switch it spells its own way.
 
 - ✅ Per-monitor DPI aware where the platform offers it, and DPI aware at minimum everywhere else.
 	- Opened: n/a
@@ -1254,7 +1268,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The toolkit scales in whole steps only, so a display at 125% or 150% would come out at 100% and read smaller than every other window on that screen. Text is scaled to the monitor's real DPI on top of that, which is not restricted to whole steps, and re-reads it whenever a window moves to a monitor at another scale or a monitor is plugged in. Widgets and icons stay on the whole step.
 	- Nothing was needed for Linux or BSD: X11 and Wayland desktops publish their own scaling and the toolkit already follows it.
 	- The manifest also declares the run level explicitly (unchanged - what we already had by having none) and the versions of Windows we have run on, so the version APIs stop reporting Windows 8 forever.
-	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test, which fails with the whole-step part taken back out. This box runs at 100%, so the fraction itself has been checked by arithmetic rather than by eye - worth a look on a scaled display.
+	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test. This box runs at 100%, so the fraction itself rests on arithmetic - worth a look on a scaled display.
 
 - ✅ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
 	- Opened: n/a
@@ -1274,14 +1288,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Widths follow the contents: each row is measured as it arrives and as its details fill in, and the widest seen is what a column aims for. Measured against a five thousand item folder, it costs nothing that can be told apart from the noise.
 	- A column dragged wider by hand keeps that width until the window changes shape or the folder does.
 	- Refines the earlier "Name column always as large as possible" work under Done, which only made Name take the slack; this is the rule for all of them.
-	- Verified by eye at half a dozen widths on two folders, and the rule itself has a test of its own that fails on the obvious ways to get it wrong.
+	- Verified at half a dozen widths on two folders, and the rule itself has a test of its own.
 
 - ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colours, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
 	- Opened: n/a
 	- Closed: 20260819-160351
 	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
 	- Three new fetch shapes were needed: a repository that keeps one theme family per branch, six themes out of one sparse checkout, and two that ship the icons as a tar committed inside a repository of something else.
-	- **Buuf is deliberately not included.** It is CC BY-NC-SA, and the NonCommercial term rules it out of anything shipped and out of the repository. It is worth having, so `filesystem/` explains where to drop it and gives a one-line fetch for it.
+	- Buuf is deliberately not included. It is CC BY-NC-SA, and the NonCommercial term rules it out of anything shipped and out of the repository. It is worth having, so `filesystem/` explains where to drop it and gives a one-line fetch for it.
 	- Three of the twelve carry no licence file upstream and are shipped on weaker evidence than the rest. Each one is named, with what it rests on, in `vendor/README.md` - worth a look before a release.
 
 - ✅ A gallery of every icon set in the README, four icons each on a light and a dark background, plus how to drop your own in. Rendered by `cicd/utility/icon-gallery.py`; re-run it when the set list changes.
@@ -1331,9 +1345,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: n/a
 	- Closed: 20260819-105607
 	- A folder left in the old place is moved across on first run, so nobody starts from defaults.
-	- Covered by a test that sandboxes both roots and watches the move happen; it fails without the fix.
+	- Covered by a test over both roots.
 
-- ✅ The Windows executable takes too long to start. **14.2s to 3.4s**, and the executable shrank from 39.8 MB to 33.5 MB.
+- ✅ The Windows executable takes too long to start. 14.2s down to 3.4s, and the executable from 39.8 MB to 33.5 MB.
 	- Opened: n/a
 	- Closed: 20260819-122828
 	- Measured first: the packed single exe reached even `--version` in 14.2s against 0.9s for the same build as a plain folder, and all of the difference is spent before our own code runs. The packer charges about 2.8 ms for every file it carries, and the bundled themes were a couple of thousand of them. The packer's own compression and mapping settings were measured and change nothing.
@@ -1341,20 +1355,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Trimming Adwaita turned up three faults in the theme resolver that had been quietly costing every bundled theme icons, `emblem-symbolic-link` among them - the one every symlinked file in the view wears. All the bundled themes were rebuilt.
 	- A splash appears while it starts, drawn with the platform's own toolkit because it has to be up before GTK is. It lists what startup is doing in a ten-line window that scrolls smoothly, and leaves the moment the real window has drawn.
 	- The window itself is now shown at its remembered size and place as soon as it has somewhere to be, rather than after the first folder resolves. The splash goes when the folder has finished listing or a second after the view is up, whichever comes first - a big folder can take twenty seconds to list and there is no sense covering a window that is already usable.
-	- Found while watching it: the app had never brought its own window to the front on Windows. Showing a window maps it without activating it, so it opened behind whatever you were looking at; on Linux the window manager focuses new windows itself, which is why it had never shown. Fixed and confirmed by eye.
+	- Found on the way: the app had never brought its own window to the front on Windows. Showing a window maps it without activating it, so it opened behind whatever you were looking at; on Linux the window manager focuses new windows itself, which is why it had never shown. Fixed.
 	- The remaining 2.5s over a plain-folder launch is the packer's own fixed cost and would need a different packer to reach.
 
 - ✅ Dimmer highlight of mouseover line. It can easily get confused with line selection.
 	- Opened: n/a
 	- Closed: 20260802-015402
-	- App CSS dims file-pane/tree row :hover to 0.035 alpha (theme was 0.08), scoped `:not(:selected)`; confirmed by eyeball.
+	- The hover tint on a file-pane or tree row is dimmed to well under half what the theme sets, and only on rows that are not selected.
 
 - ✅ Drag and drop onto a path button, and a fuller right-click menu on one.
 	- Opened: 20260802-011216
 	- Closed: 20260826-103001
-	- DnD-to already worked (drop-target proxy on each button's folder); confirmed fine.
-	- Right-click menu was the trimmed `location` menu. Added Open, Open in Terminal, Open as Admin, and New Folder (create inside) as `Location*` variants so a segment acts like a folder.
-	- New Folder only enabled when the segment is the currently displayed folder (else grayed) - it is created inside that folder.
+	- Dropping onto a path button already worked, and still does.
+	- The right-click menu was the short location one. It gained Open, Open in Terminal, Open as Admin and New Folder, so a path segment behaves like the folder it names.
+	- New Folder is only offered on the segment for the folder being viewed, and creates inside it. On any other segment it is greyed.
 
 - ✅ Ship with "Copy path(s)" script from current nemo install.
 	- Opened: 20260724-091054
@@ -1452,14 +1466,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260730-203115
 	- Closed: 20260802-144622
 	- ✅ No separate library folder - pack the runtime into one `.exe` (in-memory virtual FS, e.g. Enigma Virtual Box).
-		- Pack lane added: `cicd/win/pack-portable.ps1` flattens the staged bundle into a prefix layout (exe + dlls at the root, lib/share/etc beside - the same layout the release zip contract expects, and it double-click-runs with no launcher) then packs it with the EVB console into `cicd/artifacts/win-portable/nemo-anywhere.exe`. Wired as cicd-win stage 5.
-		- Font-rendering env (freetype v35 interpreter) now set inside the exe on Windows, so no launcher is needed for the native text look.
-		- Verified: 167 MB bundle packs to one 38.7 MB exe; version check passes on a bare System32-only PATH and the GUI launches and stays responsive. Hands-on pass still pending.
-		- Fixed the leftover console window on launch: the exes were linked with the console subsystem (mingw default), so Windows opened a terminal before the GUI. Main + connect-server + open-with now build with the GUI subsystem; extensions-list stays console on purpose. `--version` output still works when piped, so the cicd smokes are unchanged.
-	- ✅ One binary only - Windows now builds just `nemo-anywhere.exe`. The connect-server and open-with dialogs already run in-process (nothing spawned the standalone launchers), and the extensions lister is gone with no plugins to enumerate; the three helper `executable()`s are Unix-only in meson.
-		- Extension library folded in too: with no external plugins on Windows, the exe was its only consumer, so it's now a static lib on Windows (still shared on Linux for third-party extensions). No more sibling `libnemo-anywhere-extension-1.dll` - the exe loads and smokes standalone.
+		- A pack step flattens the staged bundle into the same layout the release zip uses, which double-click-runs on its own, then packs the lot into one executable. It is stage five of the Windows pipeline.
+		- The font-rendering settings are set inside the executable now, so no launcher is needed for the native text look.
+		- Verified: a 167 MB bundle packs to one 38.7 MB executable, which runs on a bare PATH and stays responsive.
+		- Fixed the leftover console window on launch. The executables were linked as console programs, which is the default, so Windows opened a terminal before the window appeared. They are graphical programs now, and the version output still works when piped.
+	- ✅ One binary only - Windows builds just the one executable. The connect-server and open-with dialogs already ran inside it, and the extensions lister has nothing to list with no plugins, so all three helpers are Linux-only now.
+		- The extension library went in with them. With no external plugins on Windows the executable was its only reader, so there is no separate library beside it any more. Linux keeps it shared, for third-party extensions.
 	- ✅ No external plugin loading on Windows (a bad plugin must never hang the app); keep the extension-management UI in-exe.
-		- `nemo_module_setup` skips the plugin dir on Windows, so a stray DLL can never load and hang the app. The Settings plugins tab still shows, listing nothing ("No extensions found").
+		- The plugin folder is never read on Windows, so a stray library cannot load and hang the app. The plugins tab in Settings still appears, listing nothing.
 
 - ✅ Windows look: make it feel native even though it isn't Explorer.
 	- Opened: 20260730-203115
@@ -1508,8 +1522,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260724-140849
 	- Closed: 20260826-103001
 	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
-	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Worth deciding whether ours should stand down there. The test that hit it now skips that step unless asked for it, since nothing can answer the dialog unattended.
-	- Done on real Windows: the recycle bin end to end, network browsing against this box's own shares, single instance and location forwarding, the installer's install/reinstall/uninstall round trip, and elevated relaunch. Each of the code-review items was re-checked here, and the fix removed to watch the check fail first.
+	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Worth deciding whether ours should stand down there. The test that hit it now skips that step unless asked for it.
+	- Done on real Windows: the recycle bin end to end, network browsing against this box's own shares, single instance and location forwarding, the installer's install/reinstall/uninstall round trip, and elevated relaunch. Each of the code-review items was re-checked here.
 	- Found doing it, and fixed: the whole compiled-resource bundle was missing from the Windows build, so there was no menu bar at all; a drive root was named three different ways; "Set as default" failed silently forever; the installer read a prerelease version as the release it precedes.
 
 - ✅ Get release binaries onto the host, plus an optimized buildtype.
