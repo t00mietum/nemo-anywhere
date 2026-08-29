@@ -27,6 +27,9 @@
 #include "nemo-program-choosing.h"
 
 #include "nemo-global-preferences.h"
+#ifdef G_OS_WIN32
+#include "nemo-associations-win32.h"
+#endif
 #include "nemo-icon-info.h"
 #include "nemo-recent.h"
 #include <eel/eel-gnome-extensions.h>
@@ -184,6 +187,18 @@ nemo_launch_application_by_uri (GAppInfo *application,
                                                         NULL, NULL,
                                                         gather_pid_callback, application,
                                                         &error);
+#elif defined (G_OS_WIN32)
+    /* An app made from a registry template or an override carries its own
+     * command line, with %1 to fill in; GIO would only append the file to it. */
+    if (nemo_associations_win32_command_of (application) != NULL) {
+        result = nemo_associations_win32_launch (nemo_associations_win32_command_of (application),
+                                                 locations, &error);
+    } else {
+        result = g_app_info_launch_uris (application,
+                                         uris,
+                                         G_APP_LAUNCH_CONTEXT (launch_context),
+                                         &error);
+    }
 #else
     result = g_app_info_launch_uris (application,
                                      uris,

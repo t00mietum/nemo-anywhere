@@ -112,6 +112,7 @@ static const char *const deflist_terminal_win32_candidates[] = { "wt.exe", "pwsh
 static const char *const deflist_search_disabled_search_helpers[] = { NULL };
 static const char *const deflist_search_search_skip_folders[] = { "/dev", "/proc", "/sys", "dosdevices", ".git", NULL };
 static const char *const deflist_search_search_visible_columns[] = { NULL };
+static const char *const deflist_associations_overrides[] = { NULL };
 static const char *const deflist_thumbnailers_disable[] = { NULL };
 
 static const NemoConfigKey nemo_config_keys[] = {
@@ -276,6 +277,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_visible_columns, NULL, "Saved list of columns visible in the search view." },
 	{ "sidebar-panels.tree", "show-only-directories", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Only show folders in the tree side pane" },
 	{ "state", "first-run-done", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Set once first-run setup has run. Clear it to get the platform's default bookmarks back on the next start." },
+	{ "associations", "overrides", NEMO_CONFIG_STRING_LIST, NULL, deflist_associations_overrides, NULL, "Windows only: the program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read." },
 	{ "thumbnailers", "disable", NEMO_CONFIG_STRING_LIST, NULL, deflist_thumbnailers_disable, NULL, "Disable external thumbnailers for these mime types" },
 	{ "thumbnailers", "disable-all", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Disable all external thumbnailers" },
 	{ "window-state", "bookmarks-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Expand Bookmark section in places sidebar" },

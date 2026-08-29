@@ -47,6 +47,9 @@
 #include <libnemo-private/nemo-program-choosing.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-signaller.h>
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-associations-win32.h>
+#endif
 #include <libnemo-private/nemo-mime-application-chooser.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-shortcut-win32.h>
@@ -352,7 +355,18 @@ nemo_mime_get_default_application_for_file (NemoFile *file)
 
     if (!g_str_has_prefix (uri_scheme, "http")) {
         mime_type = nemo_file_get_mime_type (file);
+#ifdef G_OS_WIN32
+        /* The override map, then what the shell would open it with - or
+         * nothing, as the shell would have nothing. GIO's own answer can be a
+         * print verb, so it is not asked for a local file. */
+        if (file_has_local_path (file)) {
+            app = nemo_associations_win32_default_for_type (mime_type);
+        } else {
+            app = g_app_info_get_default_for_type (mime_type, TRUE);
+        }
+#else
         app = g_app_info_get_default_for_type (mime_type, !file_has_local_path (file));
+#endif
         g_free (mime_type);
     }
 
@@ -454,6 +468,9 @@ nemo_mime_get_applications_for_file (NemoFile *file)
 	}
 	mime_type = nemo_file_get_mime_type (file);
 	result = g_app_info_get_all_for_type (mime_type);
+#ifdef G_OS_WIN32
+	result = nemo_associations_win32_filter_apps (result);
+#endif
 
 	uri_scheme = nemo_file_get_uri_scheme (file);
 	if (uri_scheme != NULL) {
