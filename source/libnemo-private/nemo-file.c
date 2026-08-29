@@ -55,6 +55,7 @@
 #include <libnemo-private/nemo-posix-compat.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-security-win32.h>
+#include <libnemo-private/nemo-shell-icon-win32.h>
 #endif
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -5400,6 +5401,23 @@ nemo_file_get_icon (NemoFile *file,
 			}
 		}
 	}
+
+#ifdef G_OS_WIN32
+	/* A shortcut wears its target's icon, which only the shell can find. */
+	if (name_has_lnk (file->details->name) && nemo_file_is_local (file)) {
+		char *path = nemo_file_get_path (file);
+		GdkPixbuf *pixbuf = path != NULL ?
+			nemo_shell_icon_win32_for_path (path, size * scale, file->details->mtime) : NULL;
+
+		g_free (path);
+
+		if (pixbuf != NULL) {
+			icon = nemo_icon_info_new_for_pixbuf (pixbuf, scale);
+			g_object_unref (pixbuf);
+			return icon;
+		}
+	}
+#endif
 
     if (file->details->is_thumbnailing &&
 	    flags & NEMO_FILE_ICON_FLAGS_USE_THUMBNAILS)
