@@ -46,6 +46,7 @@ nemoCommon_sources = [
   'nemo-progress-ui-handler.c',
   'nemo-properties-win32.c',
   'nemo-properties-window.c',
+  'nemo-shortcut-properties.c',
   'nemo-query-editor.c',
   'nemo-template-config-widget.c',
   'nemo-self-check-functions.c',

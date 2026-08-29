@@ -130,6 +130,60 @@ resolve_target (const char *lnk_path)
 	return ret;
 }
 
+/* Every field a shortcut carries reads back as written, and an edit of the
+ * target and the arguments lands in the file while the rest stays. */
+static void
+test_info_round_trip (const char *dir, const char *target)
+{
+	char *lnk = g_build_filename (dir, "edited.lnk", NULL);
+	char *other = g_build_filename (dir, "other.txt", NULL);
+	NemoShortcutInfo info;
+	GError *error = NULL;
+
+	check (g_file_set_contents (other, "other", -1, NULL));
+	check (nemo_shortcut_win32_create (target, lnk, dir, "--flag one", "a comment", &error));
+	check (error == NULL);
+
+	check (nemo_shortcut_win32_read_info (lnk, &info, &error));
+	check (error == NULL);
+	check (info.target != NULL && g_ascii_strcasecmp (info.target, target) == 0);
+	check (g_strcmp0 (info.arguments, "--flag one") == 0);
+	check (info.working_dir != NULL && g_ascii_strcasecmp (info.working_dir, dir) == 0);
+	check (g_strcmp0 (info.description, "a comment") == 0);
+
+	g_free (info.target);
+	g_free (info.arguments);
+	info.target = g_strdup (other);
+	info.arguments = g_strdup ("");
+	check (nemo_shortcut_win32_update (lnk, &info, &error));
+	check (error == NULL);
+	nemo_shortcut_info_clear (&info);
+
+	check (nemo_shortcut_win32_read_info (lnk, &info, &error));
+	check (info.target != NULL && g_ascii_strcasecmp (info.target, other) == 0);
+	check (g_strcmp0 (info.arguments, "") == 0);
+	check (g_strcmp0 (info.description, "a comment") == 0);
+	nemo_shortcut_info_clear (&info);
+
+	/* a shortcut with no file target still opens */
+	info.target = g_strdup ("");
+	info.arguments = g_strdup ("");
+	info.working_dir = g_strdup ("");
+	info.description = g_strdup ("bare");
+	check (nemo_shortcut_win32_update (lnk, &info, &error));
+	nemo_shortcut_info_clear (&info);
+	check (nemo_shortcut_win32_read_info (lnk, &info, &error));
+	check (g_strcmp0 (info.target, "") == 0);
+	check (g_strcmp0 (info.description, "bare") == 0);
+	nemo_shortcut_info_clear (&info);
+
+	g_clear_error (&error);
+	g_remove (lnk);
+	g_remove (other);
+	g_free (other);
+	g_free (lnk);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -142,6 +196,8 @@ main (int argc, char *argv[])
 
 	target = g_build_filename (dir, "target.txt", NULL);
 	check (g_file_set_contents (target, "hello", -1, NULL));
+
+	test_info_round_trip (dir, target);
 
 	lnk = g_build_filename (dir, "shortcut.lnk", NULL);
 

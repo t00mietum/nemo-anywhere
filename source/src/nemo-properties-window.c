@@ -30,6 +30,7 @@
 #include "nemo-error-reporting.h"
 #include "nemo-mime-actions.h"
 #include "nemo-properties-win32.h"
+#include "nemo-shortcut-properties.h"
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
@@ -3111,6 +3112,22 @@ create_basic_page (NemoPropertiesWindow *window)
 					   GTK_WIDGET (window->details->name_label));
 		box = nemo_desktop_item_properties_make_box (label_size_group,
 								 window->details->target_files);
+
+		gtk_grid_attach_next_to (window->details->basic_grid, box,
+					 GTK_WIDGET (window->details->name_label),
+					 GTK_POS_BOTTOM, 2, 1);
+	}
+
+	/* The same editor for a Windows shortcut. */
+	if (nemo_shortcut_properties_should_show (window->details->target_files)) {
+		GtkSizeGroup *label_size_group;
+		GtkWidget *box;
+
+		label_size_group = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+		gtk_size_group_add_widget (label_size_group,
+					   GTK_WIDGET (window->details->name_label));
+		box = nemo_shortcut_properties_make_box (label_size_group,
+							 window->details->target_files);
 
 		gtk_grid_attach_next_to (window->details->basic_grid, box,
 					 GTK_WIDGET (window->details->name_label),

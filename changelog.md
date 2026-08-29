@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Content search ("Containing:") reads Word, Excel and PowerPoint documents in both their old and new formats, OpenDocument files and EPUB books, on every platform. The converters are built in, so nothing else needs installing.
+- On Windows, Properties on a shortcut shows its target, arguments, start-in folder and comment, and each can be edited in place, the way a `.desktop` launcher can on Linux. A file dropped on the target or start-in field fills it in.
 - On Windows, "Set as default" in Open With works. The choice is kept in the settings file, as a command line with `%1` for the file, and is used ahead of the registry; the registry itself is only ever read, the way Explorer reads it. Reset takes the choice away again.
 - On Windows, a switch in Preferences answers searches from the Windows Search index for folders it covers. Off by default. Folders outside the index, and content searches by pattern or by case, are still searched directly.
 - A `--reset` flag that clears the settings and the bookmarks and puts everything back to defaults. It will not run while the app is open.

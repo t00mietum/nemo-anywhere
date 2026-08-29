@@ -31,6 +31,22 @@ gboolean nemo_shortcut_win32_read   (const char  *lnk_path,
                                      char       **target_path,
                                      GError     **error);
 
+/* Everything a shortcut says about what it runs. Any field may be empty. */
+typedef struct {
+	char *target;
+	char *arguments;
+	char *working_dir;
+	char *description;
+} NemoShortcutInfo;
+
+gboolean nemo_shortcut_win32_read_info (const char        *lnk_path,
+                                        NemoShortcutInfo  *info,
+                                        GError           **error);
+gboolean nemo_shortcut_win32_update    (const char             *lnk_path,
+                                        const NemoShortcutInfo *info,
+                                        GError                **error);
+void     nemo_shortcut_info_clear      (NemoShortcutInfo *info);
+
 /* Open a .lnk the way a double-click in the shell would: the target's
  * associated program for a document, the program itself for an executable,
  * carrying the arguments, working directory and window state stored in the

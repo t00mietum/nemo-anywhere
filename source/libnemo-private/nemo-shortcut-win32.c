@@ -12,6 +12,7 @@
 
 #ifdef G_OS_WIN32
 
+#include <string.h>
 #include <gio/gio.h>
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
@@ -236,6 +237,189 @@ uninit:
 	}
 out:
 	g_free (w_lnk);
+	return ok;
+}
+
+/* Opens a shortcut for reading or rewriting; the caller releases both. */
+static gboolean
+load_link (const char    *lnk_path,
+           DWORD          mode,
+           IShellLinkW  **link,
+           IPersistFile **pf,
+           GError       **error)
+{
+	gunichar2 *w_lnk = to_utf16 (lnk_path);
+	HRESULT hr;
+
+	*link = NULL;
+	*pf = NULL;
+
+	if (w_lnk == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+				     _("Could not encode the shortcut path."));
+		return FALSE;
+	}
+
+	hr = CoCreateInstance (&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
+			       &IID_IShellLinkW, (void **) link);
+	if (SUCCEEDED (hr) && *link != NULL) {
+		hr = IShellLinkW_QueryInterface (*link, &IID_IPersistFile, (void **) pf);
+	}
+	if (SUCCEEDED (hr) && *pf != NULL) {
+		hr = IPersistFile_Load (*pf, w_lnk, mode);
+	}
+
+	g_free (w_lnk);
+
+	if (FAILED (hr) || *pf == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+				     _("Could not load the shortcut."));
+		if (*pf != NULL) {
+			IPersistFile_Release (*pf);
+		}
+		if (*link != NULL) {
+			IShellLinkW_Release (*link);
+		}
+		*link = NULL;
+		*pf = NULL;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static char *
+from_wide (const wchar_t *s)
+{
+	return g_utf16_to_utf8 ((const gunichar2 *) s, -1, NULL, NULL, NULL);
+}
+
+void
+nemo_shortcut_info_clear (NemoShortcutInfo *info)
+{
+	g_clear_pointer (&info->target, g_free);
+	g_clear_pointer (&info->arguments, g_free);
+	g_clear_pointer (&info->working_dir, g_free);
+	g_clear_pointer (&info->description, g_free);
+}
+
+/* Unlike nemo_shortcut_win32_read, a shortcut with no file target is not an
+ * error here: the editor still has to open on it. Every field comes back set,
+ * empty where the shortcut says nothing. */
+gboolean
+nemo_shortcut_win32_read_info (const char        *lnk_path,
+                               NemoShortcutInfo  *info,
+                               GError           **error)
+{
+	IShellLinkW *link;
+	IPersistFile *pf;
+	wchar_t buf[32768];
+	gboolean did_init;
+
+	g_return_val_if_fail (lnk_path != NULL, FALSE);
+	g_return_val_if_fail (info != NULL, FALSE);
+
+	memset (info, 0, sizeof *info);
+
+	did_init = com_init ();
+
+	if (!load_link (lnk_path, STGM_READ, &link, &pf, error)) {
+		if (did_init) {
+			CoUninitialize ();
+		}
+		return FALSE;
+	}
+
+	buf[0] = L'\0';
+	IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf), NULL, 0);
+	info->target = from_wide (buf);
+
+	buf[0] = L'\0';
+	IShellLinkW_GetArguments (link, buf, G_N_ELEMENTS (buf));
+	info->arguments = from_wide (buf);
+
+	buf[0] = L'\0';
+	IShellLinkW_GetWorkingDirectory (link, buf, G_N_ELEMENTS (buf));
+	info->working_dir = from_wide (buf);
+
+	buf[0] = L'\0';
+	IShellLinkW_GetDescription (link, buf, G_N_ELEMENTS (buf));
+	info->description = from_wide (buf);
+
+	IPersistFile_Release (pf);
+	IShellLinkW_Release (link);
+
+	if (did_init) {
+		CoUninitialize ();
+	}
+
+	return TRUE;
+}
+
+/* Rewrites the shortcut in place with every field from info. */
+gboolean
+nemo_shortcut_win32_update (const char             *lnk_path,
+                            const NemoShortcutInfo *info,
+                            GError                **error)
+{
+	IShellLinkW *link;
+	IPersistFile *pf;
+	gunichar2 *w_target, *w_args, *w_dir, *w_desc, *w_lnk;
+	gboolean did_init;
+	gboolean ok = FALSE;
+	HRESULT hr;
+
+	g_return_val_if_fail (lnk_path != NULL, FALSE);
+	g_return_val_if_fail (info != NULL, FALSE);
+
+	did_init = com_init ();
+
+	if (!load_link (lnk_path, STGM_READWRITE, &link, &pf, error)) {
+		if (did_init) {
+			CoUninitialize ();
+		}
+		return FALSE;
+	}
+
+	w_target = to_utf16 (info->target != NULL ? info->target : "");
+	w_args   = to_utf16 (info->arguments != NULL ? info->arguments : "");
+	w_dir    = to_utf16 (info->working_dir != NULL ? info->working_dir : "");
+	w_desc   = to_utf16 (info->description != NULL ? info->description : "");
+	w_lnk    = to_utf16 (lnk_path);
+
+	hr = IShellLinkW_SetPath (link, w_target);
+	if (FAILED (hr)) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_FILENAME,
+			     _("A Windows shortcut cannot point at \"%s\"."), info->target);
+		goto out;
+	}
+
+	IShellLinkW_SetArguments (link, w_args);
+	IShellLinkW_SetWorkingDirectory (link, w_dir);
+	IShellLinkW_SetDescription (link, w_desc);
+
+	hr = IPersistFile_Save (pf, w_lnk, TRUE);
+	if (FAILED (hr)) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+				     _("Could not save the shortcut."));
+		goto out;
+	}
+
+	ok = TRUE;
+
+out:
+	g_free (w_target);
+	g_free (w_args);
+	g_free (w_dir);
+	g_free (w_desc);
+	g_free (w_lnk);
+	IPersistFile_Release (pf);
+	IShellLinkW_Release (link);
+
+	if (did_init) {
+		CoUninitialize ();
+	}
+
 	return ok;
 }
 
