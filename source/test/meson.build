@@ -487,4 +487,13 @@ if is_windows
     ),
     args: []
   )
+
+  test('Shell icon test',
+    executable('test-nemo-shell-icon-win32',
+      [ 'test-nemo-shell-icon-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
 endif

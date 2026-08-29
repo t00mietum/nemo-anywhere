@@ -59,11 +59,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Windows: show the icon the shell would show for .lnk files (without requiring Explorer to run).
-	- Opened: 20260827-090000
-	- Split out of the done item for opening a shortcut the way Explorer does. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
-	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
-
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
 	- Only that one button. The ancestor buttons keep the shorter menu.
@@ -977,6 +972,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Windows: show the icon the shell would show for .lnk files (without requiring Explorer to run).
+	- Opened: 20260827-090000
+	- Closed: 20260829-103000
+	- Split out of the done item for opening a shortcut the way Explorer does. A shortcut showed a generic icon rather than its target's - the toolkit reports one flat icon for every file on Windows.
+	- Fixed: a shortcut is drawn with the shell's own icon for it, at each of the shell's sizes rather than scaled from one, and cached. No Explorer process is involved.
+	- Note: the shell's icon for a registered file type (a .docx drawn as Word's) is deliberately not used for ordinary files - it would fight the icon themes. The lookup is by path and could be widened later.
 
 - ✅ Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
 	- Opened: 20260826-103001
