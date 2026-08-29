@@ -59,12 +59,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Windows: content search cannot read documents, because the search helpers are not packaged there.
-	- Opened: 20260828-160000
-	- On Linux a helper turns a document into text so "Containing:" can search it. The Windows layout carries the executable and the toolkit and nothing else.
-	- Two of the helpers are ours and would build for Windows; the rest are shell scripts and would need rewriting.
-	- Also needs checking: whether a helper is still found when its name has to gain a `.exe`.
-
 - 🔘 Bookmarks are kept in the toolkit's own file, not ours.
 	- Opened: 20260828
 	- Only relevant on Windows.
@@ -80,7 +74,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
 	- Opened: 20260826-103001
 
-- 🔘 Windows: show the icon the shell would show.
+- 🔘 Windows: show the icon the shell would show for .lnk files (without requiring Explorer to run).
 	- Opened: 20260827-090000
 	- Split out of the done item for opening a shortcut the way Explorer does. A shortcut shows a generic icon rather than its target's, and the shell's own icon for a registered file type is not used either - the toolkit reports one flat icon for every file on Windows.
 	- Wants icon extraction from the shell and a cache, which is a piece of work on its own and reaches every file, not just shortcuts.
@@ -183,6 +177,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Windows: a first start with a fresh roaming profile moved the local data folder into the settings folder.
+	- Opened: 20260829-081500
+	- Closed: 20260829-083500
+	- Cause: the move of an old-style settings folder into its roaming home fired on any folder found at the old place. On Windows that place is also where actions, scripts and search helpers are kept, so an ordinary data folder was carried off as if it were old settings.
+	- Fixed: only a folder holding a settings file is moved. The data folder stays where it is.
 
 - ✅ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
 	- Opened: 20260802-095853
@@ -992,6 +992,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Windows: content search cannot read documents, because the search helpers are not packaged there.
+	- Opened: 20260828-160000
+	- Closed: 20260829-083000
+	- On Linux a helper turned a document into text so "Containing:" could search it. The Windows layout carried the executable and the toolkit and nothing else, and three of the helpers were a Python script, a shell script and a LibreOffice call.
+	- Fixed: the converters are plain C and ship on every platform. Word, Excel and PowerPoint in both the old binary and the newer zip-of-xml forms, OpenDocument and EPUB. The scripts and their dependencies are gone.
+	- Fixed: a helper is looked for beside the main program before the search path, so a name that has to gain `.exe` is found all the same.
+	- Fixed: a helper's `Priority` is honoured. One helper runs per file; the next is only tried when it cannot read the file at all.
+	- Added: a switch in Preferences to answer searches from the Windows Search index for folders it covers. Off by default. Folders outside the index, and content searches by pattern or by case, are still searched directly.
 
 - ✅ Windows and NTFS: any directory symlink through any mechanism should also allow a junction, preferred over a symlink.
 	- Opened: 20260823-142431

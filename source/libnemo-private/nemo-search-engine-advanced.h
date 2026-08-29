@@ -45,6 +45,14 @@ GType          nemo_search_engine_advanced_get_type  (void);
 NemoSearchEngine* nemo_search_engine_advanced_new       (void);
 void           free_search_helpers (void);
 
+/* The file-name half of a query, applicable to any name from any source. */
+typedef struct _NemoSearchNameMatcher NemoSearchNameMatcher;
+
+NemoSearchNameMatcher *nemo_search_name_matcher_new     (NemoQuery             *query);
+gboolean               nemo_search_name_matcher_matches (NemoSearchNameMatcher *matcher,
+                                                         const gchar           *display_name);
+void                   nemo_search_name_matcher_free    (NemoSearchNameMatcher *matcher);
+
 gboolean nemo_search_engine_advanced_check_filename_pattern (NemoQuery   *query,
                                                              GError     **error);
 gboolean nemo_search_engine_advanced_check_content_pattern  (NemoQuery *query,

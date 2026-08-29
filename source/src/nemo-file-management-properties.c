@@ -55,6 +55,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET "date_format_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET "path_separator_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET "allow_slash_input_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_USE_WINDOWS_SEARCH_WIDGET "use_windows_search_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET "show_shortcut_extension_checkbutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET "preview_image_combobox"
@@ -709,6 +710,7 @@ set_up_windows_only_groups (GtkBuilder *builder)
 #else
 	hide_group (builder, "vbox_paths");
 	hide_group (builder, "vbox_shortcuts");
+	hide_group (builder, "vbox_search");
 #endif
 }
 
@@ -1397,6 +1399,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET,
 			   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
+	bind_builder_bool (builder, nemo_search_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_USE_WINDOWS_SEARCH_WIDGET,
+			   NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH);
 	bind_builder_radio (builder, nemo_preferences,
 			    (const char **) click_behavior_components,
 			    NEMO_PREFERENCES_CLICK_POLICY,

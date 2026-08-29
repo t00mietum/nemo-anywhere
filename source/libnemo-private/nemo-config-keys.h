@@ -262,6 +262,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences.menu-config", "selection-menu-scripts", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Scripts submenu." },
 	{ "search", "disabled-search-helpers", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_disabled_search_helpers, NULL, "List of search helper filenames to skip when using content search." },
 	{ "search", "search-content-case-sensitive", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the content search case toggle" },
+	{ "search", "use-windows-search", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Windows only: answer a search from the Windows Search index where the folder is indexed, rather than walking it" },
 	{ "search", "search-content-use-raw", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Treat patterns as raw bytes, not utf-8" },
 	{ "search", "search-content-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the content search regex toggle" },
 	{ "search", "search-file-case-sensitive", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the file search case toggle" },

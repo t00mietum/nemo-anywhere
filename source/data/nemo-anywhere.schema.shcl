@@ -743,6 +743,11 @@ field: search.search-content-case-sensitive
 	default: false
 	desc: Stores the most recent state of the content search case toggle
 
+field: search.use-windows-search
+	type: bool
+	default: false
+	desc: Windows only: answer a search from the Windows Search index where the folder is indexed, rather than walking it
+
 field: search.search-content-use-raw
 	type: bool
 	default: false

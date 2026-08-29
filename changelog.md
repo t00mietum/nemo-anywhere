@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Content search ("Containing:") reads Word, Excel and PowerPoint documents in both their old and new formats, OpenDocument files and EPUB books, on every platform. The converters are built in, so nothing else needs installing.
+- On Windows, a switch in Preferences answers searches from the Windows Search index for folders it covers. Off by default. Folders outside the index, and content searches by pattern or by case, are still searched directly.
 - A `--reset` flag that clears the settings and the bookmarks and puts everything back to defaults. It will not run while the app is open.
 - On Windows, a first start fills the bookmark list with the drive, Desktop, Documents, Downloads, Pictures, Videos and AppData. Anything left behind by a config copied from a Linux machine is dropped at the same time.
 - Typed locations understand `~` for the home folder and environment variables, written either `%NAME%` or `$NAME`, on any platform. A folder whose name really contains one of those characters still opens as itself.
@@ -30,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Search helpers: the `Priority` field is honoured, and one helper runs per file rather than every helper that claims the type.
 - The bundled icon themes are trimmed to the icons a file manager actually asks for. The Windows 11 set went from 1.8 MB to around 300 KB; anything not shipped falls back the way icon themes are meant to.
 - Settings now live where each platform expects them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS, `~/.config/nemo-anywhere` on Linux and BSD as before. An existing settings folder is moved to the new place on first run, so nothing is lost. Drop-in themes are unaffected.
 - The single-file Windows build starts far faster. Nearly all of its startup went on unpacking the couple of thousand loose theme and icon files it carried; those now live inside the executable itself. Nothing about how themes are chosen or dropped in changes.
@@ -37,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- On Windows, a first start with a fresh roaming profile carried the local data folder (actions, scripts) off into the settings folder, mistaking it for settings left by an older version. Only a folder that holds a settings file is moved now.
 - On Windows the window opened behind whatever you were already looking at, so a launch could look like nothing had happened until you noticed the taskbar button. It comes to the front now.
 ## v1.0.0-beta2 - 2026-08-04
 

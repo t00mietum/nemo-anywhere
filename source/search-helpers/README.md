@@ -29,7 +29,20 @@ The `Nemo Search Helper` group name is mandatory.
   the value is assumed to be 100.
 - The `TryExec`, `Exec` and `MimeType` keys are mandatory.
 
-These definition files can be placed in `<datadir>/nemo/search-helpers` where `<datadir>` can be some directory in XDG_DATA_DIRS or under the user's data directory (`~/.local/share/namo/search-helpers`). The user directory is *always* processed last.
+These definition files can be placed in `<datadir>/nemo-anywhere/search-helpers` where `<datadir>` can be some directory in XDG_DATA_DIRS or under the user's data directory (`~/.local/share/nemo-anywhere/search-helpers`, `%LOCALAPPDATA%\nemo-anywhere\search-helpers` on Windows). The user directory is *always* processed last.
+
+When more than one helper claims a type, the one with the highest `Priority` runs; the next is only tried when it could not read the file at all.
+
+##### Built-in converters:
+
+The converters in this folder are plain C on libgsf and are built and shipped on every platform, so these formats need nothing installed:
+
+- `nemo-anywhere-mso-to-txt` - any zip-of-xml document: Word, Excel and PowerPoint 2007+ (`.docx`, `.xlsx`, `.pptx`), OpenDocument (`.odt`, `.ods`, `.odp`, `.odg`) and EPUB.
+- `nemo-anywhere-doc-to-txt` - Word 6 through 2003 (`.doc`).
+- `nemo-anywhere-xls-to-txt` - Excel 5 through 2003 (`.xls`).
+- `nemo-anywhere-ppt-to-txt` - PowerPoint 97 through 2003 (`.ppt`).
+
+The definitions under `third-party/` name programs that may or may not be installed (pdftotext, exiftool and so on) and are skipped when they are not.
 
 ##### Debugging:
 If something doesn't seem to be working, you can run nemo with debugging enabled:

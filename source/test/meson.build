@@ -455,3 +455,27 @@ if is_windows
     args: []
   )
 endif
+
+# The document converters, run on files written for the purpose.
+test('Search helpers test',
+  executable('test-nemo-search-helpers',
+    [ 'test-nemo-search-helpers.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, libgsf ],
+    c_args: nemo_definitions,
+  ),
+  args: [],
+  env: [ 'NEMO_SEARCH_HELPER_DIR=' + search_helper_dir ],
+  depends: search_helper_exes,
+)
+
+if is_windows
+  test('Windows Search test',
+    executable('test-nemo-search-win32',
+      [ 'test-nemo-search-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif

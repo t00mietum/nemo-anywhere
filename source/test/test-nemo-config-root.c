@@ -113,12 +113,34 @@ main (int argc, char *argv[])
 	check (g_strcmp0 (root, xdg) == 0);
 #endif
 
+	legacy = g_build_filename (g_get_user_config_dir (), NEMO_APP_SLUG, NULL);
+	expected = g_build_filename (root, NEMO_APP_SLUG, NULL);
+
+	/* The XDG location is also the user data dir on Windows, where actions and
+	 * scripts live. A directory there with no settings file is not an old
+	 * config and must stay where it is. */
+	if (g_strcmp0 (root, g_get_user_config_dir ()) != 0) {
+		char *actions = g_build_filename (legacy, "actions", NULL);
+		char *moved;
+
+		g_mkdir_with_parents (actions, 0700);
+		user_dir = nemo_get_user_directory ();
+		moved = g_build_filename (user_dir, "actions", NULL);
+
+		check (g_strcmp0 (user_dir, expected) == 0);
+		check (g_file_test (actions, G_FILE_TEST_IS_DIR));
+		check (!g_file_test (moved, G_FILE_TEST_EXISTS));
+
+		remove_tree (user_dir);
+		g_free (user_dir);
+		g_free (moved);
+		g_free (actions);
+	}
+
 	/* A directory an older build left in the XDG location moves across
 	 * rather than being ignored, which would read as settings lost. */
-	legacy = g_build_filename (g_get_user_config_dir (), NEMO_APP_SLUG, NULL);
 	write_marker (legacy, "settings.shcl");
 
-	expected = g_build_filename (root, NEMO_APP_SLUG, NULL);
 	user_dir = nemo_get_user_directory ();
 
 	check (g_strcmp0 (user_dir, expected) == 0);

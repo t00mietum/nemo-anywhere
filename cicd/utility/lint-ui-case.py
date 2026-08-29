@@ -49,6 +49,8 @@ KEEP = set([
 	# Property nicknames on a GObject; never shown to anyone.
 	"Cursor Position",
 	"Selection Bound",
+	# Windows Search is the indexer's name.
+	"Use the Windows Search index for folders it covers",
 	# Disc formats are named things.
 	"These files are on a Photo CD.",
 	"These files are on a Picture CD.",

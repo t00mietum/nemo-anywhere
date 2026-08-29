@@ -267,6 +267,9 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 
 - "Open in terminal" and "open elevated" map to native equivalents per platform. On Windows: the native console (Windows Terminal, then PowerShell, then cmd) opened at the folder, and an elevated relaunch through the normal UAC prompt, labeled "Open as Administrator". On Linux: the configured terminal and a pkexec relaunch, labeled "Open as Root".
 
+- Content search converts documents itself. Among shelling out to whatever converter happens to be installed, bundling scripts with their interpreters, or writing the converters in C on a library the app already links, it was decided to write them in C. The old helpers were a Python script, a shell script and a LibreOffice call - none of which exists on a stock Windows machine, and each a dependency the install could not promise. Word, Excel and PowerPoint in both their old binary and newer zip-of-xml forms, OpenDocument and EPUB are covered; the definition-file mechanism stays, so a helper for anything else can still be dropped in.
+	- On Windows the search index is used when asked. A switch in Preferences, off by default, answers a search from the Windows Search index for any folder it covers. Everything the index cannot do - a folder outside it, a network location, a regular expression or a case-sensitive match on contents - goes to the ordinary walk unchanged. It is off by default because the index only knows what it has been told to watch, and a search that quietly misses a folder would be worse than a slow one.
+
 ## Architecture
 
 ### Software stack

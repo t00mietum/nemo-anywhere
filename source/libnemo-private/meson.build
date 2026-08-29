@@ -108,6 +108,10 @@ if tracker_enabled
   nemo_private_deps += tracker_sparql
 endif
 
+if is_windows
+  nemo_private_sources += 'nemo-search-engine-win32.c'
+endif
+
 if libselinux_enabled
   nemo_private_deps += libselinux
 endif
