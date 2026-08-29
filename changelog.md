@@ -32,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- On Windows, bookmarks are kept beside the settings in the roaming profile, so they follow the settings between machines. A list from an earlier version is picked up from the old place on first start.
 - Search helpers: the `Priority` field is honoured, and one helper runs per file rather than every helper that claims the type.
 - The bundled icon themes are trimmed to the icons a file manager actually asks for. The Windows 11 set went from 1.8 MB to around 300 KB; anything not shipped falls back the way icon themes are meant to.
 - Settings now live where each platform expects them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS, `~/.config/nemo-anywhere` on Linux and BSD as before. An existing settings folder is moved to the new place on first run, so nothing is lost. Drop-in themes are unaffected.

@@ -289,6 +289,7 @@ settings daemon, no compiled schema, and no per-platform store to keep in step.
   directory the platform holds per-user configuration in: `~/.config` on Linux
   and BSD, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS. A
   folder left behind by an older build is moved to the new place on first run.
+- Bookmarks are the toolkit's own file on Linux and BSD, shared with every other GTK program there. On Windows nothing else reads that file and it sits in the local profile, so the list is kept beside the settings in the roaming one instead, copied across once from the old place.
 - The declared shape of every setting - type, default, allowed values,
   description - lives in a table in the code, and is mirrored by a schema file
   shipped with the app for validating a hand-edited config.

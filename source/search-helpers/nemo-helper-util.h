@@ -35,7 +35,7 @@ rd_double (const guint8 *p)
 }
 
 /* The whole of one child stream, or NULL when the container has no such stream. */
-static guint8 *
+static inline guint8 *
 helper_read_stream (GsfInfile *infile, const char *name, gsize *len)
 {
 	GsfInput *stream;
@@ -61,7 +61,7 @@ helper_read_stream (GsfInfile *infile, const char *name, gsize *len)
 	return buf;
 }
 
-static guint8 *
+static inline guint8 *
 helper_read_input (GsfInput *input, gsize *len)
 {
 	gsf_off_t size = gsf_input_size (input);
@@ -76,7 +76,7 @@ helper_read_input (GsfInput *input, gsize *len)
 	return buf;
 }
 
-static void
+static inline void
 helper_append_utf16 (GString *out, const guint8 *data, gsize n_units)
 {
 	gsize written = 0;
@@ -90,7 +90,7 @@ helper_append_utf16 (GString *out, const guint8 *data, gsize n_units)
 }
 
 /* The one-byte form of a UTF-16 string: every byte is a code unit's low half. */
-static void
+static inline void
 helper_append_latin1 (GString *out, const guint8 *data, gsize n)
 {
 	gsize i;
@@ -100,7 +100,7 @@ helper_append_latin1 (GString *out, const guint8 *data, gsize n)
 	}
 }
 
-static void
+static inline void
 helper_append_cp1252 (GString *out, const guint8 *data, gsize n)
 {
 	gsize written = 0;
@@ -118,7 +118,7 @@ helper_append_cp1252 (GString *out, const guint8 *data, gsize n)
 /* Control characters mark paragraphs, cells and fields in the binary formats;
  * a line break for the paragraph ones, a space for the rest. UTF-8 never puts a
  * byte under 0x80 inside a multibyte sequence, so a byte-wise pass is safe. */
-static void
+static inline void
 helper_clean (GString *s)
 {
 	gsize i;

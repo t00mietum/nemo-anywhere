@@ -29,6 +29,16 @@ static int failures = 0;
 static char *
 bookmarks_path (void)
 {
+	char *user_directory = nemo_get_user_directory ();
+	char *path = g_build_filename (user_directory, "bookmarks", NULL);
+
+	g_free (user_directory);
+	return path;
+}
+
+static char *
+toolkit_bookmarks_path (void)
+{
 	return g_build_filename (g_get_user_config_dir (), "gtk-3.0", "bookmarks", NULL);
 }
 
@@ -187,6 +197,38 @@ test_all_foreign_falls_back_to_defaults (void)
 	g_free (text);
 }
 
+/* A list an older build kept in the toolkit's own file, in the local profile,
+ * is carried across to the roaming one the first time ours is missing, and a
+ * reset takes both away so it cannot come back. */
+static void
+test_toolkit_list_copied_across (void)
+{
+	char *ours = bookmarks_path ();
+	char *toolkit = toolkit_bookmarks_path ();
+	char *dir = g_path_get_dirname (toolkit);
+	char *text;
+
+	g_remove (ours);
+	g_mkdir_with_parents (dir, 0700);
+	g_assert (g_file_set_contents (toolkit, "file:///C:/Kept\n", -1, NULL));
+	clear_marker ();
+
+	nemo_bookmark_list_first_run_setup ();
+
+	text = read_bookmarks ();
+	check (strstr (text, "file:///C:/Kept") != NULL);
+	check (g_file_test (toolkit, G_FILE_TEST_IS_REGULAR));
+	g_free (text);
+
+	nemo_bookmark_list_reset_files ();
+	check (!g_file_test (ours, G_FILE_TEST_EXISTS));
+	check (!g_file_test (toolkit, G_FILE_TEST_EXISTS));
+
+	g_free (dir);
+	g_free (toolkit);
+	g_free (ours);
+}
+
 static void
 test_foreign_settings_dropped (void)
 {
@@ -283,6 +325,7 @@ main (int argc, char *argv[])
 	test_second_run_is_a_no_op ();
 	test_foreign_bookmarks_dropped ();
 	test_all_foreign_falls_back_to_defaults ();
+	test_toolkit_list_copied_across ();
 	test_foreign_settings_dropped ();
 	test_windows_settings_kept ();
 	test_reset_files ();
