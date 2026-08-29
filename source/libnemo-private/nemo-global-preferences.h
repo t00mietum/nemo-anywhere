@@ -285,6 +285,7 @@ typedef enum
 #define NEMO_PREFERENCES_SEARCH_USE_RAW                "search-content-use-raw"
 #define NEMO_PREFERENCES_SEARCH_FILE_CASE              "search-file-case-sensitive"
 #define NEMO_PREFERENCES_SEARCH_CONTENT_CASE           "search-content-case-sensitive"
+#define NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH     "use-windows-search"
 #define NEMO_PREFERENCES_SEARCH_SKIP_FOLDERS           "search-skip-folders"
 #define NEMO_PREFERENCES_SEARCH_FILES_RECURSIVELY      "search-files-recursively"
 #define NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS        "search-visible-columns"

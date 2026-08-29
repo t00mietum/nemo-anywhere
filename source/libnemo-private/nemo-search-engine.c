@@ -30,6 +30,10 @@
 #include "nemo-search-engine-tracker.h"
 #endif
 
+#ifdef G_OS_WIN32
+#include "nemo-search-engine-win32.h"
+#endif
+
 enum {
 	HITS_ADDED,
 	HITS_SUBTRACTED,
@@ -97,8 +101,16 @@ nemo_search_engine_new (void)
 {
 	NemoSearchEngine *engine;
 	
-#ifdef ENABLE_TRACKER	
+#ifdef ENABLE_TRACKER
 	engine = nemo_search_engine_tracker_new ();
+	if (engine) {
+		return engine;
+	}
+#endif
+
+#ifdef G_OS_WIN32
+	/* Asks the Windows Search index where it can, walks otherwise. */
+	engine = nemo_search_engine_win32_new ();
 	if (engine) {
 		return engine;
 	}

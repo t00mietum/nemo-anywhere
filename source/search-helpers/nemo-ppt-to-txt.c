@@ -1,265 +1,106 @@
-/* Nemo is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+/* Text out of a binary PowerPoint presentation (.ppt), for content search. The
+ * record tree in the PowerPoint Document stream is walked and every text atom
+ * printed, wherever it sits: slides, notes, titles, outline text.
  *
- * Nemo is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; see the file COPYING.  If not,
- * write to the Free Software Foundation, Inc., 51 Franklin Street - Suite 500,
- * Boston, MA 02110-1335, USA.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published
+ * by the Free Software Foundation.
  */
 
 #include <stdlib.h>
 #include <glib.h>
 #include <gio/gio.h>
 #include <glib/gprintf.h>
+#include <gsf/gsf.h>
 
+#include "nemo-helper-util.h"
+
+#define RT_TEXT_CHARS 0x0FA0
+#define RT_TEXT_BYTES 0x0FA8
+#define RT_CSTRING    0x0FBA
+
+/* Every record is an 8-byte header and a payload; a version nibble of 0xF marks a
+ * container whose payload is more records. Atoms of any other kind are stepped
+ * over, which is what keeps embedded pictures out of the output. */
 static void
-cleanup_tmp_dir (const gchar *tmp_dir,
-                 GFile       *xml_file)
+walk_records (const guint8 *data, gsize len, GString *out, int depth)
 {
-    if (tmp_dir == NULL || xml_file == NULL) {
-        return;
-    }
+	gsize pos = 0;
 
-    GFile *parent;
+	while (pos + 8 <= len) {
+		guint16 ver_inst = rd16 (data + pos);
+		guint16 type = rd16 (data + pos + 2);
+		gsize rlen = rd32 (data + pos + 4);
 
-    parent = g_file_get_parent (xml_file);
+		pos += 8;
+		rlen = MIN (rlen, len - pos);
 
-    g_file_delete (xml_file, NULL, NULL);
-    g_file_delete (parent, NULL, NULL);
+		if ((ver_inst & 0x0F) == 0x0F) {
+			if (depth < 64) {
+				walk_records (data + pos, rlen, out, depth + 1);
+			}
+		} else if (type == RT_TEXT_CHARS || type == RT_CSTRING) {
+			helper_append_utf16 (out, data + pos, rlen / 2);
+			g_string_append_c (out, '\n');
+		} else if (type == RT_TEXT_BYTES) {
+			helper_append_latin1 (out, data + pos, rlen);
+			g_string_append_c (out, '\n');
+		}
 
-    g_object_unref (parent);
-}
-
-static gchar *
-get_tmp_dir (GError **error)
-{
-    gchar *tmp_dir = NULL;
-
-    // Create our temp dir in /dev/shm if it's available,
-    // otherwise use whatever glib ends up with (/tmp probably).
-
-    if (g_file_test ("/dev/shm", G_FILE_TEST_IS_DIR)) {
-        gchar *old_env_tmp;
-
-        old_env_tmp = g_strdup (g_getenv ("TMPDIR"));
-        if (g_setenv ("TMPDIR", "/dev/shm", TRUE)) {
-            tmp_dir = g_dir_make_tmp ("nemo-search-helper-XXXXXX", NULL);
-
-            if (old_env_tmp != NULL) {
-                g_setenv ("TMPDIR", old_env_tmp, TRUE);
-                g_free (old_env_tmp);
-            } else {
-                g_unsetenv ("TMPDIR");
-            }
-        }
-    }
-
-    if (tmp_dir != NULL) {
-        return tmp_dir;
-    }
-
-    return g_dir_make_tmp ("nemo-search-helper-XXXXXX", error);
-}
-
-gchar *
-run_regex_replace (const gchar  *pattern,
-                   gchar        *input,
-                   const gchar  *replacement,
-                   GError      **error)
-{
-    GRegex *re;
-    gchar *out;
-
-    out = NULL;
-
-    re = g_regex_new (pattern,
-                      G_REGEX_OPTIMIZE,
-                      0,
-                      error);
-
-    if (re == NULL) {
-        return NULL;
-    }
-
-    out = g_regex_replace_literal (re, input, -1, 0, replacement, 0, error);
-    g_free (input);
-    g_regex_unref (re);
-
-    return out;
+		pos += rlen;
+	}
 }
 
 int
 main (int argc, char *argv[])
 {
-    if (argc < 2) {
-        g_printerr ("Need a filename\n");
-        return 1;
-    }
+	GsfInput *input;
+	GsfInfile *ole;
+	GError *error = NULL;
+	GFile *file;
+	GString *out;
+	guint8 *data;
+	gsize len = 0;
 
-    GSubprocess *lo_proc;
-    GFile *xml_file;
-    GError *error;
+	if (argc < 2) {
+		g_printerr ("Need a filename\n");
+		return 1;
+	}
 
-    gchar *tmp_dir = NULL;
-    gchar *name_only = NULL;
-    gchar *ptr;
-    gchar *orig_file_path = NULL, *orig_basename = NULL;
-    gchar *xml_file_path = NULL, *xml_basename = NULL;
-    gchar *content = NULL;
+	file = g_file_new_for_path (argv[1]);
+	input = gsf_input_gio_new (file, &error);
+	g_object_unref (file);
 
-    gint retval;
-    gsize length;
+	if (input == NULL) {
+		g_printerr ("Could not open ppt file: %s\n", error->message);
+		g_error_free (error);
+		return 1;
+	}
 
-    orig_file_path = g_strdup (argv[1]);
+	ole = gsf_infile_msole_new (input, &error);
+	g_object_unref (input);
 
-    orig_basename = g_path_get_basename (orig_file_path);
-    ptr = g_strrstr (orig_basename, ".");
+	if (ole == NULL) {
+		g_printerr ("Not a PowerPoint file: %s\n", error->message);
+		g_error_free (error);
+		return 1;
+	}
 
-    name_only = g_strndup (orig_basename, ptr - orig_basename);
-    g_free (orig_basename);
+	data = helper_read_stream (ole, "PowerPoint Document", &len);
+	g_object_unref (ole);
 
-    retval = 0;
-    xml_file = NULL;
-    error = NULL;
-    tmp_dir = get_tmp_dir (&error);
+	if (data == NULL) {
+		g_printerr ("No presentation stream in %s\n", argv[1]);
+		return 1;
+	}
 
-    if (tmp_dir == NULL) {
-        if (error != NULL) {
-            g_warning ("Could not create a temp dir for conversion: %s", error->message);
-            g_clear_error (&error);
-        }
+	out = g_string_new (NULL);
+	walk_records (data, len, out, 0);
+	g_free (data);
 
-        retval = 1;
-        goto out;
-    }
+	helper_clean (out);
+	g_printf ("%s", out->str);
+	g_string_free (out, TRUE);
 
-    gchar *lo_args[7] = {
-        "libreoffice",
-        "--convert-to", "xml",
-        "--outdir", tmp_dir,
-        orig_file_path,
-        NULL
-    };
-
-    lo_proc = g_subprocess_newv ((const gchar * const *) lo_args,
-                                 G_SUBPROCESS_FLAGS_STDERR_SILENCE | G_SUBPROCESS_FLAGS_STDOUT_SILENCE,
-                                 &error);
-
-    if (lo_proc == NULL) {
-        if (error != NULL) {
-            g_warning ("Could not launch headless libreoffice for conversion: %s", error->message);
-            g_clear_error (&error);
-        }
-        retval = 1;
-        goto out;
-    }
-
-    g_subprocess_wait (lo_proc, NULL, &error);
-    g_object_unref (lo_proc);
-    g_free (orig_file_path);
-
-    if (error != NULL) {
-        g_warning ("LibreOffice was unable to convert ppt to xml: %s", error->message);
-        g_clear_error (&error);
-        retval = 1;
-        goto out;
-    }
-
-    xml_basename = g_strconcat (name_only, ".xml", NULL);
-    xml_file_path = g_build_filename (tmp_dir, xml_basename, NULL);
-
-    xml_file = g_file_new_for_path (xml_file_path);
-
-    if (!g_file_load_contents (xml_file,
-                               NULL,
-                               &content,
-                               &length,
-                               NULL,
-                               &error)) {
-        if (error != NULL) {
-            g_warning ("Unable to read xml file: %s", error->message);
-            g_clear_error (&error);
-            retval = 1;
-            goto out;
-        }
-    }
-
-    // remove doc settings which has content but is uninteresting
-    content = run_regex_replace ("<office:settings>[\\s\\S]*?</office:settings>",
-                                 content,
-                                 "",
-                                 &error);
-
-    if (content == NULL) {
-        goto out;
-    }
-
-    // remove any binary data content like embedded images
-    content = run_regex_replace ("<office:binary-data>[\\s\\S]*?</office:binary-data>",
-                                 content,
-                                 "",
-                                 &error);
-
-    if (content == NULL) {
-        goto out;
-    }
-
-    // remove any escaped markup as content
-    content = run_regex_replace ("&lt;[\\s\\S]*?&gt;",
-                                 content,
-                                 "",
-                                 &error);
-
-    if (content == NULL) {
-        goto out;
-    }
-
-    // remove all remaining markup
-    content = run_regex_replace ("<[^>]+>",
-                                 content,
-                                 " ",
-                                 &error);
-
-    if (content == NULL) {
-        goto out;
-    }
-
-    // remove excess whitespace, replace with a single space
-    content = run_regex_replace ("\\s+",
-                                 content,
-                                 " ",
-                                 &error);
-
-    if (content == NULL) {
-        goto out;
-    }
-
-    g_printf ("%s", content);
-
-out:
-    g_free (content);
-    g_free (name_only);
-
-    g_free (xml_basename);
-    g_free (xml_file_path);
-
-    if (error != NULL)
-    {
-        g_critical ("Could not extract strings from ppt file: %s", error->message);
-        g_error_free (error);
-        retval = 1;
-    }
-
-    cleanup_tmp_dir (tmp_dir, xml_file);
-    g_clear_object (&xml_file);
-    g_free (tmp_dir);
-
-    return retval;
+	return 0;
 }

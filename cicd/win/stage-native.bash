@@ -37,9 +37,16 @@ rm -rf "${DEST}"
 mkdir -p "${DEST}/app" "${DEST}/mingw64/bin" "${DEST}/mingw64/lib" \
 	"${DEST}/mingw64/share/glib-2.0" "${DEST}/mingw64/etc"
 
-## App: just the main exe. The extension lib is statically linked in, so there's no
-## sibling dll; Windows builds a single exe - no helper exes either.
+## App: the main exe (the extension lib is statically linked in, so no sibling dll)
+## plus the search converters, which sit beside it so a program lookup finds them
+## before PATH is even consulted. Their definitions go under share the way the
+## Linux install lays them out.
 cp "${BUILD}/src/"*.exe "${DEST}/app/"
+cp "${BUILD}/search-helpers/"*.exe "${DEST}/app/"
+mkdir -p "${DEST}/mingw64/share/nemo-anywhere/search-helpers"
+cp "${REPO}/source/search-helpers/"*.nemo_search_helper \
+	"${REPO}/source/search-helpers/third-party/"*.nemo_search_helper \
+	"${DEST}/mingw64/share/nemo-anywhere/search-helpers/"
 
 ## Runtime helper exes that GLib/GTK spawn or that nemo discovers as thumbnailers.
 ## bin is on PATH in the launched app, so these resolve; the thumbnailer .thumbnailer

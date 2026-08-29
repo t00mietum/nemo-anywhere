@@ -1,5 +1,5 @@
 [Nemo Search Helper]
-TryExec=unzip;html2text;nemo-anywhere-epub2text;
-Exec=nemo-anywhere-epub2text %s
+TryExec=nemo-anywhere-mso-to-txt;
+Exec=nemo-anywhere-mso-to-txt %s
 MimeType=application/epub+zip;
 Priority=100

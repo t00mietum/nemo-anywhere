@@ -48,7 +48,7 @@ typedef struct {
     gchar *filename;
     gchar *def_path;
     gchar *exec_format;
-    /* future? */
+    gint priority;
 } SearchHelper;
 
 typedef struct {
@@ -66,8 +66,7 @@ typedef struct {
     GRegex *content_re;
     GRegex *newline_re;
 
-    GRegex *filename_re;
-    GList *filename_glob_patterns;
+    NemoSearchNameMatcher *name_matcher;
 
     GMutex hit_list_lock;
     GList *hit_list; // holds FileSearchResults
@@ -75,8 +74,6 @@ typedef struct {
     gboolean show_hidden;
     gboolean count_hits;
     gboolean recurse;
-    gboolean file_case_sensitive;
-    gboolean file_use_regex;
     gboolean location_supports_content_search;
 
     GTimer *timer;
@@ -153,7 +150,7 @@ process_search_helper_file (const gchar *path)
     gchar *abs_try_path = NULL;
     gchar **mime_types = NULL;
     gsize n_types;
-    gint i;
+    gint i, priority;
 
     DEBUG ("Loading search helper: %s", path);
 
@@ -210,6 +207,9 @@ process_search_helper_file (const gchar *path)
         goto done;
     }
 
+    priority = g_key_file_has_key (key_file, SEARCH_HELPER_GROUP, "Priority", NULL) ?
+               g_key_file_get_integer (key_file, SEARCH_HELPER_GROUP, "Priority", NULL) : 100;
+
     /* The helper table is keyed to mimetype strings, which will point to the same value */
 
     for (i = 0; i < n_types; i++) {
@@ -223,6 +223,7 @@ process_search_helper_file (const gchar *path)
         helper->filename = g_path_get_basename (path);
         helper->def_path = g_strdup (path);
         helper->exec_format = g_strdup (exec_format);
+        helper->priority = priority;
 
         existing = g_hash_table_lookup (search_helpers, mime_type);
 
@@ -406,6 +407,148 @@ nemo_search_engine_advanced_create_content_regex (NemoQuery  *query,
                         error);
 }
 
+/* The file-name test, shared with the Windows Search engine so that what the
+ * index hands back is filtered exactly the way a walked directory is. */
+struct _NemoSearchNameMatcher {
+    GRegex *re;
+    GList *globs;
+    gboolean case_sensitive;
+    gboolean use_regex;
+};
+
+NemoSearchNameMatcher *
+nemo_search_name_matcher_new (NemoQuery *query)
+{
+    NemoSearchNameMatcher *matcher = g_new0 (NemoSearchNameMatcher, 1);
+    GError *error = NULL;
+
+    matcher->case_sensitive = nemo_query_get_file_case_sensitive (query);
+    matcher->use_regex = nemo_query_get_use_file_regex (query);
+
+    if (matcher->use_regex) {
+        matcher->re = nemo_search_engine_advanced_create_filename_regex (query, &error);
+
+        if (matcher->re == NULL) {
+            if (error != NULL) {
+                g_warning ("Filename pattern is invalid: code %d - %s", error->code, error->message);
+            }
+            g_clear_error (&error);
+        } else {
+            DEBUG ("regex is '%s'", g_regex_get_pattern (matcher->re));
+        }
+    } else {
+        gchar *text, *normalized, *cased;
+        gchar **words;
+
+        /* A content-only search leaves the file pattern unset, and everything below
+         * walks off a NULL. Empty means "every name", which the fallback below spells. */
+        text = nemo_query_get_file_pattern (query);
+        if (text == NULL) {
+            text = g_strdup ("");
+        }
+
+        normalized = g_utf8_normalize (text, -1, G_NORMALIZE_NFD);
+
+        if (!matcher->case_sensitive) {
+            cased = g_utf8_strdown (normalized, -1);
+        } else {
+            cased = g_strdup (normalized);
+        }
+
+        /* In (< 6.6), whitespace between words was treated as AND, and implied a filename
+         * must include *this* AND *that* AND *other*. To preserve this behavior, split
+         * the search text and wrap segments individually (*segment*) if no wildcard characters
+         * already included, and generate a GPatternSpec for each segment. */
+        words = g_strsplit_set (cased, " \t\r\n", -1);
+
+        for (gint i = 0; words[i] != NULL; i++) {
+            if (words[i][0] != '\0') {
+                g_autofree gchar *word_pattern = NULL;
+
+                if (strchr (words[i], '*') == NULL && strchr (words[i], '?') == NULL) {
+                    word_pattern = g_strdup_printf ("*%s*", words[i]);
+                } else {
+                    word_pattern = g_strdup (words[i]);
+                }
+
+                DEBUG ("pattern is '%s'", word_pattern);
+
+                matcher->globs = g_list_prepend (matcher->globs, g_pattern_spec_new (word_pattern));
+            }
+        }
+
+        g_strfreev (words);
+
+        matcher->globs = g_list_reverse (matcher->globs);
+
+        if (matcher->globs == NULL) {
+            matcher->globs = g_list_prepend (NULL, g_pattern_spec_new ("*"));
+        }
+
+        g_free (text);
+        g_free (normalized);
+        g_free (cased);
+    }
+
+    return matcher;
+}
+
+gboolean
+nemo_search_name_matcher_matches (NemoSearchNameMatcher *matcher,
+                                  const gchar           *display_name)
+{
+    gchar *normalized = g_utf8_normalize (display_name, -1, G_NORMALIZE_NFD);
+    gboolean hit;
+
+    if (matcher->use_regex) {
+        GMatchInfo *match_info = NULL;
+
+        /* re is NULL when the pattern failed to compile (warned at setup);
+         * match nothing rather than crash per file. */
+        hit = matcher->re != NULL &&
+              g_regex_match (matcher->re, normalized, 0, &match_info);
+        g_clear_pointer (&match_info, g_match_info_unref);
+    } else {
+        gchar *cased, *cased_reversed;
+        gsize len;
+
+        if (!matcher->case_sensitive) {
+            cased = g_utf8_strdown (normalized, -1);
+        } else {
+            cased = g_strdup (normalized);
+        }
+
+        cased_reversed = g_utf8_strreverse (cased, -1);
+        len = strlen (cased);
+
+        hit = TRUE;
+        for (GList *l = matcher->globs; l != NULL; l = l->next) {
+            if (!g_pattern_spec_match (l->data, len, cased, cased_reversed)) {
+                hit = FALSE;
+                break;
+            }
+        }
+
+        g_free (cased);
+        g_free (cased_reversed);
+    }
+
+    g_free (normalized);
+    return hit;
+}
+
+void
+nemo_search_name_matcher_free (NemoSearchNameMatcher *matcher)
+{
+    if (matcher == NULL) {
+        return;
+    }
+
+    g_clear_pointer (&matcher->re, g_regex_unref);
+    g_list_free_full (matcher->globs, (GDestroyNotify) g_pattern_spec_free);
+    g_free (matcher);
+}
+
 static SearchThreadData *
 search_thread_data_new (NemoSearchEngineAdvanced *engine,
 			NemoQuery *query)
@@ -434,75 +577,7 @@ search_thread_data_new (NemoSearchEngineAdvanced *engine,
 	}
 	g_queue_push_tail (data->directories, location);
 
-    data->file_case_sensitive = nemo_query_get_file_case_sensitive (query);
-    data->file_use_regex = nemo_query_get_use_file_regex (query);
-
-    if (data->file_use_regex) {
-        data->filename_re = nemo_search_engine_advanced_create_filename_regex (query, &error);
-
-        if (data->filename_re == NULL) {
-            if (error != NULL) {
-                g_warning ("Filename pattern is invalid: code %d - %s", error->code, error->message);
-            }
-            g_clear_error (&error);
-        } else {
-            DEBUG ("regex is '%s'", g_regex_get_pattern (data->filename_re));
-        }
-    } else {
-        gchar *text, *normalized, *cased;
-        gchar **words;
-
-        /* A content-only search leaves the file pattern unset, and everything below
-         * walks off a NULL. Empty means "every name", which the fallback below spells. */
-        text = nemo_query_get_file_pattern (query);
-        if (text == NULL) {
-            text = g_strdup ("");
-        }
-
-        normalized = g_utf8_normalize (text, -1, G_NORMALIZE_NFD);
-
-        if (!data->file_case_sensitive) {
-            cased = g_utf8_strdown (normalized, -1);
-        } else {
-            cased = g_strdup (normalized);
-        }
-
-        /* In (< 6.6), whitespace between words was treated as AND, and implied a filename
-         * must include *this* AND *that* AND *other*. To preserve this behavior, split
-         * the search text and wrap segments individually (*segment*) if no wildcard characters
-         * already included, and generate a GPatternSpec for each segment. */
-        words = g_strsplit_set (cased, " \t\r\n", -1);
-        data->filename_glob_patterns = NULL;
-
-        for (gint i = 0; words[i] != NULL; i++) {
-            if (words[i][0] != '\0') {
-                g_autofree gchar *word_pattern = NULL;
-
-                if (strchr (words[i], '*') == NULL && strchr (words[i], '?') == NULL) {
-                    word_pattern = g_strdup_printf ("*%s*", words[i]);
-                } else {
-                    word_pattern = g_strdup (words[i]);
-                }
-
-                DEBUG ("pattern is '%s'", word_pattern);
-
-                data->filename_glob_patterns = g_list_prepend (data->filename_glob_patterns,
-                                                               g_pattern_spec_new (word_pattern));
-            }
-        }
-
-        g_strfreev (words);
-
-        data->filename_glob_patterns = g_list_reverse (data->filename_glob_patterns);
-
-        if (data->filename_glob_patterns == NULL) {
-            data->filename_glob_patterns = g_list_prepend (NULL, g_pattern_spec_new ("*"));
-        }
-
-        g_free (text);
-        g_free (normalized);
-        g_free (cased);
-    }
+    data->name_matcher = nemo_search_name_matcher_new (query);
 
     data->skip_folders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
     /* A non-native location (network://, favorites) has no path at all, and the
@@ -534,7 +609,6 @@ search_thread_data_new (NemoSearchEngineAdvanced *engine,
 
 	data->mime_types = nemo_query_get_mime_types (query);
     data->recurse = nemo_query_get_recurse (query);
-    data->file_case_sensitive = nemo_query_get_file_case_sensitive (query);
 
 	data->cancellable = g_cancellable_new ();
     data->timer = g_timer_new ();
@@ -584,8 +658,7 @@ search_thread_data_free (SearchThreadData *data)
 	g_list_free_full (data->hit_list, (GDestroyNotify) file_search_result_free);
     g_clear_pointer (&data->content_re, g_regex_unref);
     g_clear_pointer (&data->newline_re, g_regex_unref);
-    g_clear_pointer (&data->filename_re, g_regex_unref);
-    g_list_free_full (data->filename_glob_patterns, (GDestroyNotify) g_pattern_spec_free);
+    nemo_search_name_matcher_free (data->name_matcher);
     g_timer_destroy (data->timer);
     g_mutex_clear (&data->hit_list_lock);
 
@@ -679,7 +752,7 @@ get_stream_from_helper (SearchHelper *helper,
     GInputStream *stream;
     GString *command_line;
     gchar **argv;
-    gchar *ptr, *path, *quoted;
+    gchar *ptr, *path, *quoted, *resolved;
 
     path = g_file_get_path (file);
     quoted = g_shell_quote (path);
@@ -706,6 +779,14 @@ get_stream_from_helper (SearchHelper *helper,
         g_string_free (command_line, TRUE);
         g_free (quoted);
         return NULL;
+    }
+
+    /* Resolve the program here: on Windows the converters sit beside the main
+     * exe, which the lookup checks before PATH, and a bare name grows its .exe. */
+    resolved = g_find_program_in_path (argv[0]);
+    if (resolved != NULL) {
+        g_free (argv[0]);
+        argv[0] = resolved;
     }
 
     flags = G_SUBPROCESS_FLAGS_STDOUT_PIPE;
@@ -846,7 +927,8 @@ load_contents (SearchThreadData *data,
     return g_string_free (str, FALSE);
 }
 
-static void
+/* TRUE when the file could be read (hits or not), FALSE when it could not. */
+static gboolean
 search_for_content_hits (SearchThreadData *data,
                          GFile            *file,
                          SearchHelper     *helper)
@@ -863,7 +945,7 @@ search_for_content_hits (SearchThreadData *data,
     if (g_cancellable_is_cancelled (data->cancellable)) {
         g_clear_error (&error);
         g_free (contents);
-        return;
+        return TRUE;
     }
 
     if (error != NULL) {
@@ -872,7 +954,7 @@ search_for_content_hits (SearchThreadData *data,
         g_free (uri);
         g_error_free (error);
         g_free (contents);
-        return;
+        return FALSE;
     }
 
     utf8 = g_utf8_make_valid (contents, -1);
@@ -917,6 +999,8 @@ search_for_content_hits (SearchThreadData *data,
         data->hit_list = g_list_prepend (data->hit_list, fsr);
         g_mutex_unlock (&data->hit_list_lock);
     }
+
+    return TRUE;
 }
 
 static gboolean
@@ -1045,7 +1129,16 @@ find_matching_helper (gpointer key,
 
     const gchar *file_content_type = data->content_type;
     const gchar *helper_mime_type = key;
-    if (g_content_type_is_mime_type (file_content_type, helper_mime_type)) {
+    gboolean matches;
+
+#ifdef G_OS_WIN32
+    /* Both sides are real mime types by now, and the registry has no say. */
+    matches = g_ascii_strcasecmp (file_content_type, helper_mime_type) == 0;
+#else
+    matches = g_content_type_is_mime_type (file_content_type, helper_mime_type);
+#endif
+
+    if (matches) {
         GList *i;
         GList *helper_list = value;
 
@@ -1055,16 +1148,77 @@ find_matching_helper (gpointer key,
     }
 }
 
+static gint
+compare_helper_priority (gconstpointer a,
+                         gconstpointer b)
+{
+    return ((const SearchHelper *) b)->priority - ((const SearchHelper *) a)->priority;
+}
+
+#ifdef G_OS_WIN32
+/* Win32 calls a file's type its extension, and an extension Windows has no
+ * registration for comes back as application/x-ext-<ext>. The formats a
+ * converter ships for are known here regardless of what is installed. */
+static gchar *
+content_type_to_document_mime (const gchar *content_type)
+{
+    static const struct {
+        const gchar *ext;
+        const gchar *mime;
+    } known[] = {
+        { "doc",  "application/msword" },
+        { "dot",  "application/msword" },
+        { "xls",  "application/vnd.ms-excel" },
+        { "xlt",  "application/vnd.ms-excel" },
+        { "ppt",  "application/vnd.ms-powerpoint" },
+        { "pps",  "application/vnd.ms-powerpoint" },
+        { "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+        { "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        { "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+        { "odt",  "application/vnd.oasis.opendocument.text" },
+        { "ods",  "application/vnd.oasis.opendocument.spreadsheet" },
+        { "odp",  "application/vnd.oasis.opendocument.presentation" },
+        { "odg",  "application/vnd.oasis.opendocument.graphics" },
+        { "epub", "application/epub+zip" },
+        { "pdf",  "application/pdf" },
+    };
+    gchar *mime = g_content_type_get_mime_type (content_type);
+    const gchar *ext = NULL;
+    guint i;
+
+    if (mime == NULL) {
+        ext = content_type[0] == '.' ? content_type + 1 : content_type;
+    } else if (g_str_has_prefix (mime, "application/x-ext-")) {
+        ext = mime + strlen ("application/x-ext-");
+    }
+
+    for (i = 0; ext != NULL && i < G_N_ELEMENTS (known); i++) {
+        if (g_ascii_strcasecmp (ext, known[i].ext) == 0) {
+            g_free (mime);
+            return g_strdup (known[i].mime);
+        }
+    }
+
+    return mime != NULL ? mime : g_strdup (content_type);
+}
+#endif
+
+/* Every helper for the type, best first. */
 static GList *
 lookup_helpers_for_content_type (const gchar *content_type)
 {
     SearchHelperFindData find_data = { NULL, content_type };
+#ifdef G_OS_WIN32
+    g_autofree gchar *mime = content_type_to_document_mime (content_type);
+
+    find_data.content_type = mime;
+#endif
 
     g_hash_table_foreach (search_helpers,
                           (GHFunc) find_matching_helper,
                           (gpointer) &find_data);
 
-    return find_data.helpers;
+    return g_list_sort (find_data.helpers, compare_helper_priority);
 }
 
 static void
@@ -1074,7 +1228,6 @@ visit_directory (GFile *dir, SearchThreadData *data)
 	GFileInfo *info;
     GFile *child;
 	const char *display_name;
-	char *normalized;
 	gboolean hit, is_dir, skip_child;
 
     const gchar *attrs;
@@ -1106,42 +1259,7 @@ visit_directory (GFile *dir, SearchThreadData *data)
 			goto next;
 		}
 
-		normalized = g_utf8_normalize (display_name, -1, G_NORMALIZE_NFD);
-
-        if (data->file_use_regex) {
-            GMatchInfo *match_info = NULL;
-
-            /* filename_re is NULL when the pattern failed to compile (warned
-             * at setup); match nothing rather than crash per file. */
-            hit = data->filename_re != NULL &&
-                  g_regex_match (data->filename_re, normalized, 0, &match_info);
-            g_clear_pointer (&match_info, g_match_info_unref);
-        } else {
-            gchar *cased;
-
-            if (!data->file_case_sensitive) {
-                cased = g_utf8_strdown (normalized, -1);
-            } else {
-                cased = g_strdup (normalized);
-            }
-
-            gchar *cased_reversed = g_utf8_strreverse (cased, -1);
-            gsize len = strlen (cased);
-
-            hit = TRUE;
-            for (GList *l = data->filename_glob_patterns; l != NULL; l = l->next) {
-                GPatternSpec *pattern = l->data;
-                if (!g_pattern_spec_match (pattern, len, cased, cased_reversed)) {
-                    hit = FALSE;
-                    break;
-                }
-            }
-
-            g_free (cased);
-            g_free (cased_reversed);
-        }
-
-        g_free (normalized);
+        hit = nemo_search_name_matcher_matches (data->name_matcher, display_name);
 
         child = g_file_get_child (dir, g_file_info_get_name (info));
         is_dir = g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY;
@@ -1197,9 +1315,12 @@ visit_directory (GFile *dir, SearchThreadData *data)
                         if (helpers != NULL) {
                             GList *i;
 
+                            /* The next helper is only tried when this one could
+                             * not read the file at all. */
                             for (i = helpers; i != NULL; i = i->next) {
-                                SearchHelper *helper = i->data;
-                                search_for_content_hits (data, child, helper);
+                                if (search_for_content_hits (data, child, i->data)) {
+                                    break;
+                                }
                             }
 
                             g_list_free (helpers);

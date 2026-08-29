@@ -24,7 +24,10 @@ static const gchar *SKIPFILES[] = {
     "_rels",
     "printerSettings",
     "media",
-    "drawings"
+    "drawings",
+    // odf, epub
+    "META-INF",
+    "Thumbnails",
     // docx
     "settings.xml",
     "app.xml",
@@ -73,6 +76,36 @@ process_file (GString   *collective,
     g_string_free (contents, TRUE);
 }
 
+/* OOXML and OpenDocument are xml; an EPUB is xhtml plus an .opf carrying the
+ * title and author. */
+static gboolean
+is_markup_name (const gchar *name)
+{
+    static const gchar *const suffixes[] = { ".xml", ".xhtml", ".html", ".htm", ".opf", NULL };
+    gint i;
+
+    for (i = 0; suffixes[i] != NULL; i++) {
+        if (g_str_has_suffix (name, suffixes[i])) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static gchar *
+replace_literal (gchar       *input,
+                 const gchar *from,
+                 const gchar *to)
+{
+    gchar **parts = g_strsplit (input, from, -1);
+    gchar *out = g_strjoinv (to, parts);
+
+    g_strfreev (parts);
+    g_free (input);
+    return out;
+}
+
 static void
 iterate_thru_levels (GString   *collective,
                      GsfInfile *infile)
@@ -97,7 +130,7 @@ iterate_thru_levels (GString   *collective,
 
         n_child_children = gsf_infile_num_children (child);
 
-        if (n_child_children < 0 && g_str_has_suffix (name, ".xml"))
+        if (n_child_children < 0 && is_markup_name (name))
         {
             process_file (collective, child);
         }
@@ -209,6 +242,15 @@ main (int argc, char *argv[])
     if (content == NULL) {
         goto out;
     }
+
+    /* The entities a document body actually uses. &amp; goes last so it cannot
+     * manufacture another entity out of the text around it. */
+    content = replace_literal (content, "&lt;", "<");
+    content = replace_literal (content, "&gt;", ">");
+    content = replace_literal (content, "&quot;", "\"");
+    content = replace_literal (content, "&apos;", "'");
+    content = replace_literal (content, "&nbsp;", " ");
+    content = replace_literal (content, "&amp;", "&");
 
     g_printf ("%s", content);
     g_free (content);

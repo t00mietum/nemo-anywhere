@@ -198,6 +198,7 @@ static void
 migrate_legacy_user_directory (const char *user_directory)
 {
 	g_autofree char *legacy = NULL;
+	g_autofree char *settings = NULL;
 	g_autofree char *parent = NULL;
 
 	if (g_strcmp0 (nemo_get_user_config_root (), g_get_user_config_dir ()) == 0)
@@ -207,7 +208,11 @@ migrate_legacy_user_directory (const char *user_directory)
 				   NEMO_USER_DIRECTORY_NAME,
 				   NULL);
 
-	if (!g_file_test (legacy, G_FILE_TEST_IS_DIR))
+	/* On Windows the XDG config dir is also the user data dir, where actions and
+	 * scripts live for good. Only a settings file marks an old config. */
+	settings = g_build_filename (legacy, "settings.shcl", NULL);
+
+	if (!g_file_test (settings, G_FILE_TEST_IS_REGULAR))
 		return;
 
 	/* rename(2) wants somewhere to rename into. The real config roots always
