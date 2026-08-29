@@ -31,6 +31,9 @@
 
 #include "nemo-file.h"
 #include "nemo-signaller.h"
+#ifdef G_OS_WIN32
+#include "nemo-associations-win32.h"
+#endif
 #include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
 
@@ -143,6 +146,22 @@ populate_popup_cb (GtkAppChooserWidget *widget,
 	}
 }
 
+/* What opens the type today, the way the rest of the app sees it. */
+static GAppInfo *
+default_app_for_type (NemoMimeApplicationChooser *chooser)
+{
+	GAppInfo *app = NULL;
+
+#ifdef G_OS_WIN32
+	app = nemo_associations_win32_default_for_type (chooser->details->content_type);
+#endif
+	if (app == NULL) {
+		app = g_app_info_get_default_for_type (chooser->details->content_type, FALSE);
+	}
+
+	return app;
+}
+
 static void
 reset_clicked_cb (GtkButton *button,
                   gpointer   user_data)
@@ -151,6 +170,9 @@ reset_clicked_cb (GtkButton *button,
 
 	chooser = NEMO_MIME_APPLICATION_CHOOSER (user_data);
 
+#ifdef G_OS_WIN32
+	nemo_associations_win32_set_override (chooser->details->content_type, NULL);
+#endif
 	g_app_info_reset_type_associations (chooser->details->content_type);
 	gtk_app_chooser_refresh (GTK_APP_CHOOSER (chooser->details->open_with_widget));
     gtk_entry_set_text (GTK_ENTRY (chooser->details->custom_entry), "");
@@ -170,6 +192,13 @@ set_default_or_say_why (NemoMimeApplicationChooser *chooser,
 	if (info == NULL) {
 		return;
 	}
+
+#ifdef G_OS_WIN32
+	/* Into the settings file, never the registry. */
+	if (nemo_associations_win32_set_default (info, chooser->details->content_type)) {
+		return;
+	}
+#endif
 
 	if (g_app_info_set_as_default_for_type (info, chooser->details->content_type,
 						&error)) {
@@ -256,7 +285,7 @@ application_selected_cb (GtkAppChooserWidget *widget,
 
     gtk_entry_set_text (GTK_ENTRY (chooser->details->custom_entry), "");
 
-    default_app = g_app_info_get_default_for_type (chooser->details->content_type, FALSE);
+    default_app = default_app_for_type (chooser);
     gtk_widget_set_sensitive (chooser->details->set_as_default_button,
                               (!default_app || !g_app_info_equal (info, default_app)));
 
@@ -358,7 +387,7 @@ custom_entry_changed_cb (GtkEditable *entry, gpointer user_data)
 
         GAppInfo *info = g_app_info_create_from_commandline (cl, get_nice_name (cl),
                                                              G_APP_INFO_CREATE_NONE, NULL);
-        default_app = g_app_info_get_default_for_type (chooser->details->content_type, FALSE);
+        default_app = default_app_for_type (chooser);
         gtk_widget_set_sensitive (chooser->details->set_as_default_button,
                       !g_app_info_equal (info, default_app));
 

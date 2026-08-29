@@ -802,6 +802,10 @@ field: sidebar-panels.tree.show-only-directories
 	default: true
 	desc: Only show folders in the tree side pane
 
+field: associations.overrides
+	type: string-array
+	desc: Windows only: the program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read.
+
 field: state.first-run-done
 	type: bool
 	default: false

@@ -478,4 +478,13 @@ if is_windows
     ),
     args: []
   )
+
+  test('File associations test',
+    executable('test-nemo-associations-win32',
+      [ 'test-nemo-associations-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
 endif

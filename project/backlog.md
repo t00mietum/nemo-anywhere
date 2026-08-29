@@ -59,11 +59,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
-	- Opened: 20260730-203115
-	- Overrides launch directly. All settings and overrides live in the settings file, never written to the registry.
-	- Not blocked any more; the config engine is in.
-
 - 🔘 Windows: edit a `.lnk`'s target from a properties view - the analog of the `.desktop` launcher editor.
 	- Opened: 20260826-103001
 
@@ -985,6 +980,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Windows: no shell coupling for file associations - read them from the registry (system defaults only), layered under an override map of our own.
+	- Opened: 20260730-203115
+	- Closed: 20260829-093000
+	- Overrides launch directly. All settings and overrides live in the settings file, never written to the registry.
+	- Fixed: the default for a type is the override when one is set, else what the shell itself would open it with, asked the way Explorer asks. The toolkit's own answer could be a print command, and its Open With list carried print entries too; those are gone.
+	- Fixed: "Set as default" in Open With records the choice in the settings file, one line per type in the registry's own `%1` shape, and Reset takes it away again.
+	- Note: a program is shown under its own description (Notepad, VSCodium), the way Explorer names it.
 
 - ✅ Bookmarks are kept in the toolkit's own file, not ours.
 	- Opened: 20260828
