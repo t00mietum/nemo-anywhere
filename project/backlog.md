@@ -39,12 +39,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🛠️ Windows: opening a symlink to a file crashes the program it opens in, unless that program is already running.
+- 🛠️ Windows: opening a file from the released build breaks the program it opens in, unless that program is already running.
 	- Opened: 20260830-141048
-	- Seen with a text-file symlink and VSCodium. Opening the same link a second time, with the editor already up, works.
-	- Note: nothing in the open path treats a link differently. The type is read from the name, the registry gives the same command line it gives for a plain file of that type, and the link's own path is what the program is handed - which is what Explorer hands over too.
-	- Fixed so far: the program no longer inherits our error-mode setting, and it is started with an explicit window state rather than none. A packed build switches its own crash dialog off, and that had no business reaching what it opens.
-	- Note: whether that was the cause needs one hands-on try, and so does what the failure actually looks like - an error box, a window that never appears, or one that appears and goes.
+	- Reported against a symlink and VSCodium, which said "The window terminated unexpectedly". The link turned out to have nothing to do with it, and neither did the file: a plain text file does the same.
+	- Cause: the single-exe packer is set to share its virtual file system with child processes, so every program opened from nemo starts with the packer's hooks inside it. A program that runs its own sandboxed child processes - anything built on Chromium, which is a lot of desktop software now - cannot start those, and reports a crash. It only shows on a cold start because a second copy of such a program hands the file to the one already running and exits before it gets that far.
+	- Reproduced and controlled: a bare test program packed the same way breaks the editor every time; the identical program packed with sharing off opens it every time. The unpacked build is fine, and so is the same launch made by hand.
+	- Note: sharing cannot simply be turned off. Nemo's own helpers - the document converters, the thumbnailers and two toolkit helpers - live inside that virtual file system and need it to find their libraries. The fix has to separate "our own helper" from "somebody else's program".
+	- Fixed so far: the program no longer inherits our error-mode setting, and is started with an explicit window state. Neither was the cause.
 
 - 🔘 Windows: file copy and paste to another program may fail the same way "Copy path" did, and for the same reason.
 	- Opened: 20260830-153000
