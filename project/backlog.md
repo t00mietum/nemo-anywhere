@@ -48,13 +48,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: a small launcher of our own does not separate them. The hooks follow the whole process tree, not just the first step - measured: a plain helper started by the packed build reports itself hooked, and so does everything it starts. Where the helper sits on disk makes no difference, and neither does building it for the other architecture. Breaking the chain needs the program to be started by something outside our own process tree.
 	- Note: no launch flag or shell indirection helps either. Detaching the child, putting a hidden command prompt in the middle, `start /b` behind that, and the shell's own open verb were all measured, and all six children came out hooked. Handing the launch to the system's management service is the one method that came out clean, and it opens the file correctly - but the new window then opens behind whatever was already in front, and routing every launch through that service is a pattern security software watches for.
 	- Fixed so far: the program no longer inherits our error-mode setting, and is started with an explicit window state. Neither was the cause.
-	- Still to decide: broker each launch, or stop virtualizing and unpack once to a real folder instead. The second would also settle the 32-bit bug below and the slow cold start.
+	- Direction: hand the launch to the system's management service. It fixes the 32-bit bug below at the same time, and it is the only method measured that comes out clean. Unpacking to a real folder instead was considered and dropped - it breaks the dogfood launcher's one-file-per-build pool, and it swaps one thing security software dislikes for another.
+	- Open question: the new window opens behind. Granting foreground rights to the returned process id is the expected answer, untested.
 
 - 🔘 Windows: the released build cannot open a file whose program is 32-bit. Nothing happens, and nothing is reported.
 	- Opened: 20260830-161500
 	- Cause: the single-exe packer is set to leave programs of the other architecture alone, and in practice it stops them starting rather than letting them run unhooked. The call reports success, so nemo has nothing to report either.
 	- Measured: a 32-bit program started from a packed build never runs; the same command by hand runs fine. Allowing the other architecture does let it start, but then it carries the packer's hooks like everything else.
-	- Same root as the item above, and any fix for that one likely settles this too.
+	- Same root as the item above, and the direction chosen there settles this too - measured: brokered through the management service, a 32-bit program starts and runs unhooked.
 
 - 🔘 Windows: file copy and paste to another program may fail the same way "Copy path" did, and for the same reason.
 	- Opened: 20260830-153000
