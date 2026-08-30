@@ -39,6 +39,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🛠️ Windows: opening a symlink to a file crashes the program it opens in, unless that program is already running.
+	- Opened: 20260830-141048
+	- Seen with a text-file symlink and VSCodium. Opening the same link a second time, with the editor already up, works.
+	- Note: nothing in the open path treats a link differently. The type is read from the name, the registry gives the same command line it gives for a plain file of that type, and the link's own path is what the program is handed - which is what Explorer hands over too.
+	- Fixed so far: the program no longer inherits our error-mode setting, and it is started with an explicit window state rather than none. A packed build switches its own crash dialog off, and that had no business reaching what it opens.
+	- Note: whether that was the cause needs one hands-on try, and so does what the failure actually looks like - an error box, a window that never appears, or one that appears and goes.
+
+- 🔘 Windows: file copy and paste to another program may fail the same way "Copy path" did, and for the same reason.
+	- Opened: 20260830-153000
+	- Cut and copy of files still go through the toolkit, which only advertises what it holds and hands it over when asked. In a remote desktop session the redirector asks, does not get an answer in time, and puts the client's own clipboard back.
+	- Not seen yet - the path text is what was reported. Worth trying a copy in nemo and a paste in Explorer over a remote session.
+
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
 	- Not reproduced: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
@@ -162,6 +174,26 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Windows: a link pointing at a folder was drawn with a file icon instead of a folder icon.
+	- Opened: 20260830-141048
+	- Closed: 20260830-150000
+	- Cause: Windows reports no type at all for a link the listing does not follow, so the toolkit handed back its plain file icon. The folder icon comes off the type, so a folder link got the document one. Both a directory symlink and a junction were affected.
+	- Fixed: a link that is a folder is given the folder icon whatever the type came back as.
+	- Note: a new check pins the missing-type behaviour the swap exists for, and holds a folder link to the folder icon.
+
+- ✅ "Copy path as" left the clipboard holding whatever was in it before, instead of the path.
+	- Opened: 20260830-141048
+	- Closed: 20260830-152000
+	- Cause: the toolkit only advertises text on the Windows clipboard and hands it over when somebody asks for it. In a remote desktop session the redirector asks straight away, does not get an answer in time, and puts the client's own clipboard back - so the copy read as having done nothing. It affected the plain "Copy path" item too.
+	- Fixed: the text goes onto the clipboard up front, so there is nothing left to ask for.
+	- Note: a new check reads the clipboard the way another program would, with no message loop running.
+
+- ✅ The context-menu key did not stand in for a right-click.
+	- Opened: 20260830-141048
+	- Closed: 20260830-151000
+	- Cause: the key did open the menu, but the menu placed itself at the mouse pointer - which, for a key press, can be anywhere, including another window or another monitor. It read as the key having done nothing.
+	- Fixed: a menu asked for from the keyboard sits against whatever holds the focus. Ctrl+F10 was going the same way and now does too.
 
 - ✅ Windows: a first start with a fresh roaming profile moved the local data folder into the settings folder.
 	- Opened: 20260829-081500

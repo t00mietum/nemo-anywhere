@@ -1516,7 +1516,6 @@ static gboolean
 key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_data)
 {
 	NemoView *view;
-	GdkEventButton button_event = { 0 };
 	gboolean handled;
 	GtkTreeView *tree_view;
 	GtkTreePath *path;
@@ -1537,7 +1536,7 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
 	switch (event->keyval) {
 	case GDK_KEY_F10:
 		if (event->state & GDK_CONTROL_MASK) {
-			nemo_view_pop_up_background_context_menu (view, &button_event);
+			nemo_view_pop_up_background_context_menu (view, NULL);
 			handled = TRUE;
 		}
 		break;

@@ -6845,7 +6845,6 @@ copy_paths_to_clipboard (NemoView *view,
 			 GList    *files,
 			 gchar     separator)
 {
-	GtkClipboard *clipboard;
 	GList *locations = NULL;
 	GList *l;
 	guint count;
@@ -6876,10 +6875,7 @@ copy_paths_to_clipboard (NemoView *view,
 		return;
 	}
 
-	clipboard = nemo_clipboard_get (GTK_WIDGET (view));
-	gtk_clipboard_set_text (clipboard, text, -1);
-	/* Let a clipboard manager keep the text once nemo is gone. */
-	gtk_clipboard_set_can_store (clipboard, NULL, 0);
+	nemo_clipboard_set_text (GTK_WIDGET (view), text);
 
 	status_string = g_strdup_printf (ngettext ("Copied the path to the clipboard",
 						   "Copied %'d paths to the clipboard",
