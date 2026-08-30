@@ -110,7 +110,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260829-071437
 	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
 	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
-	- Sandbox feature switched on 2026-08-30, reboot pending. Next: the config file, a driver loop polling the shared folder, and a first run of the app inside it.
+	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the packed exe, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
+	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
+	- Left: demo recording, and anything spanning a reboot (that still wants the Hyper-V guest).
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
