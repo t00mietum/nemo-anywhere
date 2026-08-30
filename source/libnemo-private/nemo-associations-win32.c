@@ -353,6 +353,8 @@ nemo_associations_win32_launch (const gchar  *command,
 
 		memset (&startup, 0, sizeof startup);
 		startup.cb = sizeof startup;
+		startup.dwFlags = STARTF_USESHOWWINDOW;
+		startup.wShowWindow = SW_SHOWNORMAL;
 
 		if (needs_the_shell (command)) {
 			wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
@@ -360,8 +362,12 @@ nemo_associations_win32_launch (const gchar  *command,
 			started = (INT_PTR) ShellExecuteW (NULL, L"open", wpath, NULL, wdir, SW_SHOWNORMAL) > 32;
 			g_free (wpath);
 		} else {
+			/* CREATE_DEFAULT_ERROR_MODE so the program does not inherit
+			 * ours - a packed build turns the crash dialog off for
+			 * itself, and that has no business reaching what it opens. */
 			started = CreateProcessW (NULL, wline, NULL, NULL, FALSE,
-						  CREATE_UNICODE_ENVIRONMENT, NULL, wdir, &startup, &process);
+						  CREATE_DEFAULT_ERROR_MODE | CREATE_UNICODE_ENVIRONMENT,
+						  NULL, wdir, &startup, &process);
 
 			if (started) {
 				CloseHandle (process.hThread);

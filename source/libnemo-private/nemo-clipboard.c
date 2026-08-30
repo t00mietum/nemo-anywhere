@@ -35,6 +35,11 @@
 #include <gtk/gtk.h>
 #include <string.h>
 
+#ifdef G_OS_WIN32
+#include <windows.h>
+#include <gdk/gdkwin32.h>
+#endif
+
 typedef struct _TargetCallbackData TargetCallbackData;
 
 typedef void (* SelectAllCallback)    (gpointer target);
@@ -606,6 +611,79 @@ nemo_clipboard_get (GtkWidget *widget)
 {
 	return gtk_clipboard_get_for_display (gtk_widget_get_display (GTK_WIDGET (widget)),
 					      GDK_SELECTION_CLIPBOARD);
+}
+
+#ifdef G_OS_WIN32
+/* The toolkit only advertises the text on Windows and hands it over when
+ * somebody asks. In a remote desktop session the redirector asks straight
+ * away, does not get an answer in time, and puts the client's own clipboard
+ * back - so a copy silently left the old contents in place. Handing Windows
+ * the bytes up front leaves nothing to ask for. */
+static gboolean
+win32_set_clipboard_text (GtkWidget  *widget,
+			  const char *text)
+{
+	GdkWindow *window = gtk_widget_get_window (gtk_widget_get_toplevel (widget));
+	HWND owner = window != NULL ? (HWND) gdk_win32_window_get_handle (window) : NULL;
+	wchar_t *wide;
+	glong wide_len = 0;
+	HGLOBAL block;
+	gpointer copy;
+
+	wide = g_utf8_to_utf16 (text, -1, NULL, &wide_len, NULL);
+	if (wide == NULL) {
+		return FALSE;
+	}
+
+	block = GlobalAlloc (GMEM_MOVEABLE, (wide_len + 1) * sizeof (wchar_t));
+	if (block == NULL) {
+		g_free (wide);
+		return FALSE;
+	}
+
+	copy = GlobalLock (block);
+	memcpy (copy, wide, (wide_len + 1) * sizeof (wchar_t));
+	GlobalUnlock (block);
+	g_free (wide);
+
+	if (!OpenClipboard (owner)) {
+		GlobalFree (block);
+		return FALSE;
+	}
+
+	EmptyClipboard ();
+
+	if (SetClipboardData (CF_UNICODETEXT, block) == NULL) {
+		CloseClipboard ();
+		GlobalFree (block);
+		return FALSE;
+	}
+
+	CloseClipboard ();	/* the clipboard owns the block now */
+	return TRUE;
+}
+#endif
+
+/* Plain text on the clipboard, from a widget in the window doing the copying. */
+void
+nemo_clipboard_set_text (GtkWidget  *widget,
+			 const char *text)
+{
+	GtkClipboard *clipboard;
+
+	g_return_if_fail (GTK_IS_WIDGET (widget));
+	g_return_if_fail (text != NULL);
+
+#ifdef G_OS_WIN32
+	if (win32_set_clipboard_text (widget, text)) {
+		return;
+	}
+#endif
+
+	clipboard = nemo_clipboard_get (widget);
+	gtk_clipboard_set_text (clipboard, text, -1);
+	/* Let a clipboard manager keep the text once nemo is gone. */
+	gtk_clipboard_set_can_store (clipboard, NULL, 0);
 }
 
 void

@@ -496,4 +496,22 @@ if is_windows
     ),
     args: []
   )
+
+  test('Link type test',
+    executable('test-nemo-link-info-win32',
+      [ 'test-nemo-link-info-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+
+  test('Clipboard text test',
+    executable('test-nemo-clipboard-win32',
+      [ 'test-nemo-clipboard-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
 endif

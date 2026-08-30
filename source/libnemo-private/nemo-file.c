@@ -2564,6 +2564,20 @@ win32_themed_icon_for_mime_type (const char *mime_type)
 	g_hash_table_insert (cache, g_strdup (mime_type), icon);
 	return icon;
 }
+
+/* A link to a folder has no content type of its own when the listing does not
+ * follow it, so GIO hands back the generic file icon for it. Borrowed ref. */
+static GIcon *
+win32_folder_icon (void)
+{
+	static GIcon *icon;
+
+	if (icon == NULL) {
+		icon = g_themed_icon_new ("folder");
+	}
+
+	return icon;
+}
 #endif
 
 static gboolean
@@ -3063,6 +3077,12 @@ update_info_internal (NemoFile *file,
         char *real_mime = file->details->mime_type != NULL
             ? g_content_type_get_mime_type (file->details->mime_type) : NULL;
         GIcon *win_icon = win32_themed_icon_for_mime_type (real_mime);   /* borrowed */
+
+        if (win_icon == NULL &&
+            g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY &&
+            g_file_info_get_is_symlink (info)) {
+            win_icon = win32_folder_icon ();
+        }
 
         if (win_icon != NULL && !g_icon_equal (win_icon, file->details->icon)) {
             if (file->details->icon != NULL) {

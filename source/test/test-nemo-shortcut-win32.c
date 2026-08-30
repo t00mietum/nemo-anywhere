@@ -130,6 +130,27 @@ resolve_target (const char *lnk_path)
 	return ret;
 }
 
+/* The shell stores a target in its long form, so a temp folder reached by an
+ * 8.3 name comes back spelled differently from what was handed in. */
+static gboolean
+same_path (const char *a, const char *b)
+{
+	char *long_a, *long_b;
+	gboolean same;
+
+	if (a == NULL || b == NULL) {
+		return FALSE;
+	}
+
+	long_a = long_path (a);
+	long_b = long_path (b);
+	same = g_ascii_strcasecmp (long_a, long_b) == 0;
+
+	g_free (long_a);
+	g_free (long_b);
+	return same;
+}
+
 /* Every field a shortcut carries reads back as written, and an edit of the
  * target and the arguments lands in the file while the rest stays. */
 static void
@@ -146,9 +167,9 @@ test_info_round_trip (const char *dir, const char *target)
 
 	check (nemo_shortcut_win32_read_info (lnk, &info, &error));
 	check (error == NULL);
-	check (info.target != NULL && g_ascii_strcasecmp (info.target, target) == 0);
+	check (same_path (info.target, target));
 	check (g_strcmp0 (info.arguments, "--flag one") == 0);
-	check (info.working_dir != NULL && g_ascii_strcasecmp (info.working_dir, dir) == 0);
+	check (same_path (info.working_dir, dir));
 	check (g_strcmp0 (info.description, "a comment") == 0);
 
 	g_free (info.target);
@@ -160,7 +181,7 @@ test_info_round_trip (const char *dir, const char *target)
 	nemo_shortcut_info_clear (&info);
 
 	check (nemo_shortcut_win32_read_info (lnk, &info, &error));
-	check (info.target != NULL && g_ascii_strcasecmp (info.target, other) == 0);
+	check (same_path (info.target, other));
 	check (g_strcmp0 (info.arguments, "") == 0);
 	check (g_strcmp0 (info.description, "a comment") == 0);
 	nemo_shortcut_info_clear (&info);

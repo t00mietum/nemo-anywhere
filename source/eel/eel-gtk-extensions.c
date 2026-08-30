@@ -289,6 +289,11 @@ create_popup_rect (GdkWindow *window, GdkRectangle *rect)
     GdkSeat *seat;
     GdkDevice *device;
 
+    rect->x = 0;
+    rect->y = 0;
+    rect->width = 2;
+    rect->height = 2;
+
     seat = gdk_display_get_default_seat (gdk_display_get_default ());
 
     if (seat != NULL) {
@@ -300,16 +305,44 @@ create_popup_rect (GdkWindow *window, GdkRectangle *rect)
             gdk_window_get_device_position (window, device, &x, &y, NULL);
             rect->x = x;
             rect->y = y;
-            rect->width = 2;
-            rect->height = 2;
         }
     }
+}
+
+/* The menu key and Ctrl+F10 have no pointer behind them, and the pointer can be
+   anywhere - another window, another monitor - so a menu placed there reads as
+   the key having done nothing. Put it against whatever holds the focus. */
+static void
+create_keyboard_popup_rect (GtkWidget *widget, GdkRectangle *rect)
+{
+    GtkWidget *toplevel = gtk_widget_get_toplevel (widget);
+    GtkWidget *anchor = NULL;
+    GtkAllocation allocation;
+    gint x = 0, y = 0;
+
+    if (GTK_IS_WINDOW (toplevel)) {
+        anchor = gtk_window_get_focus (GTK_WINDOW (toplevel));
+    }
+
+    if (anchor == NULL || !gtk_widget_is_ancestor (anchor, toplevel)) {
+        anchor = widget;
+    }
+
+    gtk_widget_get_allocation (anchor, &allocation);
+    gtk_widget_translate_coordinates (anchor, toplevel, 0, 0, &x, &y);
+
+    /* A little way in, so the menu does not sit flush against the pane edge. */
+    rect->x = x + MIN (16, allocation.width / 2);
+    rect->y = y + MIN (16, allocation.height / 2);
+    rect->width = 2;
+    rect->height = 2;
 }
 
 /**
  * eel_pop_up_context_menu:
  *
- * Pop up a context menu under the mouse.
+ * Pop up a context menu under the mouse, or against the focused widget when
+ * there is no event behind it.
  * The menu is sunk after use, so it will be destroyed unless the
  * caller first ref'ed it.
  **/
@@ -333,7 +366,13 @@ eel_pop_up_context_menu (GtkMenu        *menu,
         GdkWindow *window = gtk_widget_get_window (gtk_widget_get_toplevel (widget));
 
         GdkRectangle rect;
-        create_popup_rect (window, &rect);
+
+        if (event != NULL) {
+            create_popup_rect (window, &rect);
+        } else {
+            create_keyboard_popup_rect (widget, &rect);
+        }
+
         gtk_menu_popup_at_rect (menu,
                                 window,
                                 &rect,
