@@ -106,14 +106,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260730-112038
 	- Note: a major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 
-- 🔘 Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
+- 🛠️ Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
 	- Opened: 20260829-071437
 	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
-	- Options for a separate desktop, each needing a decision:
-		- A Hyper-V virtual machine, driven from the host without any network or display of its own. The cleanest separation and the only one that can also record video. Needs the Hyper-V feature switched on and a Windows image for the guest.
-		- Windows Sandbox: a throwaway Windows started from a small config file, with a shared folder. Nothing drives it from outside except what a startup command inside it does, so the driving script would have to live in the shared folder and be polled. Needs the Sandbox feature switched on.
-		- A second Windows desktop in the same session (the way the secure desktop works). Windows can be photographed there but not driven, and switching to it takes the screen. Not enough on its own.
-	- Recommended: the virtual machine.
+	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
+	- Sandbox feature switched on 2026-08-30, reboot pending. Next: the config file, a driver loop polling the shared folder, and a first run of the app inside it.
 
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
