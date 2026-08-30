@@ -45,7 +45,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Cause: the single-exe packer is set to share its virtual file system with child processes, so every program opened from nemo starts with the packer's hooks inside it. A program that runs its own sandboxed child processes - anything built on Chromium, which is a lot of desktop software now - cannot start those, and reports a crash. It only shows on a cold start because a second copy of such a program hands the file to the one already running and exits before it gets that far.
 	- Reproduced and controlled: a bare test program packed the same way breaks the editor every time; the identical program packed with sharing off opens it every time. The unpacked build is fine, and so is the same launch made by hand.
 	- Note: sharing cannot simply be turned off. Nemo's own helpers - the document converters, the thumbnailers and two toolkit helpers - live inside that virtual file system and need it to find their libraries. The fix has to separate "our own helper" from "somebody else's program".
+	- Note: a small launcher of our own does not separate them. The hooks follow the whole process tree, not just the first step - measured: a plain helper started by the packed build reports itself hooked, and so does everything it starts. Where the helper sits on disk makes no difference, and neither does building it for the other architecture. Breaking the chain needs the program to be started by something outside our own process tree.
 	- Fixed so far: the program no longer inherits our error-mode setting, and is started with an explicit window state. Neither was the cause.
+
+- 🔘 Windows: the released build cannot open a file whose program is 32-bit. Nothing happens, and nothing is reported.
+	- Opened: 20260830-161500
+	- Cause: the single-exe packer is set to leave programs of the other architecture alone, and in practice it stops them starting rather than letting them run unhooked. The call reports success, so nemo has nothing to report either.
+	- Measured: a 32-bit program started from a packed build never runs; the same command by hand runs fine. Allowing the other architecture does let it start, but then it carries the packer's hooks like everything else.
+	- Same root as the item above, and any fix for that one likely settles this too.
 
 - 🔘 Windows: file copy and paste to another program may fail the same way "Copy path" did, and for the same reason.
 	- Opened: 20260830-153000
