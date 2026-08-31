@@ -39,11 +39,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Windows: file copy and paste to another program may fail the same way "Copy path" did, and for the same reason.
-	- Opened: 20260830-153000
-	- Cut and copy of files still go through the toolkit, which only advertises what it holds and hands it over when asked. In a remote desktop session the redirector asks, does not get an answer in time, and puts the client's own clipboard back.
-	- Not seen yet - the path text is what was reported. Worth trying a copy in nemo and a paste in Explorer over a remote session.
-
 - 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
 	- Opened: 20260826-180755
 	- Not reproduced: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
@@ -162,6 +157,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Windows: file copy and paste to another program fails the same way "Copy path" did, and for the same reason.
+	- Opened: 20260830-153000
+	- Closed: 20260831-081500
+	- Found: worse than reported. Over a remote desktop session a copy in nemo did nothing at all - not just for other programs, but for nemo's own paste. The toolkit only advertises a file cut or copy and hands it over when asked; the redirector asks the moment the clipboard changes, does not get an answer in time, and puts the client's own clipboard back.
+	- Found as well: even with no remote session in the way, nemo published nothing Windows understands, so Explorer could never have pasted a copy made in nemo. Nor the other way round - a copy made anywhere else offered nothing nemo was looking for, so Paste did nothing.
+	- Fixed: a file cut or copy is now written out up front in the formats Windows expects, alongside nemo's own. Paste falls back to the Windows one when nemo's is absent, so a copy made in any program can be pasted, and a cut from one moves rather than copies.
+	- Fixed as well: only one program can have the clipboard open at a time, and on a busy machine something usually does for a moment. The call was failing outright every few tries, which read as an empty clipboard. Every use retries now. This affected the text copy too.
+	- Proved on a live remote session: a copy in nemo pasted into Explorer, a copy in Explorer pasted into nemo, a cut from either moving rather than copying, and the clipboard emptied after a cut is pasted. The regression check goes red with the fix backed out.
 
 - ✅ Windows network browsing cannot be proved to report a missing network or a refused share.
 	- Opened: 20260804-230307

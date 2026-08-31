@@ -944,36 +944,12 @@ static void
 copy_or_cut_files (FMTreeView *view,
 		   gboolean cut)
 {
-    GtkClipboard *clipboard;
 	char *status_string, *name;
-	NemoClipboardInfo info;
-        GtkTargetList *target_list;
-        GtkTargetEntry *targets;
-        int n_targets;
+	GList *files;
 
-	info.cut = cut;
-	info.files = g_list_prepend (NULL, view->details->popup_file);
-
-        target_list = gtk_target_list_new (NULL, 0);
-        gtk_target_list_add (target_list, copied_files_atom, 0, 0);
-        gtk_target_list_add_uri_targets (target_list, 0);
-        gtk_target_list_add_text_targets (target_list, 0);
-
-        targets = gtk_target_table_new_from_list (target_list, &n_targets);
-        gtk_target_list_unref (target_list);
-
-    clipboard = nemo_clipboard_get (GTK_WIDGET (view));
-
-    gtk_clipboard_set_with_data (clipboard,
-                                 targets, n_targets,
-                                 nemo_get_clipboard_callback, nemo_clear_clipboard_callback,
-                                 NULL);
-    gtk_clipboard_set_can_store (clipboard, NULL, 0);
-    gtk_target_table_free (targets, n_targets);
-
-	nemo_clipboard_monitor_set_clipboard_info (nemo_clipboard_monitor_get (),
-	                                               &info);
-	g_list_free (info.files);
+	files = g_list_prepend (NULL, view->details->popup_file);
+	nemo_clipboard_set_files (GTK_WIDGET (view), files, cut);
+	g_list_free (files);
 
 	name = nemo_file_get_display_name (view->details->popup_file);
 	if (cut) {

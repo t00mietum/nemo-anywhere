@@ -112,6 +112,7 @@ if is_windows
   nemo_private_sources += 'nemo-search-engine-win32.c'
   nemo_private_sources += 'nemo-associations-win32.c'
   nemo_private_sources += 'nemo-launch-win32.c'
+  nemo_private_sources += 'nemo-clipboard-win32.c'
   nemo_private_sources += 'nemo-shell-icon-win32.c'
 endif
 

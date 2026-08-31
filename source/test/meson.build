@@ -515,7 +515,7 @@ if is_windows
     args: []
   )
 
-  test('Clipboard text test',
+  test('Clipboard win32 test',
     executable('test-nemo-clipboard-win32',
       [ 'test-nemo-clipboard-win32.c' ],
       include_directories: [ rootInclude, ],
