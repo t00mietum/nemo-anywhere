@@ -39,26 +39,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🛠️ Windows: opening a file from the released build breaks the program it opens in, unless that program is already running.
-	- Opened: 20260830-141048
-	- Reported against a symlink and VSCodium, which said "The window terminated unexpectedly". The link turned out to have nothing to do with it, and neither did the file: a plain text file does the same.
-	- Cause: the single-exe packer is set to share its virtual file system with child processes, so every program opened from nemo starts with the packer's hooks inside it. A program that runs its own sandboxed child processes - anything built on Chromium, which is a lot of desktop software now - cannot start those, and reports a crash. It only shows on a cold start because a second copy of such a program hands the file to the one already running and exits before it gets that far.
-	- Reproduced and controlled: a bare test program packed the same way breaks the editor every time; the identical program packed with sharing off opens it every time. The unpacked build is fine, and so is the same launch made by hand.
-	- Note: sharing cannot simply be turned off. Nemo's own helpers - the document converters, the thumbnailers and two toolkit helpers - live inside that virtual file system and need it to find their libraries. The fix has to separate "our own helper" from "somebody else's program".
-	- Note: a small launcher of our own does not separate them. The hooks follow the whole process tree, not just the first step - measured: a plain helper started by the packed build reports itself hooked, and so does everything it starts. Where the helper sits on disk makes no difference, and neither does building it for the other architecture. Breaking the chain needs the program to be started by something outside our own process tree.
-	- Note: no launch flag or shell indirection helps either. Detaching the child, putting a hidden command prompt in the middle, `start /b` behind that, and the shell's own open verb were all measured, and all six children came out hooked. Handing the launch to the system's management service is the one method that came out clean, and it opens the file correctly - but the new window then opens behind whatever was already in front, and routing every launch through that service is a pattern security software watches for.
-	- Fixed so far: the program no longer inherits our error-mode setting, and is started with an explicit window state. Neither was the cause.
-	- Direction: hand the launch to a broker. Two work, and both fix the 32-bit bug below at the same time. The shell brings the new window forward but cannot pass arguments and drops the caller's rights; the management service keeps both but opens the window behind. Covering every launch means using each where it fits.
-	- The window left behind by the second route cannot be brought forward afterwards. Both documented ways of doing it report success and change nothing, so the shell has to be the route for anything a person double-clicks.
-	- Unpacking to a real folder instead was considered and dropped - it breaks the dogfood launcher's one-file-per-build pool, and it swaps one thing security software dislikes for another.
-	- Neither route touches the slow cold start, which belongs to the packer.
-
-- 🔘 Windows: the released build cannot open a file whose program is 32-bit. Nothing happens, and nothing is reported.
-	- Opened: 20260830-161500
-	- Cause: the single-exe packer is set to leave programs of the other architecture alone, and in practice it stops them starting rather than letting them run unhooked. The call reports success, so nemo has nothing to report either.
-	- Measured: a 32-bit program started from a packed build never runs; the same command by hand runs fine. Allowing the other architecture does let it start, but then it carries the packer's hooks like everything else.
-	- Same root as the item above, and the direction chosen there settles this too - measured: brokered through the management service, a 32-bit program starts and runs unhooked.
-
 - 🔘 Windows: file copy and paste to another program may fail the same way "Copy path" did, and for the same reason.
 	- Opened: 20260830-153000
 	- Cut and copy of files still go through the toolkit, which only advertises what it holds and hands it over when asked. In a remote desktop session the redirector asks, does not get an answer in time, and puts the client's own clipboard back.
@@ -187,6 +167,28 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Windows: opening a file from the released build breaks the program it opens in, unless that program is already running.
+	- Opened: 20260830-141048
+	- Closed: 20260830-214500
+	- Reported against a symlink and VSCodium, which said "The window terminated unexpectedly". The link turned out to have nothing to do with it, and neither did the file: a plain text file does the same.
+	- Cause: the single-exe packer is set to share its virtual file system with child processes, so every program opened from nemo starts with the packer's hooks inside it. A program that runs its own sandboxed child processes - anything built on Chromium, which is a lot of desktop software now - cannot start those, and reports a crash. It only shows on a cold start because a second copy of such a program hands the file to the one already running and exits before it gets that far.
+	- Reproduced and controlled: a bare test program packed the same way breaks the editor every time; the identical program packed with sharing off opens it every time. The unpacked build is fine, and so is the same launch made by hand.
+	- Note: sharing cannot simply be turned off. Nemo's own helpers - the document converters, the thumbnailers and two toolkit helpers - live inside that virtual file system and need it to find their libraries. The fix has to separate "our own helper" from "somebody else's program".
+	- Note: a small launcher of our own does not separate them. The hooks follow the whole process tree, not just the first step - measured: a plain helper started by the packed build reports itself hooked, and so does everything it starts. Where the helper sits on disk makes no difference, and neither does building it for the other architecture. Breaking the chain needs the program to be started by something outside our own process tree.
+	- Note: no launch flag or shell indirection helps either. Detaching the child, putting a hidden command prompt in the middle, `start /b` behind that, and the shell's own open verb all leave the program hooked. Only a broker outside our own process tree comes out clean.
+	- Fixed: a program is now started by one of two brokers rather than by us. The desktop shell is asked first, since it carries arguments, brings the new window forward and is the ordinary way a file gets opened. When it will not do it - an elevated session refuses the call, and there may be no shell running at all - the system's management service does it instead, which keeps the caller's rights but leaves the window behind. A plain start of our own sits behind both, so a launch can still happen on a box where neither broker answers.
+	- Also fixed: a file that is not there is refused before the shell is asked. The shell answers a missing file with a message box of its own and does not return until it is dismissed, which would have held nemo's own thread.
+	- Measured, packed and unpacked: the six ways of starting a program ourselves all come out hooked, both brokers come out clean, and opening a file from the packed build in a throwaway machine starts the program with the hooks absent.
+	- Unpacking to a real folder instead was considered and dropped - it breaks the dogfood launcher's one-file-per-build pool, and it swaps one thing security software dislikes for another.
+	- Left open: the slow cold start, which belongs to the packer and is unaffected by any of this.
+
+- ✅ Windows: the released build cannot open a file whose program is 32-bit. Nothing happens, and nothing is reported.
+	- Opened: 20260830-161500
+	- Closed: 20260830-214500
+	- Cause: the single-exe packer is set to leave programs of the other architecture alone, and in practice it stops them starting rather than letting them run unhooked. The call reports success, so nemo has nothing to report either.
+	- Measured: a 32-bit program started from a packed build never runs; the same command by hand runs fine. Allowing the other architecture does let it start, but then it carries the packer's hooks like everything else.
+	- Fixed by the item above: neither broker is subject to the packer's architecture setting, so a 32-bit program starts and runs unhooked.
 
 - ✅ Windows: a link pointing at a folder was drawn with a file icon instead of a folder icon.
 	- Opened: 20260830-141048
