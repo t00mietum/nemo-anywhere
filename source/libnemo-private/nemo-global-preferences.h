@@ -250,7 +250,6 @@ typedef enum
 #define GNOME_DESKTOP_TERMINAL_EXEC        "exec"
 
 /* Tooltips */
-#define NEMO_PREFERENCES_TOOLTIPS_DESKTOP              "tooltips-on-desktop"
 #define NEMO_PREFERENCES_TOOLTIPS_ICON_VIEW            "tooltips-in-icon-view"
 #define NEMO_PREFERENCES_TOOLTIPS_LIST_VIEW            "tooltips-in-list-view"
 #define NEMO_PREFERENCES_TOOLTIP_FILE_TYPE             "tooltips-show-file-type"

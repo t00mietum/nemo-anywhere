@@ -78,6 +78,31 @@ nemo_view_win32_quote_arg (const gchar *arg)
 	}
 }
 
+gboolean
+nemo_view_win32_is_elevated (void)
+{
+	static gboolean elevated = FALSE;
+	static gsize once = 0;
+
+	if (g_once_init_enter (&once)) {
+		HANDLE token = NULL;
+
+		if (OpenProcessToken (GetCurrentProcess (), TOKEN_QUERY, &token)) {
+			TOKEN_ELEVATION info;
+			DWORD len = 0;
+
+			if (GetTokenInformation (token, TokenElevation, &info, sizeof (info), &len)) {
+				elevated = info.TokenIsElevated != 0;
+			}
+			CloseHandle (token);
+		}
+
+		g_once_init_leave (&once, 1);
+	}
+
+	return elevated;
+}
+
 void
 nemo_view_win32_open_elevated (const gchar *path)
 {

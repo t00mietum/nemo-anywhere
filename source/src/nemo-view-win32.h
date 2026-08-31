@@ -14,6 +14,10 @@ gchar *nemo_view_win32_quote_arg (const gchar *arg);
 /* Relaunch the running executable elevated ("runas"/UAC) at @path. */
 void nemo_view_win32_open_elevated (const gchar *path);
 
+/* Whether this process is already running elevated. geteuid() cannot answer it
+ * on Windows - the compat shim fakes a non-root uid. */
+gboolean nemo_view_win32_is_elevated (void);
+
 /* Open the native console (Windows Terminal, PowerShell, or cmd) at @path. */
 void nemo_view_win32_open_terminal (const gchar *path);
 

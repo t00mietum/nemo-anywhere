@@ -54,6 +54,60 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Preferences|Context menus still has a "Desktop" group with a "Customize" box in it. Nothing is behind it. Remove.
+	- Opened: 20260831-170000
+	- Found while taking out the desktop tooltip box.
+
+- 🔘 .Lnk folder icons should use the same folder icons as the theme, but with an overlay.
+	- Opened: 20260831-164337
+
+- 🔘 All .lnk files should have a .lnk overlay (similar to how Explorer does it).
+	- Opened: 20260831-164337
+
+- 🔘 All symlinks and junctions should have an overlay, but different from .lnk.
+	- Opened: 20260831-164337
+	- Ditto for Linux symlinks, and .desktop files.
+		- Like .lnk files, don't show ".desktop" in listings, except when renaming.
+			- When renaming, show both .lnk and .desktop extensions.
+			- Still show both extensions in the "Ext" column.
+		- .desktop files can use the same overlay as Windows .lnk, if necessary/convenient.
+
+- 🔘 Move all Windows-related options to a "Windows" preferences pane, and to a grouped section in the config file.
+	- Opened: 20260831-164337
+	- Some cannot move. The note listing them was cut off mid-sentence at `such as "Owner" in` - needs one line to say which.
+	- Including "Appearance" settings.
+	- Additional options for "Show hidden filesystem objects"
+		- Show with native hidden attribute
+		- Show with "dot" names
+
+- 🔘 Copying and pasting a symlink, should paste a symlink. (As it does on Linux.)
+	- Opened: 20260831-164337
+
+- 🔘 Drag and drop a file to a program should work. (E.g. a '.md' or '.txt' file to VSCodium or Notepad.)
+	- Opened: 20260831-164337
+
+- 🔘 If "Show path in tab" option is enabled, don't show the path twice - shorten it. For example:
+	- Opened: 20260831-164337
+	- Current: "github - C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github"
+	- Better: "C:\opt\0-0\users\collierjr\...\nemo-anywhere\github"
+
+- 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
+	- Opened: 20260831-164337
+
+- 🔘 Advanced file/folder rename functionality.
+	- Opened: 20260831-164337
+	- Work in search mode too.
+	- Needs design work first.
+	- Use best of Directory Opus renamer and Thunar renamer.
+		- Including wildcard (default) or regex.
+		- With variables for various attributes, such as date/time, original name/ext, parent folder name, etc.
+	- Advanced dates: Allow obtaining date from various EXIF dates, fallback to date in filename, and final optional fallback, mtime.
+		- As already designed for sister camhauler project, including name templates for filenames.
+	- Remove Preferences|Behavior|"Bulk rename" option.
+
+- 🔘 Better program icon, for both file .exe and running program. (All supported platforms.)
+	- Opened: 20260831-164337
+
 - 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
 	- Only that one button. The ancestor buttons keep the shorter menu.
@@ -1033,6 +1087,30 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Remove bottom-left buttons, and bottom-right zoom bar in list view.
+	- Opened: 20260831-164337
+	- Closed: 20260831-170000
+	- Make bottom bar vertically thinner (since don't need room for the buttons on bottom-left any more; just room for status text, and zoom slider in icon view).
+	- The four sidebar buttons are gone from the bottom bar. Switching between places and tree, and hiding the sidebar, are still on the View menu and on F9.
+	- The zoom slider now shows only where it does anything useful - icon and compact views. List view sizes itself off its columns.
+	- The bar is about half its old height, since nothing in it needs button room any more.
+
+- ✅ Preferences|Preview: "Show tooltips on the desktop" (and related checkboxes) have no meaning. Remove.
+	- Opened: 20260831-164337
+	- Closed: 20260831-170000
+	- Removed, along with the setting behind it. Nothing read it once the desktop shell went.
+	- The icon-view and list-view tooltip boxes stay - those still do something. So do the boxes choosing what a tooltip shows.
+
+- ✅ By default, disable all checkboxes related to Preferences|Behavior|Media handling.
+	- Opened: 20260831-164337
+	- Closed: 20260831-170000
+	- Automount, automatic open of a mounted disk, and content detection all start off now. The fourth box in that group was already off.
+
+- ✅ Gray out "Open as Administrator", if already running as such.
+	- Opened: 20260831-164337
+	- Closed: 20260831-170000
+	- Windows has no root account to test for, so the item used to stay live in an already elevated copy and a second prompt bought nothing. The process token is asked instead.
 
 - ✅ Windows: show the icon the shell would show for .lnk files (without requiring Explorer to run).
 	- Opened: 20260827-090000

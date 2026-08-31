@@ -90,3 +90,24 @@ NemoDesktopWindow GtkPaned {
 .nemo-window treeview.view:hover:not(:selected) {
 	background-color: alpha(currentColor, 0.035);
 }
+
+/* The bottom bar holds only the status text and the zoom slider, so it does not
+   need toolbar-height padding. Themes size the scale for a settings dialog. */
+#nemo-statusbar {
+	padding: 0;
+	min-height: 0;
+}
+
+#nemo-statusbar statusbar,
+#nemo-statusbar scale,
+#nemo-statusbar scale trough {
+	margin: 0;
+	padding: 0;
+	min-height: 0;
+}
+
+#nemo-statusbar scale slider {
+	min-height: 13px;
+	min-width: 13px;
+	margin: -6px;
+}

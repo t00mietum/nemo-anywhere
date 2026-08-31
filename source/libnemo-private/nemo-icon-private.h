@@ -258,7 +258,6 @@ struct NemoIconContainerDetails {
     gint h_adjust;
     gint v_adjust;
 
-    gboolean show_desktop_tooltips;
     gboolean show_icon_view_tooltips;
 
 	/* Ignore the visible area the next time the scroll region is recomputed */

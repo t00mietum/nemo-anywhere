@@ -38,9 +38,6 @@ typedef struct _NemoStatusBarClass NemoStatusBarClass;
 #define NEMO_IS_STATUS_BAR_CLASS(klass)      (G_TYPE_CHECK_CLASS_TYPE ((klass), NEMO_TYPE_STATUS_BAR))
 #define NEMO_STATUS_BAR_GET_CLASS(obj)       (G_TYPE_INSTANCE_GET_CLASS ((obj), NEMO_TYPE_STATUS_BAR, NemoStatusBarClass))
 
-#define NEMO_STATUSBAR_ICON_SIZE_NAME "statusbar-icon"
-#define NEMO_STATUSBAR_ICON_SIZE 11
-
 struct _NemoStatusBar
 {
     GtkBox parent;
@@ -48,12 +45,6 @@ struct _NemoStatusBar
     GtkWidget *real_statusbar;
 
     GtkWidget *zoom_slider;
-
-    GtkWidget *tree_button;
-    GtkWidget *places_button;
-    GtkWidget *show_button;
-    GtkWidget *hide_button;
-    GtkWidget *separator;
 };
 
 struct _NemoStatusBarClass
@@ -66,8 +57,6 @@ GType    nemo_status_bar_get_type (void) G_GNUC_CONST;
 GtkWidget *nemo_status_bar_new (NemoWindow *window);
 
 GtkWidget *nemo_status_bar_get_real_statusbar (NemoStatusBar *bar);
-
-void       nemo_status_bar_sync_button_states (NemoStatusBar *bar);
 
 void       nemo_status_bar_sync_zoom_widgets (NemoStatusBar *bar);
 
