@@ -49,11 +49,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproduced: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
 	- Note: it depends on something only the real session has, most likely where the focus was sitting. Needs one hands-on run to pin down.
 
-- 🔘 Windows network browsing cannot be proved to report a missing network or a refused share.
-	- Opened: 20260804-230307
-	- Fixed so far: the address building and the not-found answer, both verified against real shares. From code review 20260804.
-	- Note: both halves need a machine that fails in those specific ways, which this one does not.
-
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
 	- Fixed so far: the Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
@@ -167,6 +162,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Windows network browsing cannot be proved to report a missing network or a refused share.
+	- Opened: 20260804-230307
+	- Closed: 20260831-071500
+	- Fixed so far: the address building and the not-found answer, both verified against real shares. From code review 20260804.
+	- Found: the missing-network half never worked. Asking Windows to list the neighborhood on a machine with no network at all succeeds and hands back an empty list, so nemo showed a blank folder that looked like it had loaded. The branch meant to catch it could not fire.
+	- Fixed: when the list comes back empty, the machine is asked directly whether it has a network, and "The network is unavailable" is shown when it says no. A list with something in it is left alone - a local provider can offer entries with no network, and the remote desktop channel does.
+	- Also fixed: the browse and the lookup used to word the same failure differently, so a refused share came back reading as a missing one. One place decides now, and an answer nobody wrote a case for keeps the system's own words instead of being reworded.
+	- Proved on a throwaway machine with its network switched off: with the remote desktop provider present the one entry is listed and nothing is claimed; with it taken out of the order, so there really is nothing, the message appears. The same check goes red on that machine with the fix backed out.
+	- Also covered: every failure code's wording, and a server name that cannot exist, which is refused in about a second rather than opening as an empty folder.
 
 - ✅ Windows: opening a file from the released build breaks the program it opens in, unless that program is already running.
 	- Opened: 20260830-141048
