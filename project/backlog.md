@@ -49,6 +49,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: no launch flag or shell indirection helps either. Detaching the child, putting a hidden command prompt in the middle, `start /b` behind that, and the shell's own open verb were all measured, and all six children came out hooked. Handing the launch to the system's management service is the one method that came out clean, and it opens the file correctly - but the new window then opens behind whatever was already in front, and routing every launch through that service is a pattern security software watches for.
 	- Fixed so far: the program no longer inherits our error-mode setting, and is started with an explicit window state. Neither was the cause.
 	- Direction: hand the launch to a broker. Two work, and both fix the 32-bit bug below at the same time. The shell brings the new window forward but cannot pass arguments and drops the caller's rights; the management service keeps both but opens the window behind. Covering every launch means using each where it fits.
+	- The window left behind by the second route cannot be brought forward afterwards. Both documented ways of doing it report success and change nothing, so the shell has to be the route for anything a person double-clicks.
 	- Unpacking to a real folder instead was considered and dropped - it breaks the dogfood launcher's one-file-per-build pool, and it swaps one thing security software dislikes for another.
 	- Neither route touches the slow cold start, which belongs to the packer.
 
