@@ -1946,15 +1946,9 @@ on_get_tooltip_text (NemoIconContainer *container,
                      NemoFile          *file,
                      gpointer           user_data)
 {
-    gboolean is_desktop, show_tooltip;
     gchar *tooltip_text = NULL;
 
-    is_desktop = container->details->is_desktop;
-
-    show_tooltip = (container->details->show_desktop_tooltips && is_desktop) ||
-                   (container->details->show_icon_view_tooltips && !is_desktop);
-
-    if (show_tooltip) {
+    if (container->details->show_icon_view_tooltips) {
         tooltip_text = nemo_file_construct_tooltip (file, container->details->tooltip_flags, NULL);
     }
 

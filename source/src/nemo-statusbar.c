@@ -20,7 +20,7 @@
 
 #include "nemo-statusbar.h"
 
-#include "nemo-actions.h"
+#include "nemo-list-view.h"
 
 #include <config.h>
 #include <glib/gi18n.h>
@@ -91,46 +91,6 @@ nemo_status_bar_dispose (GObject *object)
 }
 
 static void
-action_places_toggle_callback (GtkButton *button, NemoStatusBar *bar)
-{
-    nemo_window_set_sidebar_id (NEMO_WINDOW (bar->window), NEMO_WINDOW_SIDEBAR_PLACES);
-
-    nemo_status_bar_sync_button_states (bar);
-}
-
-static void
-action_treeview_toggle_callback (GtkButton *button, NemoStatusBar *bar)
-{
-    nemo_window_set_sidebar_id (NEMO_WINDOW (bar->window), NEMO_WINDOW_SIDEBAR_TREE);
-
-    nemo_status_bar_sync_button_states (bar);
-}
-
-static void
-action_show_sidebar_callback (GtkButton *button, NemoStatusBar *bar)
-{
-    nemo_window_show_sidebar (bar->window);
-}
-
-static void
-action_hide_sidebar_callback (GtkButton *button, NemoStatusBar *bar)
-{
-    nemo_window_hide_sidebar (bar->window);
-}
-
-static void
-sidebar_state_changed_cb (gpointer pointer, gboolean state, gpointer user_data)
-{
-    nemo_status_bar_sync_button_states (NEMO_STATUS_BAR (user_data));
-}
-
-static void
-sidebar_type_changed_cb (gpointer pointer, const gchar *sidebar_id, gpointer user_data)
-{
-    nemo_status_bar_sync_button_states (NEMO_STATUS_BAR (user_data));
-}
-
-static void
 on_slider_changed_cb (GtkWidget *zoom_slider, gpointer user_data)
 {
     NemoStatusBar *bar = NEMO_STATUS_BAR (user_data);
@@ -162,54 +122,10 @@ nemo_status_bar_constructed (GObject *object)
 
     bar->real_statusbar = statusbar;
 
-    GtkIconSize size = gtk_icon_size_from_name (NEMO_STATUSBAR_ICON_SIZE_NAME);
+    gtk_widget_set_name (GTK_WIDGET (bar), "nemo-statusbar");
 
     context = gtk_widget_get_style_context (GTK_WIDGET (bar));
     gtk_style_context_add_class (context, GTK_STYLE_CLASS_TOOLBAR);
-    gtk_container_set_border_width (GTK_CONTAINER (bar), 2);
-
-    GtkWidget *button, *icon;
-
-    button = gtk_toggle_button_new ();
-    icon = gtk_image_new_from_icon_name ("nemo-sidebar-places-symbolic", size);
-    gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show places"));
-    bar->places_button = button;
-    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
-    g_signal_connect (GTK_BUTTON (button), "clicked",
-                      G_CALLBACK (action_places_toggle_callback), bar);
-
-    button = gtk_toggle_button_new ();
-    icon = gtk_image_new_from_icon_name ("nemo-sidebar-tree-symbolic", size);
-    gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show treeview"));
-    bar->tree_button = button;
-    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
-    g_signal_connect (GTK_BUTTON (button), "clicked",
-                      G_CALLBACK (action_treeview_toggle_callback), bar);
-
-    GtkWidget *sep = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
-    gtk_box_pack_start (GTK_BOX (bar), sep, FALSE, FALSE, 6);
-    gtk_widget_show (sep);
-    bar->separator = sep;
-
-    button = gtk_button_new ();
-    icon = gtk_image_new_from_icon_name ("nemo-sidebar-hide-symbolic", size);
-    gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Hide the sidebar (F9)"));
-    bar->hide_button = button;
-    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
-    g_signal_connect (GTK_BUTTON (button), "clicked",
-                      G_CALLBACK (action_hide_sidebar_callback), bar);
-
-    button = gtk_button_new ();
-    icon = gtk_image_new_from_icon_name ("nemo-sidebar-show-symbolic", size);
-    gtk_button_set_image (GTK_BUTTON (button), icon);
-    gtk_widget_set_tooltip_text (GTK_WIDGET (button), _("Show the sidebar (F9)"));
-    bar->show_button = button;
-    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
-    g_signal_connect (GTK_BUTTON (button), "clicked",
-                      G_CALLBACK (action_show_sidebar_callback), bar);
 
     gtk_box_pack_start (GTK_BOX (bar), statusbar, TRUE, TRUE, 10);
     gtk_widget_set_margin_top (GTK_WIDGET (statusbar), 0);
@@ -224,18 +140,16 @@ nemo_status_bar_constructed (GObject *object)
 
     gtk_box_pack_start (GTK_BOX (bar), zoom_slider, FALSE, FALSE, 2);
 
+    /* sync_zoom_widgets owns whether this is up, so keep show_all off it. */
+    gtk_widget_set_no_show_all (zoom_slider, TRUE);
+    gtk_widget_show (zoom_slider);
+
     gtk_widget_set_size_request (GTK_WIDGET (zoom_slider), SLIDER_WIDTH, 0);
     gtk_scale_set_draw_value (GTK_SCALE (zoom_slider), FALSE);
     gtk_range_set_increments (GTK_RANGE (zoom_slider), 1.0, 1.0);
     gtk_range_set_round_digits (GTK_RANGE (zoom_slider), 0);
 
     gtk_widget_show_all (GTK_WIDGET (bar));
-
-    g_signal_connect_object (NEMO_WINDOW (bar->window), "notify::show-sidebar",
-                             G_CALLBACK (sidebar_state_changed_cb), bar, G_CONNECT_AFTER);
-
-    g_signal_connect_object (NEMO_WINDOW (bar->window), "notify::sidebar-view-id",
-                           G_CALLBACK (sidebar_type_changed_cb), bar, G_CONNECT_AFTER);
 
     g_signal_connect (GTK_RANGE (zoom_slider), "value-changed",
                       G_CALLBACK (on_slider_changed_cb), bar);
@@ -249,8 +163,6 @@ nemo_status_bar_constructed (GObject *object)
                                TRUE, FALSE, 10, GTK_PACK_START);
 
     g_list_free (children);
-
-    nemo_status_bar_sync_button_states (bar);
 }
 
 
@@ -295,46 +207,6 @@ nemo_status_bar_get_real_statusbar (NemoStatusBar *bar)
 }
 
 void
-nemo_status_bar_sync_button_states (NemoStatusBar *bar)
-{
-    const gchar *sidebar_id = nemo_window_get_sidebar_id (NEMO_WINDOW (bar->window));
-
-    gboolean sidebar_visible = nemo_window_get_show_sidebar (NEMO_WINDOW (bar->window));
-
-    if (sidebar_visible) {
-        gtk_widget_show (bar->tree_button);
-        gtk_widget_show (bar->places_button);
-        gtk_widget_show (bar->separator);
-        gtk_widget_show (bar->hide_button);
-        gtk_widget_hide (bar->show_button);
-    } else {
-        gtk_widget_hide (bar->tree_button);
-        gtk_widget_hide (bar->places_button);
-        gtk_widget_hide (bar->hide_button);
-        gtk_widget_hide (bar->separator);
-        gtk_widget_show (bar->show_button);
-    }
-
-    g_signal_handlers_block_by_func (GTK_BUTTON (bar->tree_button), action_treeview_toggle_callback, bar);
-    if (g_strcmp0 (sidebar_id, NEMO_WINDOW_SIDEBAR_TREE) == 0) {
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bar->tree_button), TRUE);
-    } else {
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bar->tree_button), FALSE);
-    }
-    g_signal_handlers_unblock_by_func (GTK_BUTTON (bar->tree_button), action_treeview_toggle_callback, bar);
-
-
-    g_signal_handlers_block_by_func (GTK_BUTTON (bar->places_button), action_places_toggle_callback, bar);
-
-    if (g_strcmp0 (sidebar_id, NEMO_WINDOW_SIDEBAR_PLACES) == 0) {
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bar->places_button), TRUE);
-    } else {
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bar->places_button), FALSE);
-    }
-    g_signal_handlers_unblock_by_func (GTK_BUTTON (bar->places_button), action_places_toggle_callback, bar);
-}
-
-void
 nemo_status_bar_sync_zoom_widgets (NemoStatusBar *bar)
 {
 
@@ -347,6 +219,10 @@ nemo_status_bar_sync_zoom_widgets (NemoStatusBar *bar)
 
     if (!NEMO_IS_VIEW (view))
         return;
+
+    /* Row height is not what the slider is for - list view sizes itself off the
+       columns, so it only clutters the bar there. */
+    gtk_widget_set_visible (bar->zoom_slider, !NEMO_IS_LIST_VIEW (view));
 
     NemoZoomLevel zoom_level = nemo_view_get_zoom_level (NEMO_VIEW (view));
 

@@ -10262,6 +10262,9 @@ real_update_location_menu (NemoView *view)
 		action = gtk_action_group_get_action (view->details->dir_action_group,
 						      NEMO_ACTION_LOCATION_OPEN_AS_ROOT);
 		gtk_action_set_visible (action, !is_recent && has_local_path && !nemo_user_is_root ());
+#ifdef G_OS_WIN32
+		gtk_action_set_sensitive (action, !nemo_view_win32_is_elevated ());
+#endif
 
 		/* New folder lands inside this segment, so only offer it for the
 		   folder actually on display - an ancestor segment would create
@@ -10555,6 +10558,11 @@ real_update_menus (NemoView *view)
     action = gtk_action_group_get_action (view->details->dir_action_group,
                                          NEMO_ACTION_OPEN_AS_ROOT);
     gtk_action_set_visible (action, (!(nemo_user_is_root () || showing_admin_enabled_directory (view))) && no_selection_or_one_dir);
+#ifdef G_OS_WIN32
+    /* Windows has no root uid to test, so the item stayed live in an already
+       elevated copy and a second UAC prompt bought nothing. */
+    gtk_action_set_sensitive (action, !nemo_view_win32_is_elevated ());
+#endif
 
     action = gtk_action_group_get_action (view->details->dir_action_group,
                                          NEMO_ACTION_OPEN_IN_TERMINAL);

@@ -53,13 +53,6 @@
     <file alias="appicons/32x32/actions/nemo-eject.png">hicolor/actions/32x32/nemo-eject.png</file>
     <file alias="appicons/scalable/actions/nemo-location-symbolic.svg">hicolor/actions/scalable/nemo-location-symbolic.svg</file>
     <file alias="appicons/scalable/actions/nemo-location-symbolic-rtl.svg">hicolor/actions/scalable/nemo-location-symbolic-rtl.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-hide-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-hide-symbolic.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-hide-symbolic-rtl.svg">hicolor/actions/scalable/nemo-sidebar-hide-symbolic-rtl.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-show-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-show-symbolic.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-show-symbolic-rtl.svg">hicolor/actions/scalable/nemo-sidebar-show-symbolic-rtl.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-tree-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-tree-symbolic.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-tree-symbolic-rtl.svg">hicolor/actions/scalable/nemo-sidebar-tree-symbolic-rtl.svg</file>
-    <file alias="appicons/scalable/actions/nemo-sidebar-places-symbolic.svg">hicolor/actions/scalable/nemo-sidebar-places-symbolic.svg</file>
     <file alias="appicons/scalable/actions/nemo-auto-arrange-symbolic.svg">hicolor/actions/scalable/nemo-auto-arrange-symbolic.svg</file>
     <file alias="appicons/scalable/actions/nemo-desktop-scale-symbolic.svg">hicolor/actions/scalable/nemo-desktop-scale-symbolic.svg</file>
     <file alias="appicons/scalable/actions/nemo-horizontal-layout-symbolic.svg">hicolor/actions/scalable/nemo-horizontal-layout-symbolic.svg</file>

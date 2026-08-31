@@ -63,11 +63,11 @@ field: interface.clock-use-24h
 
 field: media-handling.automount
 	type: bool
-	default: true
+	default: false
 
 field: media-handling.automount-open
 	type: bool
-	default: true
+	default: false
 
 field: performance.cpu-percent
 	type: int
@@ -250,7 +250,7 @@ field: preferences.desktop-is-home-dir
 
 field: preferences.detect-content
 	type: bool
-	default: true
+	default: false
 	desc: If true, enable detection of the type of content of a mounted media and display a suggested application to open the media.
 
 field: preferences.disable-menu-warning
@@ -528,11 +528,6 @@ field: preferences.tooltips-in-list-view
 	type: bool
 	default: false
 	desc: Show tooltips when hovering on items in a list view
-
-field: preferences.tooltips-on-desktop
-	type: bool
-	default: false
-	desc: Show tooltips for desktop items
 
 field: preferences.tooltips-show-access-date
 	type: bool
