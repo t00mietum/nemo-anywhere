@@ -48,6 +48,12 @@ void nemo_clipboard_clear_if_colliding_uris    (GtkWidget          *widget,
 GtkClipboard* nemo_clipboard_get                (GtkWidget          *widget);
 void nemo_clipboard_set_text                    (GtkWidget          *widget,
 						    const char         *text);
+/* Put a cut or copy of @files (a NemoFile list) on the clipboard, and remember
+ * it as what nemo itself last copied. */
+void nemo_clipboard_set_files                   (GtkWidget          *widget,
+						    GList              *files,
+						    gboolean            cut);
+void nemo_clipboard_clear                       (GtkWidget          *widget);
 GList* nemo_clipboard_get_uri_list_from_selection_data
 						   (GtkSelectionData   *selection_data,
 						    gboolean           *cut,

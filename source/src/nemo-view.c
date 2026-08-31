@@ -50,6 +50,7 @@
 
 #ifdef G_OS_WIN32
 #include "nemo-view-win32.h"
+#include <libnemo-private/nemo-clipboard-win32.h>
 #endif
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -6755,35 +6756,10 @@ copy_or_cut_files (NemoView *view,
 		   GList           *clipboard_contents,
 		   gboolean         cut)
 {
-    GtkClipboard *clipboard;
 	int count;
 	char *status_string, *name;
-	NemoClipboardInfo info;
-        GtkTargetList *target_list;
-        GtkTargetEntry *targets;
-        int n_targets;
 
-	info.files = clipboard_contents;
-	info.cut = cut;
-
-        target_list = gtk_target_list_new (NULL, 0);
-        gtk_target_list_add (target_list, copied_files_atom, 0, 0);
-        gtk_target_list_add_uri_targets (target_list, 0);
-        gtk_target_list_add_text_targets (target_list, 0);
-
-        targets = gtk_target_table_new_from_list (target_list, &n_targets);
-        gtk_target_list_unref (target_list);
-
-    clipboard = nemo_clipboard_get (GTK_WIDGET (view));
-
-    gtk_clipboard_set_with_data (clipboard,
-                                 targets, n_targets,
-                                 nemo_get_clipboard_callback, nemo_clear_clipboard_callback,
-                                 NULL);
-    gtk_clipboard_set_can_store (clipboard, NULL, 0);
-    gtk_target_table_free (targets, n_targets);
-
-	nemo_clipboard_monitor_set_clipboard_info (nemo_clipboard_monitor_get (), &info);
+	nemo_clipboard_set_files (GTK_WIDGET (view), clipboard_contents, cut);
 
 	count = g_list_length (clipboard_contents);
 	if (count == 1) {
@@ -7555,6 +7531,13 @@ paste_clipboard_data (NemoView *view,
 	item_uris = nemo_clipboard_get_uri_list_from_selection_data (selection_data, &cut,
 									 copied_files_atom);
 
+#ifdef G_OS_WIN32
+	/* A copy made in another program carries only the Windows format. */
+	if (item_uris == NULL) {
+		item_uris = nemo_clipboard_win32_get_files (&cut);
+	}
+#endif
+
 	if (item_uris == NULL|| destination_uri == NULL) {
 		nemo_window_slot_set_status (view->details->slot,
 						 _("There is nothing on the clipboard to paste."),
@@ -7567,7 +7550,7 @@ paste_clipboard_data (NemoView *view,
 
 		/* If items are cut then remove from clipboard */
 		if (cut) {
-			gtk_clipboard_clear (nemo_clipboard_get (GTK_WIDGET (view)));
+			nemo_clipboard_clear (GTK_WIDGET (view));
 		}
 
 		g_list_free_full (item_uris, g_free);
@@ -9474,6 +9457,13 @@ clipboard_targets_received (GtkClipboard     *clipboard,
 			}
 		}
 	}
+
+#ifdef G_OS_WIN32
+	/* Another program's copy carries no nemo format to look for. */
+	if (!can_paste) {
+		can_paste = nemo_clipboard_win32_has_files ();
+	}
+#endif
 
 
 	selection = nemo_view_get_selection (view);

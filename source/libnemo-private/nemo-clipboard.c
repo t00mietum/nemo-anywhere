@@ -29,6 +29,8 @@
 
 #include <config.h>
 #include "nemo-clipboard.h"
+#include "nemo-clipboard-monitor.h"
+#include "nemo-file.h"
 #include "nemo-file-utilities.h"
 
 #include <glib/gi18n.h>
@@ -36,8 +38,7 @@
 #include <string.h>
 
 #ifdef G_OS_WIN32
-#include <windows.h>
-#include <gdk/gdkwin32.h>
+#include "nemo-clipboard-win32.h"
 #endif
 
 typedef struct _TargetCallbackData TargetCallbackData;
@@ -613,57 +614,6 @@ nemo_clipboard_get (GtkWidget *widget)
 					      GDK_SELECTION_CLIPBOARD);
 }
 
-#ifdef G_OS_WIN32
-/* The toolkit only advertises the text on Windows and hands it over when
- * somebody asks. In a remote desktop session the redirector asks straight
- * away, does not get an answer in time, and puts the client's own clipboard
- * back - so a copy silently left the old contents in place. Handing Windows
- * the bytes up front leaves nothing to ask for. */
-static gboolean
-win32_set_clipboard_text (GtkWidget  *widget,
-			  const char *text)
-{
-	GdkWindow *window = gtk_widget_get_window (gtk_widget_get_toplevel (widget));
-	HWND owner = window != NULL ? (HWND) gdk_win32_window_get_handle (window) : NULL;
-	wchar_t *wide;
-	glong wide_len = 0;
-	HGLOBAL block;
-	gpointer copy;
-
-	wide = g_utf8_to_utf16 (text, -1, NULL, &wide_len, NULL);
-	if (wide == NULL) {
-		return FALSE;
-	}
-
-	block = GlobalAlloc (GMEM_MOVEABLE, (wide_len + 1) * sizeof (wchar_t));
-	if (block == NULL) {
-		g_free (wide);
-		return FALSE;
-	}
-
-	copy = GlobalLock (block);
-	memcpy (copy, wide, (wide_len + 1) * sizeof (wchar_t));
-	GlobalUnlock (block);
-	g_free (wide);
-
-	if (!OpenClipboard (owner)) {
-		GlobalFree (block);
-		return FALSE;
-	}
-
-	EmptyClipboard ();
-
-	if (SetClipboardData (CF_UNICODETEXT, block) == NULL) {
-		CloseClipboard ();
-		GlobalFree (block);
-		return FALSE;
-	}
-
-	CloseClipboard ();	/* the clipboard owns the block now */
-	return TRUE;
-}
-#endif
-
 /* Plain text on the clipboard, from a widget in the window doing the copying. */
 void
 nemo_clipboard_set_text (GtkWidget  *widget,
@@ -675,7 +625,7 @@ nemo_clipboard_set_text (GtkWidget  *widget,
 	g_return_if_fail (text != NULL);
 
 #ifdef G_OS_WIN32
-	if (win32_set_clipboard_text (widget, text)) {
+	if (nemo_clipboard_win32_set_text (widget, text)) {
 		return;
 	}
 #endif
@@ -684,6 +634,85 @@ nemo_clipboard_set_text (GtkWidget  *widget,
 	gtk_clipboard_set_text (clipboard, text, -1);
 	/* Let a clipboard manager keep the text once nemo is gone. */
 	gtk_clipboard_set_can_store (clipboard, NULL, 0);
+}
+
+#ifdef G_OS_WIN32
+/* The Windows clipboard wants the paths themselves, so the files have to be
+ * turned into uris here rather than in the callback the toolkit would have
+ * called later on. */
+static gboolean
+set_files_the_windows_way (GtkWidget *widget,
+			   GList     *files,
+			   gboolean   cut)
+{
+	GList *uris = NULL, *node;
+	gboolean published;
+
+	for (node = files; node != NULL; node = node->next) {
+		uris = g_list_prepend (uris, nemo_file_get_local_uri (node->data));
+	}
+
+	uris = g_list_reverse (uris);
+	published = nemo_clipboard_win32_set_files (widget, uris, cut);
+	g_list_free_full (uris, g_free);
+
+	return published;
+}
+#endif
+
+void
+nemo_clipboard_set_files (GtkWidget *widget,
+			  GList     *files,
+			  gboolean   cut)
+{
+	NemoClipboardInfo info;
+	gboolean published = FALSE;
+
+	g_return_if_fail (GTK_IS_WIDGET (widget));
+
+#ifdef G_OS_WIN32
+	published = set_files_the_windows_way (widget, files, cut);
+#endif
+
+	if (!published) {
+		GtkTargetList *target_list;
+		GtkTargetEntry *targets;
+		GtkClipboard *clipboard;
+		int n_targets;
+
+		target_list = gtk_target_list_new (NULL, 0);
+		gtk_target_list_add (target_list,
+				     gdk_atom_intern_static_string ("x-special/gnome-copied-files"),
+				     0, 0);
+		gtk_target_list_add_uri_targets (target_list, 0);
+		gtk_target_list_add_text_targets (target_list, 0);
+
+		targets = gtk_target_table_new_from_list (target_list, &n_targets);
+		gtk_target_list_unref (target_list);
+
+		clipboard = nemo_clipboard_get (widget);
+		gtk_clipboard_set_with_data (clipboard, targets, n_targets,
+					     nemo_get_clipboard_callback,
+					     nemo_clear_clipboard_callback, NULL);
+		gtk_clipboard_set_can_store (clipboard, NULL, 0);
+		gtk_target_table_free (targets, n_targets);
+	}
+
+	info.files = files;
+	info.cut = cut;
+	nemo_clipboard_monitor_set_clipboard_info (nemo_clipboard_monitor_get (), &info);
+}
+
+void
+nemo_clipboard_clear (GtkWidget *widget)
+{
+	g_return_if_fail (GTK_IS_WIDGET (widget));
+
+#ifdef G_OS_WIN32
+	nemo_clipboard_win32_clear ();
+#endif
+
+	gtk_clipboard_clear (nemo_clipboard_get (widget));
 }
 
 void
@@ -717,7 +746,7 @@ nemo_clipboard_clear_if_colliding_uris (GtkWidget *widget,
 	}
 	
 	if (collision) {
-		gtk_clipboard_clear (nemo_clipboard_get (widget));
+		nemo_clipboard_clear (widget);
 	}
 	
 	if (clipboard_item_uris) {
