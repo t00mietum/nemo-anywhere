@@ -29,8 +29,11 @@
 #include <gio/gio.h>
 #include <glib/gi18n.h>
 
+#define COBJMACROS
 #include <windows.h>
 #include <winnetwk.h>
+#include <objbase.h>
+#include <netlistmgr.h>
 
 #define ROOT_URI "network:///"
 
@@ -179,6 +182,105 @@ enum_shares (const char *server_name, DWORD *open_rc)
 	items = g_list_reverse (enum_container (&container, TRUE, 0, open_rc));
 	g_free (unc_w);
 	return items;
+}
+
+/* ---- is there a network at all ---- */
+
+/* WNetOpenEnum answers NO_ERROR with an empty list on a machine that has no
+ * network - measured on a box with no adapters up - so "the neighborhood is
+ * empty" and "there is no neighborhood" are otherwise the same answer, and the
+ * unreachable-network branch below never fires. Windows will say which it is if
+ * asked directly. Anything short of a clear "not connected" counts as available:
+ * a COM call that fails must not turn into a claim that the network is down. */
+gboolean
+nemo_network_win32_is_available (void)
+{
+	INetworkListManager *manager = NULL;
+	VARIANT_BOOL connected = VARIANT_TRUE;
+	gboolean available = TRUE;
+	gboolean needs_leave;
+	HRESULT hr;
+
+	hr = CoInitializeEx (NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	needs_leave = SUCCEEDED (hr);
+
+	if (SUCCEEDED (hr) || hr == RPC_E_CHANGED_MODE) {
+		if (SUCCEEDED (CoCreateInstance (&CLSID_NetworkListManager, NULL, CLSCTX_ALL,
+						 &IID_INetworkListManager, (void **) &manager))) {
+			if (SUCCEEDED (INetworkListManager_IsConnected (manager, &connected))) {
+				available = connected != VARIANT_FALSE;
+			}
+			IUnknown_Release ((IUnknown *) manager);
+		}
+	}
+
+	if (needs_leave) {
+		CoUninitialize ();
+	}
+
+	return available;
+}
+
+/* ---- what a failure says ---- */
+
+/* One place decides, because the browse and the lookup used to word the same
+ * failure differently - a refused share came back reading as a missing one. */
+void
+nemo_network_win32_set_error (GError      **error,
+			      gulong        rc,
+			      const gchar  *server)
+{
+	switch (rc) {
+	case ERROR_ACCESS_DENIED:
+	case ERROR_INVALID_PASSWORD:
+	case ERROR_LOGON_FAILURE:
+		if (server != NULL) {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
+				     _("Access to '%s' was denied"), server);
+		} else {
+			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_PERMISSION_DENIED,
+					     _("Access to the network was denied"));
+		}
+		return;
+
+	case ERROR_NO_NETWORK:
+	case ERROR_NETWORK_UNREACHABLE:
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+				     _("The network is unavailable"));
+		return;
+
+	case ERROR_BAD_NETPATH:
+	case ERROR_BAD_NET_NAME:
+	case ERROR_NO_NET_OR_BAD_PATH:
+	case ERROR_NETNAME_DELETED:
+	case ERROR_REM_NOT_LIST:
+		if (server != NULL) {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+				     _("'%s' could not be found on the network"), server);
+		} else {
+			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+					     _("The network could not be browsed"));
+		}
+		return;
+
+	default:
+		break;
+	}
+
+	/* An answer nobody anticipated is worth passing on as it came, rather
+	 * than reworded into one of the cases above. */
+	{
+		gchar *reason = g_win32_error_message ((gint) rc);
+
+		if (server != NULL) {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+				     _("'%s' could not be browsed: %s"), server, reason);
+		} else {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
+				     _("The network could not be browsed: %s"), reason);
+		}
+		g_free (reason);
+	}
 }
 
 /* ---- GFile implementation ---- */
@@ -446,10 +548,7 @@ network_file_query_info (GFile *file, const char *attributes,
 		GList *shares = enum_shares (server, &open_rc);
 
 		if (shares == NULL && open_rc != NO_ERROR) {
-			g_set_error (error, G_IO_ERROR,
-				     open_rc == ERROR_ACCESS_DENIED ? G_IO_ERROR_PERMISSION_DENIED
-								    : G_IO_ERROR_NOT_FOUND,
-				     _("'%s' could not be found on the network"), server);
+			nemo_network_win32_set_error (error, open_rc, server);
 			g_object_unref (info);
 			g_free (server);
 			return NULL;
@@ -567,16 +666,18 @@ network_file_enumerate_children (GFile *file, const char *attributes,
 	/* No network and access-denied used to look exactly like an empty
 	   neighborhood - a loaded, blank folder with nothing said either way. */
 	if (enumerator->items == NULL && open_rc != NO_ERROR) {
-		g_set_error (error, G_IO_ERROR,
-			     open_rc == ERROR_ACCESS_DENIED ? G_IO_ERROR_PERMISSION_DENIED
-							    : G_IO_ERROR_NOT_FOUND,
-			     open_rc == ERROR_NO_NETWORK
-				? _("The network is unavailable")
-				: (open_rc == ERROR_ACCESS_DENIED
-					? _("Access to the network was denied")
-					: _("The network could not be browsed")));
+		nemo_network_win32_set_error (error, open_rc, server);
 		g_object_unref (enumerator);
 		g_free (server);
+		return NULL;
+	}
+
+	/* The neighborhood came back empty and succeeded, which is also what a
+	   machine with no network answers. Say which one it was. */
+	if (enumerator->items == NULL && server == NULL &&
+	    !nemo_network_win32_is_available ()) {
+		nemo_network_win32_set_error (error, ERROR_NO_NETWORK, NULL);
+		g_object_unref (enumerator);
 		return NULL;
 	}
 

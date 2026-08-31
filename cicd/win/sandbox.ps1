@@ -13,10 +13,13 @@
 ##		   -Smoke        built-in job: launch the app in there, screenshot it
 ##		   -Status       heartbeat age
 ##		   -Stop         end the sandbox
+##		- -NoNetwork cuts the machine off the network, for testing what the app
+##		  says when there is none. The mapped folder still works.
 ##		- Syntax:
-##		  pwsh cicd/win/sandbox.ps1 -Start [-Exe <packed exe>]
+##		  pwsh cicd/win/sandbox.ps1 -Start [-Exe <packed exe>] [-NoNetwork]
 ##		  pwsh cicd/win/sandbox.ps1 -Run <script.ps1> [-TimeoutSec <n>]
 ##	History:
+##		- 2026-08-31: -NoNetwork.
 ##		- 2026-08-30: Created (backlog: GUI testing without touching the live session).
 
 ##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
@@ -33,6 +36,7 @@ param(
 	[switch]$Stop,
 	[string]$Exe = "",
 	[int]$TimeoutSec = 300,
+	[switch]$NoNetwork,
 	[switch]$Help
 )
 
@@ -106,10 +110,14 @@ if ($Start) {
 	Copy-Item -LiteralPath (Join-Path $PSScriptRoot "sandbox-agent.ps1") -Destination (Join-Path $Share "agent.ps1") -Force
 	Copy-Item -LiteralPath (Join-Path $PSScriptRoot "gui.ps1") -Destination (Join-Path $Share "gui.ps1") -Force
 
+	## Cut the machine off the network, for testing what nemo says when there is
+	## none. The mapped folder still works - it is not a network share.
+	$net = if ($NoNetwork) { "`n`t<Networking>Disable</Networking>" } else { "" }
+
 	## The logon command waits for the mapped folder - it has raced the agent before.
 	$wsb = @"
 <Configuration>
-	<MemoryInMB>4096</MemoryInMB>
+	<MemoryInMB>4096</MemoryInMB>$net
 	<MappedFolders>
 		<MappedFolder>
 			<HostFolder>$Share</HostFolder>
