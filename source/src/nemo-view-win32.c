@@ -12,6 +12,7 @@
 #include "nemo-view-win32.h"
 
 #include <libnemo-private/nemo-config.h>
+#include <libnemo-private/nemo-launch-win32.h>
 
 #include <glib/gi18n.h>
 #include <windows.h>
@@ -145,15 +146,12 @@ void
 nemo_view_win32_open_terminal (const gchar *path)
 {
 	/* With nothing chosen in preferences the candidate list decides, in order:
-	   Windows Terminal, then PowerShell, then cmd (always present).
-	   ShellExecute rather than g_spawn so the child reliably gets a visible
-	   console. wt takes the folder via -d, the classic shells via the working
-	   directory. */
+	   Windows Terminal, then PowerShell, then cmd (always present). wt takes
+	   the folder via -d, the classic shells via the working directory. */
 	gchar *chosen;
 	gchar *exe = NULL;
 	gchar *args = NULL;
-	wchar_t *wexe;
-	HINSTANCE res;
+	GError *error = NULL;
 
 	chosen = nemo_config_get_string (nemo_config_get_group ("terminal"), "exec");
 
@@ -188,27 +186,13 @@ nemo_view_win32_open_terminal (const gchar *path)
 		g_free (quoted);
 	}
 
-	wexe = (wchar_t *) g_utf8_to_utf16 (exe, -1, NULL, NULL, NULL);
-
-	if (args != NULL) {
-		wchar_t *wargs = (wchar_t *) g_utf8_to_utf16 (args, -1, NULL, NULL, NULL);
-		wchar_t *wdir = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-
-		res = ShellExecuteW (NULL, L"open", wexe, wargs, wdir, SW_SHOWNORMAL);
-		g_free (wargs);
-		g_free (wdir);
-	} else {
-		wchar_t *wdir = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-
-		res = ShellExecuteW (NULL, L"open", wexe, NULL, wdir, SW_SHOWNORMAL);
-		g_free (wdir);
+	if (!nemo_launch_win32_run (exe, args, path, &error)) {
+		g_warning ("Open in Terminal failed for '%s': %s", path, error->message);
+		g_clear_error (&error);
 	}
-
-	shell_execute_ok (res, "Open in Terminal", path);
 
 	g_free (exe);
 	g_free (args);
-	g_free (wexe);
 }
 
 /* Reveal @path in its own folder by starting an Explorer of our own. This is
@@ -219,16 +203,19 @@ explorer_select_by_command_line (const gchar *path)
 {
 	gchar *quoted = nemo_view_win32_quote_arg (path);
 	gchar *params = g_strconcat ("/select,", quoted, NULL);
-	wchar_t *wparams = (wchar_t *) g_utf8_to_utf16 (params, -1, NULL, NULL, NULL);
-	HINSTANCE res;
+	GError *error = NULL;
+	gboolean ok;
 
-	res = ShellExecuteW (NULL, L"open", L"explorer.exe", wparams, NULL, SW_SHOWNORMAL);
+	ok = nemo_launch_win32_run ("explorer.exe", params, NULL, &error);
+	if (!ok) {
+		g_warning ("Open with Explorer failed for '%s': %s", path, error->message);
+		g_clear_error (&error);
+	}
 
 	g_free (quoted);
 	g_free (params);
-	g_free (wparams);
 
-	return shell_execute_ok (res, "Open with Explorer", path);
+	return ok;
 }
 
 /* The one place that deliberately hands work to Explorer, because the item says

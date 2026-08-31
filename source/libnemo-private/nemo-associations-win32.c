@@ -15,13 +15,13 @@
 
 #include <string.h>
 #include <windows.h>
-#include <shellapi.h>
 #include <shlwapi.h>
 
 #include <glib/gi18n.h>
 
 #include "nemo-associations-win32.h"
 #include "nemo-config.h"
+#include "nemo-launch-win32.h"
 
 #define GROUP         "associations"
 #define KEY_OVERRIDES "overrides"
@@ -142,39 +142,6 @@ nemo_associations_win32_registry_command (const gchar  *content_type,
 	return command;
 }
 
-/* The program named at the front of a command line. An unquoted path may hold
- * spaces (the registry has plenty), so the longest existing prefix wins, the
- * way the shell reads it too. */
-static gchar *
-exe_path_from_command (const gchar *command)
-{
-	const gchar *p;
-
-	while (*command == ' ') {
-		command++;
-	}
-
-	if (command[0] == '"') {
-		const gchar *end = strchr (command + 1, '"');
-
-		return g_strndup (command + 1, end != NULL ? (gsize) (end - command - 1) : strlen (command + 1));
-	}
-
-	for (p = command; (p = strchr (p, '.')) != NULL; p++) {
-		if (g_ascii_strncasecmp (p, ".exe", 4) == 0 && (p[4] == '\0' || p[4] == ' ')) {
-			gchar *candidate = g_strndup (command, p + 4 - command);
-
-			if (g_file_test (candidate, G_FILE_TEST_EXISTS)) {
-				return candidate;
-			}
-			g_free (candidate);
-		}
-	}
-
-	p = strchr (command, ' ');
-	return p != NULL ? g_strndup (command, p - command) : g_strdup (command);
-}
-
 static gchar *
 file_description (const gchar *exe)
 {
@@ -231,8 +198,11 @@ file_description (const gchar *exe)
 gchar *
 nemo_associations_win32_friendly_name (const gchar *command)
 {
-	gchar *exe = exe_path_from_command (command);
+	gchar *args = NULL;
+	gchar *exe = nemo_launch_win32_split_command (command, &args);
 	gchar *name = file_description (exe);
+
+	g_free (args);
 
 	if (name == NULL) {
 		gchar *base = g_path_get_basename (exe);
@@ -334,11 +304,8 @@ nemo_associations_win32_launch (const gchar  *command,
 
 	for (l = locations; l != NULL; l = l->next) {
 		gchar *path = g_file_get_path (G_FILE (l->data));
-		gchar *line, *dir;
-		wchar_t *wline, *wdir;
-		STARTUPINFOW startup;
-		PROCESS_INFORMATION process;
-		BOOL started;
+		gchar *dir;
+		gboolean started;
 
 		if (path == NULL) {
 			g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
@@ -346,47 +313,18 @@ nemo_associations_win32_launch (const gchar  *command,
 			return FALSE;
 		}
 
-		line = nemo_associations_win32_command_for_file (command, path);
 		dir = g_path_get_dirname (path);
-		wline = g_utf8_to_utf16 (line, -1, NULL, NULL, NULL);
-		wdir = g_utf8_to_utf16 (dir, -1, NULL, NULL, NULL);
-
-		memset (&startup, 0, sizeof startup);
-		startup.cb = sizeof startup;
-		startup.dwFlags = STARTF_USESHOWWINDOW;
-		startup.wShowWindow = SW_SHOWNORMAL;
 
 		if (needs_the_shell (command)) {
-			wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-
-			started = (INT_PTR) ShellExecuteW (NULL, L"open", wpath, NULL, wdir, SW_SHOWNORMAL) > 32;
-			g_free (wpath);
+			started = nemo_launch_win32_open_path (path, dir, error);
 		} else {
-			/* CREATE_DEFAULT_ERROR_MODE so the program does not inherit
-			 * ours - a packed build turns the crash dialog off for
-			 * itself, and that has no business reaching what it opens. */
-			started = CreateProcessW (NULL, wline, NULL, NULL, FALSE,
-						  CREATE_DEFAULT_ERROR_MODE | CREATE_UNICODE_ENVIRONMENT,
-						  NULL, wdir, &startup, &process);
+			gchar *line = nemo_associations_win32_command_for_file (command, path);
 
-			if (started) {
-				CloseHandle (process.hThread);
-				CloseHandle (process.hProcess);
-			}
+			started = nemo_launch_win32_run_command (line, dir, error);
+			g_free (line);
 		}
 
-		if (!started) {
-			gchar *reason = g_win32_error_message (GetLastError ());
-
-			g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-				     _("Could not start \"%s\": %s"), line, reason);
-			g_free (reason);
-		}
-
-		g_free (wdir);
-		g_free (wline);
 		g_free (dir);
-		g_free (line);
 		g_free (path);
 
 		if (!started) {
