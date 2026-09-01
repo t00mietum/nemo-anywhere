@@ -61,6 +61,9 @@ static void desktop_dir_changed (void);
 static void update_xdg_user_dir (const char *type, const char *path);
 static GFile *nemo_find_file_insensitive_next (GFile *parent, const gchar *name);
 
+/* Roughly what fits a tab before the label starts being cut off anyway. */
+#define TITLE_PATH_LIMIT 52
+
 char *
 nemo_compute_title_for_location (GFile *location)
 {
@@ -101,7 +104,10 @@ nemo_compute_title_for_location (GFile *location)
         nemo_path_apply_display_separator (path);
 
         if (path != NULL) {
-            title = g_strdup_printf("%s - %s", builder, path);
+            /* The path already ends in the folder's name, so putting the name in
+               front of it just says the same thing twice. */
+            title = nemo_path_shorten (path, nemo_path_get_display_separator (),
+                                       TITLE_PATH_LIMIT);
         } else {
             title = g_strdup_printf("%s - %s", builder, uri);
         }
@@ -2248,6 +2254,67 @@ nemo_path_apply_separator (gchar *path,
         }
     }
 #endif
+}
+
+/* Leave the middle out of a long path. The end says which folder this is and the
+   start says which drive or share it is on; what sits between them is what a
+   title bar has no room for. Anything short enough comes back untouched. */
+gchar *
+nemo_path_shorten (const gchar *path,
+                   gchar        separator,
+                   gsize        limit)
+{
+    gchar sep[2] = { separator, '\0' };
+    gchar **parts;
+    GString *out;
+    guint count, head, tail, i;
+    gsize length;
+
+    if (path == NULL || strlen (path) <= limit) {
+        return g_strdup (path);
+    }
+
+    parts = g_strsplit (path, sep, -1);
+    count = g_strv_length (parts);
+
+    /* Nothing to leave out: the root, one middle component and the two kept at
+       the end is already the shortest form this can take. */
+    if (count < 5) {
+        g_strfreev (parts);
+        return g_strdup (path);
+    }
+
+    tail = count - 2;
+
+    /* The root, the gap marker and the last two components are always in. */
+    length = strlen (parts[0]) + 1 + 3;
+    for (i = tail; i < count; i++) {
+        length += 1 + strlen (parts[i]);
+    }
+
+    head = 1;
+    while (head < tail && length + 1 + strlen (parts[head]) <= limit) {
+        length += 1 + strlen (parts[head]);
+        head++;
+    }
+
+    out = g_string_new (parts[0]);
+    for (i = 1; i < head; i++) {
+        g_string_append_c (out, separator);
+        g_string_append (out, parts[i]);
+    }
+
+    g_string_append_c (out, separator);
+    g_string_append (out, "...");
+
+    for (i = tail; i < count; i++) {
+        g_string_append_c (out, separator);
+        g_string_append (out, parts[i]);
+    }
+
+    g_strfreev (parts);
+
+    return g_string_free (out, FALSE);
 }
 
 void
