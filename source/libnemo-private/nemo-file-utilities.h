@@ -143,6 +143,10 @@ gchar *nemo_build_path_list_text (GList *locations, gchar separator);
 
 gchar *nemo_filename_get_extension (const gchar *name);
 
+/* Leave the middle out of a path too long for a title. The separator is the one
+   the path is spelled with; limit is roughly how many characters to aim for. */
+gchar *nemo_path_shorten (const gchar *path, gchar separator, gsize limit);
+
 /* Which separator paths are shown with. Windows takes either, so it is the
    user's choice there; elsewhere there is only one and these do nothing. */
 void     nemo_path_init_display_separator (void);
