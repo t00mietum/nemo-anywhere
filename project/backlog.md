@@ -49,14 +49,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed so far: the Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
 	- Fixed: the second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed. Cause: a file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
 	- Note: a regression check lists a folder and fails on anything logged at warning level or worse.
+	- Found: what produces that exact pair is a signal connected to a settings group that is not open yet. The group handles are NULL until the settings are read, and about seventy places connect to one. Reproduced on demand by starting with no session bus, which is what leaves the store unopened.
+	- Left to find: why the store is not open that early on the host in the first place. Needs the capture from there.
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- Note: it depends on something only the real session has. Needs one capture from the host to place it, and the exact command is in the private notes.
 
 ### Features and enhancements
-
-- 🔘 Preferences|Context menus still has a "Desktop" group with a "Customize" box in it. Nothing is behind it. Remove.
-	- Opened: 20260831-170000
-	- Found while taking out the desktop tooltip box.
 
 - 🔘 .Lnk folder icons should use the same folder icons as the theme, but with an overlay.
 	- Opened: 20260831-164337
@@ -1087,6 +1085,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Preferences|Context menus still has a "Desktop" group with a "Customize" box in it. Nothing is behind it. Remove.
+	- Opened: 20260831-170000
+	- Closed: 20260831-172500
+	- Found while taking out the desktop tooltip box.
+	- The action it was meant to show never existed in this fork, so the box could only ever hide something that was not there. Gone, along with its setting.
 
 - ✅ Remove bottom-left buttons, and bottom-right zoom bar in list view.
 	- Opened: 20260831-164337

@@ -184,7 +184,6 @@
 #define NEMO_ACTION_UNPIN_FILE      "Unpin File"
 #define NEMO_ACTION_FAVORITE_FILE        "Favorite File"
 #define NEMO_ACTION_UNFAVORITE_FILE      "Unfavorite File"
-#define NEMO_ACTION_DESKTOP_OVERLAY "Desktop Overlay"
 
 #define NEMO_ACTION_SIDEBAR_REMOVE "Remove Bookmark"
 #define NEMO_ACTION_SIDEBAR_DETECT_MEDIA "Detect Media"
@@ -315,10 +314,6 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_CLEAN_UP, "iconview_menu__organize_by_name_check",
      "/background/Before Zoom Items/View Items/Clean Up", "iconview-menu-organize-by-name" },
-
-     // Desktop (new)
-    { NEMO_ACTION_DESKTOP_OVERLAY, "desktop_menu__customize_check",
-     "/background/Before Zoom Items/View Items/Desktop Overlay", "desktop-menu-customize" },
 };
 
 #define CONFIGURABLE_MENU_ITEM_COUNT (G_N_ELEMENTS (CONFIGURABLE_MENU_ITEM_INFO))

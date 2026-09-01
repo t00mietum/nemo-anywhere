@@ -604,11 +604,6 @@ field: preferences.menu-config.background-menu-show-hidden-files
 	default: true
 	desc: Show the background context menu's Show Hidden Files item.
 
-field: preferences.menu-config.desktop-menu-customize
-	type: bool
-	default: true
-	desc: Show the background context menu's Customize item (new-style desktop only).
-
 field: preferences.menu-config.iconview-menu-arrange-items
 	type: bool
 	default: true
