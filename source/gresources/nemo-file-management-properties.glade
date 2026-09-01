@@ -2443,7 +2443,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                     <property name="left-padding">40</property>
                                     <child>
                                       <object class="GtkCheckButton" id="show_shortcut_extension_checkbutton">
-                                        <property name="label" translatable="yes">Show the _.lnk extension in a shortcut's name</property>
+                                        <property name="label" translatable="yes">Show the _.lnk and .desktop extensions in a shortcut's name</property>
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">False</property>

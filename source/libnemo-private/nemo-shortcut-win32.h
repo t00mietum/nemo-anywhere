@@ -47,6 +47,11 @@ gboolean nemo_shortcut_win32_update    (const char             *lnk_path,
                                         GError                **error);
 void     nemo_shortcut_info_clear      (NemoShortcutInfo *info);
 
+/* Whether the shortcut points at a folder, answered from what the .lnk itself
+ * records rather than by looking at the target. mtime keys the cache. */
+gboolean nemo_shortcut_win32_target_is_dir (const char *lnk_path,
+                                            gint64      mtime);
+
 /* Open a .lnk the way a double-click in the shell would: the target's
  * associated program for a document, the program itself for an executable,
  * carrying the arguments, working directory and window state stored in the

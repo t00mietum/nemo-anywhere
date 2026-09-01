@@ -358,6 +358,66 @@ nemo_shortcut_win32_read_info (const char        *lnk_path,
 	return TRUE;
 }
 
+/* How many shortcut answers to keep before starting over. */
+#define TARGET_CACHE_LIMIT 2000
+
+/* Whether the shortcut points at a folder, read from the attributes the .lnk
+ * stores rather than from the target itself - a shortcut to a share that is not
+ * answering costs about twenty seconds, and this is asked from the draw path.
+ * Kept for the same reason: it is a COM load and a file read each time. */
+gboolean
+nemo_shortcut_win32_target_is_dir (const char *lnk_path,
+                                   gint64      mtime)
+{
+	static GHashTable *cache = NULL;
+	IShellLinkW *link;
+	IPersistFile *pf;
+	WIN32_FIND_DATAW found;
+	wchar_t buf[MAX_PATH];
+	gboolean did_init;
+	gboolean is_dir = FALSE;
+	char *key;
+	gpointer cached;
+
+	g_return_val_if_fail (lnk_path != NULL, FALSE);
+
+	if (cache == NULL) {
+		cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	} else if (g_hash_table_size (cache) >= TARGET_CACHE_LIMIT) {
+		g_hash_table_remove_all (cache);
+	}
+
+	key = g_strdup_printf ("%s|%lld", lnk_path, (long long) mtime);
+
+	if (g_hash_table_lookup_extended (cache, key, NULL, &cached)) {
+		g_free (key);
+		return GPOINTER_TO_INT (cached) != 0;
+	}
+
+	did_init = com_init ();
+
+	if (load_link (lnk_path, STGM_READ, &link, &pf, NULL)) {
+		memset (&found, 0, sizeof found);
+		buf[0] = L'\0';
+
+		if (SUCCEEDED (IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf),
+						    &found, SLGP_RAWPATH))) {
+			is_dir = (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+		}
+
+		IPersistFile_Release (pf);
+		IShellLinkW_Release (link);
+	}
+
+	if (did_init) {
+		CoUninitialize ();
+	}
+
+	g_hash_table_insert (cache, key, GINT_TO_POINTER (is_dir ? 1 : 0));
+
+	return is_dir;
+}
+
 /* Rewrites the shortcut in place with every field from info. */
 gboolean
 nemo_shortcut_win32_update (const char             *lnk_path,

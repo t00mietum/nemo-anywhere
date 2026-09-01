@@ -686,8 +686,8 @@ hide_group (GtkBuilder *builder, const char *id)
 }
 #endif
 
-/* Windows takes either separator, and only Windows has .lnk shortcuts, so both
-   groups stay out of the dialog everywhere else. */
+/* Windows takes either separator, and only Windows has .lnk shortcuts. The
+   shortcut group stays, since .desktop launchers hide their extension too. */
 static void
 set_up_windows_only_groups (GtkBuilder *builder)
 {
@@ -707,8 +707,13 @@ set_up_windows_only_groups (GtkBuilder *builder)
 	g_signal_connect_object (combo_box, "changed",
 				 G_CALLBACK (path_separator_changed), check, 0);
 #else
+	GtkButton *check;
+
+	check = GTK_BUTTON (gtk_builder_get_object (builder,
+						    NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET));
+	gtk_button_set_label (check, _("Show the _.desktop extension in a shortcut's name"));
+
 	hide_group (builder, "vbox_paths");
-	hide_group (builder, "vbox_shortcuts");
 	hide_group (builder, "vbox_search");
 #endif
 }

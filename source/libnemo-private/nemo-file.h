@@ -115,12 +115,17 @@ typedef enum {
 } NemoFileLoadDeferredAttrs;
 
 /* Emblems sometimes displayed for NemoFiles. Do not localize. */ 
-#define NEMO_FILE_EMBLEM_NAME_SYMBOLIC_LINK "symbolic-link"
+/* The two link emblems are our own art. A themed name cannot be used for them:
+   an icon added by resource path is searched only after every theme, so a theme
+   that carries emblem-symbolic-link always wins, and most themes draw that as
+   the same arrow-in-a-box Windows uses for a shortcut. */
+#define NEMO_FILE_EMBLEM_NAME_SYMBOLIC_LINK "nemo-emblem-symlink"
 #define NEMO_FILE_EMBLEM_NAME_CANT_READ "unreadable"
 #define NEMO_FILE_EMBLEM_NAME_CANT_WRITE "readonly"
 #define NEMO_FILE_EMBLEM_NAME_TRASH "trash"
 #define NEMO_FILE_EMBLEM_NAME_NOTE "note"
 #define NEMO_FILE_EMBLEM_NAME_FAVORITE "favorite"
+#define NEMO_FILE_EMBLEM_NAME_SHORTCUT "nemo-emblem-shortcut"
 
 typedef void (*NemoFileCallback)          (NemoFile  *file,
 				               gpointer       callback_data);
@@ -188,6 +193,7 @@ void                    nemo_file_increment_thumbnail_try_count     (NemoFile   
 /* Basic attributes for file objects. */
 gboolean                nemo_file_contains_text                     (NemoFile                   *file);
 char *                  nemo_file_get_display_name                  (NemoFile                   *file);
+char *                  nemo_file_get_rename_name                   (NemoFile                   *file);
 char *                  nemo_file_get_edit_name                     (NemoFile                   *file);
 char *                  nemo_file_get_name                          (NemoFile                   *file);
 const char *            nemo_file_peek_name                         (NemoFile                   *file);

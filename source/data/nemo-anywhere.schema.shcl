@@ -460,7 +460,7 @@ field: preferences.show-search-icon-toolbar
 field: preferences.show-shortcut-extension
 	type: bool
 	default: false
-	desc: Whether a shortcut's .lnk extension is part of the name shown (Windows only)
+	desc: Whether a shortcut's .lnk or .desktop extension is part of the name shown
 
 field: preferences.show-show-thumbnails-toolbar
 	type: bool
