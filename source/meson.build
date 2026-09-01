@@ -231,6 +231,14 @@ subdir('libnemo-private')
 # subdir('po')
 subdir('src')
 subdir('search-helpers')
+
+# No test needs a session bus, and connecting to a stale one hangs the run - the
+# address file outlives the bus it names. A copy hung here for 30s that way.
+add_test_setup('nobus',
+  is_default: true,
+  env: [ 'DBUS_SESSION_BUS_ADDRESS=disabled:' ],
+)
+
 subdir('test')
 subdir('docs')
 subdir('action-layout-editor')
