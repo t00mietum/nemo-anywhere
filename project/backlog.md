@@ -56,27 +56,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 .Lnk folder icons should use the same folder icons as the theme, but with an overlay.
+- 🔘 Move all Windows-related options to a "Windows" preferences pane; and in the config file, to a grouped section.
 	- Opened: 20260831-164337
-
-- 🔘 All .lnk files should have a .lnk overlay (similar to how Explorer does it).
-	- Opened: 20260831-164337
-
-- 🔘 All symlinks and junctions should have an overlay, but different from .lnk.
-	- Opened: 20260831-164337
-	- Ditto for Linux symlinks, and .desktop files.
-		- Like .lnk files, don't show ".desktop" in listings, except when renaming.
-			- When renaming, show both .lnk and .desktop extensions.
-			- Still show both extensions in the "Ext" column.
-		- .desktop files can use the same overlay as Windows .lnk, if necessary/convenient.
-
-- 🔘 Move all Windows-related options to a "Windows" preferences pane, and to a grouped section in the config file.
-	- Opened: 20260831-164337
-	- Some cannot move. The note listing them was cut off mid-sentence at `such as "Owner" in` - needs one line to say which.
+	- Some cannot move. Such as "Owner" in list columns.
 	- Including "Appearance" settings.
-	- Additional options for "Show hidden filesystem objects"
-		- Show with native hidden attribute
-		- Show with "dot" names
+	- "Show hidden filesystem objects" - move the whole thing to Windows-related as a group, with two options:
+		- Show with native hidden attribute (boolean)
+		- Show with "dot" names (boolean)
 
 - 🔘 Copying and pasting a symlink, should paste a symlink. (As it does on Linux.)
 	- Opened: 20260831-164337
@@ -1085,6 +1071,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ .Lnk folder icons should use the same folder icons as the theme, but with an overlay.
+	- Opened: 20260831-164337
+	- Closed: 20260831-193000
+	- The shell hands back its own folder art for a shortcut to a folder, which looks nothing like the folders around it. The theme's folder icon is used instead, with the shortcut overlay on top.
+	- Whether the target is a folder is read from what the .lnk itself records, not by looking at the target - a shortcut to a share that is not answering would otherwise cost about twenty seconds on the draw path.
+
+- ✅ All .lnk files should have a .lnk overlay (similar to how Explorer does it).
+	- Opened: 20260831-164337
+	- Closed: 20260831-193000
+	- New overlay, drawn as an arrow in a white box the way the shell does it.
+	- .desktop launchers get the same one, on every platform.
+
+- ✅ All symlinks and junctions should have an overlay, but different from .lnk.
+	- Opened: 20260831-164337
+	- Closed: 20260831-193000
+	- Ditto for Linux symlinks, and .desktop files.
+		- Like .lnk files, don't show ".desktop" in listings, except when renaming.
+			- When renaming, show both .lnk and .desktop extensions.
+			- Still show both extensions in the "Ext" column.
+		- .desktop files can use the same overlay as Windows .lnk, if necessary/convenient.
+	- Symlinks and junctions get a chain-link overlay, so the two never read the same.
+	- Both overlays are ours rather than the theme's. An icon added by resource path is only searched after every theme, so a theme that carries its own symlink emblem would always win - and most of them draw the same arrow the shell uses for a shortcut.
+	- .desktop now behaves like .lnk: the extension is off the listing, on in the rename box, and still in the "Ext" column. One preference covers both, and it is no longer hidden on Linux.
+	- Checked on a junction. A real symlink could not be made without Developer Mode, but both are reparse points and read the same way.
 
 - ✅ Preferences|Context menus still has a "Desktop" group with a "Customize" box in it. Nothing is behind it. Remove.
 	- Opened: 20260831-170000

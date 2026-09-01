@@ -56,6 +56,7 @@
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-security-win32.h>
 #include <libnemo-private/nemo-shell-icon-win32.h>
+#include <libnemo-private/nemo-shortcut-win32.h>
 #endif
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -2049,7 +2050,16 @@ name_is (NemoFile *file, const char *new_name)
     return strcmp (new_name, file->details->name) == 0;
 }
 
-#ifdef G_OS_WIN32
+/* Case-insensitive suffix test against the real name on disk. */
+static gboolean
+name_has_extension (const char *name, const char *ext)
+{
+	gsize len = name != NULL ? strlen (name) : 0;
+	gsize ext_len = strlen (ext);
+
+	return len > ext_len && g_ascii_strcasecmp (name + len - ext_len, ext) == 0;
+}
+
 static gboolean show_shortcut_extension = FALSE;
 
 static void
@@ -2059,15 +2069,15 @@ show_shortcut_extension_changed_callback (gpointer callback_data)
 							   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
 }
 
+#ifdef G_OS_WIN32
 static gboolean
 name_has_lnk (const char *name)
 {
-	gsize len = name != NULL ? strlen (name) : 0;
-
-	return len > 4 && g_ascii_strcasecmp (name + len - 4, ".lnk") == 0;
+	return name_has_extension (name, ".lnk");
 }
+#endif
 
-/* The shell never shows a shortcut's .lnk, so neither do we unless asked to. */
+/* The shell never shows a shortcut's extension, so neither do we unless asked to. */
 static gboolean
 hiding_shortcut_extension (void)
 {
@@ -2085,7 +2095,45 @@ hiding_shortcut_extension (void)
 
 	return !show_shortcut_extension;
 }
+
+/* The extension the listing leaves off this file's name, or NULL when there is
+   none to leave off. */
+static const char *
+hidden_extension (NemoFile *file)
+{
+	if (!hiding_shortcut_extension ()) {
+		return NULL;
+	}
+
+#ifdef G_OS_WIN32
+	if (name_has_lnk (file->details->name)) {
+		return ".lnk";
+	}
 #endif
+
+	if (name_has_extension (file->details->name, ".desktop")) {
+		return ".desktop";
+	}
+
+	return NULL;
+}
+
+/* What the rename box starts from. It shows the extension the listing hides, so
+   a rename can see what it is keeping. A launcher that renames through its own
+   Name= key is the exception - there the box is editing the entry's title, and
+   the file name is put back together afterwards. */
+char *
+nemo_file_get_rename_name (NemoFile *file)
+{
+	g_return_val_if_fail (NEMO_IS_FILE (file), NULL);
+
+	if (hidden_extension (file) != NULL &&
+	    !(is_desktop_file (file) && can_rename_desktop_file (file))) {
+		return nemo_file_get_name (file);
+	}
+
+	return nemo_file_get_display_name (file);
+}
 
 void
 nemo_file_rename (NemoFile *file,
@@ -2101,28 +2149,26 @@ nemo_file_rename (NemoFile *file,
 	gboolean is_renameable_desktop_file;
 	GFile *location;
 	GError *error;
-#ifdef G_OS_WIN32
 	g_autofree char *restored_name = NULL;
-#endif
 
 	g_return_if_fail (NEMO_IS_FILE (file));
 	g_return_if_fail (new_name != NULL);
 	g_return_if_fail (callback != NULL);
 
-#ifdef G_OS_WIN32
-	/* The rename box starts from the name on screen, which has no .lnk on it
-	   while the extension is hidden. Putting it back is what stops a rename
-	   turning a shortcut into an ordinary file - the same thing the .desktop
-	   branch below does for its own extension. */
-	if (hiding_shortcut_extension () &&
-	    name_has_lnk (file->details->name) && !name_has_lnk (new_name)) {
-		restored_name = g_strconcat (new_name, ".lnk", NULL);
-		new_name = restored_name;
-	}
-#endif
-
 	is_renameable_desktop_file =
 		is_desktop_file (file) && can_rename_desktop_file (file);
+
+	/* A rename that arrives without the hidden extension on it must not turn a
+	   shortcut into an ordinary file. The renameable launcher below puts its own
+	   extension back, so it is left alone here. */
+	if (!is_renameable_desktop_file) {
+		const char *extension = hidden_extension (file);
+
+		if (extension != NULL && !name_has_extension (new_name, extension)) {
+			restored_name = g_strconcat (new_name, extension, NULL);
+			new_name = restored_name;
+		}
+	}
 
 	/* Return an error for incoming names containing path separators.
 	 * But not for .desktop files as '/' are allowed for them */
@@ -3517,6 +3563,23 @@ file_has_note (NemoFile *file)
 	return res;
 }
 
+/* A shortcut file: a Windows .lnk or a .desktop launcher. Neither is a link the
+   file system follows, so each wears its own emblem rather than the symlink one. */
+static gboolean
+file_is_shortcut (NemoFile *file)
+{
+#ifdef G_OS_WIN32
+	/* mime_type is the extension on Windows rather than a media type, so the
+	   .desktop test below never answers yes there. */
+	if (name_has_lnk (file->details->name) ||
+	    name_has_extension (file->details->name, ".desktop")) {
+		return TRUE;
+	}
+#endif
+
+	return is_desktop_file (file);
+}
+
 static GList *
 prepend_automatic_keywords (NemoFile *file,
                             NemoFile *view_file,
@@ -3536,6 +3599,10 @@ prepend_automatic_keywords (NemoFile *file,
 	if (nemo_file_is_symbolic_link (file) && !nemo_file_is_in_favorites (file)) {
 		names = g_list_prepend
 			(names, g_strdup (NEMO_FILE_EMBLEM_NAME_SYMBOLIC_LINK));
+	}
+	if (file_is_shortcut (file)) {
+		names = g_list_prepend
+			(names, g_strdup (NEMO_FILE_EMBLEM_NAME_SHORTCUT));
 	}
     if (nemo_file_get_is_favorite (file) && !nemo_file_is_in_favorites (file)) {
         names = g_list_prepend
@@ -4552,12 +4619,11 @@ char *
 nemo_file_get_display_name (NemoFile *file)
 {
 	const char *name = nemo_file_peek_display_name (file);
+	const char *extension = hidden_extension (file);
 
-#ifdef G_OS_WIN32
-	if (hiding_shortcut_extension () && name_has_lnk (name)) {
-		return g_strndup (name, strlen (name) - 4);
+	if (extension != NULL && name_has_extension (name, extension)) {
+		return g_strndup (name, strlen (name) - strlen (extension));
 	}
-#endif
 
 	return g_strdup (name);
 }
@@ -5423,11 +5489,26 @@ nemo_file_get_icon (NemoFile *file,
 	}
 
 #ifdef G_OS_WIN32
-	/* A shortcut wears its target's icon, which only the shell can find. */
+	/* A shortcut wears its target's icon, which only the shell can find. The
+	   exception is a folder: the shell hands back its own art, which looks
+	   nothing like the folders around it, so the theme's is used instead. */
 	if (name_has_lnk (file->details->name) && nemo_file_is_local (file)) {
 		char *path = nemo_file_get_path (file);
-		GdkPixbuf *pixbuf = path != NULL ?
-			nemo_shell_icon_win32_for_path (path, size * scale, file->details->mtime) : NULL;
+		GdkPixbuf *pixbuf = NULL;
+
+		if (path != NULL && nemo_shortcut_win32_target_is_dir (path, file->details->mtime)) {
+			GIcon *folder = g_themed_icon_new ("folder");
+
+			icon = nemo_icon_info_lookup (folder, size, scale);
+			g_object_unref (folder);
+			g_free (path);
+
+			return icon;
+		}
+
+		if (path != NULL) {
+			pixbuf = nemo_shell_icon_win32_for_path (path, size * scale, file->details->mtime);
+		}
 
 		g_free (path);
 
@@ -7795,10 +7876,16 @@ nemo_file_get_emblem_icons (NemoFile *file,
 	for (l = keywords; l != NULL; l = l->next) {
 		keyword = l->data;
 
-		icon_names[0] = g_strconcat ("emblem-", keyword, NULL);
-		icon_names[1] = keyword;
-		icon = g_themed_icon_new_from_names (icon_names, 2);
-		g_free (icon_names[0]);
+		/* Our own emblems already carry their whole icon name; anything from a
+		   theme or from metadata gets the emblem- prefix tried first. */
+		if (g_str_has_prefix (keyword, "nemo-")) {
+			icon = g_themed_icon_new (keyword);
+		} else {
+			icon_names[0] = g_strconcat ("emblem-", keyword, NULL);
+			icon_names[1] = keyword;
+			icon = g_themed_icon_new_from_names (icon_names, 2);
+			g_free (icon_names[0]);
+		}
 
 		icons = g_list_prepend (icons, icon);
 	}

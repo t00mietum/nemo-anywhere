@@ -6895,7 +6895,9 @@ nemo_icon_container_start_renaming_selected_item (NemoIconContainer *container,
 		return;
 	}
 
-	details->original_text = g_strdup (editable_text);
+	/* The listing leaves a shortcut's extension off the name. The box shows it,
+	   so a rename can see what it is keeping. */
+	details->original_text = nemo_file_get_rename_name (NEMO_FILE (icon->data));
 
 	/* Freeze updates so files added while renaming don't cause rename to loose focus, bug #318373 */
 	nemo_icon_container_freeze_updates (container);
@@ -6968,7 +6970,7 @@ nemo_icon_container_start_renaming_selected_item (NemoIconContainer *container,
 	gtk_widget_set_size_request (details->rename_widget,
 				     width, -1);
 	eel_editable_label_set_text (EEL_EDITABLE_LABEL (details->rename_widget),
-				     editable_text);
+				     details->original_text);
 	if (select_all ||
 	    nemo_config_get_boolean (nemo_preferences,
 				     NEMO_PREFERENCES_RENAME_SELECTS_WHOLE_NAME)) {
@@ -6980,7 +6982,7 @@ nemo_icon_container_start_renaming_selected_item (NemoIconContainer *container,
 			start_offset = 0;
 			end_offset = -1;
 		} else {
-			eel_filename_get_rename_region (editable_text, &start_offset, &end_offset);
+			eel_filename_get_rename_region (details->original_text, &start_offset, &end_offset);
 		}
 	}
 

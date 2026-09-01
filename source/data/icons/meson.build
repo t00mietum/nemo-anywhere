@@ -26,6 +26,8 @@ publicIcons = [
   'hicolor/actions/scalable/nemo-vertical-layout-wide-symbolic.svg',
   'hicolor/actions/scalable/nemo-recursive-search-symbolic.svg',
   'hicolor/actions/scalable/nemo-recursive-search-symbolic-rtl.svg',
+  'hicolor/emblems/scalable/nemo-emblem-shortcut.svg',
+  'hicolor/emblems/scalable/nemo-emblem-symlink.svg',
   'hicolor/status/scalable/nemo-progress-0-symbolic.svg',
   'hicolor/status/scalable/nemo-progress-10-symbolic.svg',
   'hicolor/status/scalable/nemo-progress-20-symbolic.svg',

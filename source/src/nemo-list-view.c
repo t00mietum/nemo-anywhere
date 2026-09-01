@@ -1765,9 +1765,29 @@ cell_renderer_editing_started_cb (GtkCellRenderer *renderer,
 				  NemoListView *list_view)
 {
 	GtkEntry *entry;
+	GtkTreePath *path;
+	NemoFile *file;
 
 	entry = GTK_ENTRY (editable);
 	list_view->details->editable_widget = editable;
+
+	/* The listing leaves a shortcut's extension off the name. The box shows it,
+	   so a rename can see what it is keeping. */
+	path = gtk_tree_path_new_from_string (path_str);
+	file = path != NULL ? nemo_list_model_file_for_path (list_view->details->model, path) : NULL;
+
+	if (file != NULL) {
+		char *rename_name = nemo_file_get_rename_name (file);
+
+		if (g_strcmp0 (rename_name, gtk_entry_get_text (entry)) != 0) {
+			gtk_entry_set_text (entry, rename_name);
+		}
+
+		g_free (rename_name);
+		nemo_file_unref (file);
+	}
+
+	gtk_tree_path_free (path);
 
 	/* Free a previously allocated original_name */
 	g_free (list_view->details->original_name);

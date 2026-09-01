@@ -61,6 +61,8 @@
     <file alias="appicons/scalable/actions/nemo-vertical-layout-wide-symbolic.svg">hicolor/actions/scalable/nemo-vertical-layout-wide-symbolic.svg</file>
     <file alias="appicons/scalable/actions/nemo-recursive-search-symbolic.svg">hicolor/actions/scalable/nemo-recursive-search-symbolic.svg</file>
     <file alias="appicons/scalable/actions/nemo-recursive-search-symbolic-rtl.svg">hicolor/actions/scalable/nemo-recursive-search-symbolic-rtl.svg</file>
+    <file alias="appicons/scalable/emblems/nemo-emblem-shortcut.svg">hicolor/emblems/scalable/nemo-emblem-shortcut.svg</file>
+    <file alias="appicons/scalable/emblems/nemo-emblem-symlink.svg">hicolor/emblems/scalable/nemo-emblem-symlink.svg</file>
     <file alias="appicons/scalable/status/nemo-progress-0-symbolic.svg">hicolor/status/scalable/nemo-progress-0-symbolic.svg</file>
     <file alias="appicons/scalable/status/nemo-progress-10-symbolic.svg">hicolor/status/scalable/nemo-progress-10-symbolic.svg</file>
     <file alias="appicons/scalable/status/nemo-progress-20-symbolic.svg">hicolor/status/scalable/nemo-progress-20-symbolic.svg</file>
