@@ -35,6 +35,10 @@
 #include <math.h>
 #include "nemo-icon-dnd.h"
 
+#ifdef G_OS_WIN32
+#include "nemo-dnd-win32.h"
+#endif
+
 #include "nemo-file-dnd.h"
 #include "nemo-icon-private.h"
 #include "libnemo-private/nemo-icon.h"
@@ -1666,6 +1670,61 @@ drag_begin_callback (GtkWidget      *widget,
         cairo_surface_destroy (surface);
 }
 
+#ifdef G_OS_WIN32
+/* Hand the drag to Windows rather than the toolkit, so a drop on another program
+ * reaches it. Runs the whole drag, so the drag-end tidy-up follows it here. */
+static gboolean
+win32_drag (NemoIconContainer *container,
+	    GdkDragAction      actions)
+{
+	char *uri_list, *icon_list;
+	cairo_surface_t *surface = NULL;
+	gboolean dragged;
+	int hot_x = 0, hot_y = 0;
+
+	if (!nemo_dnd_win32_enabled ()) {
+		return FALSE;
+	}
+
+	uri_list = nemo_drag_selection_payload (NEMO_ICON_DND_URI_LIST, container,
+						each_icon_get_data_binder);
+	if (uri_list == NULL) {
+		return FALSE;
+	}
+
+	icon_list = nemo_drag_selection_payload (NEMO_ICON_DND_GNOME_ICON_LIST, container,
+						 each_icon_get_data_binder);
+
+	if (container->details->drag_icon != NULL) {
+		double x1, y1, x2, y2, winx, winy;
+
+		surface = nemo_icon_canvas_item_get_drag_surface (container->details->drag_icon->item);
+
+		eel_canvas_item_get_bounds (EEL_CANVAS_ITEM (container->details->drag_icon->item),
+					    &x1, &y1, &x2, &y2);
+		eel_canvas_world_to_window (EEL_CANVAS (container), x1, y1, &winx, &winy);
+
+		hot_x = container->details->dnd_info->drag_info.start_x - (int) winx;
+		hot_y = container->details->dnd_info->drag_info.start_y - (int) winy;
+	}
+
+	dragged = nemo_dnd_win32_drag (actions, uri_list, icon_list, surface,
+				       hot_x, hot_y, NULL);
+
+	if (surface != NULL) {
+		cairo_surface_destroy (surface);
+	}
+	g_free (uri_list);
+	g_free (icon_list);
+
+	if (dragged) {
+		drag_end_callback (GTK_WIDGET (container), NULL, NULL);
+	}
+
+	return dragged;
+}
+#endif
+
 void
 nemo_icon_dnd_begin_drag (NemoIconContainer *container,
 			      GdkDragAction actions,
@@ -1689,6 +1748,12 @@ nemo_icon_dnd_begin_drag (NemoIconContainer *container,
 		gtk_adjustment_get_value (gtk_scrollable_get_hadjustment (GTK_SCROLLABLE (container)));
 	dnd_info->drag_info.start_y = start_y -
 		gtk_adjustment_get_value (gtk_scrollable_get_vadjustment (GTK_SCROLLABLE (container)));
+
+#ifdef G_OS_WIN32
+	if (win32_drag (container, actions)) {
+		return;
+	}
+#endif
 
 	/* start the drag */
 	gtk_drag_begin (GTK_WIDGET (container),

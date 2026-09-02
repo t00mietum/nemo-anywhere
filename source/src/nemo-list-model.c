@@ -1642,6 +1642,19 @@ nemo_list_model_set_drag_view (NemoListModel *model,
 	model->details->drag_begin_y = drag_begin_y;
 }
 
+char *
+nemo_list_model_drag_payload (NemoListModel *model,
+			      GList *path_list,
+			      guint info)
+{
+	DragDataGetInfo context;
+
+	context.model = model;
+	context.path_list = path_list;
+
+	return nemo_drag_selection_payload (info, &context, each_path_get_data_binder);
+}
+
 GtkTargetList *
 nemo_list_model_get_drag_target_list (void)
 {

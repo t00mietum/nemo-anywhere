@@ -37,6 +37,9 @@
 #include <libnemo-private/nemo-debug.h>
 #include <libnemo-private/nemo-metadata-store.h>
 #include <libnemo-private/nemo-config.h>
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-dnd-win32.h>
+#endif
 #include <eel/eel-debug.h>
 
 #include <glib/gi18n.h>
@@ -115,6 +118,10 @@ main (int argc, char *argv[])
 	 * Windows text; v35 is the classic grid-fitted GDI/ClearType look.
 	 * Must land before pango/freetype spin up; a user-set env still wins. */
 	g_setenv ("FREETYPE_PROPERTIES", "truetype:interpreter-version=35", FALSE);
+
+	/* Our drags speak the protocol that reaches other programs, so the toolkit
+	 * has to be listening on the same one. Only read at startup. */
+	nemo_dnd_win32_prepare ();
 #endif
 	
 	/* Initialize gettext support */
