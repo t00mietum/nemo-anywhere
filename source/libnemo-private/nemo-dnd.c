@@ -787,6 +787,37 @@ add_one_path (const char *uri, const char *path_str, int x, int y, int w, int h,
     g_string_append (result, "\r\n");
 }
 
+char *
+nemo_drag_selection_payload (guint info,
+			     gpointer container_context,
+			     NemoDragEachSelectedItemIterator each_selected_item_iterator)
+{
+	GString *result;
+	NemoDragEachSelectedItemDataGet add_one;
+
+	switch (info) {
+	case NEMO_ICON_DND_GNOME_ICON_LIST:
+		add_one = add_one_gnome_icon;
+		break;
+
+	case NEMO_ICON_DND_URI_LIST:
+		add_one = add_one_uri;
+		break;
+
+	case NEMO_ICON_DND_TEXT:
+		add_one = add_one_path;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	result = g_string_new (NULL);
+	(* each_selected_item_iterator) (add_one, container_context, result);
+
+	return g_string_free (result, FALSE);
+}
+
 /* Common function for drag_data_get_callback calls.
  * Returns FALSE if it doesn't handle drag data */
 gboolean
@@ -798,30 +829,18 @@ nemo_drag_drag_data_get (GtkWidget *widget,
 			gpointer container_context,
 			NemoDragEachSelectedItemIterator each_selected_item_iterator)
 {
-	GString *result;
-		
-	switch (info) {
-	case NEMO_ICON_DND_GNOME_ICON_LIST:
-		result = g_string_new (NULL);
-		(* each_selected_item_iterator) (add_one_gnome_icon, container_context, result);
-		break;
-		
-	case NEMO_ICON_DND_URI_LIST:
-		result = g_string_new (NULL);
-		(* each_selected_item_iterator) (add_one_uri, container_context, result);
-		break;
-    case NEMO_ICON_DND_TEXT:
-        result = g_string_new (NULL);
-        (* each_selected_item_iterator) (add_one_path, container_context, result);
-        break;
-	default:
+	char *result;
+
+	result = nemo_drag_selection_payload (info, container_context,
+					      each_selected_item_iterator);
+	if (result == NULL) {
 		return FALSE;
 	}
-	
+
 	gtk_selection_data_set (selection_data,
 				gtk_selection_data_get_target (selection_data),
-				8, (guchar *) result->str, result->len);
-	g_string_free (result, TRUE);
+				8, (guchar *) result, strlen (result));
+	g_free (result);
 
 	return TRUE;
 }

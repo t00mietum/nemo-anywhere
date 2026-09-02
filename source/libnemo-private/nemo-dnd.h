@@ -106,6 +106,12 @@ typedef void		(* NemoDragEachSelectedItemIterator)	(NemoDragEachSelectedItemData
 								 gpointer iterator_context, 
 								 gpointer data);
 
+/* The raw bytes one of the drag types carries, or NULL for a type this does not
+ * build. Caller frees. */
+char			   *nemo_drag_selection_payload		(guint				       info,
+									 gpointer			       container_context,
+									 NemoDragEachSelectedItemIterator      each_selected_item_iterator);
+
 void			    nemo_drag_init				(NemoDragInfo		      *drag_info,
 									 const GtkTargetEntry		      *drag_types,
 									 int				       drag_type_count,

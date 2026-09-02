@@ -30,6 +30,10 @@
 
 #include "nemo-application.h"
 #include "nemo-list-model.h"
+
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-dnd-win32.h>
+#endif
 #include "nemo-error-reporting.h"
 #include "nemo-view-dnd.h"
 #include "nemo-view-factory.h"
@@ -672,6 +676,61 @@ drag_end_callback (GtkWidget *widget,
     view->details->drag_started = FALSE;
 }
 
+#ifdef G_OS_WIN32
+/* Hand the drag to Windows rather than the toolkit, so a drop on another program
+ * reaches it. Runs the whole drag, so what drag-begin and drag-end would have
+ * done sits either side of it. */
+static gboolean
+win32_drag (NemoListView *view,
+	    GtkWidget    *widget)
+{
+	GList *ref_list;
+	NemoListModel *model;
+	char *uri_list, *icon_list;
+	cairo_surface_t *surface;
+	gboolean dragged;
+
+	if (!nemo_dnd_win32_enabled ()) {
+		return FALSE;
+	}
+
+	ref_list = get_filtered_selection_refs (GTK_TREE_VIEW (widget));
+	if (ref_list == NULL) {
+		return FALSE;
+	}
+
+	model = NEMO_LIST_MODEL (view->details->model);
+
+	uri_list = nemo_list_model_drag_payload (model, ref_list, NEMO_ICON_DND_URI_LIST);
+	if (uri_list == NULL) {
+		ref_list_free (ref_list);
+		return FALSE;
+	}
+
+	icon_list = nemo_list_model_drag_payload (model, ref_list,
+						  NEMO_ICON_DND_GNOME_ICON_LIST);
+	surface = get_drag_surface (view);
+
+	stop_drag_check (view);
+	view->details->drag_started = TRUE;
+
+	dragged = nemo_dnd_win32_drag (GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK,
+				       uri_list, icon_list, surface, 0, 0, NULL);
+
+	view->details->drag_started = FALSE;
+	view->details->rubber_banding = FALSE;
+
+	if (surface != NULL) {
+		cairo_surface_destroy (surface);
+	}
+	g_free (uri_list);
+	g_free (icon_list);
+	ref_list_free (ref_list);
+
+	return dragged;
+}
+#endif
+
 static gboolean
 motion_notify_callback (GtkWidget *widget,
 			GdkEventMotion *event,
@@ -759,6 +818,11 @@ motion_notify_callback (GtkWidget *widget,
                                       view->details->drag_y,
                                       event->x,
                                       event->y)) {
+#ifdef G_OS_WIN32
+            if (win32_drag (view, widget)) {
+                return GDK_EVENT_STOP;
+            }
+#endif
             gtk_drag_begin (widget,
                             source_target_list,
                             GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK | GDK_ACTION_ASK,

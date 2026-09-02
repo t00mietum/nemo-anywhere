@@ -119,6 +119,10 @@ void              nemo_list_model_set_drag_view (NemoListModel *model,
 						     int begin_y);
 
 GtkTargetList *   nemo_list_model_get_drag_target_list (void);
+/* The bytes one of the drag types carries for @path_list. Caller frees. */
+char *            nemo_list_model_drag_payload (NemoListModel *model,
+						GList *path_list,
+						guint info);
 
 int               nemo_list_model_compare_func (NemoListModel *model,
 						    NemoFile *file1,

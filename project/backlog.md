@@ -65,9 +65,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Folder junctions as: junctions, symlinks, or copies.
 	- Anything the destination cannot take is greyed out. Each row starts on the same kind if that is possible, otherwise the nearest kind that still points at the original target, otherwise copies.
 
-- 🔘 Drag and drop a file to a program should work. (E.g. a '.md' or '.txt' file to VSCodium or Notepad.)
+- ✅ Drag and drop a file to a program should work. (E.g. a '.md' or '.txt' file to VSCodium or Notepad.)
 	- Opened: 20260831-164337
-	- Deferred once, 20260831-193000. Dropping on another program means being an OLE drop source offering CF_HDROP, which is a different path from the toolkit's own drag. Sizeable, and it wants a session that can drive two windows at once.
+	- Windows only. Linux drags already reach any program, GTK or not.
+	- The toolkit does drive a drag on Windows, but the file formats other programs read were never filled in on its side, and there is no way to add them from outside it. So the drag is ours now, the way the clipboard is.
+	- Done. A drag out of either view carries what Explorer's own drags carry, so other programs read it. Checked in the running app both ways: dropping on Explorer, dropping a text file on an editor, and dragging inside nemo, which still moves files as before.
+	- A move to another program does not delete the original here. Explorer and anything like it do the move themselves, so those are complete. Anything that does not leaves a copy behind, which is the safer way to be wrong.
+	- Deferred: acting on a target's request to delete the original. Needs a way to test it that cannot lose files.
 
 - 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
 	- Opened: 20260831-164337
