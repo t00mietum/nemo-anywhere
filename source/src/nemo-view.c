@@ -2880,7 +2880,7 @@ nemo_view_init (NemoView *view)
                   G_CALLBACK(click_to_rename_changed_callback),
                   view);
 #ifdef G_OS_WIN32
-	g_signal_connect_swapped (nemo_preferences,
+	g_signal_connect_swapped (nemo_windows_preferences,
 				  "changed::" NEMO_PREFERENCES_SHOW_DOT_FILES,
 				  G_CALLBACK (dot_files_preference_changed_callback), view);
 #endif

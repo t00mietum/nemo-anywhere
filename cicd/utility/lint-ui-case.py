@@ -76,6 +76,7 @@ KEEP = set([
 	"The %'d selected items%s will be copied if you select the Paste command",
 	"No templates found. Click New or drag a file here to create one.",
 	"Scripts: All executable files in this folder will appear in the Scripts menu.",
+	"&lt;i&gt;Windows has a hidden attribute of its own, so the two kinds are separate here. The View menu switches both at once.&lt;/i&gt;",
 	"Visible action and extension entries can be configured in the Plugins tab",
 	"Select Places as the default sidebar",
 	"Select Tree as the default sidebar",

@@ -56,22 +56,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Move all Windows-related options to a "Windows" preferences pane; and in the config file, to a grouped section.
-	- Opened: 20260831-164337
-	- Some cannot move. Such as "Owner" in list columns.
-	- Including "Appearance" settings.
-	- "Show hidden filesystem objects" - move the whole thing to Windows-related as a group, with two options:
-		- Show with native hidden attribute (boolean)
-		- Show with "dot" names (boolean)
-	- Deferred once, 20260831-193000. Two things need deciding before the layout can be drawn:
-		- The pages today are Views, Behavior, Display, Appearance, List columns, Preview, Toolbar, Context menus, Document templates, Plugins. A Windows page would take "Paths" and "Search" off Behavior. "Shortcuts" is no longer Windows-only, since .desktop launchers hide their extension too, so it presumably stays where it is.
-		- "Including Appearance settings" reads two ways: the whole Appearance page moves, or only the Windows-specific parts of it do. Themes and light/dark work everywhere, so the second seems meant - but which parts?
-		- "Show hidden files" is on the View menu and Ctrl+H, not only in the dialog, so it is not purely a Windows preference. The split into "native hidden attribute" plus "dot names" only exists on Windows. Worth saying whether the group is Windows-page-only or a general group with a Windows-only second box.
-	- The config side is a set of key renames (`preferences.path-separator` to a `windows` group, and so on). Mechanical but wide, and it breaks existing settings files - acceptable pre-1.0, but do it in one pass.
-
 - 🔘 Copying and pasting a symlink, should paste a symlink. (As it does on Linux.)
 	- Opened: 20260831-164337
 	- Deferred once, 20260831-193000. Windows will not make a symlink without Developer Mode or an elevated run, and this box has neither, so the change could be written but not tried. Needs a session where one of those is on.
+	- Follow the Windows convention by default, but ask when there is a real choice. If the source holds links and the destination can take them (filesystem, Developer Mode, or an elevated run), put up a dialog naming what the source holds, with a row per kind:
+		- File symlinks as: symlinks, or copies.
+		- Folder symlinks as: symlinks, junctions, or copies.
+		- Folder junctions as: junctions, symlinks, or copies.
+	- Anything the destination cannot take is greyed out. Each row starts on the same kind if that is possible, otherwise the nearest kind that still points at the original target, otherwise copies.
 
 - 🔘 Drag and drop a file to a program should work. (E.g. a '.md' or '.txt' file to VSCodium or Notepad.)
 	- Opened: 20260831-164337
@@ -1073,6 +1065,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Move all Windows-related options to a "Windows" preferences pane; and in the config file, to a grouped section.
+	- Opened: 20260831-164337
+	- Closed: 20260901-183000
+	- Some cannot move. Such as "Owner" in list columns.
+	- The page carries Light and dark, Theme, Paths, Hidden files and Search, and takes the slot Appearance used to have. It is hidden everywhere else, so Linux no longer offers theme or light/dark settings - those come from the desktop there. The keys still work if hand-edited.
+	- "Shortcuts" stayed on Display: .desktop launchers hide their extension too, so it is not a Windows-only setting.
+	- Hidden files is a new group with two switches, for the native hidden attribute and for dot names. Both stay on the View menu on Windows, where Show Hidden Files moves the pair together; elsewhere the menu keeps the one meaning it has always had.
+	- Config keys moved to a `windows` group: path-separator, allow-slash-input, show-dot-files, use-search-index, associations, terminal-candidates. Existing settings files lose those values, which is accepted before 1.0.
 
 - ✅ If "Show path in tab" option is enabled, don't show the path twice - shorten it. For example:
 	- Opened: 20260831-164337

@@ -6,8 +6,10 @@
 ##		- Run under powershell.exe 5.1, not pwsh - Add-Type System.Drawing
 ##		  needs a pile of assembly references on .NET Core.
 ##		- Syntax:
-##		  powershell cicd/win/gui.ps1 shot <pid> <png> | rect <pid> |
-##		    wait <pid> <secs> | raise <pid> | click <x> <y> [right] |
+##		  powershell cicd/win/gui.ps1 shot <pid> <png> | shotwin <hwnd> <png> |
+##		    rect <pid> |
+##		    wait <pid> <secs> | raise <pid> | raisewin <hwnd> |
+##		    click <x> <y> [right] |
 ##		    key <vk> [alt|ctrl|shift] | type <text>
 ##	History:
 ##		- 2026-08-30: Created (backlog: GUI testing without touching the live session).
@@ -109,6 +111,7 @@ public static class G {
 
 switch ($Cmd) {
 	'shot'  { $h = [G]::Largest([uint32]$A); [G]::Shot($h, $B); "shot $h -> $B" }
+	'shotwin' { [G]::Shot([IntPtr][int]$A, $B); "shot $A -> $B" }
 	'rect'  { [G]::Windows([uint32]$A) }
 	'wait'  {
 		$deadline = (Get-Date).AddSeconds([int]$B)
@@ -120,8 +123,9 @@ switch ($Cmd) {
 		"timeout"; exit 1
 	}
 	'raise' { $h = [G]::Largest([uint32]$A); [G]::Raise($h); "raised $h" }
+	'raisewin' { [G]::Raise([IntPtr][int]$A); "raised $A" }
 	'click' { [G]::Click([int]$A, [int]$B, ($C -eq 'right')); "clicked $A,$B" }
 	'key'   { [G]::Key([byte][int]$A, ($B -match 'alt'), ($B -match 'ctrl'), ($B -match 'shift')); "key $A $B" }
 	'type'  { [G]::Type($A); "typed" }
-	default { "usage: shot|rect|wait|raise|click|key|type" }
+	default { "usage: shot|shotwin|rect|wait|raise|raisewin|click|key|type" }
 }

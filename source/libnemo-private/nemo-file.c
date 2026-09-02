@@ -4070,7 +4070,7 @@ static gboolean show_dot_files = FALSE;
 static void
 show_dot_files_changed_callback (gpointer callback_data)
 {
-	show_dot_files = nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES);
+	show_dot_files = nemo_config_get_boolean (nemo_windows_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES);
 }
 #endif
 
@@ -4093,7 +4093,7 @@ nemo_file_name_is_hidden_dot_file (const char *name)
 
 	if (!watching_preference) {
 		nemo_global_preferences_init ();
-		g_signal_connect_swapped (nemo_preferences,
+		g_signal_connect_swapped (nemo_windows_preferences,
 					  "changed::" NEMO_PREFERENCES_SHOW_DOT_FILES,
 					  G_CALLBACK (show_dot_files_changed_callback),
 					  NULL);

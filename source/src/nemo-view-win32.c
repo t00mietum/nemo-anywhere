@@ -186,7 +186,7 @@ nemo_view_win32_open_terminal (const gchar *path)
 		gchar **candidates;
 		guint i;
 
-		candidates = nemo_config_get_strv (nemo_config_get_group ("terminal"), "win32-candidates");
+		candidates = nemo_config_get_strv (nemo_config_get_group ("windows"), "terminal-candidates");
 
 		for (i = 0; candidates != NULL && candidates[i] != NULL; i++) {
 			exe = g_find_program_in_path (candidates[i]);

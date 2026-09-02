@@ -53,12 +53,16 @@ G_BEGIN_DECLS
 #define NEMO_PREFERENCES_APPEARANCE_ICON_THEME	"icon-theme"
 
 #define NEMO_PREFERENCES_SHOW_HIDDEN_FILES			"show-hidden-files"
-#define NEMO_PREFERENCES_PATH_SEPARATOR				"path-separator"
-#define NEMO_PREFERENCES_ALLOW_SLASH_INPUT			"allow-slash-input"
-#define NEMO_PREFERENCES_SHOW_DOT_FILES				"show-dot-files"
 #define NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION		"show-shortcut-extension"
 #define NEMO_PREFERENCES_SHOW_ADVANCED_PERMISSIONS		"show-advanced-permissions"
 #define NEMO_PREFERENCES_DATE_FORMAT            "date-format"
+
+/* Windows only. These live in the "windows" group, and the preferences
+   dialog shows them on a page of their own. */
+#define NEMO_PREFERENCES_PATH_SEPARATOR			"path-separator"
+#define NEMO_PREFERENCES_ALLOW_SLASH_INPUT		"allow-slash-input"
+#define NEMO_PREFERENCES_SHOW_DOT_FILES			"show-dot-files"
+#define NEMO_PREFERENCES_USE_SEARCH_INDEX		"use-search-index"
 
 /* Mouse */
 #define NEMO_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS		"mouse-use-extra-buttons"
@@ -284,7 +288,6 @@ typedef enum
 #define NEMO_PREFERENCES_SEARCH_USE_RAW                "search-content-use-raw"
 #define NEMO_PREFERENCES_SEARCH_FILE_CASE              "search-file-case-sensitive"
 #define NEMO_PREFERENCES_SEARCH_CONTENT_CASE           "search-content-case-sensitive"
-#define NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH     "use-windows-search"
 #define NEMO_PREFERENCES_SEARCH_SKIP_FOLDERS           "search-skip-folders"
 #define NEMO_PREFERENCES_SEARCH_FILES_RECURSIVELY      "search-files-recursively"
 #define NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS        "search-visible-columns"
@@ -317,6 +320,7 @@ extern NemoConfigGroup *nemo_menu_config_preferences;
 extern NemoConfigGroup *nemo_search_preferences;
 extern NemoConfigGroup *nemo_media_handling_preferences;
 extern NemoConfigGroup *nemo_appearance_preferences;
+extern NemoConfigGroup *nemo_windows_preferences;
 
 /* Cached for fast access and used in nemo-file.c for constructing date/time strings */
 extern GTimeZone      *prefs_current_timezone;

@@ -629,7 +629,7 @@ nemo_search_engine_win32_start (NemoSearchEngine *engine)
 		content = nemo_query_get_content_pattern (query);
 	}
 
-	use_index = nemo_config_get_boolean (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH) &&
+	use_index = nemo_config_get_boolean (nemo_windows_preferences, NEMO_PREFERENCES_USE_SEARCH_INDEX) &&
 		    is_drive_path (folder) &&
 		    (content == NULL ||
 		     (!nemo_query_get_use_content_regex (query) && !nemo_query_get_content_case_sensitive (query)));

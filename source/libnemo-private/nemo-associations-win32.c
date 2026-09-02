@@ -23,8 +23,8 @@
 #include "nemo-config.h"
 #include "nemo-launch-win32.h"
 
-#define GROUP         "associations"
-#define KEY_OVERRIDES "overrides"
+#define GROUP         "windows"
+#define KEY_ASSOCIATIONS "associations"
 #define DATA_COMMAND  "nemo-win32-command"
 
 static NemoConfigGroup *
@@ -54,7 +54,7 @@ entry_is_for (const gchar *entry,
 gchar *
 nemo_associations_win32_get_override (const gchar *content_type)
 {
-	gchar **entries = nemo_config_get_strv (overrides_group (), KEY_OVERRIDES);
+	gchar **entries = nemo_config_get_strv (overrides_group (), KEY_ASSOCIATIONS);
 	gchar *command = NULL;
 	gint i;
 
@@ -73,7 +73,7 @@ void
 nemo_associations_win32_set_override (const gchar *content_type,
 				      const gchar *command)
 {
-	gchar **entries = nemo_config_get_strv (overrides_group (), KEY_OVERRIDES);
+	gchar **entries = nemo_config_get_strv (overrides_group (), KEY_ASSOCIATIONS);
 	GPtrArray *kept = g_ptr_array_new_with_free_func (g_free);
 	gint i;
 
@@ -88,7 +88,7 @@ nemo_associations_win32_set_override (const gchar *content_type,
 	}
 
 	g_ptr_array_add (kept, NULL);
-	nemo_config_set_strv (overrides_group (), KEY_OVERRIDES, (const gchar *const *) kept->pdata);
+	nemo_config_set_strv (overrides_group (), KEY_ASSOCIATIONS, (const gchar *const *) kept->pdata);
 
 	g_ptr_array_free (kept, TRUE);
 	g_strfreev (entries);

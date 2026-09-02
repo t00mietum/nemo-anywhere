@@ -57,6 +57,8 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET "allow_slash_input_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_USE_WINDOWS_SEARCH_WIDGET "use_windows_search_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET "show_shortcut_extension_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_HIDDEN_FILES_WIDGET "show_hidden_files_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_DOT_FILES_WIDGET "show_dot_files_checkbutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET "preview_image_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_FOLDER_WIDGET "preview_folder_combobox"
@@ -686,10 +688,10 @@ hide_group (GtkBuilder *builder, const char *id)
 }
 #endif
 
-/* Windows takes either separator, and only Windows has .lnk shortcuts. The
-   shortcut group stays, since .desktop launchers hide their extension too. */
+/* Everything on the Windows page is meaningless elsewhere, so the page goes.
+   The shortcut group is not on it: .desktop launchers hide their extension too. */
 static void
-set_up_windows_only_groups (GtkBuilder *builder)
+set_up_windows_page (GtkBuilder *builder)
 {
 #ifdef G_OS_WIN32
 	GtkComboBoxText *combo_box;
@@ -713,8 +715,7 @@ set_up_windows_only_groups (GtkBuilder *builder)
 						    NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET));
 	gtk_button_set_label (check, _("Show the _.desktop extension in a shortcut's name"));
 
-	hide_group (builder, "vbox_paths");
-	hide_group (builder, "vbox_search");
+	hide_group (builder, "windows_scrolledwindow");
 #endif
 }
 
@@ -1111,7 +1112,7 @@ static const char *const preferences_pages[] = {
 	"scrolledwindow2",		/* Views */
 	"scrolledwindow1",		/* Behavior */
 	"scrolledwindow3",		/* Display */
-	"appearance_scrolledwindow",	/* Appearance */
+	"windows_scrolledwindow",	/* Windows */
 	"scrolledwindow4",		/* List columns */
 	"scrolledwindow5",		/* Preview */
 	"scrolledwindow6",		/* Toolbar */
@@ -1254,7 +1255,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 							       (char *)"preview_label",
 							       3);
 	create_date_format_menu (builder);
-	set_up_windows_only_groups (builder);
+	set_up_windows_page (builder);
 
 
 	/* nemo patch */
@@ -1389,19 +1390,25 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET,
 			   NEMO_PREFERENCES_DATE_FORMAT,
 			   (const char **) date_format_values);
-	bind_builder_enum (builder, nemo_preferences,
+	bind_builder_enum (builder, nemo_windows_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET,
 			   NEMO_PREFERENCES_PATH_SEPARATOR,
 			   (const char **) path_separator_values);
-	bind_builder_bool (builder, nemo_preferences,
+	bind_builder_bool (builder, nemo_windows_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET,
 			   NEMO_PREFERENCES_ALLOW_SLASH_INPUT);
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET,
 			   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
-	bind_builder_bool (builder, nemo_search_preferences,
+	bind_builder_bool (builder, nemo_windows_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_USE_WINDOWS_SEARCH_WIDGET,
-			   NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH);
+			   NEMO_PREFERENCES_USE_SEARCH_INDEX);
+	bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_HIDDEN_FILES_WIDGET,
+			   NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
+	bind_builder_bool (builder, nemo_windows_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_DOT_FILES_WIDGET,
+			   NEMO_PREFERENCES_SHOW_DOT_FILES);
 	bind_builder_radio (builder, nemo_preferences,
 			    (const char **) click_behavior_components,
 			    NEMO_PREFERENCES_CLICK_POLICY,

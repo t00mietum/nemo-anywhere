@@ -275,7 +275,7 @@ static void
 action_show_dot_files_callback (GtkAction *action,
 				gpointer callback_data)
 {
-	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES,
+	nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES,
 				 gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
 }
 
@@ -310,7 +310,7 @@ action_show_hidden_files_callback (GtkAction *action,
 		GtkActionGroup *group = nemo_window_get_main_action_group (window);
 		GtkAction      *dot = gtk_action_group_get_action (group, NEMO_ACTION_SHOW_DOT_FILES);
 
-		nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, on);
+		nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, on);
 
 		g_signal_handlers_block_by_func (dot, action_show_dot_files_callback, window);
 		gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (dot), on);
@@ -1974,7 +1974,7 @@ nemo_window_initialize_menus (NemoWindow *window)
 #ifdef G_OS_WIN32
     g_signal_handlers_block_by_func (action, action_show_dot_files_callback, window);
     gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
-                                  nemo_config_get_boolean (nemo_preferences,
+                                  nemo_config_get_boolean (nemo_windows_preferences,
                                   NEMO_PREFERENCES_SHOW_DOT_FILES));
     g_signal_handlers_unblock_by_func (action, action_show_dot_files_callback, window);
 #else
