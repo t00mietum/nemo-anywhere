@@ -439,16 +439,26 @@ get_drop_action (NemoTreeViewDragDest *dest,
 
 		return action;
 
-	case NEMO_ICON_DND_URI_LIST :
+	case NEMO_ICON_DND_URI_LIST : {
+		char *dropped_uri;
+
 		drop_target = get_drop_target_uri_for_path (dest, path);
 
 		if (drop_target == NULL) {
 			return 0;
 		}
 
+		dropped_uri = nemo_drag_first_uri (dest->details->drag_data);
+
+		action = nemo_drag_default_drop_action_for_uri_list (context, drop_target, dropped_uri,
+								     &dest->details->desktop_dnd_source_fs,
+								     &dest->details->desktop_dnd_can_delete_source);
+
+		g_free (dropped_uri);
 		g_free (drop_target);
 
-		return gdk_drag_context_get_suggested_action (context);
+		return action;
+	}
 
 	case NEMO_ICON_DND_TEXT:
 	case NEMO_ICON_DND_RAW:

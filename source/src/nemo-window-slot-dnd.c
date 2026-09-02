@@ -108,7 +108,11 @@ slot_proxy_drag_motion (GtkWidget          *widget,
                                                &drag_info->desktop_dnd_source_fs,
                                                &drag_info->desktop_dnd_can_delete_source);
     } else if (drag_info->info == NEMO_ICON_DND_URI_LIST) {
-      action = nemo_drag_default_drop_action_for_uri_list (context, target_uri);
+      action = nemo_drag_default_drop_action_for_uri_list (context, target_uri,
+                                                           drag_info->data.uri_list != NULL
+                                                             ? drag_info->data.uri_list->data : NULL,
+                                                           &drag_info->desktop_dnd_source_fs,
+                                                           &drag_info->desktop_dnd_can_delete_source);
     } else if (drag_info->info == NEMO_ICON_DND_NETSCAPE_URL) {
       action = nemo_drag_default_drop_action_for_netscape_url (context);
     }

@@ -1500,13 +1500,21 @@ nemo_icon_container_get_drop_action (NemoIconContainer *container,
                                                  &container->details->dnd_info->drag_info.can_delete_source);
 		g_free (drop_target);
 		break;
-	case NEMO_ICON_DND_URI_LIST:
+	case NEMO_ICON_DND_URI_LIST: {
+		char *dropped_uri;
+
 		drop_target = nemo_icon_container_find_drop_target (container,
 									context, x, y, &icon_hit, FALSE);
-		*action = nemo_drag_default_drop_action_for_uri_list (context, drop_target);
+		dropped_uri = nemo_drag_first_uri (container->details->dnd_info->drag_info.selection_data);
 
+		*action = nemo_drag_default_drop_action_for_uri_list (context, drop_target, dropped_uri,
+								      &container->details->dnd_info->drag_info.source_fs,
+								      &container->details->dnd_info->drag_info.can_delete_source);
+
+		g_free (dropped_uri);
 		g_free (drop_target);
 		break;
+	}
 
 	case NEMO_ICON_DND_NETSCAPE_URL:
 		*action = nemo_drag_default_drop_action_for_netscape_url (context);

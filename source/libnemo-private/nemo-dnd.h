@@ -142,8 +142,12 @@ void                nemo_drag_default_drop_action_for_icons (GdkDragContext *con
                                                              gchar         **source_fs,
                                                              gboolean       *can_delete_source);
 GdkDragAction		    nemo_drag_default_drop_action_for_netscape_url (GdkDragContext			     *context);
+char			   *nemo_drag_first_uri			       (GtkSelectionData		     *data);
 GdkDragAction		    nemo_drag_default_drop_action_for_uri_list     (GdkDragContext			     *context,
-										const char			     *target_uri_string);
+										const char			     *target_uri_string,
+										const char			     *dropped_uri,
+										gchar				    **source_fs,
+										gboolean			     *can_delete_source);
 gboolean		    nemo_drag_drag_data_get			(GtkWidget			      *widget,
 									 GdkDragContext			      *context,
 									 GtkSelectionData		      *selection_data,

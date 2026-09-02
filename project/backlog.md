@@ -72,6 +72,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done. A drag out of either view carries what Explorer's own drags carry, so other programs read it. Checked in the running app both ways: dropping on Explorer, dropping a text file on an editor, and dragging inside nemo, which still moves files as before.
 	- A move out to another program now removes the original, unless that program moved it itself or the drop came back into nemo. Control copies and shift moves, the way Windows does it.
 	- Drops coming the other way, from another file manager into nemo, copy and move too. They always copied before: nothing is known about a file dragged in from elsewhere, so nemo could not tell whether it was on the same drive and fell back to copying every time.
+	- Checked against Directory Opus in both directions, and between two nemo windows: a plain drag moves within a drive, control copies, shift moves.
+
+- 🔘 Running as administrator stops other programs dropping files into nemo.
+	- Opened: 20260902-163000
+	- Windows refuses to let a normal program hand anything to one running as administrator, drag and drop included. It is one-way: dragging OUT of nemo still works, and so does dragging inside it. Only drops coming in are lost, and nothing appears on screen to say why - the drag simply will not settle.
+	- The dogfood launcher asks for administrator by default, so a copy started that way cannot be dropped on. `--no-admin` avoids it.
+	- Needs a decision: whether to stop asking for administrator by default, or say something when a drop is refused for this reason. There is no way to accept the drop while running elevated.
 
 - 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
 	- Opened: 20260831-164337
