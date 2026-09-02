@@ -454,6 +454,59 @@ source_is_deletable (GFile *file)
 	return ret;
 }
 
+/* Anything dragged in from another program is unknown to us - creating a NemoFile
+ * for it is async, so there is nothing to compare filesystems with and the drag
+ * reads as a copy every time. Look the source filesystem up once and keep it for
+ * the rest of the drag; without it a drag from any other file manager copies
+ * where it should move. Only asked once per drag, since it touches the disk. */
+static void
+remember_source_filesystem (const char  *dropped_uri,
+                            gchar      **source_fs,
+                            gboolean    *can_delete_source)
+{
+    GFile *source_file;
+    GFileInfo *fs_info;
+    GError *error = NULL;
+
+    if (*source_fs != NULL) {
+        return;
+    }
+
+    source_file = g_file_new_for_uri (dropped_uri);
+
+    if (!g_file_is_native (source_file)) {
+        g_object_unref (source_file);
+        return;
+    }
+
+    fs_info = g_file_query_info (source_file,
+                                 G_FILE_ATTRIBUTE_ID_FILESYSTEM "," G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE,
+                                 G_FILE_QUERY_INFO_NONE,
+                                 NULL,
+                                 &error);
+
+    if (error != NULL || fs_info == NULL) {
+        g_warning ("Cannot read the filesystem of a dragged file: %s",
+                   error != NULL ? error->message : "no info returned");
+        g_clear_error (&error);
+        *source_fs = NULL;
+        *can_delete_source = FALSE;
+    } else {
+        if (g_file_info_has_attribute (fs_info, G_FILE_ATTRIBUTE_ID_FILESYSTEM)) {
+            *source_fs = g_strdup (g_file_info_get_attribute_string (fs_info,
+                                                                     G_FILE_ATTRIBUTE_ID_FILESYSTEM));
+        }
+
+        if (g_file_info_has_attribute (fs_info, G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE)) {
+            *can_delete_source = g_file_info_get_attribute_boolean (fs_info,
+                                                                    G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE);
+        }
+    }
+
+    g_clear_object (&fs_info);
+    g_object_unref (source_file);
+}
+
 void
 nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
                                          const char     *target_uri_string,
@@ -507,56 +560,8 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
 
     dropped_file = nemo_file_get_existing_by_uri (dropped_uri);
 
-    /* Anything dragged in from another program is unknown to us - creating a
-     * NemoFile for it is async, so there is nothing to compare filesystems with
-     * and the drag would always be read as a copy. Grab the source filesystem
-     * type once and keep it for the rest of the drag. Without this, a drag from
-     * any other file manager copies where it should move.
-     */
     if (dropped_file == NULL) {
-        if (*source_fs == NULL) {
-            GFile *source_file;
-
-            source_file = g_file_new_for_uri (dropped_uri);
-
-            if (g_file_is_native (source_file)) {
-                GFileInfo *fs_info;
-                GError *error = NULL;
-
-                fs_info = g_file_query_info (source_file,
-                                             G_FILE_ATTRIBUTE_ID_FILESYSTEM "," G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE,
-                                             G_FILE_QUERY_INFO_NONE,
-                                             NULL,
-                                             &error);
-
-                if (error != NULL || fs_info == NULL) {
-                    g_warning ("Cannot fetch filesystem type for drag involving the desktop: %s",
-                               error != NULL ? error->message : "no info returned");
-                    g_clear_error (&error);
-                    *source_fs = NULL;
-                    *can_delete_source = FALSE;
-                } else {
-                    if (g_file_info_has_attribute (fs_info, G_FILE_ATTRIBUTE_ID_FILESYSTEM)) {
-                        *source_fs = g_strdup (g_file_info_get_attribute_string (fs_info,
-                                                                                 G_FILE_ATTRIBUTE_ID_FILESYSTEM));
-                    } else {
-                        *source_fs = NULL;
-                    }
-
-                    if (g_file_info_has_attribute (fs_info, G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE)) {
-                        *can_delete_source = g_file_info_get_attribute_boolean (fs_info,
-                                                                                G_FILE_ATTRIBUTE_ACCESS_CAN_DELETE);
-                    } else {
-                        *can_delete_source = FALSE;
-                    }
-                }
-
-                /* A failed query leaves this NULL. */
-                g_clear_object (&fs_info);
-            }
-
-            g_object_unref (source_file);
-        }
+        remember_source_filesystem (dropped_uri, source_fs, can_delete_source);
     }
 
 	target_file = nemo_file_get_existing_by_uri (target_uri_string);
@@ -657,16 +662,72 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
 	
 }
 
+/* The first uri a text/uri-list payload names, which is all the move-or-copy
+ * decision needs - a drag is one place to another, whatever it holds. */
+char *
+nemo_drag_first_uri (GtkSelectionData *data)
+{
+	char **uris;
+	char *first = NULL;
+
+	if (data == NULL) {
+		return NULL;
+	}
+
+	uris = gtk_selection_data_get_uris (data);
+	if (uris != NULL && uris[0] != NULL) {
+		first = g_strdup (uris[0]);
+	}
+
+	g_strfreev (uris);
+	return first;
+}
+
+/* Files dragged in from a program that is not nemo arrive as a plain uri list,
+ * with none of the per-icon detail, so this is the whole decision for them. It
+ * has to reach the same answer as the icon-list path above or a drag from
+ * another file manager behaves differently from one out of our own window. */
 GdkDragAction
 nemo_drag_default_drop_action_for_uri_list (GdkDragContext *context,
-						const char *target_uri_string)
+						const char *target_uri_string,
+						const char *dropped_uri,
+						gchar **source_fs,
+						gboolean *can_delete_source)
 {
+	GdkDragAction forced = 0;
+	NemoFile *target_file;
+	gboolean same_fs;
+
 	if (eel_uri_is_trash (target_uri_string) && (gdk_drag_context_get_actions (context) & GDK_ACTION_MOVE)) {
 		/* Only move to Trash */
 		return GDK_ACTION_MOVE;
-	} else {
+	}
+
+#ifdef G_OS_WIN32
+	forced = nemo_dnd_win32_modifier_action ();
+#endif
+
+	if (forced != 0) {
+		return forced;
+	}
+
+	if (dropped_uri == NULL || target_uri_string == NULL) {
 		return gdk_drag_context_get_suggested_action (context);
 	}
+
+	remember_source_filesystem (dropped_uri, source_fs, can_delete_source);
+
+	target_file = nemo_file_get_existing_by_uri (target_uri_string);
+	same_fs = check_same_fs (target_file, NULL, *source_fs);
+
+	nemo_file_unref (target_file);
+
+	if (same_fs && *can_delete_source &&
+	    (gdk_drag_context_get_actions (context) & GDK_ACTION_MOVE)) {
+		return GDK_ACTION_MOVE;
+	}
+
+	return gdk_drag_context_get_suggested_action (context);
 }
 
 /* Encode a "x-special/gnome-icon-list" selection.

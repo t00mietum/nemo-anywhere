@@ -983,8 +983,11 @@ nemo_dnd_win32_enabled (void)
 GdkDragAction
 nemo_dnd_win32_modifier_action (void)
 {
-	gboolean control = (GetKeyState (VK_CONTROL) & 0x8000) != 0;
-	gboolean shift = (GetKeyState (VK_SHIFT) & 0x8000) != 0;
+	/* Async, not GetKeyState: that reads our own thread's message queue, and
+	 * during a drag from another program the keys go to whoever holds the
+	 * capture, so our queue may never have seen them. */
+	gboolean control = (GetAsyncKeyState (VK_CONTROL) & 0x8000) != 0;
+	gboolean shift = (GetAsyncKeyState (VK_SHIFT) & 0x8000) != 0;
 
 	if (control && shift) {
 		return 0;	/* a shortcut, which the caller works out for itself */

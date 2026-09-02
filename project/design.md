@@ -276,6 +276,8 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 	- A move out to another program removes the original, which is the half of a move the source owns when the other program only copied. It is skipped when that program reports having done the move itself, when the drop came back into nemo, and for any file that is already gone.
 	- Drops coming the other way copy or move as they should. A file dragged in from another program is unknown to nemo, so there was nothing to compare drives with and every such drop copied. Its filesystem is now looked up once per drag, which is what the same-drive rule needs to answer.
 	- Control copies and shift moves, following Windows. The toolkit reports the same suggested action either way for a drag from another program, so the keys are read directly.
+	- Files dragged in from a program that is not nemo arrive as a plain list of locations, without the per-item detail our own drags carry, and that list had a much simpler rule behind it - it just did whatever was suggested, which on Windows is always a copy. Both now reach the same answer, so a drag from another file manager behaves like one out of our own window.
+	- A copy running as administrator cannot be dropped on at all. Windows refuses to let an ordinary program hand anything to an elevated one, and there is no way to accept it from this side. Dragging out is unaffected.
 
 ## Architecture
 
