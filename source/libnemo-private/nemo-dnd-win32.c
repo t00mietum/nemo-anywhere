@@ -36,6 +36,8 @@
 
 #include "nemo-dnd-win32.h"
 
+#include "nemo-file-operations.h"
+
 #include <string.h>
 
 #define COBJMACROS
@@ -73,12 +75,14 @@ typedef struct {
 	LONG ref;
 	GArray *formats;	/* DragFormat, in the order they are offered */
 	DWORD performed;	/* what the target said it did, if it said */
+	gboolean read_own;	/* whether the target asked for one of nemo's formats */
 } DataObject;
 
 typedef struct {
 	IDropSource iface;
 	LONG ref;
 	DWORD button;		/* the mouse button that started it */
+	gboolean over_own;	/* whether the pointer is on one of our windows */
 } DropSource;
 
 /*•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
@@ -358,6 +362,14 @@ data_get_data (IDataObject *iface, FORMATETC *want, STGMEDIUM *out)
 		return DV_E_FORMATETC;
 	}
 
+	/* Only another nemo asks for these, and it moves the files itself, so a
+	 * move must not also remove them here. Covers a second copy of nemo in
+	 * its own process as well as this one. */
+	if (want->cfFormat == RegisterClipboardFormatW (ICON_LIST_FORMAT) ||
+	    want->cfFormat == RegisterClipboardFormatW (URI_LIST_FORMAT)) {
+		self->read_own = TRUE;
+	}
+
 	memset (out, 0, sizeof (*out));
 	out->tymed = entry->medium.tymed;
 
@@ -560,6 +572,31 @@ source_release (IDropSource *iface)
 	return left > 0 ? left : 0;
 }
 
+/* Whether the window under the pointer is one of ours. Asked on the way past
+ * rather than at the drop, because by then the button is already up and the
+ * answer is the same - it is what decides whether a move has to remove the
+ * originals or whether our own drop code already did. */
+static gboolean
+pointer_over_own_window (void)
+{
+	POINT at;
+	HWND under;
+	DWORD owner = 0;
+
+	if (!GetCursorPos (&at)) {
+		return FALSE;
+	}
+
+	under = WindowFromPoint (at);
+	if (under == NULL) {
+		return FALSE;
+	}
+
+	GetWindowThreadProcessId (under, &owner);
+
+	return owner == GetCurrentProcessId ();
+}
+
 static HRESULT STDMETHODCALLTYPE
 source_query_continue (IDropSource *iface, BOOL escape, DWORD keys)
 {
@@ -569,7 +606,12 @@ source_query_continue (IDropSource *iface, BOOL escape, DWORD keys)
 		return DRAGDROP_S_CANCEL;
 	}
 
-	return (keys & self->button) != 0 ? S_OK : DRAGDROP_S_DROP;
+	if ((keys & self->button) != 0) {
+		self->over_own = pointer_over_own_window ();
+		return S_OK;
+	}
+
+	return DRAGDROP_S_DROP;
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -784,6 +826,101 @@ action_from_effect (DWORD effect)
 	return 0;
 }
 
+/* The drag loop swallows the button release - it never reaches the widget the
+ * drag started from, which is left believing the button is still down, so the
+ * next click there does nothing. The toolkit's own drag ends by handing the
+ * widget a release of its own; this is the same thing. */
+static void
+release_grab (GtkWidget *widget)
+{
+	GdkWindow *window;
+	GdkDevice *pointer;
+	GdkEvent *release;
+	GdkModifierType state = 0;
+	int x = 0, y = 0, root_x = 0, root_y = 0;
+
+	if (widget == NULL) {
+		return;
+	}
+
+	window = gtk_widget_get_window (widget);
+	if (window == NULL) {
+		return;
+	}
+
+	pointer = gdk_seat_get_pointer (gdk_display_get_default_seat (gtk_widget_get_display (widget)));
+	if (pointer == NULL) {
+		return;
+	}
+
+	gdk_window_get_device_position (window, pointer, &x, &y, &state);
+	gdk_device_get_position (pointer, NULL, &root_x, &root_y);
+
+	release = gdk_event_new (GDK_BUTTON_RELEASE);
+	release->button.window = g_object_ref (window);
+	release->button.send_event = TRUE;
+	release->button.time = GDK_CURRENT_TIME;
+	release->button.x = x;
+	release->button.y = y;
+	release->button.x_root = root_x;
+	release->button.y_root = root_y;
+	release->button.axes = NULL;
+	release->button.state = state;
+	release->button.button = GDK_BUTTON_PRIMARY;
+	gdk_event_set_device (release, pointer);
+
+	gtk_main_do_event (release);
+	gdk_event_free (release);
+}
+
+/* A move onto another program leaves the originals here: the other side copied
+ * them and is waiting for us to take our copies away. Only reached when the
+ * target did not do the move itself, and never for a drop back into nemo, where
+ * our own drop code has already moved them. */
+static void
+remove_moved_sources (GtkWidget *widget, const char *uri_list)
+{
+	GtkWidget *toplevel;
+	GList *files = NULL;
+	gchar **lines;
+	guint i;
+
+	lines = g_strsplit_set (uri_list, "\r\n", -1);
+
+	for (i = 0; lines[i] != NULL; i++) {
+		GFile *one;
+
+		if (lines[i][0] == '\0') {
+			continue;
+		}
+
+		one = g_file_new_for_uri (lines[i]);
+
+		/* The target may have moved it already, and a rename is a move
+		 * either way - nothing to take away in that case. */
+		if (g_file_query_exists (one, NULL)) {
+			files = g_list_prepend (files, one);
+		} else {
+			g_object_unref (one);
+		}
+	}
+
+	g_strfreev (lines);
+
+	if (files == NULL) {
+		return;
+	}
+
+	files = g_list_reverse (files);
+	toplevel = widget != NULL ? gtk_widget_get_toplevel (widget) : NULL;
+
+	nemo_file_operations_delete (files,
+				     GTK_IS_WINDOW (toplevel) ? GTK_WINDOW (toplevel) : NULL,
+				     NULL, NULL);
+
+	g_list_free_full (files, g_object_unref);
+}
+
 gpointer
 nemo_dnd_win32_data_object (const char    *uri_list,
 			    const char    *icon_list,
@@ -791,7 +928,6 @@ nemo_dnd_win32_data_object (const char    *uri_list,
 {
 	DataObject *self;
 	gchar **paths;
-	DWORD effect;
 
 	paths = paths_from_uri_list (uri_list);
 	if (paths == NULL) {
@@ -807,10 +943,10 @@ nemo_dnd_win32_data_object (const char    *uri_list,
 	format_add (self, RegisterClipboardFormatW (SHELL_ID_LIST_FORMAT),
 		    shell_id_list_block (paths));
 
-	effect = (actions & GDK_ACTION_MOVE) && !(actions & GDK_ACTION_COPY)
-		? DROPEFFECT_MOVE : DROPEFFECT_COPY;
-	format_add (self, RegisterClipboardFormatW (PREFERRED_EFFECT_FORMAT),
-		    block_from (&effect, sizeof (effect)));
+	/* No preferred effect goes in. Explorer does not put one in its own drags
+	 * either, and a target that sees one obeys it - saying copy there made a
+	 * drag onto another folder on the same drive copy when it should move.
+	 * What the drag allows is carried by the effects mask instead. */
 
 	if (icon_list != NULL) {
 		format_add (self, RegisterClipboardFormatW (ICON_LIST_FORMAT),
@@ -844,6 +980,25 @@ nemo_dnd_win32_enabled (void)
 	return answer != 0;
 }
 
+GdkDragAction
+nemo_dnd_win32_modifier_action (void)
+{
+	gboolean control = (GetKeyState (VK_CONTROL) & 0x8000) != 0;
+	gboolean shift = (GetKeyState (VK_SHIFT) & 0x8000) != 0;
+
+	if (control && shift) {
+		return 0;	/* a shortcut, which the caller works out for itself */
+	}
+	if (control) {
+		return GDK_ACTION_COPY;
+	}
+	if (shift) {
+		return GDK_ACTION_MOVE;
+	}
+
+	return 0;
+}
+
 void
 nemo_dnd_win32_prepare (void)
 {
@@ -853,7 +1008,8 @@ nemo_dnd_win32_prepare (void)
 }
 
 gboolean
-nemo_dnd_win32_drag (GdkDragAction    actions,
+nemo_dnd_win32_drag (GtkWidget       *widget,
+		     GdkDragAction    actions,
 		     const char      *uri_list,
 		     const char      *icon_list,
 		     cairo_surface_t *icon,
@@ -866,6 +1022,7 @@ nemo_dnd_win32_drag (GdkDragAction    actions,
 	DropSource *source;
 	DWORD effect = DROPEFFECT_NONE;
 	HRESULT hr;
+	gboolean own, moved_by_target;
 
 	if (performed != NULL) {
 		*performed = 0;
@@ -900,12 +1057,21 @@ nemo_dnd_win32_drag (GdkDragAction    actions,
 
 	hr = DoDragDrop (data, &source->iface, effects_from_actions (actions), &effect);
 
+	own = source->over_own || ((DataObject *) data)->read_own;
+	moved_by_target = ((DataObject *) data)->performed == DROPEFFECT_MOVE;
+
 	if (performed != NULL && hr == DRAGDROP_S_DROP) {
 		*performed = action_from_effect (effect);
 	}
 
 	IDropSource_Release (&source->iface);
 	IDataObject_Release (data);
+
+	release_grab (widget);
+
+	if (hr == DRAGDROP_S_DROP && (effect & DROPEFFECT_MOVE) && !own && !moved_by_target) {
+		remove_moved_sources (widget, uri_list);
+	}
 
 	/* cppcheck-suppress memleak ; source is freed by its own Release, through the vtable */
 	return TRUE;

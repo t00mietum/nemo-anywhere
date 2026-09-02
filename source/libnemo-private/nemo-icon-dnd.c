@@ -1708,8 +1708,8 @@ win32_drag (NemoIconContainer *container,
 		hot_y = container->details->dnd_info->drag_info.start_y - (int) winy;
 	}
 
-	dragged = nemo_dnd_win32_drag (actions, uri_list, icon_list, surface,
-				       hot_x, hot_y, NULL);
+	dragged = nemo_dnd_win32_drag (GTK_WIDGET (container), actions, uri_list,
+				       icon_list, surface, hot_x, hot_y, NULL);
 
 	if (surface != NULL) {
 		cairo_surface_destroy (surface);

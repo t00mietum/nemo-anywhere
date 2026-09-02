@@ -159,10 +159,8 @@ main (int argc, char *argv[])
 	if (data != NULL) {
 		char *raw;
 		gsize len = 0;
-		DWORD effect;
 
 		check (offers (data, CF_HDROP));
-		check (offers (data, RegisterClipboardFormatW (L"Preferred DropEffect")));
 		check (offers (data, RegisterClipboardFormatW (L"text/uri-list")));
 		check (offers (data, RegisterClipboardFormatW (L"x-special/gnome-icon-list")));
 
@@ -184,13 +182,9 @@ main (int argc, char *argv[])
 		check (raw != NULL && strncmp (raw, "icons here", len) == 0);
 		g_free (raw);
 
-		raw = raw_format (data, RegisterClipboardFormatW (L"Preferred DropEffect"), &len);
-		check (raw != NULL && len >= sizeof (DWORD));
-		if (raw != NULL && len >= sizeof (DWORD)) {
-			memcpy (&effect, raw, sizeof (effect));
-			check (effect == DROPEFFECT_COPY);
-		}
-		g_free (raw);
+		/* A preferred effect would be obeyed by the target, which turned a
+		 * drag onto another folder on the same drive into a copy. */
+		check (!offers (data, RegisterClipboardFormatW (L"Preferred DropEffect")));
 
 		/* Asking twice has to answer twice: a target may well do that, and
 		 * a block handed away once is gone. */
@@ -204,23 +198,13 @@ main (int argc, char *argv[])
 		IDataObject_Release (data);
 	}
 
-	/* A move asks for a move, not a copy. */
 	data = nemo_dnd_win32_data_object (uri_list, NULL, GDK_ACTION_MOVE);
 	check (data != NULL);
 	if (data != NULL) {
-		gsize len = 0;
-		char *raw = raw_format (data, RegisterClipboardFormatW (L"Preferred DropEffect"), &len);
-		DWORD effect = 0;
-
-		if (raw != NULL && len >= sizeof (DWORD)) {
-			memcpy (&effect, raw, sizeof (effect));
-		}
-		check (effect == DROPEFFECT_MOVE);
-
 		/* Nothing was passed for it, so it is not offered at all. */
 		check (!offers (data, RegisterClipboardFormatW (L"x-special/gnome-icon-list")));
+		check (offers (data, CF_HDROP));
 
-		g_free (raw);
 		IDataObject_Release (data);
 	}
 

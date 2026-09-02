@@ -714,7 +714,8 @@ win32_drag (NemoListView *view,
 	stop_drag_check (view);
 	view->details->drag_started = TRUE;
 
-	dragged = nemo_dnd_win32_drag (GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK,
+	dragged = nemo_dnd_win32_drag (widget,
+				       GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK,
 				       uri_list, icon_list, surface, 0, 0, NULL);
 
 	view->details->drag_started = FALSE;

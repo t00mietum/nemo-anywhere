@@ -70,8 +70,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Windows only. Linux drags already reach any program, GTK or not.
 	- The toolkit does drive a drag on Windows, but the file formats other programs read were never filled in on its side, and there is no way to add them from outside it. So the drag is ours now, the way the clipboard is.
 	- Done. A drag out of either view carries what Explorer's own drags carry, so other programs read it. Checked in the running app both ways: dropping on Explorer, dropping a text file on an editor, and dragging inside nemo, which still moves files as before.
-	- A move to another program does not delete the original here. Explorer and anything like it do the move themselves, so those are complete. Anything that does not leaves a copy behind, which is the safer way to be wrong.
-	- Deferred: acting on a target's request to delete the original. Needs a way to test it that cannot lose files.
+	- A move out to another program now removes the original, unless that program moved it itself or the drop came back into nemo. Control copies and shift moves, the way Windows does it.
+	- Drops coming the other way, from another file manager into nemo, copy and move too. They always copied before: nothing is known about a file dragged in from elsewhere, so nemo could not tell whether it was on the same drive and fell back to copying every time.
 
 - 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
 	- Opened: 20260831-164337
