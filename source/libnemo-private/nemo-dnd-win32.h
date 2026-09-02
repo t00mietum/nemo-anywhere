@@ -27,12 +27,17 @@
 
 /* Drag @uri_list as Windows itself would, so programs outside the toolkit see
  * the files. @icon_list is nemo's own payload, carried alongside for our own
- * windows, and may be NULL. @icon is the drag image and may be NULL. Blocks
- * until the drag ends, and puts what the target did in @performed.
+ * windows, and may be NULL. @icon is the drag image and may be NULL. @widget is
+ * where the drag started. Blocks until the drag ends, and puts what the target
+ * did in @performed.
+ *
+ * A move onto another program removes the originals here, unless that program
+ * did the move itself.
  *
  * FALSE means nothing was dragged and the caller should fall back to the
  * toolkit's own drag - anything without a local path cannot go this way. */
-gboolean nemo_dnd_win32_drag (GdkDragAction    actions,
+gboolean nemo_dnd_win32_drag (GtkWidget       *widget,
+			      GdkDragAction    actions,
 			      const char      *uri_list,
 			      const char      *icon_list,
 			      cairo_surface_t *icon,
@@ -43,6 +48,11 @@ gboolean nemo_dnd_win32_drag (GdkDragAction    actions,
 /* Whether drags go out through Windows rather than the toolkit. Off means every
  * call above declines, and nothing here is used. */
 gboolean nemo_dnd_win32_enabled (void);
+
+/* The action the held modifiers ask for, or 0 for none. Windows says control
+ * copies and shift moves. The toolkit reports the same suggested action either
+ * way for a drag from another program, so the keys have to be read here. */
+GdkDragAction nemo_dnd_win32_modifier_action (void);
 
 /* Called before the toolkit starts, to put it on the protocol our drags speak.
  * Does nothing when the above is off. */

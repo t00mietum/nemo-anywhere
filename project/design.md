@@ -273,7 +273,9 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 
 - Dragging files out to another program on Windows is done by the app rather than the toolkit, for the same reason the clipboard is. The toolkit puts only its own target names into a drag, and nothing outside it reads those - the one format every Windows program does read has no name to register it under, so it cannot be added from outside. Among leaving the feature out, patching the toolkit, or owning the drag, it was decided to own it: a drag now carries what Explorer's own drags carry, and the app's own formats ride along beside them, so drops back into nemo behave exactly as before.
 	- This does mean putting the toolkit on the drag protocol that reaches other programs, which it ships switched off. That was checked before and after the change, in both views, and one switch turns the whole thing off and puts every drag back on the toolkit's own.
-	- A move to another program does not delete the original. Explorer and anything like it perform the move themselves, so those are complete. A target that expects the source to delete instead leaves a copy behind. That is the safer direction to be wrong in for a file manager, and it can be revisited with a way to test it that cannot lose files.
+	- A move out to another program removes the original, which is the half of a move the source owns when the other program only copied. It is skipped when that program reports having done the move itself, when the drop came back into nemo, and for any file that is already gone.
+	- Drops coming the other way copy or move as they should. A file dragged in from another program is unknown to nemo, so there was nothing to compare drives with and every such drop copied. Its filesystem is now looked up once per drag, which is what the same-drive rule needs to answer.
+	- Control copies and shift moves, following Windows. The toolkit reports the same suggested action either way for a drag from another program, so the keys are read directly.
 
 ## Architecture
 

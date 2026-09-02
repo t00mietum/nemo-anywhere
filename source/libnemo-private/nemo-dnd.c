@@ -36,6 +36,9 @@
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <libnemo-private/nemo-file-utilities.h>
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-dnd-win32.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -451,25 +454,6 @@ source_is_deletable (GFile *file)
 	return ret;
 }
 
-static gboolean
-uri_contains_desktop (const gchar *uri)
-{
-    gchar *real_desktop_uri;
-
-    if (eel_uri_is_desktop (uri)) {
-        return TRUE;
-    }
-
-    real_desktop_uri = nemo_get_desktop_directory_uri ();
-
-    if (g_str_has_prefix (uri, real_desktop_uri)) {
-        g_free (real_desktop_uri);
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
 void
 nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
                                          const char     *target_uri_string,
@@ -481,6 +465,7 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
 	gboolean same_fs;
 	gboolean target_is_source_parent;
 	gboolean source_deletable;
+	GdkDragAction forced = 0;
 	const char *dropped_uri;
 	GFile *target, *dropped, *dropped_directory;
 	GdkDragAction actions;
@@ -522,13 +507,13 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
 
     dropped_file = nemo_file_get_existing_by_uri (dropped_uri);
 
-    /* To/from desktop preparation - since we are separate processes, we don't have the full filesystem
-     * info on the source and destination - we only have the destination info.  Creating a NemoFile for it
-     * is an async operation, so here we'll grab the source filesystem type and store it for the duration of
-     * the drag.  We can use it to compare below with the destination type to ensure a proper move action -
-     * (we default to copy when we can't confirm source and destination fs types are the same.)
+    /* Anything dragged in from another program is unknown to us - creating a
+     * NemoFile for it is async, so there is nothing to compare filesystems with
+     * and the drag would always be read as a copy. Grab the source filesystem
+     * type once and keep it for the rest of the drag. Without this, a drag from
+     * any other file manager copies where it should move.
      */
-    if (dropped_file == NULL && (uri_contains_desktop (target_uri_string) || uri_contains_desktop (dropped_uri))) {
+    if (dropped_file == NULL) {
         if (*source_fs == NULL) {
             GFile *source_file;
 
@@ -644,7 +629,15 @@ nemo_drag_default_drop_action_for_icons (GdkDragContext *context,
 	}
 	source_deletable = source_is_deletable (dropped);
 
-	if ((same_fs && (source_deletable || *can_delete_source)) || target_is_source_parent ||
+#ifdef G_OS_WIN32
+	/* A held modifier says outright what to do, and on Windows it cannot
+	 * reach us any other way - see nemo_dnd_win32_modifier_action. */
+	forced = nemo_dnd_win32_modifier_action ();
+#endif
+
+	if (forced != 0) {
+		*action = forced;
+	} else if ((same_fs && (source_deletable || *can_delete_source)) || target_is_source_parent ||
 	    g_file_has_uri_scheme (dropped, "trash")) {
 		if (actions & GDK_ACTION_MOVE) {
 			*action = GDK_ACTION_MOVE;
