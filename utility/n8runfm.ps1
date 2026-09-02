@@ -35,13 +35,16 @@
 ##		  configured place isn't there the app opens wherever it would have anyway.
 ##		- If no copy is held and the source is unreachable, falls back to the
 ##		  first installed known file manager.
-##		- With '--admin' (Windows), runs the WHOLE launcher elevated - it self-
-##		  elevates via a UAC prompt, so the copy, the log and the launched app all
-##		  get admin rights. A shortcut click then behaves like running from an
-##		  elevated shell instead of silently launching a stale build.
+##		- On Windows, runs the WHOLE launcher elevated - it self-elevates via a UAC
+##		  prompt, so the copy, the log and the launched app all get admin rights. A
+##		  shortcut click behaves like running from an elevated shell instead of
+##		  silently launching a stale build, and the app gets
+##		  SeCreateSymbolicLinkPrivilege, which a filtered token drops. '--no-admin'
+##		  opts out. Not offered on unix, where a file manager running as root is a
+##		  footgun.
 ##		- Reports a failure, a rejected argument or a skipped copy in a dialog when
 ##		  launched from a shortcut (or with '--gui'), since a click's console just
-##		  flashes shut. '--admin'/'--gui' are consumed here; everything else is
+##		  flashes shut. '--admin'/'--no-admin'/'--gui' are consumed here; the rest is
 ##		  checked against the app's own options and then forwarded.
 ##	History: At bottom of script.
 
@@ -174,10 +177,11 @@ $DogfoodPrefix = "nemofmdf"
 ## Delete idle stamped copies older than this many days.
 $MaxAgeDays = 7
 
-## Launch elevated (as administrator). Off by default; the '--admin' arg (consumed
-## at the entry point below, never forwarded) flips it on. RunAs pops a UAC consent
-## unless the calling session is already elevated. Windows only - a file manager
-## running as root on unix is a footgun, not a feature.
+## Launch elevated (as administrator). On by default on Windows; the '--no-admin'
+## arg (consumed at the entry point below, never forwarded) turns it off. RunAs pops
+## a UAC consent unless the calling session is already elevated. Windows only - a
+## file manager running as root on unix is a footgun, not a feature. Set from the
+## flag at the entry point, so this initial value is not the default.
 $RunAsAdmin = $false
 
 ## Options the app itself accepts, so a typo is refused here instead of forwarded.
@@ -329,7 +333,7 @@ function fCheckPassArgs {
 
 		fFail ("the app doesn't accept '$name'" +
 			$(if ($name -ieq "-admin") { " - did you mean '--admin' (elevate)?" } else { "" }) +
-			"`n`nLauncher flags: --admin, --gui" +
+			"`n`nLauncher flags: --admin, --no-admin, --gui" +
 			"`nApp options:    " + (($KnownAppOptions | Where-Object { $_ -match '^--' }) -join " "))
 	}
 }
@@ -1128,19 +1132,22 @@ $script:RunWarnings = @()
 $script:StepRows = 0
 
 ## Consume our own flags; forward everything else to the app.
-##   --admin  run the WHOLE launcher elevated (self-elevates below) - copy, log and
-##            the launched app all get admin rights. Windows only.
-##   --gui    force the end-of-run / failure dialog on (auto-on for a shortcut click).
+##   --no-admin  run without elevating. On Windows elevation is on by default: the
+##               whole launcher self-elevates below, so the copy, the log and the
+##               launched app all get admin rights. '--admin' is still accepted, and
+##               is the only way to ask for it on unix - where it is then refused.
+##   --gui       force the end-of-run / failure dialog on (auto-on for a shortcut click).
 ## Single-dash spellings are accepted too: '-admin' is what a PowerShell user types,
 ## and it collides with nothing in the app's own option set.
-$wantAdmin = $false
+$wantAdmin = $IsWindows
 $forceGui  = $false
 $passArgs  = @()
 foreach ($arg in $args) {
 	switch -Regex ($arg) {
-		'^--?admin$' { $wantAdmin = $true; continue }
-		'^--?gui$'   { $forceGui  = $true; continue }
-		default      { $passArgs += $arg }
+		'^--?admin$'    { $wantAdmin = $true;  continue }
+		'^--?no-admin$' { $wantAdmin = $false; continue }
+		'^--?gui$'      { $forceGui  = $true;  continue }
+		default         { $passArgs += $arg }
 	}
 }
 
@@ -1155,8 +1162,8 @@ if ($wantAdmin -and -not $IsWindows) {
 	$wantAdmin = $false
 }
 
-## Self-elevate: with '--admin' but not already elevated, relaunch the whole script
-## elevated and hand off. Everything then runs high-integrity, so it no longer
+## Self-elevate: unless '--no-admin', and not already elevated, relaunch the whole
+## script elevated and hand off. Everything then runs high-integrity, so it no longer
 ## matters whether the target dir grants a normal user write - the real fix for
 ## "a shortcut click launches a stale build". The relaunch carries the original args
 ## plus '--gui' (its parent is the UAC broker, not Explorer, so it can't re-detect
@@ -1196,6 +1203,9 @@ exit 0
 
 
 ##	History:
+##		- 2026-09-01: Elevate by default on Windows; '--no-admin' opts out. A
+##		  filtered token has no SeCreateSymbolicLinkPrivilege, so an unelevated app
+##		  can't make a symlink at all. Unchanged on unix.
 ##		- 2026-08-24: A source with more than one root now probes all of them and
 ##		  takes the newest, instead of stopping at the first that answers. The roots
 ##		  are usually one place spelled two ways, but not on every box - where they
