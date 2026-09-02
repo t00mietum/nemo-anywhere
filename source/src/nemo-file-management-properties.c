@@ -1389,19 +1389,19 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET,
 			   NEMO_PREFERENCES_DATE_FORMAT,
 			   (const char **) date_format_values);
-	bind_builder_enum (builder, nemo_preferences,
+	bind_builder_enum (builder, nemo_windows_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET,
 			   NEMO_PREFERENCES_PATH_SEPARATOR,
 			   (const char **) path_separator_values);
-	bind_builder_bool (builder, nemo_preferences,
+	bind_builder_bool (builder, nemo_windows_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_ALLOW_SLASH_INPUT_WIDGET,
 			   NEMO_PREFERENCES_ALLOW_SLASH_INPUT);
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHORTCUT_EXTENSION_WIDGET,
 			   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
-	bind_builder_bool (builder, nemo_search_preferences,
+	bind_builder_bool (builder, nemo_windows_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_USE_WINDOWS_SEARCH_WIDGET,
-			   NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH);
+			   NEMO_PREFERENCES_USE_SEARCH_INDEX);
 	bind_builder_radio (builder, nemo_preferences,
 			    (const char **) click_behavior_components,
 			    NEMO_PREFERENCES_CLICK_POLICY,

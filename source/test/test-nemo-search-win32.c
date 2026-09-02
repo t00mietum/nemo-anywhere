@@ -96,7 +96,7 @@ test_live (void)
 	indexed = nemo_search_win32_folder_is_indexed (home);
 	g_print ("      %s is %s\n", home, indexed ? "indexed" : "not indexed (the walk answers instead)");
 
-	nemo_config_set_boolean (nemo_search_preferences, NEMO_PREFERENCES_SEARCH_USE_WINDOWS_SEARCH, TRUE);
+	nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_USE_SEARCH_INDEX, TRUE);
 
 	engine = nemo_search_engine_win32_new ();
 	g_signal_connect (engine, "hits-added", G_CALLBACK (hits_added_cb), NULL);

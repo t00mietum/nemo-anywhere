@@ -86,11 +86,6 @@ field: terminal.exec-arg
 	type: string
 	default: -e
 
-field: terminal.win32-candidates
-	type: string-array
-	default: wt.exe, pwsh.exe, powershell.exe, cmd.exe
-	desc: Terminals to try for "Open in Terminal" on Windows, in order
-
 field: desktop.show-desktop-icons
 	type: bool
 	default: true
@@ -349,17 +344,6 @@ field: preferences.show-compact-view-icon-toolbar
 	default: true
 	desc: Show Compact View button in nemo toolbar
 
-field: preferences.path-separator
-	type: string
-	allowed: backslash, slash
-	default: backslash
-	desc: Which separator paths are shown with (Windows only; elsewhere there is only one)
-
-field: preferences.allow-slash-input
-	type: bool
-	default: true
-	desc: Whether a forward slash counts as a separator in a typed location (Windows only)
-
 field: preferences.show-computer-icon-toolbar
 	type: bool
 	default: false
@@ -380,11 +364,6 @@ field: preferences.show-full-path-titles
 	type: bool
 	default: false
 	desc: Whether to show the full path of the current view in the title bar and tab bars
-
-field: preferences.show-dot-files
-	type: bool
-	default: false
-	desc: Whether to show files whose name starts with a dot (Windows only; elsewhere they count as hidden files)
 
 field: preferences.show-hidden-files
 	type: bool
@@ -733,11 +712,6 @@ field: search.search-content-case-sensitive
 	default: false
 	desc: Stores the most recent state of the content search case toggle
 
-field: search.use-windows-search
-	type: bool
-	default: false
-	desc: Windows only: answer a search from the Windows Search index where the folder is indexed, rather than walking it
-
 field: search.search-content-use-raw
 	type: bool
 	default: false
@@ -792,10 +766,6 @@ field: sidebar-panels.tree.show-only-directories
 	default: true
 	desc: Only show folders in the tree side pane
 
-field: associations.overrides
-	type: string-array
-	desc: Windows only: the program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read.
-
 field: state.first-run-done
 	type: bool
 	default: false
@@ -809,6 +779,36 @@ field: thumbnailers.disable-all
 	type: bool
 	default: false
 	desc: Disable all external thumbnailers
+
+field: windows.path-separator
+	type: string
+	allowed: backslash, slash
+	default: backslash
+	desc: Which separator paths are shown with
+
+field: windows.allow-slash-input
+	type: bool
+	default: true
+	desc: Whether a forward slash counts as a separator in a typed location
+
+field: windows.show-dot-files
+	type: bool
+	default: false
+	desc: Whether to show files whose name starts with a dot. Windows keeps its own hidden flag, so the two are asked separately here; everywhere else one setting covers both
+
+field: windows.use-search-index
+	type: bool
+	default: false
+	desc: Answer a search from the Windows Search index where the folder is indexed, rather than walking it
+
+field: windows.associations
+	type: string-array
+	desc: The program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read.
+
+field: windows.terminal-candidates
+	type: string-array
+	default: wt.exe, pwsh.exe, powershell.exe, cmd.exe
+	desc: Terminals to try for "Open in Terminal", in order
 
 field: window-state.bookmarks-expanded
 	type: bool

@@ -4639,7 +4639,7 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 
 	/* A drive root is listed as "C:\", so how a path is spelled changes what
 	   the sidebar says. */
-	g_signal_connect_swapped (nemo_preferences, "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
+	g_signal_connect_swapped (nemo_windows_preferences, "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
 				  G_CALLBACK(update_places_on_idle),
 				  sidebar);
 

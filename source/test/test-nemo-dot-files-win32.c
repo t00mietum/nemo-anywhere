@@ -40,12 +40,12 @@ test_hidden_by_default (void)
 static void
 test_switch_reveals_them (void)
 {
-	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, TRUE);
+	nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, TRUE);
 
 	check (!nemo_file_name_is_hidden_dot_file (".bashrc"));
 	check (!nemo_file_name_is_hidden_dot_file ("readme.txt"));
 
-	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, FALSE);
+	nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_SHOW_DOT_FILES, FALSE);
 
 	check (nemo_file_name_is_hidden_dot_file (".bashrc"));
 }

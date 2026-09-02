@@ -107,13 +107,13 @@ static const char *const deflist_plugins_disabled_actions[] = { NULL };
 static const char *const deflist_plugins_disabled_extensions[] = { NULL };
 static const char *const deflist_plugins_disabled_scripts[] = { NULL };
 static const char *const deflist_preferences_image_viewers_with_external_sort[] = { "xviewer", "feh", "sxiv", NULL };
-/* Windows "Open in Terminal": first one found on PATH wins. */
-static const char *const deflist_terminal_win32_candidates[] = { "wt.exe", "pwsh.exe", "powershell.exe", "cmd.exe", NULL };
 static const char *const deflist_search_disabled_search_helpers[] = { NULL };
 static const char *const deflist_search_search_skip_folders[] = { "/dev", "/proc", "/sys", "dosdevices", ".git", NULL };
 static const char *const deflist_search_search_visible_columns[] = { NULL };
-static const char *const deflist_associations_overrides[] = { NULL };
 static const char *const deflist_thumbnailers_disable[] = { NULL };
+static const char *const deflist_windows_associations[] = { NULL };
+/* "Open in Terminal": first one found on PATH wins. */
+static const char *const deflist_windows_terminal_candidates[] = { "wt.exe", "pwsh.exe", "powershell.exe", "cmd.exe", NULL };
 
 static const NemoConfigKey nemo_config_keys[] = {
 	{ "", "favorites", NEMO_CONFIG_STRING_LIST, NULL, deflist__favorites, NULL, "Favorite files and folders" },
@@ -134,7 +134,6 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "privacy", "remember-recent-files", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "terminal", "exec", NEMO_CONFIG_STRING, "", NULL, NULL, NULL },
 	{ "terminal", "exec-arg", NEMO_CONFIG_STRING, "-e", NULL, NULL, NULL },
-	{ "terminal", "win32-candidates", NEMO_CONFIG_STRING_LIST, NULL, deflist_terminal_win32_candidates, NULL, "Terminals to try for \"Open in Terminal\" on Windows, in order" },
 	{ "desktop", "show-desktop-icons", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Deprecated: Allow Nemo to manage the desktop" },
 	{ "desktop", "text-ellipsis-limit", NEMO_CONFIG_INT, "2", NULL, NULL, "Text Ellipsis Limit" },
 	{ "desktop", "use-desktop-grid", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Which desktop view type to use" },
@@ -186,11 +185,8 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "show-advanced-permissions", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show advanced permissions in the file property dialog" },
 	{ "preferences", "show-bookmarks-in-to-menus", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether to list bookmarks in the Move To/Copy To menus" },
 	{ "preferences", "show-compact-view-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show Compact View button in nemo toolbar" },
-	{ "preferences", "path-separator", NEMO_CONFIG_ENUM, "backslash", NULL, enum_PathSeparator, "Which separator paths are shown with (Windows only; elsewhere there is only one)" },
-	{ "preferences", "allow-slash-input", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether a forward slash counts as a separator in a typed location (Windows only)" },
 	{ "preferences", "show-computer-icon-toolbar", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show Computer button in nemo toolbar" },
 	{ "preferences", "show-directory-item-counts", NEMO_CONFIG_ENUM, "local-only", NULL, enum_SpeedTradeoff, "When to show number of items in a folder" },
-	{ "preferences", "show-dot-files", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show files whose name starts with a dot (Windows only; elsewhere they count as hidden files)" },
 	{ "preferences", "show-edit-icon-toolbar", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show toggle button location entry/pathbar" },
 	{ "preferences", "show-full-path-titles", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show the full path of the current view in the title bar and tab bars" },
 	{ "preferences", "show-hidden-files", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show hidden files" },
@@ -261,7 +257,6 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences.menu-config", "selection-menu-scripts", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Scripts submenu." },
 	{ "search", "disabled-search-helpers", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_disabled_search_helpers, NULL, "List of search helper filenames to skip when using content search." },
 	{ "search", "search-content-case-sensitive", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the content search case toggle" },
-	{ "search", "use-windows-search", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Windows only: answer a search from the Windows Search index where the folder is indexed, rather than walking it" },
 	{ "search", "search-content-use-raw", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Treat patterns as raw bytes, not utf-8" },
 	{ "search", "search-content-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the content search regex toggle" },
 	{ "search", "search-file-case-sensitive", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the file search case toggle" },
@@ -275,9 +270,14 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_visible_columns, NULL, "Saved list of columns visible in the search view." },
 	{ "sidebar-panels.tree", "show-only-directories", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Only show folders in the tree side pane" },
 	{ "state", "first-run-done", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Set once first-run setup has run. Clear it to get the platform's default bookmarks back on the next start." },
-	{ "associations", "overrides", NEMO_CONFIG_STRING_LIST, NULL, deflist_associations_overrides, NULL, "Windows only: the program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read." },
 	{ "thumbnailers", "disable", NEMO_CONFIG_STRING_LIST, NULL, deflist_thumbnailers_disable, NULL, "Disable external thumbnailers for these mime types" },
 	{ "thumbnailers", "disable-all", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Disable all external thumbnailers" },
+	{ "windows", "path-separator", NEMO_CONFIG_ENUM, "backslash", NULL, enum_PathSeparator, "Which separator paths are shown with" },
+	{ "windows", "allow-slash-input", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether a forward slash counts as a separator in a typed location" },
+	{ "windows", "show-dot-files", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to show files whose name starts with a dot. Windows keeps its own hidden flag, so the two are asked separately here; everywhere else one setting covers both" },
+	{ "windows", "use-search-index", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Answer a search from the Windows Search index where the folder is indexed, rather than walking it" },
+	{ "windows", "associations", NEMO_CONFIG_STRING_LIST, NULL, deflist_windows_associations, NULL, "The program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read." },
+	{ "windows", "terminal-candidates", NEMO_CONFIG_STRING_LIST, NULL, deflist_windows_terminal_candidates, NULL, "Terminals to try for \"Open in Terminal\", in order" },
 	{ "window-state", "bookmarks-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Expand Bookmark section in places sidebar" },
 	{ "window-state", "devices-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Expand Devices section in places sidebar" },
 	{ "window-state", "geometry", NEMO_CONFIG_STRING, "", NULL, NULL, "The geometry string for a navigation window." },

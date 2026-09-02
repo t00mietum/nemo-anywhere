@@ -2170,11 +2170,11 @@ static gboolean slash_input_allowed = TRUE;
 static void
 separator_preference_changed (gpointer callback_data)
 {
-    g_autofree gchar *choice = nemo_config_get_string (nemo_preferences,
+    g_autofree gchar *choice = nemo_config_get_string (nemo_windows_preferences,
                                                        NEMO_PREFERENCES_PATH_SEPARATOR);
 
     display_separator = (g_strcmp0 (choice, "slash") == 0) ? '/' : '\\';
-    slash_input_allowed = nemo_config_get_boolean (nemo_preferences,
+    slash_input_allowed = nemo_config_get_boolean (nemo_windows_preferences,
                                                    NEMO_PREFERENCES_ALLOW_SLASH_INPUT);
 }
 
@@ -2186,10 +2186,10 @@ watch_separator_preferences (void)
     }
 
     nemo_global_preferences_init ();
-    g_signal_connect_swapped (nemo_preferences,
+    g_signal_connect_swapped (nemo_windows_preferences,
                               "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
                               G_CALLBACK (separator_preference_changed), NULL);
-    g_signal_connect_swapped (nemo_preferences,
+    g_signal_connect_swapped (nemo_windows_preferences,
                               "changed::" NEMO_PREFERENCES_ALLOW_SLASH_INPUT,
                               G_CALLBACK (separator_preference_changed), NULL);
     separator_preference_watched = TRUE;

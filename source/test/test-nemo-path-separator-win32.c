@@ -53,7 +53,7 @@ test_backslash_is_the_default (void)
 static void
 test_slash_can_be_chosen (void)
 {
-	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "slash");
+	nemo_config_set_string (nemo_windows_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "slash");
 
 	check (nemo_path_get_display_separator () == '/');
 	check_applied ("C:\\Users\\someone", "C:/Users/someone");
@@ -61,7 +61,7 @@ test_slash_can_be_chosen (void)
 	/* A UNC path keeps its shape - both leading separators convert together. */
 	check_applied ("\\\\server\\share\\file", "//server/share/file");
 
-	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
+	nemo_config_set_string (nemo_windows_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
 	check (nemo_path_get_display_separator () == '\\');
 }
 
@@ -71,7 +71,7 @@ test_slash_input_can_be_refused (void)
 	/* Allowed by default. */
 	check (nemo_path_input_is_allowed ("C:/Users/someone"));
 
-	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_ALLOW_SLASH_INPUT, FALSE);
+	nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_ALLOW_SLASH_INPUT, FALSE);
 
 	check (!nemo_path_input_is_allowed ("C:/Users/someone"));
 
@@ -82,7 +82,7 @@ test_slash_input_can_be_refused (void)
 	check (nemo_path_input_is_allowed ("smb://server/share"));
 	check (nemo_path_input_is_allowed ("network:///"));
 
-	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_ALLOW_SLASH_INPUT, TRUE);
+	nemo_config_set_boolean (nemo_windows_preferences, NEMO_PREFERENCES_ALLOW_SLASH_INPUT, TRUE);
 	check (nemo_path_input_is_allowed ("C:/Users/someone"));
 }
 
@@ -104,16 +104,16 @@ test_separator_is_fresh_for_later_handlers (void)
 	char seen = '\0';
 	gulong id;
 
-	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
+	nemo_config_set_string (nemo_windows_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
 
-	id = g_signal_connect_swapped (nemo_preferences,
+	id = g_signal_connect_swapped (nemo_windows_preferences,
 				       "changed::" NEMO_PREFERENCES_PATH_SEPARATOR,
 				       G_CALLBACK (late_handler), &seen);
 
-	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "slash");
+	nemo_config_set_string (nemo_windows_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "slash");
 	check (seen == '/');
 
-	nemo_config_set_string (nemo_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
+	nemo_config_set_string (nemo_windows_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
 	check (seen == '\\');
 
 	g_signal_handler_disconnect (nemo_preferences, id);
