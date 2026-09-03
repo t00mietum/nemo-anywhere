@@ -338,7 +338,17 @@ nemo_link_choice_ask (GtkWindow      *parent,
 	}
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-	note = gtk_label_new (_("A copy holds the contents; a link keeps pointing at the original."));
+
+	/* Say why an option is greyed out, for the two reasons a whole column can
+	   be. Junctions without symlinks is only ever Windows without the
+	   privilege; nothing at all is a file system that keeps no links. */
+	if (supported == 0) {
+		note = gtk_label_new (_("This folder cannot hold links, so only a copy is possible."));
+	} else if ((supported & NEMO_LINK_JUNCTION) && !(supported & NEMO_LINK_DIR_SYMLINK)) {
+		note = gtk_label_new (_("Symlinks need Developer Mode turned on, or nemo running as administrator."));
+	} else {
+		note = gtk_label_new (_("A copy holds the contents; a link keeps pointing at the original."));
+	}
 	gtk_widget_set_halign (note, GTK_ALIGN_START);
 	gtk_box_pack_start (GTK_BOX (box), note, FALSE, FALSE, 0);
 
