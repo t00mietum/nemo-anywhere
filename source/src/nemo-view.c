@@ -4788,6 +4788,7 @@ add_application_to_open_with_menu (NemoView *view,
 	char *tip;
 	char *label;
 	char *action_name;
+	char *app_name;
 	char *escaped_app;
 	GtkAction *action;
 	GIcon *app_icon;
@@ -4795,7 +4796,9 @@ add_application_to_open_with_menu (NemoView *view,
 
 	launch_parameters = application_launch_parameters_new
 		(application, files, view);
-	escaped_app = eel_str_double_underscores (g_app_info_get_name (application));
+	app_name = nemo_mime_get_application_name (application);
+	escaped_app = eel_str_double_underscores (app_name);
+	g_free (app_name);
 	if (submenu)
 		label = g_strdup_printf ("%s", escaped_app);
 	else

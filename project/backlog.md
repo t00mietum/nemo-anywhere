@@ -49,17 +49,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- Note: it depends on something only the real session has. Needs one capture from the host to place it, and the exact command is in the private notes.
 
-- 🔘 Windows: listing a drive root logs a batch of "GFileInfo created without standard::type" criticals.
-	- Opened: 20260902-190000
-	- Fourteen pairs of them from one listing of `C:\`, which has entries nothing can read the type of - the page file, the volume information folder.
-	- The window comes up fine and the listing looks right, so this is noise rather than breakage. Same shape as the startup criticals above but a different cause, and this one reproduces on demand.
-
 ### Features and enhancements
-
-- 🔘 The "Open with" submenu names programs by their file name.
-	- Opened: 20260902-190000
-	- It reads "Code.exe" and "VSCodium.exe" where the menu item above it already says "Open with VSCodium". The list comes from the toolkit, which has no name for a program beyond the file it found.
-	- Nemo already works the name out for the default program, from the program's own description. The same answer would do here.
 
 - 🔘 Use new program icon ('[repo]/assets/icon.png')
 	- 🔘 Windows .exe
@@ -185,6 +175,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Windows: listing a drive root logs a batch of "GFileInfo created without standard::type" criticals.
+	- Opened: 20260902-190000
+	- Closed: 20260902-191500
+	- Cause: Windows will not stat a few of the files at the root of a drive - the page and swap files - so their entry comes back with no type on it at all. GLib now complains rather than answering when something asks for a missing attribute, and five places asked.
+	- Fixed: the type is read through one place that answers "unknown" for an entry that has none. The listing looks the same as before; the noise is gone.
+	- The regression check lists the drive root and fails on anything logged at warning level or worse. It goes red with the fix backed out.
 
 - ✅ Windows: file copy and paste to another program fails the same way "Copy path" did, and for the same reason.
 	- Opened: 20260830-153000
@@ -1061,6 +1058,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ The "Open with" submenu names programs by their file name.
+	- Opened: 20260902-190000
+	- Closed: 20260902-191500
+	- It read "Code.exe" and "VSCodium.exe" where the menu item above it already said "Open with VSCodium". The list comes from the toolkit, which has no name for a program beyond the file it found.
+	- Fixed: every entry is now named the way the default one already was, from the program's own description, falling back to the file name for a program that carries none. The list sorts by what it shows, so the order matches too.
 
 - ✅ "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
 	- Opened: 20260831-164337

@@ -368,6 +368,19 @@ nemo_associations_win32_command_for_app (GAppInfo *app)
 	return command;
 }
 
+gchar *
+nemo_associations_win32_name_for_app (GAppInfo *app)
+{
+	const gchar *command = nemo_associations_win32_command_for_app (app);
+	gchar *name = command != NULL ? nemo_associations_win32_friendly_name (command) : NULL;
+
+	if (name == NULL && app != NULL) {
+		name = g_strdup (g_app_info_get_name (app));
+	}
+
+	return name;
+}
+
 GAppInfo *
 nemo_associations_win32_default_for_type (const gchar *content_type)
 {

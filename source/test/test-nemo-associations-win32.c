@@ -182,6 +182,20 @@ test_names (void)
 	name = nemo_associations_win32_friendly_name ("\"C:\\nowhere\\my tool.exe\" \"%1\"");
 	check_str ("a missing program is named by its file", name, "my tool");
 	g_free (name);
+
+	/* GIO would call this one "notepad.exe", which is what the Open With
+	   submenu used to read. */
+	{
+		GAppInfo *app = g_app_info_create_from_commandline ("\"C:\\Windows\\notepad.exe\" \"%1\"",
+								    NULL, G_APP_INFO_CREATE_NONE, NULL);
+
+		if (app != NULL) {
+			name = nemo_associations_win32_name_for_app (app);
+			check_str ("a GIO entry is named by the program too", name, "Notepad");
+			g_free (name);
+			g_object_unref (app);
+		}
+	}
 }
 
 int

@@ -2639,7 +2639,7 @@ deep_count_one (DeepCountState *state,
 
     hidden = should_skip_file (NULL, info);
 
-	if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
+	if (nemo_dir_enum_file_type (info) == G_FILE_TYPE_DIRECTORY) {
 		/* Count the directory. */
         if (hidden) {
             file->details->deep_hidden_count += 1;

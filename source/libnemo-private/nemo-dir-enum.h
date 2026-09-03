@@ -51,6 +51,12 @@ GFileEnumerator *nemo_enumerate_children_finish (GFile                *dir,
                                                  GAsyncResult         *result,
                                                  GError              **error);
 
+/* An entry the walk could not stat comes back with no type at all - a locked
+   file at the root of a Windows drive, say - and GLib criticals on the missing
+   attribute rather than answering. Read it through here instead. */
+
+GFileType        nemo_dir_enum_file_type        (GFileInfo            *info);
+
 /* TRUE when dir is a local path long enough that GLib's walk cannot be trusted.
    Exposed for the tests; callers should just use the three above. */
 gboolean         nemo_dir_enum_path_is_long     (GFile                *dir);

@@ -25,6 +25,7 @@
 #include <config.h>
 #include "nemo-file.h"
 
+#include "nemo-dir-enum.h"
 #include "nemo-directory-notify.h"
 #include "nemo-directory-private.h"
 #include "nemo-signaller.h"
@@ -2708,7 +2709,7 @@ update_info_internal (NemoFile *file,
 							  FALSE);
 	}
 
-	file_type = g_file_info_get_file_type (info);
+	file_type = nemo_dir_enum_file_type (info);
 	if (file->details->type != file_type) {
 		changed = TRUE;
 	}
@@ -3125,7 +3126,7 @@ update_info_internal (NemoFile *file,
         GIcon *win_icon = win32_themed_icon_for_mime_type (real_mime);   /* borrowed */
 
         if (win_icon == NULL &&
-            g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY &&
+            nemo_dir_enum_file_type (info) == G_FILE_TYPE_DIRECTORY &&
             g_file_info_get_is_symlink (info)) {
             win_icon = win32_folder_icon ();
         }
