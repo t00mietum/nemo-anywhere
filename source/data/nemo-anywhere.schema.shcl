@@ -169,6 +169,11 @@ field: plugins.disabled-scripts
 	type: string-array
 	desc: List of scripts -not- to load.
 
+field: preferences.always-show-tabs
+	type: bool
+	default: false
+	desc: Show the tab strip even when there is only one tab.
+
 field: preferences.always-use-browser
 	type: bool
 	default: true
@@ -481,6 +486,16 @@ field: preferences.swap-trash-delete
 	type: bool
 	default: false
 	desc: Whether to swap the hotkeys for Trash and Delete
+
+field: preferences.tab-width-max-percent
+	type: int
+	default: 25
+	desc: Widest a tab may get, as a percentage of the tab strip.
+
+field: preferences.tab-width-min-percent
+	type: int
+	default: 10
+	desc: Narrowest a tab may get, as a percentage of the tab strip.
 
 field: preferences.tabs-open-position
 	type: string

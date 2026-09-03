@@ -104,6 +104,9 @@ typedef enum
 /* Spatial or browser mode */
 #define NEMO_PREFERENCES_ALWAYS_USE_BROWSER			"always-use-browser"
 #define NEMO_PREFERENCES_NEW_TAB_POSITION			"tabs-open-position"
+#define NEMO_PREFERENCES_ALWAYS_SHOW_TABS			"always-show-tabs"
+#define NEMO_PREFERENCES_TAB_WIDTH_MIN_PERCENT		"tab-width-min-percent"
+#define NEMO_PREFERENCES_TAB_WIDTH_MAX_PERCENT		"tab-width-max-percent"
 
 #define NEMO_PREFERENCES_SHOW_LOCATION_ENTRY		"show-location-entry"
 #define NEMO_PREFERENCES_SHOW_PREVIOUS_ICON_TOOLBAR     "show-previous-icon-toolbar"
