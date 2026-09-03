@@ -51,12 +51,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Use new program icon ('[repo]/assets/icon.png')
-	- 🔘 Windows .exe
-	- 🔘 Linux:
-		- 🔘 Desktop launcher and running icon
-		- 🔘 Dogfood portion of CICD scripts
-		- 🔘 n8runfm bash script.
+- 🛠️ Use the new program icon (`assets/logo.png`).
+	- Every size is cut from the one logo by `cicd/utility/gen-app-icon.py`, and the output is committed.
+	- ✅ Windows .exe. It carried no icon at all before, so it showed the toolkit's default. It now has one, from the file list up to the largest view.
+	- Linux:
+		- ✅ Desktop launcher and running icon. The `nemo-anywhere` app icon is redrawn at every size, with 48 through 256 added for launchers and larger views. The old green folder had a vector alongside it; the new art is raster only, so the vector is gone and the sizes cover its place.
+		- 🔘 Dogfood portion of CICD scripts. A dogfood install drops the binary and nothing else, so there is no menu entry for a desktop to take an icon from. Needs a decision on whether a dogfood copy should register itself.
+		- 🔘 n8runfm launcher. Same question, and it launches the stamped copy directly.
+	- Note: the window icon itself follows the folder being viewed, by design, so the program icon shows in the launcher and the switcher rather than in the title bar.
 
 - 🔘 Better program icon, for both file .exe and running program. (All supported platforms.)
 	- Opened: 20260831-164337

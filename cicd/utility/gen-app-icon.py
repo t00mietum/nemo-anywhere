@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""Cut the program icon down to the sizes each platform wants.
+
+One source, assets/logo.png, becomes the Windows exe icon (source/src, embedded
+by the resource compiler) and the hicolor app icons the Linux install and the
+in-binary icon theme read. Output is committed, so no build step depends on this
+script. Re-run it after changing the logo.
+
+Syntax: gen-app-icon.py [<repo-root>]
+"""
+
+import os
+import sys
+
+from PIL import Image
+
+# The exe carries every size Windows asks for, from the file list up to the
+# 256 the large-icon views and the alt-tab switcher use.
+ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
+
+# Keep in step with publicIcons in source/data/icons/meson.build and the
+# appicons block in source/gresources/nemo.gresource.xml.
+THEME_SIZES = (16, 22, 24, 32, 48, 64, 128, 256)
+
+
+def main(argv):
+	root = argv[1] if len(argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..")
+	root = os.path.abspath(root)
+
+	logo = Image.open(os.path.join(root, "assets", "logo.png")).convert("RGBA")
+
+	ico = os.path.join(root, "source", "src", "nemo-anywhere.ico")
+	logo.save(ico, format="ICO", sizes=[(s, s) for s in ICO_SIZES])
+	print("[ %s: %d KB ]" % (os.path.basename(ico), os.path.getsize(ico) / 1024))
+
+	apps = os.path.join(root, "source", "data", "icons", "hicolor", "apps")
+	total = 0
+	for size in THEME_SIZES:
+		out_dir = os.path.join(apps, "%dx%d" % (size, size))
+		os.makedirs(out_dir, exist_ok=True)
+		out = os.path.join(out_dir, "nemo-anywhere.png")
+		logo.resize((size, size), Image.LANCZOS).save(out, optimize=True)
+		total += os.path.getsize(out)
+	print("[ hicolor apps: %d sizes, %d KB ]" % (len(THEME_SIZES), total / 1024))
+
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main(sys.argv))

@@ -3,7 +3,10 @@ publicIcons = [
   'hicolor/apps/22x22/nemo-anywhere.png',
   'hicolor/apps/24x24/nemo-anywhere.png',
   'hicolor/apps/32x32/nemo-anywhere.png',
-  'hicolor/apps/scalable/nemo-anywhere.svg',
+  'hicolor/apps/48x48/nemo-anywhere.png',
+  'hicolor/apps/64x64/nemo-anywhere.png',
+  'hicolor/apps/128x128/nemo-anywhere.png',
+  'hicolor/apps/256x256/nemo-anywhere.png',
   'hicolor/actions/16x16/nemo-eject.png',
   'hicolor/actions/16x16/menu-bullet.png',
   'hicolor/actions/16x16/menu-sort-up.png',
@@ -44,11 +47,6 @@ privateIcons = [
   'hicolor/emblems/16x16/emblem-note.png',
   'hicolor/emblems/24x24/emblem-note.png',
   'hicolor/emblems/48x48/emblem-note.png',
-]
-noInstallIcons = [
-  'hicolor/apps/16x16/nemo-anywhere.svg',
-  'hicolor/apps/22x22/nemo-anywhere.svg',
-  'hicolor/apps/32x32/nemo-anywhere.svg',
 ]
 
 foreach icon : publicIcons

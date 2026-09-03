@@ -10,6 +10,9 @@
    do not survive being expanded here. */
 1 24 "nemo-anywhere.manifest"
 
+/* The program icon. Windows shows the lowest-numbered one, so this stays 1. */
+1 ICON "nemo-anywhere.ico"
+
 VS_VERSION_INFO VERSIONINFO
 	FILEVERSION     @VER_MAJOR@,@VER_MINOR@,@VER_PATCH@,0
 	PRODUCTVERSION  @VER_MAJOR@,@VER_MINOR@,@VER_PATCH@,0

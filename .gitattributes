@@ -20,3 +20,4 @@ source/gresources/nemo-themes.gresource.xml text eol=lf
 # Vendored theme art - keep bytes stable, no EOL conversion.
 *.svg -text
 *.png -text
+*.ico -text
