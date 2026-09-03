@@ -192,6 +192,16 @@ test('Copy test',
   args: []
 )
 
+link_copy_job = executable('test-nemo-link-copy-job',
+  [ 'test-nemo-link-copy-job.c', 'test.c' ],
+  include_directories: [ rootInclude, ],
+  dependencies: [ gtk, nemo_private ],
+  c_args: nemo_definitions,
+)
+
+test('Link copy keeps the link', link_copy_job, args: [ 'keep' ])
+test('Link copy follows the link', link_copy_job, args: [ 'copy' ])
+
 # The resource has to be compiled straight in for the same reason the exe does:
 # nothing else references the self-registering object, so the linker drops it.
 test('Preferences widgets test',
@@ -213,6 +223,15 @@ if is_windows
     args: []
   )
 endif
+
+test('Link copy test',
+  executable('test-nemo-link-copy',
+    [ 'test-nemo-link-copy.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
 
 test('Shortcut name test',
   executable('test-nemo-shortcut-name',
