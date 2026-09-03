@@ -60,11 +60,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- 🔘 n8runfm launcher. Same question, and it launches the stamped copy directly.
 	- Note: the window icon itself follows the folder being viewed, by design, so the program icon shows in the launcher and the switcher rather than in the title bar.
 
-- 🔘 Always operate on whole rows in list view.
-	- Opened: 20260826-103001
-	- Clicking anywhere on a row selects that row, so clicking off the text is not read as a background click - unless it is below everything listed.
-	- Right-clicking off an existing selection selects first and then opens the menu, to save a step.
-
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
 
@@ -1053,6 +1048,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Always operate on whole rows in list view.
+	- Opened: 20260826-103001
+	- Closed: 20260903-104500
+	- A click anywhere in a row now belongs to that row. Right-clicking past the end of the name used to clear the selection and give the background menu.
+	- The only background left is the space below every row, which still deselects and gives the background menu.
+	- Right-clicking a row outside the current selection selects it first, then opens its menu.
 
 - ✅ Better program icon, for both file .exe and running program. (All supported platforms.)
 	- Opened: 20260831-164337
