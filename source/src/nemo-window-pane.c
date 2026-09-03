@@ -258,6 +258,29 @@ toolbar_focus_in_callback (GtkWidget *widget,
 	return FALSE;
 }
 
+/* Anything that takes the focus off the entry leaves entry mode, not just
+   Escape. Losing the whole window is not that - a typed path should still be
+   there on the way back. */
+static gboolean
+toolbar_focus_out_callback (GtkWidget *widget,
+			    GdkEventFocus *event,
+			    gpointer user_data)
+{
+	NemoWindowPane *pane = user_data;
+
+	if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY) ||
+	    !gtk_window_has_toplevel_focus (GTK_WINDOW (pane->window))) {
+		return FALSE;
+	}
+
+	/* The focus has gone where it was wanted, so forget the widget the cancel
+	   would otherwise hand it back to. */
+	unset_focus_widget (pane);
+	g_signal_emit_by_name (pane->location_bar, "cancel");
+
+	return FALSE;
+}
+
 static void
 path_bar_location_changed_callback (GtkWidget *widget,
 				    GFile *location,
@@ -982,6 +1005,8 @@ nemo_window_pane_constructed (GObject *obj)
 				 G_CALLBACK (navigation_bar_cancel_callback), pane, 0);
 	g_signal_connect_object (nemo_location_bar_get_entry (NEMO_LOCATION_BAR (pane->location_bar)), "focus-in-event",
 				 G_CALLBACK (toolbar_focus_in_callback), pane, 0);
+	g_signal_connect_object (nemo_location_bar_get_entry (NEMO_LOCATION_BAR (pane->location_bar)), "focus-out-event",
+				 G_CALLBACK (toolbar_focus_out_callback), pane, 0);
 
 	/* initialize the notebook */
 	pane->notebook = g_object_new (NEMO_TYPE_NOTEBOOK, NULL);

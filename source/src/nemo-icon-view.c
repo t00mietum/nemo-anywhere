@@ -2329,6 +2329,20 @@ focus_in_event_callback (GtkWidget *widget, GdkEventFocus *event, gpointer user_
 	return FALSE;
 }
 
+/* Runs after the container, so Escape still cancels a rename or a stretch
+   before it gets as far as the selection. */
+static gboolean
+key_press_event_callback (GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+	if (event->keyval != GDK_KEY_Escape) {
+		return FALSE;
+	}
+
+	nemo_view_toggle_selection_stash (NEMO_VIEW (user_data));
+
+	return TRUE;
+}
+
 static gboolean
 button_press_callback (GtkWidget *widget, GdkEventFocus *event, gpointer user_data)
 {
@@ -2378,6 +2392,8 @@ create_icon_container (NemoIconView *icon_view)
                  G_CALLBACK (button_press_callback), icon_view, 0);
 	g_signal_connect_object (icon_container, "focus_in_event",
 				 G_CALLBACK (focus_in_event_callback), icon_view, 0);
+	g_signal_connect_object (icon_container, "key_press_event",
+				 G_CALLBACK (key_press_event_callback), icon_view, G_CONNECT_AFTER);
 	g_signal_connect_object (icon_container, "activate",
 				 G_CALLBACK (icon_container_activate_callback), icon_view, 0);
 	g_signal_connect_object (icon_container, "activate_alternate",

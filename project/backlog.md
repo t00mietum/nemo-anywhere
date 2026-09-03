@@ -80,19 +80,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Search options: Flat [ ]  Hierarchical [ ]
 	- Opened: 20260819-141014
 
-- 🔘 Path button bar should immediately return to buttons, any time the path defocuses, not just 'esc' hit.
-	- Opened: 20260802-011216
-
-- 🔘 Hit 'Esc' when focus is in the folder/file pane to completely remove selection. (E.g. to use menu key on background.) Esc again to return it to where it was.
-	- Opened: 20260802-011216
-
-- 🔘 In find mode, show the whole path in the status bar rather than just the selected filename.
-	- Opened: 20260730-112038
-
-- 🔘 When a value is longer that the column can display, allow a mouseover tooltip to show the whole value.
-	- Opened: 20260730-112038
-	- Using a reusable tooltip mechanism
-
 - 🔘 Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
 	- Opened: 20260730-112038
 	- Note: a major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
@@ -1048,6 +1035,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Path button bar returns to buttons any time the path defocuses, not just on Escape.
+	- Opened: 20260802-011216
+	- Closed: 20260903-120000
+	- Clicking into the file list, the sidebar or anywhere else puts the buttons back.
+	- Switching to another program does not, so a half-typed path survives the trip.
+	- No effect when the entry is the permanent choice in preferences.
+
+- ✅ Escape in the folder pane clears the selection, and Escape again puts it back.
+	- Opened: 20260802-011216
+	- Closed: 20260903-120000
+	- Both the list and the icon views. Reaching the background menu from the keyboard is the point.
+	- A rename or a stretch in progress still gets Escape first.
+	- What was put aside is dropped on leaving the folder, so Escape in a new one has nothing to restore.
+
+- ✅ In find mode the status bar shows the whole path rather than just the name.
+	- Opened: 20260730-112038
+	- Closed: 20260903-120000
+	- Only for search results, where a name on its own does not say which file was found. Ordinary folders still show the name.
+
+- ✅ A value too long for its column gets a mouseover tooltip with the whole value.
+	- Opened: 20260730-112038
+	- Closed: 20260903-120000
+	- Any column, not just the name.
+	- Shown whatever the item tooltip preference says, since it is about reading what is already on screen.
 
 - ✅ Always operate on whole rows in list view.
 	- Opened: 20260826-103001

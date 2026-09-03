@@ -10,10 +10,11 @@
 ##		    desk <png> |
 ##		    rect <pid> |
 ##		    wait <pid> <secs> | raise <pid> | raisewin <hwnd> |
-##		    click <x> <y> [right] |
+##		    click <x> <y> [right] | move <x> <y> |
 ##		    key <vk> [alt|ctrl|shift] | type <text>
 ##	History:
-##		- 2026-09-03: desk, for menus and other windows the app does not own.
+##		- 2026-09-03: desk, for menus and other windows the app does not own; move,
+##		  for hover.
 ##		- 2026-08-30: Created (backlog: GUI testing without touching the live session).
 
 ##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
@@ -90,6 +91,13 @@ public static class G {
 		SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0003);
 		SetWindowPos(h, new IntPtr(-2), 0, 0, 0, 0, 0x0003);
 	}
+	/* Two steps: one SetCursorPos from a standing start can land without the
+	   motion a tooltip waits for. */
+	public static void Move(int x, int y) {
+		SetCursorPos(x - 40, y - 40);
+		System.Threading.Thread.Sleep(80);
+		SetCursorPos(x, y);
+	}
 	public static void Click(int x, int y, bool right) {
 		SetCursorPos(x, y);
 		System.Threading.Thread.Sleep(60);
@@ -135,6 +143,7 @@ switch ($Cmd) {
 	'raise' { $h = [G]::Largest([uint32]$A); [G]::Raise($h); "raised $h" }
 	'raisewin' { [G]::Raise([IntPtr][int]$A); "raised $A" }
 	'click' { [G]::Click([int]$A, [int]$B, ($C -eq 'right')); "clicked $A,$B" }
+	'move'  { [G]::Move([int]$A, [int]$B); "moved $A,$B" }
 	'key'   { [G]::Key([byte][int]$A, ($B -match 'alt'), ($B -match 'ctrl'), ($B -match 'shift')); "key $A $B" }
 	'type'  { [G]::Type($A); "typed" }
 	default { "usage: shot|shotwin|rect|wait|raise|raisewin|click|key|type" }
