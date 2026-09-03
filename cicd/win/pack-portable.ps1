@@ -15,9 +15,12 @@
 ##		      virtual system is shared with child processes.
 ##		- Output: <out-dir>\nemo-anywhere.exe, then a --version smoke with a
 ##		  bare System32-only PATH proves it truly self-contained.
+##		- -FlattenOnly stops after step 1, which is what the sandbox wants: it
+##		  runs the flat tree directly, so the pack is a few minutes wasted.
 ##		- Syntax:
-##		  pwsh cicd/win/pack-portable.ps1 [-StageDir <dir>] [-OutDir <dir>]
+##		  pwsh cicd/win/pack-portable.ps1 [-StageDir <dir>] [-OutDir <dir>] [-FlattenOnly]
 ##	History:
+##		- 2026-09-03: -FlattenOnly.
 ##		- 2026-08-02: Created (backlog: ultra-portable single-exe Windows).
 
 ##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
@@ -29,6 +32,7 @@
 param(
 	[string]$StageDir = "",
 	[string]$OutDir = "",
+	[switch]$FlattenOnly,
 	[switch]$Help
 )
 
@@ -162,6 +166,12 @@ function fWriteProject {
 }
 
 function fMain {
+	if ($FlattenOnly) {
+		fFlatten
+		fEcho "OK: flat tree: $FlatDir"
+		return
+	}
+
 	$evb = fFindEvb
 	if (-not $evb) { fDie "Enigma Virtual Box not found (enigmavbconsole.exe) - install it first" }
 

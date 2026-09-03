@@ -7,11 +7,13 @@
 ##		  needs a pile of assembly references on .NET Core.
 ##		- Syntax:
 ##		  powershell cicd/win/gui.ps1 shot <pid> <png> | shotwin <hwnd> <png> |
+##		    desk <png> |
 ##		    rect <pid> |
 ##		    wait <pid> <secs> | raise <pid> | raisewin <hwnd> |
 ##		    click <x> <y> [right] |
 ##		    key <vk> [alt|ctrl|shift] | type <text>
 ##	History:
+##		- 2026-09-03: desk, for menus and other windows the app does not own.
 ##		- 2026-08-30: Created (backlog: GUI testing without touching the live session).
 
 ##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
@@ -21,7 +23,7 @@
 
 param([string]$Cmd, [string]$A, [string]$B, [string]$C)
 
-Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+Add-Type -ReferencedAssemblies System.Drawing, System.Windows.Forms -TypeDefinition @'
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -77,6 +79,13 @@ public static class G {
 		}
 		bmp.Save(path, ImageFormat.Png);
 	}
+	/* Menus are their own windows, so PrintWindow on the app misses them. */
+	public static void Desk(string path) {
+		var b = System.Windows.Forms.SystemInformation.VirtualScreen;
+		var bmp = new Bitmap(b.Width, b.Height);
+		using (var g = Graphics.FromImage(bmp)) { g.CopyFromScreen(b.X, b.Y, 0, 0, bmp.Size); }
+		bmp.Save(path, ImageFormat.Png);
+	}
 	public static void Raise(IntPtr h) {
 		SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0003);
 		SetWindowPos(h, new IntPtr(-2), 0, 0, 0, 0, 0x0003);
@@ -112,6 +121,7 @@ public static class G {
 switch ($Cmd) {
 	'shot'  { $h = [G]::Largest([uint32]$A); [G]::Shot($h, $B); "shot $h -> $B" }
 	'shotwin' { [G]::Shot([IntPtr][int]$A, $B); "shot $A -> $B" }
+	'desk'  { [G]::Desk($A); "desk -> $A" }
 	'rect'  { [G]::Windows([uint32]$A) }
 	'wait'  {
 		$deadline = (Get-Date).AddSeconds([int]$B)
