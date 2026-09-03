@@ -129,6 +129,43 @@ test_registry (void)
 	g_clear_object (&app);
 }
 
+/* The Open With list is GIO's, and every entry on it has to be startable the
+ * same way ours are, or the program comes up as a child of nemo. */
+static void
+test_command_for_app (void)
+{
+	GAppInfo *app = g_app_info_create_from_commandline ("\"C:\\Windows\\notepad.exe\" \"%1\"",
+							    NULL, G_APP_INFO_CREATE_NONE, NULL);
+	GList *apps, *l;
+	gboolean any = FALSE;
+
+	check (app != NULL, "an app info can be made from a command line");
+	if (app != NULL) {
+		check (nemo_associations_win32_command_of (app) == NULL, "it is not one of ours");
+		check (nemo_associations_win32_command_for_app (app) != NULL,
+		       "and it still answers with a command line");
+		g_object_unref (app);
+	}
+
+	apps = g_app_info_get_all_for_type (".txt");
+	for (l = apps; l != NULL; l = l->next) {
+		/* A store app has no executable and no command line; it is the one
+		   kind that has to stay with GIO. */
+		if (g_app_info_get_executable (l->data) == NULL) {
+			continue;
+		}
+
+		any = TRUE;
+		check (nemo_associations_win32_command_for_app (l->data) != NULL,
+		       g_app_info_get_name (l->data));
+	}
+	g_list_free_full (apps, g_object_unref);
+
+	if (!any) {
+		g_print ("note: nothing ordinary is registered for .txt here\n");
+	}
+}
+
 static void
 test_names (void)
 {
@@ -162,6 +199,7 @@ main (int argc, char *argv[])
 	test_substitution ();
 	test_overrides ();
 	test_registry ();
+	test_command_for_app ();
 	test_names ();
 
 	g_free (scratch);

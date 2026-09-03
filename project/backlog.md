@@ -49,7 +49,17 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- Note: it depends on something only the real session has. Needs one capture from the host to place it, and the exact command is in the private notes.
 
+- 🔘 Windows: listing a drive root logs a batch of "GFileInfo created without standard::type" criticals.
+	- Opened: 20260902-190000
+	- Fourteen pairs of them from one listing of `C:\`, which has entries nothing can read the type of - the page file, the volume information folder.
+	- The window comes up fine and the listing looks right, so this is noise rather than breakage. Same shape as the startup criticals above but a different cause, and this one reproduces on demand.
+
 ### Features and enhancements
+
+- 🔘 The "Open with" submenu names programs by their file name.
+	- Opened: 20260902-190000
+	- It reads "Code.exe" and "VSCodium.exe" where the menu item above it already says "Open with VSCodium". The list comes from the toolkit, which has no name for a program beyond the file it found.
+	- Nemo already works the name out for the default program, from the program's own description. The same answer would do here.
 
 - 🔘 Use new program icon ('[repo]/assets/icon.png')
 	- 🔘 Windows .exe
@@ -57,9 +67,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- 🔘 Desktop launcher and running icon
 		- 🔘 Dogfood portion of CICD scripts
 		- 🔘 n8runfm bash script.
-
-- 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
-	- Opened: 20260831-164337
 
 - 🔘 Better program icon, for both file .exe and running program. (All supported platforms.)
 	- Opened: 20260831-164337
@@ -1054,6 +1061,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
+	- Opened: 20260831-164337
+	- Closed: 20260902-190000
+	- Opening from the file list, or from the first menu item, was already right: both files reach the running editor.
+	- The Open With submenu was not. Everything on that list comes from the toolkit rather than from nemo's own reading of the registry, and those entries were started a different way - directly, as a child of nemo.
+	- Two things went wrong because of it. In the packed build the editor came up with a blank window, because a program started as our child inherits the packing, and it also inherited nemo's own environment rather than the user's.
+	- Fixed: anything with a command line behind it is now started the same way, whichever list it came from. A store app is the one kind that has none, and still goes the old way.
+	- Checked in both builds: the editor is started by the desktop rather than by nemo, comes up normally, and both files land in the one window.
 
 - ✅ Copying and pasting objects that includes symlinks or junctions, should open up an option dialog. (All OSes.)
 	- Opened: 20260831-164337
