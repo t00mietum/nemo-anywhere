@@ -3,10 +3,14 @@
 ##		  without touching the live desktop session. The sandbox is built from
 ##		  the host's own Windows image (no second license), keeps no state,
 ##		  and every -Start is a fresh machine.
-##		- Stages a shared folder (cicd/artifacts/sandbox/share) with the
-##		  packed exe, the in-sandbox agent and the gui.ps1 driver, generates
-##		  the .wsb beside it, launches WindowsSandbox.exe, and hands job
-##		  scripts across through jobs\ -> done\ with logs in out\.
+##		- Stages a shared folder (cicd/artifacts/sandbox/share) with the app,
+##		  the in-sandbox agent and the gui.ps1 driver, generates the .wsb
+##		  beside it, launches WindowsSandbox.exe, and hands job scripts across
+##		  through jobs\ -> done\ with logs in out\.
+##		- The app is either the packed single exe (-Exe) or a whole flattened
+##		  build directory (-Dir, e.g. cicd/artifacts/win-flat). The directory
+##		  form is the one to use while working - it skips the pack, so a
+##		  rebuild can be looked at straight away.
 ##		- Verbs:
 ##		   -Start        stage + launch, wait for the agent heartbeat
 ##		   -Run <ps1>    queue a job script inside, wait for it, print its log
@@ -16,9 +20,10 @@
 ##		- -NoNetwork cuts the machine off the network, for testing what the app
 ##		  says when there is none. The mapped folder still works.
 ##		- Syntax:
-##		  pwsh cicd/win/sandbox.ps1 -Start [-Exe <packed exe>] [-NoNetwork]
+##		  pwsh cicd/win/sandbox.ps1 -Start [-Exe <packed exe> | -Dir <build dir>] [-NoNetwork]
 ##		  pwsh cicd/win/sandbox.ps1 -Run <script.ps1> [-TimeoutSec <n>]
 ##	History:
+##		- 2026-09-02: -Dir, to run an unpacked build.
 ##		- 2026-08-31: -NoNetwork.
 ##		- 2026-08-30: Created (backlog: GUI testing without touching the live session).
 
@@ -35,6 +40,7 @@ param(
 	[switch]$Status,
 	[switch]$Stop,
 	[string]$Exe = "",
+	[string]$Dir = "",
 	[int]$TimeoutSec = 300,
 	[switch]$NoNetwork,
 	[switch]$Help
@@ -96,8 +102,13 @@ function fQueueJob {
 
 if ($Start) {
 	if (-not (Get-Command WindowsSandbox.exe -ErrorAction SilentlyContinue)) { fDie "Windows Sandbox is not available (feature off, or reboot pending)" }
-	if (-not $Exe) { $Exe = Join-Path $Root "cicd\artifacts\win-portable\nemo-anywhere.exe" }
-	if (-not (Test-Path -LiteralPath $Exe)) { fDie "packed exe not found: $Exe (run the pack first)" }
+	if ($Dir -and $Exe) { fDie "-Exe and -Dir are alternatives; pass one" }
+	if ($Dir) {
+		if (-not (Test-Path -LiteralPath (Join-Path $Dir "nemo-anywhere.exe"))) { fDie "no nemo-anywhere.exe in $Dir (stage the build first)" }
+	} else {
+		if (-not $Exe) { $Exe = Join-Path $Root "cicd\artifacts\win-portable\nemo-anywhere.exe" }
+		if (-not (Test-Path -LiteralPath $Exe)) { fDie "packed exe not found: $Exe (run the pack first)" }
+	}
 
 	fEcho_Clean
 	fEcho "Staging share"
@@ -106,7 +117,19 @@ if ($Start) {
 	}
 	Remove-Item -Path (Join-Path $Share "jobs\*"), (Join-Path $Share "done\*") -Force -ErrorAction SilentlyContinue
 	if (Test-Path -LiteralPath $Beat) { Remove-Item -LiteralPath $Beat -Force }
-	Copy-Item -LiteralPath $Exe -Destination (Join-Path $Share "nemo-anywhere.exe") -Force
+	## Only one of the two forms is left staged, so the agent cannot pick up a
+	## leftover from the previous run.
+	$AppTree = Join-Path $Share "app"
+	$AppOne  = Join-Path $Share "nemo-anywhere.exe"
+	Remove-Item -LiteralPath $AppTree -Recurse -Force -ErrorAction SilentlyContinue
+	Remove-Item -LiteralPath $AppOne -Force -ErrorAction SilentlyContinue
+	if ($Dir) {
+		$mb = [int]((Get-ChildItem -LiteralPath $Dir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
+		fEcho "Copying build dir ($mb MB)"
+		Copy-Item -LiteralPath $Dir -Destination $AppTree -Recurse -Force
+	} else {
+		Copy-Item -LiteralPath $Exe -Destination $AppOne -Force
+	}
 	Copy-Item -LiteralPath (Join-Path $PSScriptRoot "sandbox-agent.ps1") -Destination (Join-Path $Share "agent.ps1") -Force
 	Copy-Item -LiteralPath (Join-Path $PSScriptRoot "gui.ps1") -Destination (Join-Path $Share "gui.ps1") -Force
 

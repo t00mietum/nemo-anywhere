@@ -298,11 +298,20 @@ path_bar_button_pressed_callback (GtkWidget *widget,
 			button_location = nemo_path_bar_get_path_for_button (
 				NEMO_PATH_BAR (pane->path_bar), widget);
 			if (button_location != NULL) {
-				uri = g_file_get_uri (button_location);
-				nemo_view_pop_up_location_context_menu (
-					view, event, uri);
+				/* The button for the folder on show gets the list's own
+				   background menu, so the same items are one click away
+				   wherever you ask for them. The ancestors keep the
+				   shorter location menu. */
+				if (slot->location != NULL &&
+				    g_file_equal (button_location, slot->location)) {
+					nemo_view_pop_up_background_context_menu (view, event);
+				} else {
+					uri = g_file_get_uri (button_location);
+					nemo_view_pop_up_location_context_menu (
+						view, event, uri);
+					g_free (uri);
+				}
 				g_object_unref (button_location);
-				g_free (uri);
 				return GDK_EVENT_STOP;
 			}
 		}
