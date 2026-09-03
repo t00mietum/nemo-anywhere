@@ -53,20 +53,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed: the second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed. Cause: a file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
 	- Note: a regression check lists a folder and fails on anything logged at warning level or worse.
 	- Found: what produces that exact pair is a signal connected to a settings group that is not open yet. The group handles are NULL until the settings are read, and about seventy places connect to one. Reproduced on demand by starting with no session bus, which is what leaves the store unopened.
-	- Left to find: why the store is not open that early on the host in the first place. Needs the capture from there.
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
-	- Note: it depends on something only the real session has. Needs one capture from the host to place it, and the exact command is in the private notes.
+	- Not reproduced on the Linux host either, with the current build staged out of the container and run headlessly against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
+	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
+	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
-
-- 🛠️ Use the new program icon (`assets/logo.png`).
-	- Every size is cut from the one logo by `cicd/utility/gen-app-icon.py`, and the output is committed.
-	- ✅ Windows .exe. It carried no icon at all before, so it showed the toolkit's default. It now has one, from the file list up to the largest view.
-	- Linux:
-		- ✅ Desktop launcher and running icon. The `nemo-anywhere` app icon is redrawn at every size, with 48 through 256 added for launchers and larger views. The old green folder had a vector alongside it; the new art is raster only, so the vector is gone and the sizes cover its place.
-		- 🔘 Dogfood portion of CICD scripts. A dogfood install drops the binary and nothing else, so there is no menu entry for a desktop to take an icon from. Needs a decision on whether a dogfood copy should register itself.
-		- 🔘 n8runfm launcher. Same question, and it launches the stamped copy directly.
-	- Note: the window icon itself follows the folder being viewed, by design, so the program icon shows in the launcher and the switcher rather than in the title bar.
 
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
@@ -1043,6 +1035,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Use the new program icon (`assets/logo.png`).
+	- Closed: 20260903-140000
+	- Every size is cut from the one logo by `cicd/utility/gen-app-icon.py`, and the output is committed.
+	- ✅ Windows .exe. It carried no icon at all before, so it showed the toolkit's default. It now has one, from the file list up to the largest view.
+	- Linux:
+		- ✅ Desktop launcher and running icon. The `nemo-anywhere` app icon is redrawn at every size, with 48 through 256 added for launchers and larger views. The old green folder had a vector alongside it; the new art is raster only, so the vector is gone and the sizes cover its place.
+		- ✅ n8runfm launcher. A dogfood copy now registers itself: the launcher writes a menu entry pointing at the stamped copy it is about to start, with the program icon taken from the copy's own art. Rewritten on each launch, since the copy is dated and moves.
+		- ✅ Dogfood portion of CICD scripts. Nothing to do there. The launcher is what knows which stamped copy is current, so registration belongs to it, and the pipeline's own dogfood stage is disabled on Linux anyway.
+	- Note: the window icon itself follows the folder being viewed, by design, so the program icon shows in the launcher and the switcher rather than in the title bar.
 
 - ✅ Path button bar returns to buttons any time the path defocuses, not just on Escape.
 	- Opened: 20260802-011216

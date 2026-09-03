@@ -789,6 +789,48 @@ function fRunningExePaths {
 }
 
 
+## Give the desktop a menu entry for the stamped copy, so it shows the program
+## icon in the menu and the switcher instead of a generic one. Rewritten on every
+## launch because the copy it points at is dated and moves. Linux only - Windows
+## takes its icon out of the exe. Never fatal: a missing entry costs an icon.
+function fRegisterDesktopEntry {
+	param([Parameter(Mandatory)][string]$CopyPath)
+
+	$dataHome = if ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } else { Join-Path $HOME ".local/share" }
+	$appsDir  = Join-Path $dataHome "applications"
+	$icon     = Join-Path $CopyPath "share/icons/hicolor/256x256/apps/nemo-anywhere.png"
+	$exe      = Join-Path $CopyPath "bin/nemo-anywhere"
+
+	try {
+		if (-not (Test-Path -LiteralPath $icon)) { return }
+		if (-not (Test-Path -LiteralPath $appsDir)) {
+			New-Item -ItemType Directory -Path $appsDir -Force | Out-Null
+		}
+		## Written from scratch rather than copied out of the prefix: that file is
+		## four hundred lines of translations and every Exec in it is unqualified.
+		$entry = @(
+			"[Desktop Entry]"
+			"Type=Application"
+			"Name=Nemo Anywhere (dogfood)"
+			"Comment=Access and organize files"
+			"Exec=`"$exe`" %U"
+			"Icon=$icon"
+			"Terminal=false"
+			"StartupNotify=false"
+			"StartupWMClass=nemo-anywhere"
+			"Categories=GTK;Utility;Core;FileTools;"
+			"MimeType=inode/directory;"
+			"Keywords=folders;filesystem;explorer;"
+		) -join "`n"
+		Set-Content -LiteralPath (Join-Path $appsDir "nemo-anywhere-dogfood.desktop") -Value $entry -Encoding utf8NoBOM
+		$update = fFindOnPath "update-desktop-database"
+		if ($update) { & $update $appsDir 2>$null | Out-Null }
+	} catch {
+		fNote "could not register the menu entry: $($_.Exception.Message)"
+	}
+}
+
+
 ## Launch a stamped copy detached, wiring the runtime env at the copy the same
 ## way the fixed dogfood wrapper (Linux) / wine runner (Windows) do. The env
 ## edits ride process inheritance; this launcher exits right after, so nothing
@@ -816,6 +858,7 @@ function fLaunchNemo {
 			$(if ($env:GSETTINGS_SCHEMA_DIR) { ":" + $env:GSETTINGS_SCHEMA_DIR } else { "" })
 		$env:XDG_DATA_DIRS = (Join-Path $CopyPath "share") + ":" +
 			$(if ($env:XDG_DATA_DIRS) { $env:XDG_DATA_DIRS } else { "/usr/local/share:/usr/share" })
+		fRegisterDesktopEntry -CopyPath $CopyPath
 	}
 
 	if (-not (Test-Path -LiteralPath $exe)) {
