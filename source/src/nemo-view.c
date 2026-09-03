@@ -253,6 +253,9 @@ struct NemoViewDetails
 
 	GList *pending_selection;
 
+	/* What Escape took away, for the second Escape to put back. */
+	GList *stashed_selection;
+
 	/* whether we are in the active slot */
 	gboolean active;
 
@@ -2770,6 +2773,31 @@ nemo_view_set_selection (NemoView *nemo_view,
 	}
 }
 
+/* Escape clears the selection so the background menu can be reached from the
+   keyboard, and Escape again puts it back. */
+void
+nemo_view_toggle_selection_stash (NemoView *view)
+{
+	GList *selection;
+
+	g_return_if_fail (NEMO_IS_VIEW (view));
+
+	selection = nemo_view_get_selection (view);
+
+	if (selection != NULL) {
+		nemo_file_list_free (view->details->stashed_selection);
+		view->details->stashed_selection = selection;
+		nemo_view_set_selection (view, NULL);
+		return;
+	}
+
+	if (view->details->stashed_selection != NULL) {
+		nemo_view_set_selection (view, view->details->stashed_selection);
+		nemo_file_list_free (view->details->stashed_selection);
+		view->details->stashed_selection = NULL;
+	}
+}
+
 static char *
 get_bulk_rename_tool (void)
 {
@@ -3099,6 +3127,9 @@ nemo_view_finalize (GObject *object)
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                           schedule_update_menus, view);
 
+	nemo_file_list_free (view->details->stashed_selection);
+	view->details->stashed_selection = NULL;
+
 	unschedule_pop_up_location_context_menu (view);
 	if (view->details->location_popup_event != NULL) {
 		gdk_event_free ((GdkEvent *) view->details->location_popup_event);
@@ -3138,6 +3169,7 @@ nemo_view_display_selection_info (NemoView *view)
 	char *view_status_string;
 	char *free_space_str;
 	char *obj_selected_free_space_str;
+	gboolean showing_search;
 	NemoFile *file;
 
 	g_return_if_fail (NEMO_IS_VIEW (view));
@@ -3158,6 +3190,7 @@ nemo_view_display_selection_info (NemoView *view)
 	obj_selected_free_space_str = NULL;
 	status_string = NULL;
 	view_status_string = NULL;
+	showing_search = NEMO_IS_SEARCH_DIRECTORY (view->details->model);
 
 	for (p = selection; p != NULL; p = p->next) {
 		file = p->data;
@@ -3177,7 +3210,18 @@ nemo_view_display_selection_info (NemoView *view)
 		}
 
 		if (first_item_name == NULL) {
-			first_item_name = nemo_file_get_display_name (file);
+			/* A search hit can be anywhere, so its name on its own does not say
+			   which file was found. */
+			if (showing_search) {
+				first_item_name = nemo_file_get_path (file);
+				if (first_item_name != NULL) {
+					nemo_path_apply_display_separator (first_item_name);
+				}
+			}
+
+			if (first_item_name == NULL) {
+				first_item_name = nemo_file_get_display_name (file);
+			}
 		}
 	}
 
@@ -11684,6 +11728,10 @@ nemo_view_stop_loading (NemoView *view)
 
 	g_list_free_full (view->details->pending_selection, g_object_unref);
 	view->details->pending_selection = NULL;
+
+	/* Another folder's files are not worth putting back. */
+	nemo_file_list_free (view->details->stashed_selection);
+	view->details->stashed_selection = NULL;
 
 	if (view->details->model != NULL) {
 		nemo_directory_file_monitor_remove (view->details->model, view);

@@ -838,6 +838,46 @@ motion_notify_callback (GtkWidget *widget,
     return GDK_EVENT_PROPAGATE;
 }
 
+/* The whole value of a cell too narrow to show it, or NULL if it fits. Widths
+   come from the renderers rather than the column, because a column's own size
+   answer is its minimum and says nothing about text that can ellipsize. */
+static gchar *
+ellipsized_cell_text (NemoListView *view,
+		      GtkTreeViewColumn *column,
+		      GtkTreeIter *iter)
+{
+	GList *cells, *l;
+	gchar *text = NULL;
+	gint wanted = 0;
+
+	gtk_tree_view_column_cell_set_cell_data (column,
+						 GTK_TREE_MODEL (view->details->model),
+						 iter, FALSE, FALSE);
+
+	cells = gtk_cell_layout_get_cells (GTK_CELL_LAYOUT (column));
+	for (l = cells; l != NULL; l = l->next) {
+		GtkCellRenderer *cell = l->data;
+		gint minimum, natural;
+
+		gtk_cell_renderer_get_preferred_width (cell,
+						       GTK_WIDGET (view->details->tree_view),
+						       &minimum, &natural);
+		wanted += natural;
+
+		if (text == NULL && GTK_IS_CELL_RENDERER_TEXT (cell)) {
+			g_object_get (cell, "text", &text, NULL);
+		}
+	}
+	g_list_free (cells);
+
+	if (text != NULL &&
+	    (*text == '\0' || wanted <= gtk_tree_view_column_get_width (column))) {
+		g_clear_pointer (&text, g_free);
+	}
+
+	return text;
+}
+
 static gboolean
 query_tooltip_callback (GtkWidget *widget,
                         gint x,
@@ -847,45 +887,64 @@ query_tooltip_callback (GtkWidget *widget,
                         gpointer user_data)
 {
     NemoListView *list_view;
+    GtkTreeModel *model;
+    GtkTreeViewColumn *column;
+    GtkTreePath *path;
+    GtkTreeIter iter;
+    gchar *clipped;
     gboolean ret;
 
+    list_view = NEMO_LIST_VIEW (user_data);
+    model = GTK_TREE_MODEL (list_view->details->model);
+    column = NULL;
+    path = NULL;
+    clipped = NULL;
     ret = FALSE;
 
-    list_view = NEMO_LIST_VIEW (user_data);
-
-    if (list_view->details->show_tooltips) {
-        GtkTreeIter iter;
-        NemoFile *file;
-        GtkTreePath *path = NULL;
-        GtkTreeModel *model = GTK_TREE_MODEL (list_view->details->model);
-
-        if (gtk_tree_view_get_tooltip_context (GTK_TREE_VIEW (widget), &x, &y,
-                                               kb_mode,
-                                               &model, &path, &iter)) {
-
-            if (!gtk_tree_view_is_blank_at_pos (GTK_TREE_VIEW (widget), x, y, NULL, NULL, NULL, NULL)) {
-                gtk_tree_model_get (GTK_TREE_MODEL (list_view->details->model),
-                                    &iter,
-                                    NEMO_LIST_MODEL_FILE_COLUMN, &file,
-                                    -1);
-                if (file) {
-                    gchar *tooltip_text;
-
-                    tooltip_text = nemo_file_construct_tooltip (file,
-                                                                list_view->details->tooltip_flags,
-                                                                nemo_view_get_model (NEMO_VIEW (list_view)));
-                    gtk_tooltip_set_markup (tooltip, tooltip_text);
-                    gtk_tree_view_set_tooltip_cell (GTK_TREE_VIEW (widget), tooltip, path, NULL, NULL);
-                    g_free (tooltip_text);
-
-                    ret = TRUE;
-                }
-
-                nemo_file_unref (file);
-            }
-        }
-        gtk_tree_path_free (path);
+    if (!gtk_tree_view_get_tooltip_context (GTK_TREE_VIEW (widget), &x, &y,
+                                           kb_mode, &model, &path, &iter)) {
+        return FALSE;
     }
+
+    /* A value the column has cut off is worth showing whatever the item tooltip
+       preference says - that preference is about the file, this is about reading
+       what is already on screen. Keyboard mode has no column under a pointer. */
+    if (!kb_mode) {
+        gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (widget), x, y,
+                                       NULL, &column, NULL, NULL);
+    }
+    if (column != NULL) {
+        clipped = ellipsized_cell_text (list_view, column, &iter);
+    }
+
+    if (clipped != NULL) {
+        gtk_tooltip_set_text (tooltip, clipped);
+        gtk_tree_view_set_tooltip_cell (GTK_TREE_VIEW (widget), tooltip, path, column, NULL);
+        g_free (clipped);
+
+        ret = TRUE;
+    } else if (list_view->details->show_tooltips &&
+               !gtk_tree_view_is_blank_at_pos (GTK_TREE_VIEW (widget), x, y, NULL, NULL, NULL, NULL)) {
+        NemoFile *file;
+
+        gtk_tree_model_get (model, &iter, NEMO_LIST_MODEL_FILE_COLUMN, &file, -1);
+        if (file != NULL) {
+            gchar *tooltip_text;
+
+            tooltip_text = nemo_file_construct_tooltip (file,
+                                                        list_view->details->tooltip_flags,
+                                                        nemo_view_get_model (NEMO_VIEW (list_view)));
+            gtk_tooltip_set_markup (tooltip, tooltip_text);
+            gtk_tree_view_set_tooltip_cell (GTK_TREE_VIEW (widget), tooltip, path, NULL, NULL);
+            g_free (tooltip_text);
+
+            ret = TRUE;
+        }
+
+        nemo_file_unref (file);
+    }
+
+    gtk_tree_path_free (path);
 
     return ret;
 }
@@ -1654,6 +1713,10 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
 		if ((event->state & GDK_CONTROL_MASK) != 0) {
 			handled = TRUE;
 		}
+		break;
+	case GDK_KEY_Escape:
+		nemo_view_toggle_selection_stash (view);
+		handled = TRUE;
 		break;
 
 	default:
