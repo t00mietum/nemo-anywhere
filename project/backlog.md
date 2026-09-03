@@ -60,9 +60,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- 🔘 n8runfm launcher. Same question, and it launches the stamped copy directly.
 	- Note: the window icon itself follows the folder being viewed, by design, so the program icon shows in the launcher and the switcher rather than in the title bar.
 
-- 🔘 Better program icon, for both file .exe and running program. (All supported platforms.)
-	- Opened: 20260831-164337
-
 - 🔘 Always operate on whole rows in list view.
 	- Opened: 20260826-103001
 	- Clicking anywhere on a row selects that row, so clicking off the text is not read as a background click - unless it is below everything listed.
@@ -1056,6 +1053,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Better program icon, for both file .exe and running program. (All supported platforms.)
+	- Opened: 20260831-164337
+	- Closed: 20260902-195000
+	- Answered by the new logo, which the item above puts in place everywhere. Reopen if the art itself should change again.
 
 - ✅ Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
