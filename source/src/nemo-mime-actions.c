@@ -416,12 +416,28 @@ file_compare_by_parent_uri (NemoFile *file_a,
 	return ret;
 }
 
+char *
+nemo_mime_get_application_name (GAppInfo *app)
+{
+#ifdef G_OS_WIN32
+	return nemo_associations_win32_name_for_app (app);
+#else
+	return app != NULL ? g_strdup (g_app_info_get_name (app)) : NULL;
+#endif
+}
+
 static int
 application_compare_by_name (const GAppInfo *app_a,
 			     const GAppInfo *app_b)
 {
-	return g_utf8_collate (g_app_info_get_name ((GAppInfo *)app_a),
-			       g_app_info_get_name ((GAppInfo *)app_b));
+	char *name_a = nemo_mime_get_application_name ((GAppInfo *) app_a);
+	char *name_b = nemo_mime_get_application_name ((GAppInfo *) app_b);
+	int ret = g_utf8_collate (name_a, name_b);
+
+	g_free (name_a);
+	g_free (name_b);
+
+	return ret;
 }
 
 static int

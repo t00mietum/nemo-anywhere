@@ -40,6 +40,10 @@ GList       *nemo_associations_win32_filter_apps     (GList       *apps);
 gchar       *nemo_associations_win32_command_for_file (const gchar *command,
 						       const gchar *path);
 gchar       *nemo_associations_win32_friendly_name   (const gchar *command);
+
+/* GIO has no name for a program beyond the file it found, so its entries read
+ * "Code.exe". Answers with what the program calls itself. */
+gchar       *nemo_associations_win32_name_for_app    (GAppInfo    *app);
 gchar       *nemo_associations_win32_registry_command (const gchar  *content_type,
 						       gchar       **friendly_name);
 

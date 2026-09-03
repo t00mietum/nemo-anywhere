@@ -39,6 +39,9 @@ GList *                nemo_mime_get_applications_for_file            (NemoFile 
 GAppInfo *             nemo_mime_get_default_application_for_files    (GList                   *files);
 GList *                nemo_mime_get_applications_for_files           (GList                   *file);
 
+/* What to call a program in the menu. Free with g_free. */
+char *                 nemo_mime_get_application_name                 (GAppInfo                *app);
+
 gboolean               nemo_mime_file_opens_in_view                   (NemoFile            *file);
 gboolean               nemo_mime_file_opens_in_external_app           (NemoFile            *file);
 void                   nemo_mime_activate_files                       (GtkWindow               *parent_window,

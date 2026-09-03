@@ -1262,7 +1262,7 @@ visit_directory (GFile *dir, SearchThreadData *data)
         hit = nemo_search_name_matcher_matches (data->name_matcher, display_name);
 
         child = g_file_get_child (dir, g_file_info_get_name (info));
-        is_dir = g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY;
+        is_dir = nemo_dir_enum_file_type (info) == G_FILE_TYPE_DIRECTORY;
 
         /* Long explanation, to preserve intent in the future ...
          *

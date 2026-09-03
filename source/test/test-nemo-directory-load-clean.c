@@ -54,6 +54,16 @@ directory_ready (NemoDirectory *directory,
 	done = TRUE;
 }
 
+#ifdef G_OS_WIN32
+static void
+root_ready (NemoDirectory *directory,
+	    GList         *files,
+	    gpointer       callback_data)
+{
+	done = TRUE;
+}
+#endif
+
 static gboolean
 give_up (gpointer data)
 {
@@ -106,6 +116,35 @@ main (int argc, char **argv)
 
 	nemo_directory_unref (directory);
 	g_free (uri);
+
+#ifdef G_OS_WIN32
+	/* A drive root holds entries Windows will not stat - the page and swap
+	   files - and their info comes back with no type on it at all. */
+	{
+		char *root = g_strndup (tmp, 3);   /* "C:/" */
+
+		done = FALSE;
+		uri = g_filename_to_uri (root, NULL, NULL);
+		directory = nemo_directory_get_by_uri (uri);
+		nemo_directory_call_when_ready (directory,
+						NEMO_FILE_ATTRIBUTE_INFO,
+						TRUE,
+						root_ready,
+						NULL);
+
+		timeout = g_timeout_add_seconds (30, give_up, NULL);
+		while (!done) {
+			g_main_context_iteration (NULL, TRUE);
+		}
+		g_source_remove (timeout);
+
+		check (logged == 0);
+
+		nemo_directory_unref (directory);
+		g_free (uri);
+		g_free (root);
+	}
+#endif
 
 	for (i = 0; i < 8; i++) {
 		char *path = g_strdup_printf ("%s/file-%d.txt", tmp, i);

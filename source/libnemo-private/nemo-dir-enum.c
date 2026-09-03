@@ -368,3 +368,14 @@ nemo_enumerate_children_finish (GFile         *dir,
 
 	return g_task_propagate_pointer (G_TASK (result), error);
 }
+
+GFileType
+nemo_dir_enum_file_type (GFileInfo *info)
+{
+	if (info == NULL ||
+	    !g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_STANDARD_TYPE)) {
+		return G_FILE_TYPE_UNKNOWN;
+	}
+
+	return g_file_info_get_file_type (info);
+}
