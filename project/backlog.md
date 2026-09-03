@@ -1051,12 +1051,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Copying and pasting objects that includes symlinks or junctions, should open up an option dialog. (All OSes.)
 	- Opened: 20260831-164337
 	- Closed: 20260902-170000
-	- Only ask when there is a viable choice. If the source holds links and the destination can take them (filesystem, Developer Mode, or an elevated run), put up a dialog naming what the source holds, with a row per kind:
+	- Ask whenever the source holds links, on any platform, so a user always knows what they are getting. The dialog names what the source holds, with a row per kind:
 		- File symlinks as: symlinks, or copies.
 		- Folder symlinks as: symlinks, junctions [Windows], or copies.
 		- Folder junctions [Windows] as: junctions, symlinks, or copies.
 	- Anything the destination cannot take is greyed out. Junction-related options not shown for non-Windows OSes. Each row starts on the same kind if that is possible, otherwise the nearest kind that still points at the original target, otherwise copies.
-	- Done, and on every platform. The dialog names only the kinds the source actually holds, and greys out anything the destination cannot take.
+	- Done, and on every platform. The dialog names only the kinds the source actually holds, and greys out anything the destination cannot take - including the case where it can take none, where it says why and only the copy is left.
 	- Windows had the real gap: a copy always followed the link and left the contents behind, so a link could not be copied at all. POSIX already kept symlinks; what is new there is being able to ask for the contents instead.
 	- The kind of a Windows link comes from the reparse tag. Nothing else tells a junction from a folder symlink, and it also keeps cloud placeholders and store app aliases - which are reparse points too - from being read as links.
 	- A link keeps its own spelling, so a relative one still points where it pointed. Asking for a junction is the exception: those can only name a full path, so a relative target is resolved first.

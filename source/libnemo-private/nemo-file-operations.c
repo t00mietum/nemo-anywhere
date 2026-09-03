@@ -1426,8 +1426,7 @@ do_run_link_dialog (gpointer _data)
 
 /* Asked once, before anything is copied: what should each kind of link the
    source holds become at the far end. FALSE means the operation was called
-   off. Nothing is asked when the destination can hold no link at all, which is
-   what FAT answers and what an unprivileged Windows run answers for symlinks. */
+   off. */
 static gboolean
 ask_about_links (CopyMoveJob *copy_job,
                  GFile       *dest,
@@ -1445,11 +1444,11 @@ ask_about_links (CopyMoveJob *copy_job,
 		return TRUE;
 	}
 
+	/* Asked whenever the source holds a link, even where the destination can
+	   take none of them - then every row but the copy is greyed out, and the
+	   answer is at least visible rather than decided quietly. */
 	dest_path = g_file_peek_path (dest);
 	supported = (dest_path != NULL) ? nemo_link_kinds_supported (dest_path) : 0;
-	if (supported == 0) {
-		return TRUE;
-	}
 
 	/* A test drives a copy with nobody there to answer a dialog. */
 	forced = g_getenv ("NEMO_LINK_COPY");

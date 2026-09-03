@@ -89,6 +89,7 @@ KEEP = set([
 	"You have chosen to hide the main menu.  You can get it back temporarily by:\\n\\n- Tapping the <Alt> key\\n- Right-clicking an empty region of the main toolbar\\n- Right-clicking an empty region of the status bar.\\n\\nYou can restore it permanently by selecting this option again from the View menu.",
 	# Windows names both of these itself, capitals and all.
 	"Windows allows symlinks only with Developer Mode turned on, or when running as administrator.",
+	"Symlinks need Developer Mode turned on, or nemo running as administrator.",
 	"Only a file on this computer can go to the Recycle Bin.",
 	"The Recycle Bin refused it (error %d).",
 	# A window title: the file's name, then what the window is.
