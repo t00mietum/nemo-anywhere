@@ -354,6 +354,20 @@ nemo_associations_win32_command_of (GAppInfo *app)
 	return app != NULL ? g_object_get_data (G_OBJECT (app), DATA_COMMAND) : NULL;
 }
 
+/* GIO's own entries answer with the same registry command line ours carry, so
+ * anything with one can be started the same way. A store app has none. */
+const gchar *
+nemo_associations_win32_command_for_app (GAppInfo *app)
+{
+	const gchar *command = nemo_associations_win32_command_of (app);
+
+	if (command == NULL && app != NULL) {
+		command = g_app_info_get_commandline (app);
+	}
+
+	return command;
+}
+
 GAppInfo *
 nemo_associations_win32_default_for_type (const gchar *content_type)
 {

@@ -188,16 +188,21 @@ nemo_launch_application_by_uri (GAppInfo *application,
                                                         gather_pid_callback, application,
                                                         &error);
 #elif defined (G_OS_WIN32)
-    /* An app made from a registry template or an override carries its own
-     * command line, with %1 to fill in; GIO would only append the file to it. */
-    if (nemo_associations_win32_command_of (application) != NULL) {
-        result = nemo_associations_win32_launch (nemo_associations_win32_command_of (application),
-                                                 locations, &error);
-    } else {
-        result = g_app_info_launch_uris (application,
-                                         uris,
-                                         G_APP_LAUNCH_CONTEXT (launch_context),
-                                         &error);
+    {
+        /* Everything with a command line goes through the broker, so the
+         * program is never started as our child - GIO's own launch makes it
+         * one, hooks and inherited environment and all. Only a store app has
+         * no command line to give. */
+        const gchar *command = nemo_associations_win32_command_for_app (application);
+
+        if (command != NULL) {
+            result = nemo_associations_win32_launch (command, locations, &error);
+        } else {
+            result = g_app_info_launch_uris (application,
+                                             uris,
+                                             G_APP_LAUNCH_CONTEXT (launch_context),
+                                             &error);
+        }
     }
 #else
     result = g_app_info_launch_uris (application,

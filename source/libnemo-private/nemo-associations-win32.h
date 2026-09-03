@@ -18,6 +18,10 @@ GAppInfo    *nemo_associations_win32_default_for_type (const gchar *content_type
  * NULL for one that came from GIO. */
 const gchar *nemo_associations_win32_command_of      (GAppInfo    *app);
 
+/* The command line to start any app info with, ours or GIO's. NULL when the
+ * app has none to give, which only a store app does. */
+const gchar *nemo_associations_win32_command_for_app (GAppInfo    *app);
+
 gboolean     nemo_associations_win32_launch          (const gchar  *command,
 						      GList        *locations,
 						      GError      **error);
