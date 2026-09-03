@@ -51,6 +51,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Use new program icon ('[repo]/assets/icon.png')
+	- 🔘 Windows .exe
+	- 🔘 Linux:
+		- 🔘 Desktop launcher and running icon
+		- 🔘 Dogfood portion of CICD scripts
+		- 🔘 n8runfm bash script.
+
 - 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
 	- Opened: 20260831-164337
 
