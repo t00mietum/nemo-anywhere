@@ -87,16 +87,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
 
-- 🔘 Allow moving tabs to other windows.
-	- Opened: 20260722-172504
-
-- 🔘 Option to always show a tab.
-	- Opened: 20260722-172504
-
-- 🔘 Tabs shouldn't take up the whole space, only what's needed for title (and a reasonable minimum width).
-	- Opened: 20260723-133832
-	- With a minimum and maximum width, as a percentage, in the settings file.
-
 - 🔘 Target: BSD
 	- Opened: 20260730-185314
 
@@ -1035,6 +1025,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Allow moving tabs to other windows.
+	- Opened: 20260722-172504
+	- Closed: 20260903-160000
+	- Already worked, and was checked rather than written: a tab dragged onto another window's tab strip moves there, and one dropped on the desktop opens a window of its own.
+	- What made it look broken is that a window showing a single tab has no strip to drop onto. Turning the new "always show a tab" option on gives it one.
+
+- ✅ Option to always show a tab.
+	- Opened: 20260722-172504
+	- Closed: 20260903-160000
+	- `preferences.always-show-tabs` in the settings file, off by default. The other tab options live there too rather than in the preferences dialog.
+
+- ✅ Tabs shouldn't take up the whole space, only what's needed for title (and a reasonable minimum width).
+	- Opened: 20260723-133832
+	- Closed: 20260903-160000
+	- A tab is now as wide as its own title, between `preferences.tab-width-min-percent` (10) and `tab-width-max-percent` (25), both percentages of the tab strip.
+	- Tabs used to be set to expand, which is why three of them split the width evenly whatever they were called.
 
 - ✅ Use the new program icon (`assets/logo.png`).
 	- Closed: 20260903-140000

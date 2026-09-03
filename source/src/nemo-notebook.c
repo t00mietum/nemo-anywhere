@@ -37,6 +37,10 @@
 #include <glib/gi18n.h>
 #include <gio/gio.h>
 #include <libnemo-private/nemo-file-utilities.h>
+#include <libnemo-private/nemo-global-preferences.h>
+
+/* Floor for a tab label, so a one-letter folder still gets a usable tab. */
+#define TAB_MIN_WIDTH_CHARS 8
 #include <gtk/gtk.h>
 
 #define AFTER_ALL_TABS -1
@@ -249,12 +253,98 @@ notebook_tab_shortcut_cb(NemoNotebook *notebook, GtkDirectionType direction, gpo
 	return TRUE;
 }
 
+
+/* The tab strip is hidden with a single tab unless the preference says otherwise. */
+static void
+sync_tab_visibility (GtkNotebook *gnotebook)
+{
+	gtk_notebook_set_show_tabs (gnotebook,
+				    gtk_notebook_get_n_pages (gnotebook) > 1 ||
+				    nemo_config_get_boolean (nemo_preferences,
+							     NEMO_PREFERENCES_ALWAYS_SHOW_TABS));
+}
+
+/* Size every tab to its own title, between the two percentages of the strip's
+ * width. GtkNotebook hands a tab its MINIMUM width, which is why upstream had
+ * them all expand to fill instead - so the title's own width has to become the
+ * minimum. Measured with a layout rather than converted from an average
+ * character width, which was out by nearly a factor of two.
+ */
+static void
+clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation)
+{
+	int min_px, max_px, pages, i;
+
+	min_px = allocation->width *
+		 CLAMP (nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_TAB_WIDTH_MIN_PERCENT), 0, 100) / 100;
+	max_px = allocation->width *
+		 CLAMP (nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_TAB_WIDTH_MAX_PERCENT), 0, 100) / 100;
+	max_px = MAX (max_px, min_px);
+	pages = gtk_notebook_get_n_pages (gnotebook);
+
+	for (i = 0; i < pages; i++) {
+		GtkWidget *page, *tab_label, *label;
+		PangoLayout *layout;
+		const char *text;
+		int text_px, want, current;
+
+		page = gtk_notebook_get_nth_page (gnotebook, i);
+		tab_label = gtk_notebook_get_tab_label (gnotebook, page);
+		if (tab_label == NULL) {
+			continue;
+		}
+		label = g_object_get_data (G_OBJECT (tab_label), "label");
+		if (label == NULL) {
+			continue;
+		}
+
+		text = gtk_label_get_text (GTK_LABEL (label));
+		layout = gtk_widget_create_pango_layout (label, text);
+		pango_layout_get_pixel_size (layout, &text_px, NULL);
+		g_object_unref (layout);
+
+		want = CLAMP (text_px, min_px, max_px);
+
+		/* Guarded because this runs from size-allocate and each set queues a resize. */
+		gtk_widget_get_size_request (label, &current, NULL);
+		if (current != want) {
+			gtk_widget_set_size_request (label, want, -1);
+		}
+	}
+}
+
+static void
+notebook_size_allocate_cb (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data)
+{
+	clamp_tab_widths (GTK_NOTEBOOK (widget), allocation);
+}
+
+static void
+tab_prefs_changed_cb (NemoConfigGroup *group, const char *key, gpointer user_data)
+{
+	GtkWidget *notebook = GTK_WIDGET (user_data);
+	GtkAllocation allocation;
+
+	sync_tab_visibility (GTK_NOTEBOOK (notebook));
+	gtk_widget_get_allocation (notebook, &allocation);
+	clamp_tab_widths (GTK_NOTEBOOK (notebook), &allocation);
+}
+
 static void
 nemo_notebook_init (NemoNotebook *notebook)
 {
 	gtk_notebook_set_scrollable (GTK_NOTEBOOK (notebook), TRUE);
 	gtk_notebook_set_show_border (GTK_NOTEBOOK (notebook), FALSE);
 	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (notebook), FALSE);
+
+	g_signal_connect (notebook, "size-allocate",
+			  G_CALLBACK (notebook_size_allocate_cb), NULL);
+	g_signal_connect_object (nemo_preferences, "changed::" NEMO_PREFERENCES_ALWAYS_SHOW_TABS,
+				 G_CALLBACK (tab_prefs_changed_cb), notebook, 0);
+	g_signal_connect_object (nemo_preferences, "changed::" NEMO_PREFERENCES_TAB_WIDTH_MIN_PERCENT,
+				 G_CALLBACK (tab_prefs_changed_cb), notebook, 0);
+	g_signal_connect_object (nemo_preferences, "changed::" NEMO_PREFERENCES_TAB_WIDTH_MAX_PERCENT,
+				 G_CALLBACK (tab_prefs_changed_cb), notebook, 0);
 
 	/* Make it so that pressing ctrl+tab/ctrl+shift+tab switches the currently
 	 * focused tab.
@@ -312,6 +402,7 @@ nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 				  NemoWindowSlot *slot)
 {
 	GtkWidget *hbox, *label;
+	GtkAllocation allocation;
 	char *location_name;
 
 	g_return_if_fail (NEMO_IS_NOTEBOOK (notebook));
@@ -324,6 +415,9 @@ nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 	g_return_if_fail (GTK_IS_WIDGET (label));
 
 	gtk_label_set_text (GTK_LABEL (label), slot->title);
+
+	gtk_widget_get_allocation (GTK_WIDGET (notebook), &allocation);
+	clamp_tab_widths (GTK_NOTEBOOK (notebook), &allocation);
 
 	if (slot->location != NULL) {
 		/* Set the tooltip on the label's parent (the tab label hbox),
@@ -370,7 +464,7 @@ build_tab_label (NemoNotebook *nb, NemoWindowSlot *slot)
 
 	/* setup label */
 	label = gtk_label_new (NULL);
-    gtk_label_set_width_chars (GTK_LABEL (label), 8);
+	gtk_label_set_width_chars (GTK_LABEL (label), TAB_MIN_WIDTH_CHARS);
 	gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
 	gtk_label_set_single_line_mode (GTK_LABEL (label), TRUE);
 	gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
@@ -423,8 +517,7 @@ nemo_notebook_insert_page (GtkNotebook *gnotebook,
 										     menu_label,
 										     position);
 
-	gtk_notebook_set_show_tabs (gnotebook,
-				    gtk_notebook_get_n_pages (gnotebook) > 1);
+	sync_tab_visibility (gnotebook);
 	gtk_notebook_set_tab_reorderable (gnotebook, tab_widget, TRUE);
 	gtk_notebook_set_tab_detachable (gnotebook, tab_widget, TRUE);
 
@@ -452,7 +545,7 @@ nemo_notebook_add_tab (NemoNotebook *notebook,
 
 	gtk_container_child_set (GTK_CONTAINER (notebook),
 				 GTK_WIDGET (slot),
-				 "tab-expand", TRUE,
+				 "tab-expand", FALSE,
 				 NULL);
 
 	nemo_notebook_sync_tab_label (notebook, slot);
@@ -480,8 +573,7 @@ nemo_notebook_remove (GtkContainer *container,
 	GtkNotebook *gnotebook = GTK_NOTEBOOK (container);
 	GTK_CONTAINER_CLASS (nemo_notebook_parent_class)->remove (container, tab_widget);
 
-	gtk_notebook_set_show_tabs (gnotebook,
-				    gtk_notebook_get_n_pages (gnotebook) > 1);
+	sync_tab_visibility (gnotebook);
 
 }
 
