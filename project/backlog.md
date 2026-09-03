@@ -39,6 +39,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Randomly crashes. (At least on Windows.) Sometimes just with a focus change.
+
+- 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
+
+- 🔘 Windows: When CTRL+L to editable current path:
+	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
+	- Context menu key doesn't work on selected text.
+
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
 	- Fixed so far: the Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
