@@ -63,11 +63,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Better program icon, for both file .exe and running program. (All supported platforms.)
 	- Opened: 20260831-164337
 
-- 🔘 Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
-	- Opened: 20260826-103001
-	- Only that one button. The ancestor buttons keep the shorter menu.
-	- Note: the first pass left out the selection and extension submenus (Open With, Copy/Move To, Rename, Duplicate, Create Link, Scripts, Actions), which are tied to the live selection.
-
 - 🔘 Always operate on whole rows in list view.
 	- Opened: 20260826-103001
 	- Clicking anywhere on a row selects that row, so clicking off the text is not read as a background click - unless it is below everything listed.
@@ -144,7 +139,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260829-071437
 	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
 	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
-	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the packed exe, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
+	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the app, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
+	- `-Dir` takes a whole flattened build instead of the packed exe, so a rebuild can be looked at without packing first. That is the form to use while working.
 	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
 	- Left: demo recording, and anything spanning a reboot (that still wants the Hyper-V guest).
 
@@ -1060,6 +1056,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
+	- Opened: 20260826-103001
+	- Closed: 20260902-194500
+	- Only that one button. The ancestor buttons keep the shorter menu, which is what they had.
+	- The two menus were compared side by side and match item for item; the parent button still gives the shorter one.
 
 - ✅ The "Open with" submenu names programs by their file name.
 	- Opened: 20260902-190000

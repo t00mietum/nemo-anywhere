@@ -27,8 +27,15 @@ foreach ($d in @($Jobs, $Out, $Done)) { if (-not (Test-Path -LiteralPath $d)) { 
 
 $AppDir = Join-Path $env:LOCALAPPDATA "nemo-sbx"
 if (-not (Test-Path -LiteralPath $AppDir)) { New-Item -ItemType Directory -Path $AppDir | Out-Null }
-$exeSrc = Join-Path $Share "nemo-anywhere.exe"
-if (Test-Path -LiteralPath $exeSrc) { Copy-Item -LiteralPath $exeSrc -Destination $AppDir -Force }
+## Either a packed single exe or a whole flattened build dir. The copy is local
+## so the app is not reading itself over the mapped folder.
+$treeSrc = Join-Path $Share "app"
+$exeSrc  = Join-Path $Share "nemo-anywhere.exe"
+if (Test-Path -LiteralPath $treeSrc) {
+	Copy-Item -Path (Join-Path $treeSrc "*") -Destination $AppDir -Recurse -Force
+} elseif (Test-Path -LiteralPath $exeSrc) {
+	Copy-Item -LiteralPath $exeSrc -Destination $AppDir -Force
+}
 
 $env:SBX_SHARE = $Share
 $env:SBX_OUT   = $Out
