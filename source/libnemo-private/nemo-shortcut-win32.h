@@ -60,17 +60,6 @@ gboolean nemo_shortcut_win32_target_is_dir (const char *lnk_path,
 gboolean nemo_shortcut_win32_launch (const char  *lnk_path,
                                      GError     **error);
 
-/* Make a real NTFS symlink at link_path pointing at target_path. A different
- * thing from a .lnk: the file system follows it, so every program sees the
- * target rather than a document that happens to point somewhere. */
-gboolean nemo_shortcut_win32_create_symlink (const char  *target_path,
-                                             const char  *link_path,
-                                             GError     **error);
-
-/* Whether this process is allowed to make symlinks at all. Windows wants either
- * Developer Mode or an elevated run, so the answer is found by trying once. */
-gboolean nemo_shortcut_win32_symlinks_allowed (void);
-
 G_END_DECLS
 
 #endif /* NEMO_SHORTCUT_WIN32_H */

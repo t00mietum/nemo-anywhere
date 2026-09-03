@@ -39,11 +39,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🛠️ Ctrl+C does not seem to take. Copy from the right-click menu has to be used instead. (Seen on Linux.)
-	- Opened: 20260826-180755
-	- Not reproduced: the accelerator copies and pastes correctly in icon, list and compact view, with the selection made either by keyboard or by mouse.
-	- Note: it depends on something only the real session has, most likely where the focus was sitting. Needs one hands-on run to pin down.
-
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
 	- Fixed so far: the Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
@@ -56,43 +51,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Copying and pasting a symlink, should paste a symlink. (As it does on Linux.)
-	- Opened: 20260831-164337
-	- Deferred once, 20260831-193000. Windows will not make a symlink without Developer Mode or an elevated run, and this box has neither, so the change could be written but not tried. Needs a session where one of those is on.
-	- Follow the Windows convention by default, but ask when there is a real choice. If the source holds links and the destination can take them (filesystem, Developer Mode, or an elevated run), put up a dialog naming what the source holds, with a row per kind:
-		- File symlinks as: symlinks, or copies.
-		- Folder symlinks as: symlinks, junctions, or copies.
-		- Folder junctions as: junctions, symlinks, or copies.
-	- Anything the destination cannot take is greyed out. Each row starts on the same kind if that is possible, otherwise the nearest kind that still points at the original target, otherwise copies.
-
-- ✅ Drag and drop a file to a program should work. (E.g. a '.md' or '.txt' file to VSCodium or Notepad.)
-	- Opened: 20260831-164337
-	- Windows only. Linux drags already reach any program, GTK or not.
-	- The toolkit does drive a drag on Windows, but the file formats other programs read were never filled in on its side, and there is no way to add them from outside it. So the drag is ours now, the way the clipboard is.
-	- Done. A drag out of either view carries what Explorer's own drags carry, so other programs read it. Checked in the running app both ways: dropping on Explorer, dropping a text file on an editor, and dragging inside nemo, which still moves files as before.
-	- A move out to another program now removes the original, unless that program moved it itself or the drop came back into nemo. Control copies and shift moves, the way Windows does it.
-	- Drops coming the other way, from another file manager into nemo, copy and move too. They always copied before: nothing is known about a file dragged in from elsewhere, so nemo could not tell whether it was on the same drive and fell back to copying every time.
-	- Checked against Directory Opus in both directions, and between two nemo windows: a plain drag moves within a drive, control copies, shift moves.
-
-- 🔘 Running as administrator stops other programs dropping files into nemo.
-	- Opened: 20260902-163000
-	- Windows refuses to let a normal program hand anything to one running as administrator, drag and drop included. It is one-way: dragging OUT of nemo still works, and so does dragging inside it. Only drops coming in are lost, and nothing appears on screen to say why - the drag simply will not settle.
-	- The dogfood launcher asks for administrator by default, so a copy started that way cannot be dropped on. `--no-admin` avoids it.
-	- Needs a decision: whether to stop asking for administrator by default, or say something when a drop is refused for this reason. There is no way to accept the drop while running elevated.
-
 - 🔘 "Open With": Opening two text files in VSCodium, should open them in the same editor instance. (E.g. as it works when doing so from nemo-anywhere on Linux, or from Explorer on Windows.)
 	- Opened: 20260831-164337
-
-- 🔘 Advanced file/folder rename functionality.
-	- Opened: 20260831-164337
-	- Work in search mode too.
-	- Needs design work first.
-	- Use best of Directory Opus renamer and Thunar renamer.
-		- Including wildcard (default) or regex.
-		- With variables for various attributes, such as date/time, original name/ext, parent folder name, etc.
-	- Advanced dates: Allow obtaining date from various EXIF dates, fallback to date in filename, and final optional fallback, mtime.
-		- As already designed for sister camhauler project, including name templates for filenames.
-	- Remove Preferences|Behavior|"Bulk rename" option.
 
 - 🔘 Better program icon, for both file .exe and running program. (All supported platforms.)
 	- Opened: 20260831-164337
@@ -144,14 +104,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260730-112038
 	- Note: a major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
 
-- 🛠️ Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
-	- Opened: 20260829-071437
-	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
-	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
-	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the packed exe, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
-	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
-	- Left: demo recording, and anything spanning a reboot (that still wants the Hyper-V guest).
-
 - 🔘 New process for each window. A crash in one shouldn't affect all others.
 	- Opened: 20260722-172504
 
@@ -170,6 +122,25 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Target: macOS
 	- Opened: 20260730-185314
+
+- 🔘 Advanced file/folder rename functionality.
+	- Opened: 20260831-164337
+	- Work in search mode too.
+	- Needs design work first.
+	- Use best of Directory Opus renamer and Thunar renamer.
+		- Including wildcard (default) or regex.
+		- With variables for various attributes, such as date/time, original name/ext, parent folder name, etc.
+	- Advanced dates: Allow obtaining date from various EXIF dates, fallback to date in filename, and final optional fallback, mtime.
+		- As already designed for sister camhauler project, including name templates for filenames.
+	- Remove Preferences|Behavior|"Bulk rename" option.
+
+- 🛠️ Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
+	- Opened: 20260829-071437
+	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
+	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
+	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the packed exe, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
+	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
+	- Left: demo recording, and anything spanning a reboot (that still wants the Hyper-V guest).
 
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
@@ -1076,6 +1047,30 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Copying and pasting objects that includes symlinks or junctions, should open up an option dialog. (All OSes.)
+	- Opened: 20260831-164337
+	- Closed: 20260902-170000
+	- Only ask when there is a viable choice. If the source holds links and the destination can take them (filesystem, Developer Mode, or an elevated run), put up a dialog naming what the source holds, with a row per kind:
+		- File symlinks as: symlinks, or copies.
+		- Folder symlinks as: symlinks, junctions [Windows], or copies.
+		- Folder junctions [Windows] as: junctions, symlinks, or copies.
+	- Anything the destination cannot take is greyed out. Junction-related options not shown for non-Windows OSes. Each row starts on the same kind if that is possible, otherwise the nearest kind that still points at the original target, otherwise copies.
+	- Done, and on every platform. The dialog names only the kinds the source actually holds, and greys out anything the destination cannot take.
+	- Windows had the real gap: a copy always followed the link and left the contents behind, so a link could not be copied at all. POSIX already kept symlinks; what is new there is being able to ask for the contents instead.
+	- The kind of a Windows link comes from the reparse tag. Nothing else tells a junction from a folder symlink, and it also keeps cloud placeholders and store app aliases - which are reparse points too - from being read as links.
+	- A link keeps its own spelling, so a relative one still points where it pointed. Asking for a junction is the exception: those can only name a full path, so a relative target is resolved first.
+	- A link now counts as one item in the copy rather than a folder to walk into, which is what POSIX always did and Windows never did.
+
+- ✅ Drag and drop a file to a program should work. (E.g. a '.md' or '.txt' file to VSCodium or Notepad.)
+	- Opened: 20260831-164337
+	- Closed: 20260902-000000
+	- Windows only. Linux drags already reach any program, GTK or not.
+	- The toolkit does drive a drag on Windows, but the file formats other programs read were never filled in on its side, and there is no way to add them from outside it. So the drag is ours now, the way the clipboard is.
+	- Done. A drag out of either view carries what Explorer's own drags carry, so other programs read it. Checked in the running app both ways: dropping on Explorer, dropping a text file on an editor, and dragging inside nemo, which still moves files as before.
+	- A move out to another program now removes the original, unless that program moved it itself or the drop came back into nemo. Control copies and shift moves, the way Windows does it.
+	- Drops coming the other way, from another file manager into nemo, copy and move too. They always copied before: nothing is known about a file dragged in from elsewhere, so nemo could not tell whether it was on the same drive and fell back to copying every time.
+	- Checked against Directory Opus in both directions, and between two nemo windows: a plain drag moves within a drive, control copies, shift moves.
 
 - ✅ Move all Windows-related options to a "Windows" preferences pane; and in the config file, to a grouped section.
 	- Opened: 20260831-164337

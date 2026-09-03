@@ -12,6 +12,7 @@
 #ifdef G_OS_WIN32
 
 #include <libnemo-private/nemo-shortcut-win32.h>
+#include <libnemo-private/nemo-link-win32.h>
 
 #define COBJMACROS
 #include <windows.h>
@@ -381,9 +382,9 @@ main (int argc, char *argv[])
 	{
 		char *sym = g_build_filename (dir, "symlink-to-target", NULL);
 		GError *serr = NULL;
-		gboolean made = nemo_shortcut_win32_create_symlink (target, sym, &serr);
+		gboolean made = nemo_win32_link_create_default (target, sym, &serr);
 
-		check (made == nemo_shortcut_win32_symlinks_allowed ());
+		check (made == nemo_win32_link_symlinks_allowed ());
 
 		if (made) {
 			char *back = NULL;
@@ -405,7 +406,7 @@ main (int argc, char *argv[])
 			/* A name already taken has to read as a clash, or the caller
 			 * cannot uniquify it and just gives up. */
 			g_clear_error (&serr);
-			check (!nemo_shortcut_win32_create_symlink (target, sym, &serr));
+			check (!nemo_win32_link_create_default (target, sym, &serr));
 			check (serr != NULL && g_error_matches (serr, G_IO_ERROR, G_IO_ERROR_EXISTS));
 
 			g_unlink (sym);
@@ -433,7 +434,7 @@ main (int argc, char *argv[])
 		check (g_mkdir (folder, 0755) == 0);
 		check (g_file_set_contents (inside, "junction", -1, NULL));
 
-		check (nemo_shortcut_win32_create_symlink (folder, link, &jerr));
+		check (nemo_win32_link_create_default (folder, link, &jerr));
 		check (jerr == NULL);
 
 		/* Reads through to the target, and is a reparse point rather than a
@@ -456,7 +457,7 @@ main (int argc, char *argv[])
 
 		/* A taken name still has to read as a clash so the caller can
 		 * uniquify it. */
-		check (!nemo_shortcut_win32_create_symlink (folder, link, &jerr));
+		check (!nemo_win32_link_create_default (folder, link, &jerr));
 		check (jerr != NULL && g_error_matches (jerr, G_IO_ERROR, G_IO_ERROR_EXISTS));
 		g_clear_error (&jerr);
 

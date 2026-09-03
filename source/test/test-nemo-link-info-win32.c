@@ -18,6 +18,7 @@
 #include <libnemo-private/nemo-file-private.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-shortcut-win32.h>
+#include <libnemo-private/nemo-link-win32.h>
 
 static int failures = 0;
 
@@ -193,8 +194,8 @@ main (int argc, char *argv[])
 	g_mkdir (real_dir, 0755);
 
 	made_links = g_file_set_contents (real_file, "not really a picture", -1, NULL) &&
-		     nemo_shortcut_win32_create_symlink (real_dir, dir_link, NULL) &&
-		     nemo_shortcut_win32_create_symlink (real_file, file_link, NULL);
+		     nemo_win32_link_create_default (real_dir, dir_link, NULL) &&
+		     nemo_win32_link_create_default (real_file, file_link, NULL);
 
 	if (!made_links) {
 		/* a file symlink needs Developer Mode or an elevated run */

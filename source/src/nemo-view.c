@@ -70,6 +70,7 @@
 #include <libnemo-extension/nemo-menu-provider.h>
 #include <libnemo-private/nemo-bookmark.h>
 #include <libnemo-private/nemo-shortcut-win32.h>
+#include <libnemo-private/nemo-link-win32.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-clipboard-monitor.h>
 #include <libnemo-private/nemo-search-directory.h>
@@ -10781,7 +10782,7 @@ real_update_menus (NemoView *view)
 	   running elevated, so the item goes grey rather than failing on use. A
 	   folder is the exception - it gets a junction, which needs no privilege. */
 	gtk_action_set_sensitive (action, can_link_files &&
-				  (nemo_shortcut_win32_symlinks_allowed () ||
+				  (nemo_win32_link_symlinks_allowed () ||
 				   selection_is_all_directories (selection)));
 #else
 	gtk_action_set_sensitive (action, can_link_files);
