@@ -116,11 +116,11 @@ if is_windows
     output:        'nemo-anywhere.rc',
     configuration: rc_conf,
   )
-  # The .rc is generated into the build dir, so the manifest it names has to be
-  # findable from the source dir as well.
+  # The .rc is generated into the build dir, so the manifest and icon it names
+  # have to be findable from the source dir as well.
   nemo_win_res = winmod.compile_resources(nemo_rc,
     include_directories: include_directories('.'),
-    depend_files:        files('nemo-anywhere.manifest'),
+    depend_files:        files('nemo-anywhere.manifest', 'nemo-anywhere.ico'),
   )
 endif
 
