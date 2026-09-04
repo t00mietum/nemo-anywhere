@@ -77,8 +77,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260819-141014
 	- Need to think through the UX.
 
-- 🔘 Search options: Flat [ ]  Hierarchical [ ]
+- ✅ Search options: Flat [ ]  Hierarchical [ ]
 	- Opened: 20260819-141014
+	- Read as a display mode, not another scope switch - the search bar already has a toggle for recursing into subfolders.
+	- Done 20260903. A toggle beside the recurse one groups results under the folder holding them, labeled with the path under the folder searched. Flat is still the default.
+	- Grouped drops the Location column, since the row above every match already says where it is. Switching either way is instant and does not run the search again.
 
 - ✅ Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
 	- Opened: 20260730-112038

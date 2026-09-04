@@ -113,6 +113,17 @@ NemoFile *    nemo_list_model_file_for_path (NemoListModel *model, GtkTreePath *
 gboolean          nemo_list_model_load_subdirectory (NemoListModel *model, GtkTreePath *path, NemoDirectory **directory);
 void              nemo_list_model_unload_subdirectory (NemoListModel *model, GtkTreeIter *iter);
 
+/* Grouped search results. A group row stands for a folder holding matches; it is
+   not a folder the view opened, so it is never monitored or unloaded. */
+NemoDirectory *   nemo_list_model_add_search_group      (NemoListModel *model,
+							 NemoFile      *dir_file,
+							 const char    *label,
+							 gboolean      *created);
+gboolean          nemo_list_model_search_group_is_empty (NemoListModel *model,
+							 NemoDirectory *directory);
+void              nemo_list_model_remove_search_group   (NemoListModel *model,
+							 NemoDirectory *directory);
+
 void              nemo_list_model_set_drag_view (NemoListModel *model,
 						     GtkTreeView *view,
 						     int begin_x, 

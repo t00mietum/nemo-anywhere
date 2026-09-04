@@ -123,6 +123,8 @@ Everything that makes Nemo worth porting:
 
 - A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
 
+- Search results can be grouped under the folder they came from. A flat list of thirty files all called `notes.txt` tells you nothing; a row per folder with the matches under it tells you where to look. One toggle in the search bar, and the same results either way.
+
 - Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema.
 
 - Stays Nemo. Same code lineage, GPL intact.

@@ -44,6 +44,7 @@ typedef struct
     GtkWidget *file_case_toggle;
     GtkWidget *file_regex_toggle;
     GtkWidget *file_recurse_toggle;
+    GtkWidget *file_group_toggle;
     GtkWidget *content_entry;
     GtkWidget *content_entry_combo;
     GtkWidget *content_case_toggle;
@@ -271,6 +272,16 @@ file_recurse_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
                             gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->file_recurse_toggle)));
 }
 
+/* Purely how results are shown, so it changes no query - the list view picks the
+   setting up and rebuilds from what it already has. */
+static void
+file_group_button_toggled_cb (GtkWidget *toggle, NemoQueryEditor *editor)
+{
+    nemo_config_set_boolean (nemo_search_preferences,
+                            NEMO_PREFERENCES_SEARCH_GROUP_BY_FOLDER,
+                            gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (editor->priv->file_group_toggle)));
+}
+
 static gboolean
 on_key_press_event (GtkWidget    *widget,
                     GdkEvent     *event,
@@ -406,6 +417,16 @@ nemo_query_editor_init (NemoQueryEditor *editor)
     g_signal_connect (priv->file_recurse_toggle,
                       "toggled",
                       G_CALLBACK (file_recurse_button_toggled_cb),
+                      editor);
+
+    priv->file_group_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "file_search_group_toggle"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->file_group_toggle),
+                                  nemo_config_get_boolean (nemo_search_preferences,
+                                                          NEMO_PREFERENCES_SEARCH_GROUP_BY_FOLDER));
+
+    g_signal_connect (priv->file_group_toggle,
+                      "toggled",
+                      G_CALLBACK (file_group_button_toggled_cb),
                       editor);
 
     priv->file_regex_toggle = GTK_WIDGET (gtk_builder_get_object (builder, "file_search_regex_toggle"));
