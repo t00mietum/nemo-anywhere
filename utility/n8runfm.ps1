@@ -1,91 +1,89 @@
 #!/usr/bin/env pwsh
 
 ##	Purpose:
-##		- Cross-platform (PowerShell 7) dogfood launcher for Nemo Anywhere, same
-##		  concept as silkterm's n8runterm: keep a small pool of date-stamped
-##		  release copies in a local target dir and launch the newest, passing
-##		  through any arguments. Independent of the cicd pipeline.
-##		- A copy is stamped 'nemofmdf_<YYYYMMDD-HHMMSS>_<tag>' (+ '.exe' on Windows),
-##		  where the stamp is the source build's mtime - a given build is copied once,
-##		  and a running copy never blocks the copy. On Windows the copy is a single
-##		  self-contained exe (a file); on Linux it's the whole prefix dir (a tree).
-##		- Each run, in order: delete idle copies over 7 days old (in use = a running
-##		  process that IS the copy exe, or on Linux whose image lives inside the copy
-##		  dir); probe every source and refresh from whichever holds the newest build;
-##		  launch the newest copy. Each step says what it found and what it decided.
-##		- Every source is probed, not just the first that answers - the newest build
-##		  wins wherever it happens to be sitting. In listing order:
-##			local build  this box's own repo build under cicd/artifacts, if the clone is here
-##			b23          the Linux box across the network (a UNC path from Windows; its
-##			             own local path when the launcher is running on b23 itself)
-##			dogfood      the synced by-self drop, whatever the sync layer last brought in
-##		  A source on a network share only gets a moment to answer - an unreachable
-##		  one must not hold up a launch a held copy can serve. Two sources holding
-##		  the same build are reported once, not counted twice.
-##		- The tag in the copy name is the platform the build is for:
-##			lin  the dogfood prefix nemo-anywhere.app (Linux)
-##			win  the packed single exe from the native build (Windows)
-##		- On Linux the launcher wires the runtime env itself (loader path, schemas,
-##		  data dirs) at the stamped copy; on Windows the packed exe carries its whole
-##		  runtime, so nothing is wired. Either way it starts the app detached and
-##		  exits - on unix the app's own output goes to a log in the target dir, since
-##		  it no longer has the caller's console.
-##		- Opens at a configured startup location so a plain launch lands somewhere
-##		  useful. A path or URI given on the command line wins over it, and if the
-##		  configured place isn't there the app opens wherever it would have anyway.
-##		- If no copy is held and the source is unreachable, falls back to the
-##		  first installed known file manager.
-##		- On Windows, runs the WHOLE launcher elevated - it self-elevates via a UAC
-##		  prompt, so the copy, the log and the launched app all get admin rights. A
-##		  shortcut click behaves like running from an elevated shell instead of
-##		  silently launching a stale build, and the app gets
-##		  SeCreateSymbolicLinkPrivilege, which a filtered token drops. '--no-admin'
-##		  opts out. Not offered on unix, where a file manager running as root is a
-##		  footgun.
-##		- Reports a failure, a rejected argument or a skipped copy in a dialog when
-##		  launched from a shortcut (or with '--gui'), since a click's console just
-##		  flashes shut. '--admin'/'--no-admin'/'--gui' are consumed here; the rest is
-##		  checked against the app's own options and then forwarded.
+##		- Dogfood launcher for Nemo Anywhere, Windows and Linux from the one script.
+##		  Keeps a pool of date-stamped copies, refreshes it from whichever source is
+##		  holding the newest build, and launches the newest, passing arguments through.
+##		- A copy is named 'nemofmdf_<YYYYMMDD-HHMMSS>_<tag>' (+ '.exe' on Windows) where
+##		  the stamp is the source build's mtime, so a build is copied once and a running
+##		  copy never blocks the next one. On Windows a copy is the packed single exe; on
+##		  Linux it is the whole relocatable prefix, and the launcher wires its runtime
+##		  environment before handing off.
+##		- Every source is probed each run rather than tried in order, so the newest
+##		  build wins wherever it happens to sit. A source on a share gets a short
+##		  timeout, and two sources holding the same build are reported once.
+##		- Also sweeps idle copies over a week old, opens at a configured startup
+##		  location when the caller names none, and falls back to another file manager
+##		  when there is nothing of ours to launch.
+##		- On Windows it self-elevates, so a shortcut click behaves like running from an
+##		  elevated shell rather than silently launching a stale build. Not offered on
+##		  unix, where a file manager running as root is a footgun.
+##		- '--admin', '--no-admin' and '--gui' are consumed here; everything else is
+##		  checked against the app's own options and forwarded.
 ##	History: At bottom of script.
-
-
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Configuration
-
-## Where builds come from. Every entry is probed each run and the newest build
-## wins - a source is not a fallback for the one above it. Each entry lists one or
-## more roots because a clone or a sync root sits in a different place per box;
-## every root is probed and the newest build among them is that source's build.
-## Nothing here has to exist.
-##
-## The 'main binary' relative path below turns a root into the thing actually
-## looked at: the reachability probe, the build stamp (its mtime) and the size.
-## On Windows the root IS the packed exe, so there is no sub-path.
 
 ##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
 ##	Licensed under The MIT License (MIT). Full text at:
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
+
+
+#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+# Configuration
+
+## The same tree gets spelled differently from box to box - a junction, a sync root
+## that is a symlink, a clone somewhere else - so every source lists several roots
+## and all of them are probed. Nothing here has to exist. The newest build across a
+## source's roots is that source's build; an exact tie keeps the first, which is the
+## local spelling of a junction pair.
+##
+## $SourceMainBin turns a root into the thing actually looked at - reachability, the
+## build stamp (its mtime) and the size. On Windows the root IS the packed exe, so
+## there is no sub-path.
+
+$User = if ($IsWindows) { $env:USERNAME } else { $env:USER }
+
+## Roots a clone of this repo may sit under, and the path to it inside one.
+$RepoTrees = if ($IsWindows) {
+	@(
+		"C:\opt\0-0\users\${User}\data\prs\dev"
+		"C:\0-0\users\${User}\data\prs\dev"
+	)
+} else {
+	@(
+		"/mnt/zfs/zf10/0-0/users/${User}/data/prs/dev"
+		"/opt/0-0/users/${User}/data/prs/dev"
+		(Join-Path $HOME "data/prs/dev")
+	)
+}
+$RepoRel = "github.com/t00mietum/nemo-anywhere/github"
+
+## Roots the synced 0-0 tree may sit under. On unix ~/synced and ~/.synced/Dropbox
+## are usually the same directory; listing both costs one stat and covers the box
+## where only one of them is there.
+$SyncedTrees = if ($IsWindows) {
+	@("C:\opt\0-0", "C:\0-0")
+} else {
+	@(
+		(Join-Path $HOME "synced/0-0")
+		(Join-Path $HOME ".synced/Dropbox/0-0")
+	)
+}
+
 if ($IsWindows) {
 	## Single self-contained exe (extension + whole GTK runtime packed in), so a
 	## copy is one file, not a prefix tree - the same shape as silkterm's n8runterm.
 	$Sources = @(
 		@{
-			## This box's own build, straight out of the repo - what cicd-win.ps1
-			## packs. C:\opt\0-0 is a junction to C:\0-0 here, but another box may
-			## have only one of them, so both are listed and the duplicate is
-			## reported once rather than counted as a second build.
+			## This box's own build, straight out of the repo - what cicd-win.ps1 packs.
 			Label = "local build"
-			Roots = @(
-				"C:\opt\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
-				"C:\0-0\users\collierjr\data\prs\dev\github.com\t00mietum\nemo-anywhere\github\cicd\artifacts\win-portable\nemo-anywhere.exe"
-			)
+			Roots = @($RepoTrees | ForEach-Object {
+				Join-Path $_ "${RepoRel}/cicd/artifacts/win-portable/nemo-anywhere.exe" })
 		}
 		@{
 			## The Linux box's own drop, read straight off its share. Same file the
 			## sync layer eventually brings here, but reachable now rather than
-			## whenever the sync client next gets round to it - which is the whole
-			## point of probing it separately from the local copy below.
+			## whenever the sync client next gets round to it.
 			Label = "b23"
 			Roots = @(
 				"\\b23\home-collierjr\synced\0-0\common\exec\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
@@ -94,9 +92,8 @@ if ($IsWindows) {
 		@{
 			## The synced by-self drop on this box, wherever it came from.
 			Label = "dogfood"
-			Roots = @(
-				"C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
-			)
+			Roots = @($SyncedTrees | ForEach-Object {
+				Join-Path $_ "common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere.exe" })
 		}
 	)
 	$SourceMainBin = ""            # the source IS the exe (single file, no sub-path)
@@ -106,31 +103,23 @@ if ($IsWindows) {
 	## The pool sits in the LOCAL (not synced) by-self folder, beside n8runterm's -
 	## stamped copies are per-box churn and must not ride the sync. Created if absent.
 	$TargetDir     = "C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64"
+	$LogDir        = $TargetDir
 } else {
 	$Sources = @(
 		@{
-			## A host-side prefix staged out of the repo by cicd/linux/stage-prefix.bash.
-			## The Linux dogfood stage is still disabled, so this is normally absent
-			## and warn-skips; the slot is here so it just works once it is enabled.
+			## The prefix cicd/linux/release.bash stages out of this box's own repo.
 			Label = "local build"
-			Roots = @(
-				"/opt/0-0/users/collierjr/data/prs/dev/github.com/t00mietum/nemo-anywhere/github/cicd/artifacts/dogfood/nemo-anywhere"
-				(Join-Path $HOME "data/prs/dev/github.com/t00mietum/nemo-anywhere/github/cicd/artifacts/dogfood/nemo-anywhere")
-			)
+			Roots = @($RepoTrees | ForEach-Object {
+				Join-Path $_ "${RepoRel}/cicd/artifacts/dogfood/nemo-anywhere" })
 		}
 		@{
-			## b23 IS the Linux box, so from here its drop is a local path; the /mnt
-			## spelling covers running from some other unix box with the share mounted.
-			Label = "b23"
-			Roots = @(
-				(Join-Path $HOME "synced/0-0/common/exec/util/linux/nemo-anywhere.app")
-				"/mnt/b23/home-collierjr/synced/0-0/common/exec/util/linux/nemo-anywhere.app"
-			)
-		}
-		@{
+			## The fixed-name install the pipeline's dogfood stage writes, which the
+			## sync layer then carries between boxes. /mnt/b23 covers running from
+			## another unix box with that share mounted.
 			Label = "dogfood"
 			Roots = @(
-				(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/linux/nemo-anywhere.app")
+				($SyncedTrees | ForEach-Object { Join-Path $_ "common/exec/util/linux/nemo-anywhere.app" })
+				"/mnt/b23/home-collierjr/synced/0-0/common/exec/util/linux/nemo-anywhere.app"
 			)
 		}
 	)
@@ -138,7 +127,11 @@ if ($IsWindows) {
 	$SourceTag     = "lin"
 	$CopyIsFile    = $false        # a held copy is the whole prefix dir
 	$CopyExt       = ""
-	$TargetDir     = Join-Path $HOME ".local/share/nemo-anywhere-dogfood"
+	## Same pool the pipeline's rotating dogfood install writes to, so a build made
+	## on this box is already here and never has to be copied from anywhere.
+	$TargetDir     = Join-Path $HOME ".local/bin"
+	## Logs stay out of a PATH directory.
+	$LogDir        = Join-Path $HOME ".local/share/nemo-anywhere-dogfood"
 }
 
 ## How long a source on a network share gets to answer the probe. An unreachable
@@ -232,14 +225,14 @@ $ValueAppOptions = @(
 	"--gtk-module", "--gdk-debug", "--gdk-no-debug", "--gtk-debug", "--gtk-no-debug"
 )
 
-## Per-run decision log, kept in the target dir, so a closed console can't lose
-## the copy/skip reasons behind a launch.
-$RunLog = Join-Path $TargetDir "n8runfm.log"
+## Per-run decision log, so a closed console can't lose the copy/skip reasons
+## behind a launch.
+$RunLog = Join-Path $LogDir "n8runfm.log"
 
 ## Unix only: where the detached app's own output goes (GTK/GLib gripes and any
 ## crash message), since it no longer has the caller's console. Appended to and
 ## trimmed like the run log.
-$AppLog = Join-Path $TargetDir "n8runfm-app.log"
+$AppLog = Join-Path $LogDir "n8runfm-app.log"
 
 ## Stamp format shared by the copy name and every date comparison below.
 $StampFormat = "yyyyMMdd-HHmmss"
@@ -259,8 +252,10 @@ $RunningPaths = $null
 function fMain {
 	param([string[]]$PassArgs)
 
-	if (-not (Test-Path -LiteralPath $TargetDir)) {
-		New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+	foreach ($dir in @($TargetDir, $LogDir)) {
+		if (-not (Test-Path -LiteralPath $dir)) {
+			New-Item -ItemType Directory -Path $dir -Force | Out-Null
+		}
 	}
 
 	fTrimLog $RunLog
@@ -304,8 +299,6 @@ function fMain {
 	fWarn -Gui "no dogfood copy held and no source reachable; trying fallbacks"
 	$null = fLaunchFallback -PassArgs $PassArgs
 }
-
-
 
 
 ## Refuse an option the app will reject, rather than forwarding it into a silent
@@ -395,22 +388,14 @@ function fSourceProbePath {
 }
 
 
-## Ask every configured source what build it is holding, report each one as it
-## answers, and return a row per source:
+## Ask every source what build it is holding. One row per source:
 ##   { Label, Root, Probe, Stamp(DateTime), Length, Reachable, Duplicate }
 ##
-## Roots are usually alternate spellings of the same place (a clone root that differs
-## per box, a junction, a share mounted somewhere else), but not always - on some box
-## two of them really are separate trees holding different builds. So every root is
-## probed and the newest build among them is that source's build; an exact tie keeps
-## the first, which is the local spelling of a junction pair.
-##
-## Two sources can legitimately hold the SAME build - the sync layer copies the
-## local drop to the other box and back. Sameness is decided on the build itself
-## (stamp plus size), not on the path, because a junction, a symlink and a UNC
-## spelling of one file all look like different paths and none of them is a second
-## build. The later one is flagged so the report says so once and the copy step
-## ignores it.
+## Every root is probed, not just the first to answer - on some boxes two of them
+## really are separate trees. Two sources holding the same build is normal, since the
+## sync layer copies one drop to the other box and back, so sameness is judged on the
+## build (stamp plus size) rather than the path; the later one is flagged so it is
+## reported once and the copy step ignores it.
 function fProbeSources {
 	$rows = @()
 
@@ -467,21 +452,14 @@ function fProbeSources {
 }
 
 
-## The first earlier source found to be holding the same build as this one, or
-## $null. Same build = identical size, and stamps no further apart than
-## $SameBuildSlackSec.
+## The first earlier source holding the same build as this one, or $null. Same build
+## = identical size, and stamps within $SameBuildSlackSec.
 ##
-## Identical size is the strong half of the test. The slack is there because a
-## build's mtime does not survive the sync layer intact - it comes back rounded to
-## whole seconds, and nothing promises it rounds DOWN. Without slack, a build that
-## rounded up reads as one second newer than the very copy it was made from, and
-## the launcher drags tens of megabytes across the network to fetch a build already
-## sitting on this disk. Two genuinely different builds of byte-identical size
-## seconds apart is not a thing that happens.
-##
-## Marking a later source a duplicate never costs us the build: the earlier source
-## holding it is by definition reachable, and every source stands on its own the
-## moment what it holds actually differs.
+## Size is the strong half. The slack covers the sync layer rounding an mtime to
+## whole seconds without promising to round down: a build that rounds up reads as
+## newer than the copy it was made from, and tens of megabytes come back across the
+## network for nothing. Two different builds of identical size seconds apart does
+## not happen.
 function fSameBuild {
 	param(
 		[Parameter(Mandatory)]$Row,
@@ -532,8 +510,6 @@ function fProbeBuild {
 	$script:ProbeNote = "gave up after ${ProbeTimeoutMs}ms"
 	return $null
 }
-
-
 
 
 ## True for a path that may be served over the network - a UNC name, a drive letter
@@ -617,8 +593,6 @@ function fCopyIfNewer {
 }
 
 
-
-
 ## Delete stamped copies whose build is older than $MaxAgeDays, skipping any
 ## with a running process inside (a delete that throws is also treated as in
 ## use). Only ever touches dirs matching THIS launcher's own name spec - never
@@ -663,18 +637,18 @@ function fDeleteStaleTmp {
 }
 
 
-## Windows only: clear out copies left by the pre-single-exe layout, when a copy
-## was the whole app\+mingw64\ tree rather than one exe. The sweeps above look for
-## files now, so those dirs are invisible to them and would sit there for good at
-## a couple of hundred MB each. Same self-heal the cicd dogfood stage does to the
-## old bundle folder in the synced drop.
+## Copies an older layout left behind: on Windows the pre-single-exe ones, where a
+## copy was the whole app\+mingw64\ tree rather than one exe; on unix the pool from
+## before it moved into ~/.local/bin. Neither is visible to the sweeps above, so
+## both would sit there for good at a couple of hundred MB each.
 function fRetireLegacyCopies {
-	if (-not $CopyIsFile) { return }
+	$legacyDir = if ($CopyIsFile) { $TargetDir } else { Join-Path $HOME ".local/share/nemo-anywhere-dogfood" }
+	if (-not (Test-Path -LiteralPath $legacyDir)) { return }
 
 	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?(\.tmp)?$"
 	$running = @(fRunningExePaths)
 
-	Get-ChildItem -LiteralPath $TargetDir -Directory -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
+	Get-ChildItem -LiteralPath $legacyDir -Directory -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
 		Where-Object { $_.Name -match $rx } |
 		ForEach-Object {
 			$prefix = $_.FullName + [System.IO.Path]::DirectorySeparatorChar
@@ -684,7 +658,7 @@ function fRetireLegacyCopies {
 			}
 			try {
 				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
-				fNote "retired pre-single-exe copy: $($_.Name)"
+				fNote "retired copy from the old layout: $($_.Name)"
 			} catch {
 				fNote "kept (locked): $($_.Name)"
 			}
@@ -895,24 +869,19 @@ function fFindOnPath {
 }
 
 
-## Launch the app detached and return the Process, so the launcher can exit
-## immediately while the app keeps running. Returning the Process lets a caller
-## (e.g. a test harness) stop this exact instance by PID - matching on name
-## risks hitting another copy launched elsewhere.
+## Launch detached and return the Process, so the launcher exits while the app runs
+## on. The Process lets a test harness stop this exact instance by PID; matching on
+## name risks hitting a copy someone else started.
 ##
 ## Windows needs nothing extra: with no redirections Start-Process goes through
-## ShellExecute, which already gives the app its own process and console.
+## ShellExecute, which already detaches.
 ##
-## Unix hands the app our own stdout/stderr, so it holds the caller's pipe open
-## for its whole life - `n8runfm | cat` blocks until the app quits, and its
-## warnings land in a console that has long moved on. Fix it in the shell rather
-## than with Start-Process -RedirectStandard*: those pump through a pipe owned by
-## THIS process, so once we exit the app's output is dropped and it eventually
-## blocks on the full pipe. 'sh -c exec' re-points all three streams at real fds
-## and then execs in place, so the app itself owns them; setsid in front (also
-## exec-in-place) gives it a fresh session, out of reach of a terminal hangup.
-## Both execs keep the PID, so the one reported is the app's own. The log path
-## rides an env var to keep quotes out of the command line.
+## Unix would hand the app our own stdout, holding the caller's pipe open for the
+## app's whole life. Start-Process -RedirectStandard* is worse - it pumps through a
+## pipe owned by THIS process, so the app's output is dropped once we exit. Do it in
+## the shell instead: setsid and sh both exec in place, so the app owns real fds, sits
+## in a fresh session out of reach of a terminal hangup, and keeps the reported PID.
+## The log path rides an env var to keep quotes off the command line.
 function fStartApp {
 	param(
 		[Parameter(Mandatory)][string]$Exe,

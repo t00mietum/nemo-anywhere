@@ -121,8 +121,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
 
-- 🔘 Wire the Linux release lane into the pipeline engine itself. Its collector still assumes a bare binary and Cargo-shaped versions, so `RELEASE_ENABLE` stays 0.
+- ✅ Wire the Linux release lane into the pipeline engine itself, rather than leaving it a script to remember to run by hand.
 	- Opened: 20260804-133646
+	- Done: the lane runs as stage 5. `RELEASE_COLLECT=0` keeps the engine's collector out of the artifact dir, since release.bash already writes the tarball and the sums there itself.
+	- The release smoke check had been failing since the version string gained a build number, so every release since then repackaged an older tarball. It matches on a prefix now.
+
+- ✅ Dogfood the Linux build from the pipeline. It had never been wired up, so the launcher was serving a build from July.
+	- Opened: 20260904-160000
+	- Stage 7 understands a relocatable prefix, not just a single binary: the fixed install puts the tree beside the bin dir and points the name on PATH into it, and the rotating copy is the whole tree under a dated name.
+	- The dated name carries the build's own mtime rather than the run clock, so the pipeline's copy and the launcher's copy of one build agree and neither re-fetches it.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
