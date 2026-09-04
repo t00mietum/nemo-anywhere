@@ -31,11 +31,13 @@
 #include "nemo-link.h"
 #include <eel/eel-glib-extensions.h>
 #include <eel/eel-gtk-extensions.h>
+#include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
 #include <eel/eel-vfs-extensions.h>
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
 #include <libnemo-private/nemo-file-utilities.h>
+#include <libnemo-private/nemo-global-preferences.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-dnd-win32.h>
 #endif
@@ -1015,6 +1017,135 @@ nemo_drag_drop_action_ask (GtkWidget *widget,
 	g_object_unref (menu);
 
 	return damd.chosen;
+}
+
+gboolean
+nemo_drag_confirm_needed (GdkDragAction action,
+			      const char   *target_uri)
+{
+	/* The trash asks for itself, under its own setting. */
+	if (target_uri != NULL && eel_uri_is_trash (target_uri)) {
+		return FALSE;
+	}
+
+	switch (action) {
+	case GDK_ACTION_MOVE:
+		return nemo_config_get_boolean (nemo_preferences,
+						NEMO_PREFERENCES_CONFIRM_DRAG_MOVE);
+	case GDK_ACTION_COPY:
+	case GDK_ACTION_LINK:
+	case GDK_ACTION_DEFAULT:
+		return nemo_config_get_boolean (nemo_preferences,
+						NEMO_PREFERENCES_CONFIRM_DRAG_COPY);
+	default:
+		return FALSE;
+	}
+}
+
+/* Full destination, spelled the way the location bar would. */
+static char *
+drag_parse_name (const char *uri)
+{
+	GFile *file;
+	char  *path;
+
+	if (uri == NULL) {
+		return NULL;
+	}
+
+	file = g_file_new_for_uri (uri);
+	path = g_file_get_parse_name (file);
+	g_object_unref (file);
+
+	return path;
+}
+
+/* Basename of a URI, for the prompt. NULL when there is nothing to show. */
+static char *
+drag_display_name (const char *uri)
+{
+	GFile *file;
+	char  *name;
+
+	if (uri == NULL) {
+		return NULL;
+	}
+
+	file = g_file_new_for_uri (uri);
+	name = g_file_get_basename (file);
+	g_object_unref (file);
+
+	if (name != NULL && *name == '\0') {
+		g_clear_pointer (&name, g_free);
+	}
+
+	return name;
+}
+
+gboolean
+nemo_drag_confirm_drop (GtkWidget     *parent,
+			    GdkDragAction  action,
+			    const GList   *item_uris,
+			    const char    *target_uri)
+{
+	char       *folder, *item, *primary, *where;
+	const char *verb;
+	guint       count;
+	int         response;
+
+	count = g_list_length ((GList *) item_uris);
+
+	if (count == 0 || !nemo_drag_confirm_needed (action, target_uri)) {
+		return TRUE;
+	}
+
+	folder = drag_display_name (target_uri);
+	if (folder == NULL) {
+		folder = g_strdup (target_uri != NULL ? target_uri : "");
+	}
+	item = count == 1 ? drag_display_name (item_uris->data) : NULL;
+
+	/* The named form covers one item, so the singular below is never used -
+	   it is there for the languages whose plural form varies with the count. */
+	switch (action) {
+	case GDK_ACTION_MOVE:
+		primary = item != NULL
+			? g_strdup_printf (_("Move \"%s\" to \"%s\"?"), item, folder)
+			: g_strdup_printf (ngettext ("Move %u item to \"%s\"?",
+						     "Move %u items to \"%s\"?", count),
+					   count, folder);
+		verb = _("_Move");
+		break;
+	case GDK_ACTION_COPY:
+		primary = item != NULL
+			? g_strdup_printf (_("Copy \"%s\" to \"%s\"?"), item, folder)
+			: g_strdup_printf (ngettext ("Copy %u item to \"%s\"?",
+						     "Copy %u items to \"%s\"?", count),
+					   count, folder);
+		verb = _("_Copy");
+		break;
+	default:
+		primary = item != NULL
+			? g_strdup_printf (_("Link \"%s\" in \"%s\"?"), item, folder)
+			: g_strdup_printf (ngettext ("Link %u item in \"%s\"?",
+						     "Link %u items in \"%s\"?", count),
+					   count, folder);
+		verb = _("_Link");
+		break;
+	}
+
+	where = drag_parse_name (target_uri);
+
+	response = eel_run_simple_dialog (parent, TRUE, GTK_MESSAGE_QUESTION,
+					  primary, where,
+					  GTK_STOCK_CANCEL, verb, NULL);
+
+	g_free (primary);
+	g_free (where);
+	g_free (folder);
+	g_free (item);
+
+	return response == 1;
 }
 
 gboolean

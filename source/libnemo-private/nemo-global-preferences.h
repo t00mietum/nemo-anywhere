@@ -37,6 +37,10 @@ G_BEGIN_DECLS
 #define NEMO_PERFORMANCE_GROUP			"performance"
 #define NEMO_PREFERENCES_CPU_PERCENT	"cpu-percent"
 
+/* Drag and drop options */
+#define NEMO_PREFERENCES_CONFIRM_DRAG_MOVE	"confirm-drag-move"
+#define NEMO_PREFERENCES_CONFIRM_DRAG_COPY	"confirm-drag-copy"
+
 /* Trash options */
 #define NEMO_PREFERENCES_CONFIRM_MOVE_TO_TRASH	"confirm-move-to-trash"
 #define NEMO_PREFERENCES_CONFIRM_TRASH			"confirm-trash"

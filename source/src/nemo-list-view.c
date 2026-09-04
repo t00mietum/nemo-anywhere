@@ -2083,6 +2083,10 @@ move_copy_items_callback (NemoTreeViewDragDest *dest,
 {
 	NemoView *view = user_data;
 
+	if (!nemo_drag_confirm_drop (GTK_WIDGET (view), action, item_uris, target_uri)) {
+		return;
+	}
+
 	nemo_clipboard_clear_if_colliding_uris (GTK_WIDGET (view),
 						    item_uris,
 						    nemo_view_get_copied_files_atom (view));

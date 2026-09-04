@@ -200,6 +200,16 @@ field: preferences.close-device-view-on-device-eject
 	default: false
 	desc: Whether to close a view of a removeable device instead of navigating Home
 
+field: preferences.confirm-drag-copy
+	type: bool
+	default: false
+	desc: Whether to ask for confirmation before copying files dropped by a drag
+
+field: preferences.confirm-drag-move
+	type: bool
+	default: true
+	desc: Whether to ask for confirmation before moving files dropped by a drag
+
 field: preferences.confirm-move-to-trash
 	type: bool
 	default: true

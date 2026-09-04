@@ -157,6 +157,8 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "click-double-parent-folder", NEMO_CONFIG_BOOL, "false", NULL, NULL, "If true, double click left on blank area will go to parent folder" },
 	{ "preferences", "click-policy", NEMO_CONFIG_ENUM, "double", NULL, enum_ClickPolicy, "Type of click used to launch/open files" },
 	{ "preferences", "close-device-view-on-device-eject", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to close a view of a removeable device instead of navigating Home" },
+	{ "preferences", "confirm-drag-copy", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Whether to ask for confirmation before copying files dropped by a drag" },
+	{ "preferences", "confirm-drag-move", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether to ask for confirmation before moving files dropped by a drag" },
 	{ "preferences", "confirm-move-to-trash", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether to ask for confirmation when moving files to Trash" },
 	{ "preferences", "confirm-trash", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether to ask for confirmation when deleting files, or emptying Trash" },
 	{ "preferences", "context-menus-show-all-actions", NEMO_CONFIG_BOOL, "false", NULL, NULL, "deprecated - no longer used" },
