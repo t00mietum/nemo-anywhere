@@ -2214,6 +2214,10 @@ icon_view_move_copy_items (NemoIconContainer *container,
 			   int x, int y,
 			   NemoView *view)
 {
+	if (!nemo_drag_confirm_drop (GTK_WIDGET (view), copy_action, item_uris, target_dir)) {
+		return;
+	}
+
 	nemo_clipboard_clear_if_colliding_uris (GTK_WIDGET (view),
 						    item_uris,
 						    nemo_view_get_copied_files_atom (view));

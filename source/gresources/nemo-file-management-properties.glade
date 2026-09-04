@@ -1369,6 +1369,86 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               </packing>
                             </child>
                             <child>
+                              <object class="GtkBox" id="vbox_drag_and_drop">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="border-width">6</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel" id="label_drag_and_drop">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Drag and drop&lt;/b&gt;</property>
+                                    <property name="use-markup">True</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkAlignment" id="alignment_drag_and_drop">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="left-padding">40</property>
+                                    <child>
+                                      <object class="GtkBox" id="vbox_drag_and_drop_inner">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="orientation">vertical</property>
+                                        <property name="spacing">6</property>
+                                        <child>
+                                          <object class="GtkCheckButton" id="drag_confirm_move_checkbutton">
+                                            <property name="label" translatable="yes">Ask before m_oving files dropped by a drag</property>
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="receives-default">False</property>
+                                            <property name="use-underline">True</property>
+                                            <property name="xalign">0</property>
+                                            <property name="draw-indicator">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">0</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkCheckButton" id="drag_confirm_copy_checkbutton">
+                                            <property name="label" translatable="yes">Ask before cop_ying or linking files dropped by a drag</property>
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="receives-default">False</property>
+                                            <property name="use-underline">True</property>
+                                            <property name="xalign">0</property>
+                                            <property name="draw-indicator">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
                               <object class="GtkBox" id="vbox8">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
@@ -1476,7 +1556,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">3</property>
+                                <property name="position">4</property>
                               </packing>
                             </child>
                             <child>
@@ -1588,7 +1668,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">4</property>
+                                <property name="position">5</property>
                               </packing>
                             </child>
                             <child>
@@ -1674,7 +1754,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">5</property>
+                                <property name="position">6</property>
                               </packing>
                             </child>
                             <child>
@@ -1762,7 +1842,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">6</property>
+                                <property name="position">7</property>
                               </packing>
                             </child>
                           </object>

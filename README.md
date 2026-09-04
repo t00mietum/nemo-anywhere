@@ -121,6 +121,8 @@ Everything that makes Nemo worth porting:
 	- Same idea as an AppImage or a Flatpak, without the runtime or the sandbox.
 	- On Linux it stays a small folder that uses the GTK3 your distro already has, because that is what a Linux user expects and it keeps the download tiny.
 
+- A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
+
 - Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema.
 
 - Stays Nemo. Same code lineage, GPL intact.

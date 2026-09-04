@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- A drop that moves files asks first, naming the files and the folder they are headed for. Two settings under Behavior: moves ask by default, copies and links do not. The Trash keeps its own separate question rather than asking twice.
 - Content search ("Containing:") reads Word, Excel and PowerPoint documents in both their old and new formats, OpenDocument files and EPUB books, on every platform. The converters are built in, so nothing else needs installing.
 - On Windows, a shortcut is drawn with the icon the shell would give it, its target's, at every view size, and without Explorer having to be running.
 - On Windows, Properties on a shortcut shows its target, arguments, start-in folder and comment, and each can be edited in place, the way a `.desktop` launcher can on Linux. A file dropped on the target or start-in field fills it in.

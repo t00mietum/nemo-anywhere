@@ -2391,7 +2391,8 @@ drag_data_received_callback (GtkWidget *widget,
                         nemo_file_set_is_favorite (source_file, TRUE);
                         nemo_file_unref (source_file);
                     }
-                } else {
+                } else if (nemo_drag_confirm_drop (GTK_WIDGET (tree_view), real_action,
+                                                   uris, drop_uri)) {
                     nemo_file_operations_copy_move (uris, NULL, drop_uri,
                                         real_action, GTK_WIDGET (tree_view),
                                         NULL, NULL);

@@ -242,9 +242,11 @@ nemo_view_handle_netscape_url_drop (NemoView  *view,
 
 		uri_list = g_list_append (uri_list, url);
 
-		nemo_view_move_copy_items (view, uri_list, points,
-                                               target_uri,
-                                               action, x, y);
+		if (nemo_drag_confirm_drop (GTK_WIDGET (view), action, uri_list, target_uri)) {
+			nemo_view_move_copy_items (view, uri_list, points,
+                                                       target_uri,
+                                                       action, x, y);
+		}
 
 		g_list_free (uri_list);
 		g_array_free (points, TRUE);
@@ -267,10 +269,13 @@ nemo_view_handle_uri_list_drop (NemoView  *view,
 	char *container_uri;
 	int n_uris, i;
 	GArray *points;
+	gboolean asked;
 
 	if (item_uris == NULL) {
 		return;
 	}
+
+	asked = (action == GDK_ACTION_ASK);
 
 	container_uri = NULL;
 	if (target_uri == NULL) {
@@ -327,9 +332,13 @@ nemo_view_handle_uri_list_drop (NemoView  *view,
 
 	view_widget_to_file_operation_position_xy (view, &x, &y);
 
-	nemo_view_move_copy_items (view, real_uri_list, points,
-				       target_uri != NULL ? target_uri : container_uri,
-				       action, x, y);
+	/* The ask menu already put the question, so don't put it twice. */
+	if (asked || nemo_drag_confirm_drop (GTK_WIDGET (view), action, real_uri_list,
+					     target_uri != NULL ? target_uri : container_uri)) {
+		nemo_view_move_copy_items (view, real_uri_list, points,
+					       target_uri != NULL ? target_uri : container_uri,
+					       action, x, y);
+	}
 
 	g_list_free_full (real_uri_list, g_free);
 
@@ -435,6 +444,9 @@ nemo_view_drop_proxy_received_uris (NemoView *view,
 					GdkDragAction action)
 {
 	char *container_uri;
+	gboolean asked;
+
+	asked = (action == GDK_ACTION_ASK);
 
 	container_uri = NULL;
 	if (target_uri == NULL) {
@@ -449,6 +461,12 @@ nemo_view_drop_proxy_received_uris (NemoView *view,
 		if (action == 0) {
 			return;
 		}
+	}
+
+	if (!asked && !nemo_drag_confirm_drop (GTK_WIDGET (view), action, source_uri_list,
+					       target_uri != NULL ? target_uri : container_uri)) {
+		g_free (container_uri);
+		return;
 	}
 
 	nemo_clipboard_clear_if_colliding_uris (GTK_WIDGET (view),

@@ -161,6 +161,16 @@ int			    nemo_drag_modifier_based_action		(int				       default_action,
 GdkDragAction		    nemo_drag_drop_action_ask		(GtkWidget			      *widget,
 									 GdkDragAction			       possible_actions);
 
+/* Whether a drop of this action into this folder is one the settings say to
+   confirm. Split out from the dialog so the rule can be checked on its own. */
+gboolean		    nemo_drag_confirm_needed		(GdkDragAction			       action,
+									 const char			      *target_uri);
+/* TRUE to go ahead with the drop. Asks nothing when confirmation is off. */
+gboolean		    nemo_drag_confirm_drop		(GtkWidget			      *parent,
+									 GdkDragAction			       action,
+									 const GList			      *item_uris,
+									 const char			      *target_uri);
+
 gboolean		    nemo_drag_autoscroll_in_scroll_region	(GtkWidget			      *widget);
 void			    nemo_drag_autoscroll_calculate_delta	(GtkWidget			      *widget,
 									 float				      *x_scroll_delta,

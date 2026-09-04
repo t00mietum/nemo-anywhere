@@ -74,6 +74,8 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_LABELS_BESIDE_ICONS_WIDGET "labels_beside_icons_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALL_COLUMNS_SAME_WIDTH "all_columns_same_width_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALWAYS_USE_BROWSER_WIDGET "always_use_browser_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_DRAG_CONFIRM_MOVE_WIDGET "drag_confirm_move_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_DRAG_CONFIRM_COPY_WIDGET "drag_confirm_copy_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_CONFIRM_MOVE_WIDGET "trash_confirm_move_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_CONFIRM_WIDGET "trash_confirm_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_DELETE_WIDGET "trash_delete_checkbutton"
@@ -1324,6 +1326,12 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	bind_builder_bool_inverted (builder, nemo_preferences,
 				    NEMO_FILE_MANAGEMENT_PROPERTIES_ALWAYS_USE_BROWSER_WIDGET,
 				    NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
+	bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_DRAG_CONFIRM_MOVE_WIDGET,
+			   NEMO_PREFERENCES_CONFIRM_DRAG_MOVE);
+	bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_DRAG_CONFIRM_COPY_WIDGET,
+			   NEMO_PREFERENCES_CONFIRM_DRAG_COPY);
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_CONFIRM_MOVE_WIDGET,
 			   NEMO_PREFERENCES_CONFIRM_MOVE_TO_TRASH);

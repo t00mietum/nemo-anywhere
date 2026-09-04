@@ -17,6 +17,15 @@ test('Directory Async test',
   args: []
 )
 
+test('Drag drop confirm test',
+  executable('test-nemo-drag-confirm',
+    [ 'test-nemo-drag-confirm.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Config store test',
   executable('test-nemo-config',
     [ 'test-nemo-config.c' ],
