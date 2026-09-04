@@ -62,6 +62,7 @@
 #include <libnemo-private/nemo-icon-dnd.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-module.h>
+#include <libnemo-private/nemo-search-directory.h>
 #include <libnemo-private/nemo-thumbnails.h>
 #include <libnemo-private/nemo-tree-view-drag-dest.h>
 #include <libnemo-private/nemo-clipboard.h>
@@ -153,6 +154,10 @@ struct NemoListViewDetails {
     gint current_selection_count;
 
     gboolean overlay_scrolling;
+
+    /* Where the search being shown started from. Group row labels are spelled
+     * relative to it. Worked out on the first result and dropped on clear. */
+    GFile *search_root;
 };
 
 struct SelectionForeachData {
@@ -257,6 +262,140 @@ static const char * default_favorites_columns_order[] = {
 static const char * default_search_columns[] = {
     "name", "where", NULL
 };
+
+/* Search results are either one flat list with a Location column, or one row per
+   folder holding a match with the matches nested under it. The grouped rows are
+   built here rather than by the model's own subfolder machinery: nobody opened
+   those folders, so they must not be monitored or read. */
+
+static gboolean
+grouping_search_results (NemoListView *view)
+{
+	NemoFile *dir_file;
+
+	dir_file = nemo_view_get_directory_as_file (NEMO_VIEW (view));
+
+	return dir_file != NULL &&
+	       nemo_file_is_in_search (dir_file) &&
+	       nemo_config_get_boolean (nemo_search_preferences,
+					NEMO_PREFERENCES_SEARCH_GROUP_BY_FOLDER);
+}
+
+static GFile *
+search_root (NemoListView *view)
+{
+	NemoDirectory *directory;
+	NemoQuery *query;
+	char *uri;
+
+	if (view->details->search_root != NULL) {
+		return view->details->search_root;
+	}
+
+	directory = nemo_view_get_model (NEMO_VIEW (view));
+	if (!NEMO_IS_SEARCH_DIRECTORY (directory)) {
+		return NULL;
+	}
+
+	query = nemo_search_directory_get_query (NEMO_SEARCH_DIRECTORY (directory));
+	if (query == NULL) {
+		return NULL;
+	}
+
+	uri = nemo_query_get_location (query);
+	if (uri != NULL) {
+		view->details->search_root = g_file_new_for_uri (uri);
+		g_free (uri);
+	}
+
+	g_object_unref (query);
+
+	return view->details->search_root;
+}
+
+static char *
+search_group_label (GFile *root, GFile *folder)
+{
+	char *relative;
+
+	relative = g_file_get_relative_path (root, folder);
+	if (relative != NULL) {
+		return relative;
+	}
+
+	if (g_file_equal (root, folder)) {
+		return g_file_get_basename (folder);
+	}
+
+	/* A match from outside the folder searched. Nothing to be relative to. */
+	return g_file_get_parse_name (folder);
+}
+
+static void
+expand_search_group (NemoListView *view, NemoFile *dir_file)
+{
+	GtkTreeIter iter;
+	GtkTreePath *path;
+
+	if (!nemo_list_model_get_tree_iter_from_file (view->details->model, dir_file,
+						      NULL, &iter)) {
+		return;
+	}
+
+	path = gtk_tree_model_get_path (GTK_TREE_MODEL (view->details->model), &iter);
+	gtk_tree_view_expand_row (view->details->tree_view, path, FALSE);
+	gtk_tree_path_free (path);
+}
+
+/* The group row @file belongs under, made if it is not there yet. Returns a ref,
+   or NULL when results are not being grouped. */
+static NemoDirectory *
+search_group_for_file (NemoListView *view, NemoFile *file, gboolean create)
+{
+	NemoDirectory *group;
+	NemoFile *parent_file;
+	GFile *location, *root;
+	char *label;
+	gboolean created;
+
+	if (!grouping_search_results (view)) {
+		return NULL;
+	}
+
+	root = search_root (view);
+	if (root == NULL) {
+		return NULL;
+	}
+
+	location = nemo_file_get_parent_location (file);
+	if (location == NULL) {
+		return NULL;
+	}
+
+	if (!create) {
+		group = nemo_directory_get (location);
+		g_object_unref (location);
+		return group;
+	}
+
+	parent_file = nemo_file_get (location);
+	label = search_group_label (root, location);
+
+	group = nemo_list_model_add_search_group (view->details->model, parent_file,
+						  label, &created);
+	if (group != NULL) {
+		nemo_directory_ref (group);
+		if (created) {
+			expand_search_group (view, parent_file);
+		}
+	}
+
+	g_free (label);
+	nemo_file_unref (parent_file);
+	g_object_unref (location);
+
+	return group;
+}
 
 static gchar **
 string_array_from_string_glist (GList *list)
@@ -2332,8 +2471,10 @@ apply_columns_settings (NemoListView *list_view,
 	GHashTable *visible_columns_hash;
 	GList *l;
     gint i;
+    gboolean drop_where;
 
 	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+	drop_where = grouping_search_results (list_view);
 
 	/* prepare ordered list of view columns using column_order and visible_columns */
 	view_columns = NULL;
@@ -2347,6 +2488,11 @@ apply_columns_settings (NemoListView *list_view,
 						      (GDestroyNotify) g_free,
 						      (GDestroyNotify) g_free);
 	for (i = 0; visible_columns[i] != NULL; ++i) {
+		/* Grouped results already say where a match is, on the row above it. */
+		if (drop_where && g_ascii_strcasecmp (visible_columns[i], "where") == 0) {
+			continue;
+		}
+
 		g_hash_table_insert (visible_columns_hash,
 				     g_ascii_strdown (visible_columns[i], -1),
 				     g_ascii_strdown (visible_columns[i], -1));
@@ -3621,6 +3767,7 @@ static void
 nemo_list_view_add_file (NemoView *view, NemoFile *file, NemoDirectory *directory)
 {
 	NemoListModel *model;
+	NemoDirectory *group;
 
     if (nemo_file_has_thumbnail_access_problem (file)) {
         nemo_application_set_cache_flag (nemo_application_get_singleton ());
@@ -3628,7 +3775,11 @@ nemo_list_view_add_file (NemoView *view, NemoFile *file, NemoDirectory *director
     }
 
 	model = NEMO_LIST_VIEW (view)->details->model;
-	nemo_list_model_add_file (model, file, directory);
+
+	group = search_group_for_file (NEMO_LIST_VIEW (view), file, TRUE);
+	nemo_list_model_add_file (model, file, group != NULL ? group : directory);
+	nemo_directory_unref (group);
+
     queue_update_visible_icons (NEMO_LIST_VIEW (view), INITIAL_UPDATE_VISIBLE_DELAY);
 }
 
@@ -3940,6 +4091,7 @@ nemo_list_view_clear (NemoView *view)
 	list_view = NEMO_LIST_VIEW (view);
 
     list_view->details->ok_to_load_deferred_attrs = FALSE;
+    g_clear_object (&list_view->details->search_root);
 
     if (list_view->details->update_visible_icons_id > 0) {
         g_source_remove (list_view->details->update_visible_icons_id);
@@ -3992,10 +4144,16 @@ static void
 nemo_list_view_file_changed (NemoView *view, NemoFile *file, NemoDirectory *directory)
 {
 	NemoListView *listview;
+	NemoDirectory *group;
 	GtkTreeIter iter;
 	GtkTreePath *file_path;
 
 	listview = NEMO_LIST_VIEW (view);
+
+	group = search_group_for_file (listview, file, FALSE);
+	if (group != NULL) {
+		directory = group;
+	}
 
 	nemo_list_model_file_changed (listview->details->model, file, directory);
 
@@ -4017,6 +4175,8 @@ nemo_list_view_file_changed (NemoView *view, NemoFile *file, NemoDirectory *dire
 		nemo_file_unref (listview->details->renaming_file);
 		listview->details->renaming_file = NULL;
 	}
+
+	nemo_directory_unref (group);
 }
 
 typedef struct {
@@ -4334,6 +4494,7 @@ nemo_list_view_remove_file (NemoView *view, NemoFile *file, NemoDirectory *direc
 	GtkTreeIter temp_iter;
 	GtkTreeRowReference* row_reference;
 	NemoListView *list_view;
+	NemoDirectory *group;
 	GtkTreeModel* tree_model;
 	GtkTreeSelection *selection;
 
@@ -4341,6 +4502,11 @@ nemo_list_view_remove_file (NemoView *view, NemoFile *file, NemoDirectory *direc
 	row_reference = NULL;
 	list_view = NEMO_LIST_VIEW (view);
 	tree_model = GTK_TREE_MODEL(list_view->details->model);
+
+	group = search_group_for_file (list_view, file, FALSE);
+	if (group != NULL) {
+		directory = group;
+	}
 
 	if (nemo_list_model_get_tree_iter_from_file (list_view->details->model, file, directory, &iter)) {
 		selection = gtk_tree_view_get_selection (list_view->details->tree_view);
@@ -4381,7 +4547,13 @@ nemo_list_view_remove_file (NemoView *view, NemoFile *file, NemoDirectory *direc
 		}
 	}
 
-
+	/* The last match gone means the folder row has nothing left to say. */
+	if (group != NULL) {
+		if (nemo_list_model_search_group_is_empty (list_view->details->model, group)) {
+			nemo_list_model_remove_search_group (list_view->details->model, group);
+		}
+		nemo_directory_unref (group);
+	}
 }
 
 static void
@@ -4983,6 +5155,34 @@ nemo_list_view_using_manual_layout (NemoView *view)
 	return FALSE;
 }
 
+/* Flat and grouped show the same results a different way, so rebuild from what
+   is already loaded rather than running the search again. */
+static void
+search_grouping_changed_callback (NemoListView *view)
+{
+	NemoDirectory *directory;
+	GList *files, *l;
+
+	directory = nemo_view_get_model (NEMO_VIEW (view));
+	if (directory == NULL || !NEMO_IS_SEARCH_DIRECTORY (directory)) {
+		return;
+	}
+
+	files = nemo_directory_get_file_list (directory);
+
+	stop_cell_editing (view);
+	nemo_list_model_clear (view->details->model);
+	g_clear_object (&view->details->search_root);
+
+	set_columns_settings_from_metadata_and_preferences (view);
+
+	for (l = files; l != NULL; l = l->next) {
+		nemo_list_view_add_file (NEMO_VIEW (view), NEMO_FILE (l->data), directory);
+	}
+
+	nemo_file_list_free (files);
+}
+
 static void
 nemo_list_view_dispose (GObject *object)
 {
@@ -5040,6 +5240,8 @@ nemo_list_view_finalize (GObject *object)
 	g_free (list_view->details->original_name);
 	list_view->details->original_name = NULL;
 
+	g_clear_object (&list_view->details->search_root);
+
 	if (list_view->details->double_click_path[0]) {
 		gtk_tree_path_free (list_view->details->double_click_path[0]);
 	}
@@ -5087,6 +5289,9 @@ nemo_list_view_finalize (GObject *object)
 					      list_view);
 	g_signal_handlers_disconnect_by_func (nemo_search_preferences,
 					      column_ceilings_changed_callback,
+					      list_view);
+	g_signal_handlers_disconnect_by_func (nemo_search_preferences,
+					      search_grouping_changed_callback,
 					      list_view);
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                                           tooltip_prefs_changed_callback,
@@ -5296,6 +5501,10 @@ nemo_list_view_init (NemoListView *list_view)
 	g_signal_connect_swapped (nemo_search_preferences,
 				  "changed::" NEMO_PREFERENCES_SEARCH_NAME_LOCATION_SPLIT,
 				  G_CALLBACK (column_ceilings_changed_callback),
+				  list_view);
+	g_signal_connect_swapped (nemo_search_preferences,
+				  "changed::" NEMO_PREFERENCES_SEARCH_GROUP_BY_FOLDER,
+				  G_CALLBACK (search_grouping_changed_callback),
 				  list_view);
 
     g_signal_connect_swapped (nemo_preferences,

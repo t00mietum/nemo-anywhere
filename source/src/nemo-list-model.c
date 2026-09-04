@@ -102,6 +102,12 @@ struct FileEntry {
 	FileEntry *parent;
 	GSequence *files;
 	GSequenceIter *ptr;
+	/* Set on the folder rows that grouped search results hang off. Those rows
+	 * stand for a folder nobody asked to open, so they must not be monitored,
+	 * unloaded on collapse, or announced as a loaded subdirectory. The label is
+	 * what the Name column shows instead of the folder's own name. */
+	char *label;
+	guint search_group : 1;
 	guint loaded : 1;
     guint expanding : 1;
     guint ok_to_show_thumb : 1;
@@ -144,6 +150,7 @@ static void
 file_entry_free (FileEntry *file_entry)
 {
 	file_entry_clear_icon_cache (file_entry);
+	g_free (file_entry->label);
 	nemo_file_unref (file_entry->file);
 	if (file_entry->reverse_map) {
 		g_hash_table_destroy (file_entry->reverse_map);
@@ -379,8 +386,18 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 				}
 			}
 
-            icon_info = nemo_file_get_icon (file, icon_size, 0, icon_scale, flags);
-            emblem_icons = nemo_file_get_emblem_icons (file, parent_file);
+            if (file_entry->search_group && !nemo_file_is_directory (file)) {
+                /* Nothing read that folder, so the file has no info to build an
+                   icon from - but a group row is a folder whatever it says. */
+                GIcon *folder_icon = g_themed_icon_new ("folder");
+
+                icon_info = nemo_icon_info_lookup (folder_icon, icon_size, icon_scale);
+                emblem_icons = NULL;
+                g_object_unref (folder_icon);
+            } else {
+                icon_info = nemo_file_get_icon (file, icon_size, 0, icon_scale, flags);
+                emblem_icons = nemo_file_get_emblem_icons (file, parent_file);
+            }
 
             if (emblem_icons) {
                 GdkPixbuf *initial_pixbuf;
@@ -456,7 +473,8 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 	case NEMO_LIST_MODEL_FILE_NAME_IS_EDITABLE_COLUMN:
 		g_value_init (value, G_TYPE_BOOLEAN);
 
-                g_value_set_boolean (value, file != NULL && nemo_file_can_rename (file));
+                g_value_set_boolean (value, file != NULL && !file_entry->search_group &&
+                                            nemo_file_can_rename (file));
                 break;
     case NEMO_LIST_MODEL_TEXT_WEIGHT_COLUMN:
         g_value_init (value, G_TYPE_INT);
@@ -491,7 +509,9 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 			g_object_get (nemo_column,
 				      "attribute_q", &attribute,
 				      NULL);
-			if (file != NULL) {
+			if (file_entry->label != NULL && attribute == attribute_name_q) {
+				g_value_set_string (value, file_entry->label);
+			} else if (file != NULL) {
                 if (attribute == attribute_search_result_count_q) {
                     str = nemo_file_get_search_result_count_as_string (file, (gpointer) model->details->view_dir);
                 } else {
@@ -763,6 +783,12 @@ nemo_list_model_file_entry_compare_func (gconstpointer a,
 
 	file_entry1 = (FileEntry *)a;
 	file_entry2 = (FileEntry *)b;
+
+	/* Group rows sort on the path they show, not on the folder's own name. */
+	if (file_entry1->label != NULL && file_entry2->label != NULL) {
+		result = g_utf8_collate (file_entry1->label, file_entry2->label);
+		return model->details->order == GTK_SORT_DESCENDING ? -result : result;
+	}
 
 	if (file_entry1->file != NULL && file_entry2->file != NULL) {
 		result = nemo_file_compare_for_sort_by_attribute_q (file_entry1->file, file_entry2->file,
@@ -1272,7 +1298,34 @@ nemo_list_model_is_empty (NemoListModel *model)
 guint
 nemo_list_model_get_length (NemoListModel *model)
 {
-	return g_sequence_get_length (model->details->files);
+	GSequenceIter *ptr;
+	FileEntry *file_entry;
+	guint length, children;
+
+	length = 0;
+
+	for (ptr = g_sequence_get_begin_iter (model->details->files);
+	     !g_sequence_iter_is_end (ptr);
+	     ptr = g_sequence_iter_next (ptr)) {
+		file_entry = g_sequence_get (ptr);
+
+		if (!file_entry->search_group) {
+			length++;
+			continue;
+		}
+
+		/* A group row is a heading rather than a result, so what counts is
+		   the matches under it - less the placeholder a fresh one carries. */
+		children = g_sequence_get_length (file_entry->files);
+		if (children == 1 &&
+		    ((FileEntry *) g_sequence_get (g_sequence_get_begin_iter (file_entry->files)))->file == NULL) {
+			children = 0;
+		}
+
+		length += children;
+	}
+
+	return length;
 }
 
 static void
@@ -1318,7 +1371,8 @@ nemo_list_model_remove (NemoListModel *model, GtkTreeIter *iter)
 	}
 
 	parent_file_entry = file_entry->parent;
-	if (parent_file_entry && g_sequence_get_length (parent_file_entry->files) == 1 &&
+	if (parent_file_entry && !parent_file_entry->search_group &&
+	    g_sequence_get_length (parent_file_entry->files) == 1 &&
 	    file_entry->file != NULL) {
 		/* this is the last non-dummy child, add a dummy node */
 		/* We need to do this before removing the last file to avoid
@@ -1336,9 +1390,11 @@ nemo_list_model_remove (NemoListModel *model, GtkTreeIter *iter)
     }
 
 	if (file_entry->subdirectory != NULL) {
-		g_signal_emit (model,
-			       list_model_signals[SUBDIRECTORY_UNLOADED], 0,
-			       file_entry->subdirectory);
+		if (!file_entry->search_group) {
+			g_signal_emit (model,
+				       list_model_signals[SUBDIRECTORY_UNLOADED], 0,
+				       file_entry->subdirectory);
+		}
 		g_hash_table_remove (model->details->directory_reverse_map,
 				     file_entry->subdirectory);
 	}
@@ -1464,7 +1520,8 @@ nemo_list_model_unload_subdirectory (NemoListModel *model, GtkTreeIter *iter)
 
 	file_entry = g_sequence_get (iter->user_data);
 	if (file_entry->file == NULL ||
-	    file_entry->subdirectory == NULL) {
+	    file_entry->subdirectory == NULL ||
+	    file_entry->search_group) {
 		return;
 	}
 
@@ -1497,6 +1554,103 @@ nemo_list_model_unload_subdirectory (NemoListModel *model, GtkTreeIter *iter)
 	g_assert (g_hash_table_size (file_entry->reverse_map) == 0);
 	g_hash_table_destroy (file_entry->reverse_map);
 	file_entry->reverse_map = NULL;
+}
+
+/* Adds the folder row that grouped search results hang off, and hands back the
+   directory to pass to nemo_list_model_add_file for the matches under it. NULL
+   when the row is already there for some other reason. @created says whether
+   this call is what put it there, so the caller can expand it just the once. */
+NemoDirectory *
+nemo_list_model_add_search_group (NemoListModel *model,
+				  NemoFile      *dir_file,
+				  const char    *label,
+				  gboolean      *created)
+{
+	FileEntry *file_entry;
+	NemoDirectory *directory;
+	GSequenceIter *ptr;
+	GtkTreeIter iter;
+	GtkTreePath *path;
+
+	*created = FALSE;
+
+	ptr = g_hash_table_lookup (model->details->top_reverse_map, dir_file);
+	if (ptr != NULL) {
+		file_entry = g_sequence_get (ptr);
+		return file_entry->search_group ? file_entry->subdirectory : NULL;
+	}
+
+	directory = nemo_directory_get_for_file (dir_file);
+
+	if (g_hash_table_lookup (model->details->directory_reverse_map, directory) != NULL) {
+		/* Already standing in for a folder expanded somewhere in the tree. */
+		nemo_directory_unref (directory);
+		return NULL;
+	}
+
+	file_entry = g_new0 (FileEntry, 1);
+	file_entry->file = nemo_file_ref (dir_file);
+	file_entry->label = g_strdup (label);
+	file_entry->search_group = 1;
+	file_entry->subdirectory = directory;
+	file_entry->files = g_sequence_new ((GDestroyNotify) file_entry_free);
+	file_entry->reverse_map = g_hash_table_new (g_direct_hash, g_direct_equal);
+	file_entry->ok_to_show_thumb = TRUE;
+
+	file_entry->ptr = g_sequence_insert_sorted (model->details->files, file_entry,
+						    nemo_list_model_file_entry_compare_func, model);
+
+	g_hash_table_insert (model->details->top_reverse_map, dir_file, file_entry->ptr);
+	g_hash_table_insert (model->details->directory_reverse_map, directory, file_entry->ptr);
+
+	iter.stamp = model->details->stamp;
+	iter.user_data = file_entry->ptr;
+
+	path = gtk_tree_model_get_path (GTK_TREE_MODEL (model), &iter);
+	gtk_tree_model_row_inserted (GTK_TREE_MODEL (model), path, &iter);
+
+	/* Give it something to expand before the first match arrives. The first
+	   one added replaces it, the way a real subfolder's placeholder does. */
+	add_dummy_row (model, file_entry);
+	gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model), path, &iter);
+	gtk_tree_path_free (path);
+
+	*created = TRUE;
+
+	return directory;
+}
+
+gboolean
+nemo_list_model_search_group_is_empty (NemoListModel *model,
+				       NemoDirectory *directory)
+{
+	FileEntry *file_entry;
+	GSequenceIter *ptr;
+
+	ptr = g_hash_table_lookup (model->details->directory_reverse_map, directory);
+	if (ptr == NULL) {
+		return FALSE;
+	}
+
+	file_entry = g_sequence_get (ptr);
+
+	return file_entry->search_group && g_sequence_get_length (file_entry->files) == 0;
+}
+
+void
+nemo_list_model_remove_search_group (NemoListModel *model,
+				     NemoDirectory *directory)
+{
+	GSequenceIter *ptr;
+	GtkTreeIter iter;
+
+	ptr = g_hash_table_lookup (model->details->directory_reverse_map, directory);
+	if (ptr == NULL || !((FileEntry *) g_sequence_get (ptr))->search_group) {
+		return;
+	}
+
+	nemo_list_model_ptr_to_iter (model, ptr, &iter);
+	nemo_list_model_remove (model, &iter);
 }
 
 

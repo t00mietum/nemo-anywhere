@@ -727,6 +727,11 @@ field: search.disabled-search-helpers
 	type: string-array
 	desc: List of search helper filenames to skip when using content search.
 
+field: search.group-by-folder
+	type: bool
+	default: false
+	desc: Group search results under the folder holding them, rather than showing one flat list
+
 field: search.name-location-split
 	type: int
 	default: 50

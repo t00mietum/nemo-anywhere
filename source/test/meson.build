@@ -367,6 +367,16 @@ test('Column layout test',
   args: []
 )
 
+test('Search group test',
+  executable('test-nemo-search-group',
+    [ 'test-nemo-search-group.c', '../src/nemo-list-model.c' ],
+    include_directories: [ rootInclude, include_directories('../src') ],
+    dependencies: [ gtk, nemo_private, egg ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Filename extension test',
   executable('test-nemo-filename-extension',
     [ 'test-nemo-filename-extension.c' ],

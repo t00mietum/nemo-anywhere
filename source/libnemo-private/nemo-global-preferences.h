@@ -301,6 +301,7 @@ typedef enum
 #define NEMO_PREFERENCES_SEARCH_NAME_LOCATION_SPLIT    "name-location-split"
 #define NEMO_PREFERENCES_SEARCH_SORT_COLUMN            "search-sort-column"
 #define NEMO_PREFERENCES_SEARCH_REVERSE_SORT           "search-reverse-sort"
+#define NEMO_PREFERENCES_SEARCH_GROUP_BY_FOLDER        "group-by-folder"
 
 void nemo_global_preferences_init                      (void);
 void nemo_global_preferences_finalize                  (void);

@@ -260,6 +260,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences.menu-config", "selection-menu-properties", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Properties item." },
 	{ "preferences.menu-config", "selection-menu-rename", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Rename item." },
 	{ "preferences.menu-config", "selection-menu-scripts", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the selection context menu's Scripts submenu." },
+	{ "search", "group-by-folder", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Group search results under the folder holding them, rather than showing one flat list" },
 	{ "search", "disabled-search-helpers", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_disabled_search_helpers, NULL, "List of search helper filenames to skip when using content search." },
 	{ "search", "search-content-case-sensitive", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the content search case toggle" },
 	{ "search", "search-content-use-raw", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Treat patterns as raw bytes, not utf-8" },

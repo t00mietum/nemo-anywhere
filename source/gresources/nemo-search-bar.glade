@@ -123,19 +123,54 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkToggleButton" id="file_search_recurse_toggle">
+                  <object class="GtkBox" id="file_search_toggle_box">
                     <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="focus-on-click">False</property>
-                    <property name="receives-default">True</property>
-                    <property name="tooltip-text" translatable="yes">Search folders recursively</property>
+                    <property name="can-focus">False</property>
                     <child>
-                      <object class="GtkImage">
+                      <object class="GtkToggleButton" id="file_search_group_toggle">
                         <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="icon-name">nemo-recursive-search-symbolic</property>
+                        <property name="can-focus">True</property>
+                        <property name="focus-on-click">False</property>
+                        <property name="receives-default">True</property>
+                        <property name="tooltip-text" translatable="yes">Group results under the folder holding them</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="icon-name">nemo-group-by-folder-symbolic</property>
+                          </object>
+                        </child>
                       </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
                     </child>
+                    <child>
+                      <object class="GtkToggleButton" id="file_search_recurse_toggle">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="focus-on-click">False</property>
+                        <property name="receives-default">True</property>
+                        <property name="tooltip-text" translatable="yes">Search folders recursively</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="icon-name">nemo-recursive-search-symbolic</property>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <style>
+                      <class name="linked"/>
+                    </style>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -276,7 +311,7 @@
   </object>
   <object class="GtkSizeGroup">
     <widgets>
-      <widget name="file_search_recurse_toggle"/>
+      <widget name="file_search_toggle_box"/>
       <widget name="align_dummy_label"/>
     </widgets>
   </object>
