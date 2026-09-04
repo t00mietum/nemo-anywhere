@@ -112,7 +112,7 @@ while (($#)); do case "$1" in
 	--no-arm)                 no_arm=1; shift ;;                ## drop ARM64 builds + packages
 	--no-package)             PACKAGE_ENABLE=0; shift ;;
 	--no-profile)             PROFILE_ENABLE=0; shift ;;
-	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); shift ;;
+	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); DOGFOOD_CROSS_DESTS=(); shift ;;
 	--no-publish)             GIT_PUBLISH=(); shift ;;
 	--allow-dirty)            allow_dirty=1; shift ;;
 	--shots)                  SHOTS_ENABLE=1; shift ;;
@@ -131,7 +131,8 @@ if ((no_arm)) && declare -p CROSS_TARGETS &>/dev/null; then
 	for t in "${CROSS_TARGETS[@]}"; do case "$t" in *arm64*|*aarch64*) ;; *) kept+=("$t") ;; esac; done
 	CROSS_TARGETS=("${kept[@]}")
 fi
-declare -p PACKAGE_ENABLE &>/dev/null || PACKAGE_ENABLE=0   ## tolerate a config predating the packages stage
+declare -p PACKAGE_ENABLE &>/dev/null || PACKAGE_ENABLE=0        ## tolerate a config predating the packages stage
+declare -p DOGFOOD_CROSS_DESTS &>/dev/null || DOGFOOD_CROSS_DESTS=()   ## ditto, cross dogfood
 
 ## Publish commit message: -m wins, then config, then whatever the auto-message
 ## helper makes of the tree when unattended - one place owns the wording, so this
@@ -161,12 +162,17 @@ fDie(){ { fEcho_Force "FAILED: $*"; } >&2; exit 1; }
 in_use(){
 	local -r bin="$(realpath -e "$1" 2>/dev/null || true)"
 	[[ -n "$bin" ]] || return 1
+	## A prefix is in use when a running image sits anywhere inside it; a single
+	## binary, only when it IS the image.
+	local inside=""
+	[[ -d "$bin" ]] && inside="${bin}/"
 	local exe
 	## readlink is a builtin-cheap single syscall; realpath here forked a process
 	## per running pid per candidate. /proc/*/exe is already fully resolved.
 	for e in /proc/[0-9]*/exe; do
 		exe="$(readlink "$e" 2>/dev/null || true)"
 		[[ "$exe" == "$bin" ]] && return 0
+		[[ -n "$inside" && "$exe" == "${inside}"* ]] && return 0
 	done
 	return 1
 }
@@ -329,6 +335,7 @@ profile_dir="$(cd "${root}" && mkdir -p "${PROFILE_OUT_DIR}" 2>/dev/null; cd "${
 fixed_dest=""; for d in "${DOGFOOD_FIXED_DESTS[@]:-}"; do [[ -d "$d" && -w "$d" ]] && { fixed_dest="$d"; break; }; done
 rot_dest="";   for d in "${DOGFOOD_ROTATING_DESTS[@]:-}"; do [[ -d "$d" && -w "$d" ]] && { rot_dest="$d"; break; }; done
 rot_target="${rot_dest:-${DOGFOOD_ROTATING_DESTS[0]:-}}"  # created in stage 6 if it doesn't exist yet
+df_pattern="${DOGFOOD_PREFIX:-}_<build date>${DOGFOOD_TAG:+_${DOGFOOD_TAG}}"
 
 fEcho_Clean
 fEcho_Clean "${APP_NAME} local CI/CD"
@@ -361,15 +368,29 @@ else
 	fEcho_Clean "Packages ............: $( ((quick)) && echo '(skipped --quick)' || echo '(disabled)')"
 fi
 if ((${#DOGFOOD_FIXED_DESTS[@]})); then
-	if [[ -n "$fixed_dest" ]]; then fEcho_Clean "Dogfood, fixed name .: overwrite ${fixed_dest}/${EXE_NAME}"
+	if [[ -n "$fixed_dest" ]]; then
+		if [[ -n "${DOGFOOD_PREFIX_SRC:-}" ]]; then
+			fEcho_Clean "Dogfood, fixed name .: ${fixed_dest%/bin}/${EXE_NAME}.app + ${fixed_dest}/${EXE_NAME} -> it"
+		else
+			fEcho_Clean "Dogfood, fixed name .: overwrite ${fixed_dest}/${EXE_NAME}"
+		fi
 	else fEcho_Clean "Dogfood, fixed name .: <none of: ${DOGFOOD_FIXED_DESTS[*]} exists - will skip>"; fi
 else
 	fEcho_Clean "Dogfood, fixed name .: (disabled)"
 fi
 if ((${#DOGFOOD_ROTATING_DESTS[@]})) && [[ -n "${DOGFOOD_PREFIX:-}" ]]; then
-	fEcho_Clean "Dogfood, rotating ...: ${rot_target}/${DOGFOOD_PREFIX}_${stamp}  (dated copy; prunes idle ones)"
+	fEcho_Clean "Dogfood, rotating ...: ${rot_target}/${df_pattern}  (dated copy; prunes idle ones)"
 else
 	fEcho_Clean "Dogfood, rotating ...: (disabled)"
+fi
+if ((${#DOGFOOD_CROSS_DESTS[@]})); then
+	fEcho_Clean "Dogfood, cross ......:"
+	for xd in "${DOGFOOD_CROSS_DESTS[@]}"; do
+		xrest="${xd#*|}"; xname="${xrest%%|*}"; xdest="${xrest#*|}"
+		fEcho_Clean "    - ${xd%%|*} -> ${xdest}/${xname}$( [[ -d "$xdest" ]] || echo '  <dest missing - will skip>' )"
+	done
+else
+	fEcho_Clean "Dogfood, cross ......: (disabled)"
 fi
 if ((${#GIT_PUBLISH[@]} == 0)); then
 	fEcho_Clean "Publish (last) ......: (disabled)"
@@ -549,8 +570,9 @@ if ((BUILD_CROSS)) && ((${#CROSS_TARGETS[@]})); then
 fi
 
 ## Collect the built binaries under versioned names + a sha256 checksums file,
-## ready to attach to a release as plain uploads.
-if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then
+## ready to attach to a release as plain uploads. A project whose release lane
+## already writes its own artifacts sets RELEASE_COLLECT=0 and keeps the dir.
+if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]] && ((${RELEASE_COLLECT:-1})); then
 	rm -rf "${art_dir}"; mkdir -p "${art_dir}"
 	for pair in "${built_arts[@]}"; do
 		osarch="${pair%%|*}"; src="${pair#*|}"
@@ -597,15 +619,41 @@ else
 	build_packages
 fi
 
-## Stage 7: dogfood. Two independent installs (fixed overwrite + rotating dated copy).
+## Stage 7: dogfood. Three independent installs: fixed name, rotating dated copy,
+## and cross-built binaries for a box that cannot build its own.
 fSection "7/8  Dogfood (install native release locally)"
 df_did=0
 
-## 7a. Fixed name: overwrite EXE_NAME (the stable path you launch by hand).
+## What gets installed. DOGFOOD_PREFIX_SRC means the app is a relocatable tree
+## rather than one binary, so it is copied whole and the name on PATH points into
+## it. The stamp is the build's own mtime, never this run's clock: the launcher
+## reads it as the build's identity and compares it against the source it copied
+## from, so a run-time stamp reads as a newer build and gets the same one copied
+## in again on the next launch.
+if [[ -n "${DOGFOOD_PREFIX_SRC:-}" ]]; then
+	df_src="${root}/${DOGFOOD_PREFIX_SRC}"
+	df_stamp_from="${df_src}/bin/${EXE_NAME}"
+else
+	df_src="${RELEASE_NATIVE_BIN}"
+	df_stamp_from="${df_src}"
+fi
+
+## 7a. Fixed name: the stable path you launch by hand.
 if ((${#DOGFOOD_FIXED_DESTS[@]})); then
 	if [[ -n "$fixed_dest" ]]; then
-		cp -f "${RELEASE_NATIVE_BIN}" "${fixed_dest}/${EXE_NAME}"
-		fEcho "OK: installed (fixed) -> ${fixed_dest}/${EXE_NAME}"
+		if [[ -n "${DOGFOOD_PREFIX_SRC:-}" ]]; then
+			## The tree sits beside the bin dir; the name on PATH is a symlink into
+			## it, which the wrapper follows to find its own prefix.
+			df_app="${fixed_dest%/bin}/${EXE_NAME}.app"
+			[[ "$df_app" == /*/"${EXE_NAME}.app" ]] || fDie "refusing to replace ${df_app}"
+			rm -rf "${df_app}"
+			cp -a "${df_src}" "${df_app}"
+			ln -sfn "$(realpath -m --relative-to="${fixed_dest}" "${df_app}")/bin/${EXE_NAME}" "${fixed_dest}/${EXE_NAME}"
+			fEcho "OK: installed (fixed) -> ${df_app}, linked from ${fixed_dest}/${EXE_NAME}"
+		else
+			cp -pf "${df_src}" "${fixed_dest}/${EXE_NAME}"
+			fEcho "OK: installed (fixed) -> ${fixed_dest}/${EXE_NAME}"
+		fi
 		df_did=1
 	else
 		fEcho "WARNING: no fixed dogfood dest exists (${DOGFOOD_FIXED_DESTS[*]}); skipping"
@@ -616,9 +664,14 @@ fi
 if ((${#DOGFOOD_ROTATING_DESTS[@]})) && [[ -n "${DOGFOOD_PREFIX:-}" ]]; then
 	[[ -z "$rot_dest" && -n "$rot_target" ]] && mkdir -p "$rot_target" 2>/dev/null && rot_dest="$rot_target"
 	if [[ -n "$rot_dest" && -w "$rot_dest" ]]; then
-		df_name="${DOGFOOD_PREFIX}_${stamp}"
-		cp -f "${RELEASE_NATIVE_BIN}" "${rot_dest}/${df_name}"
-		chmod +x "${rot_dest}/${df_name}"
+		df_name="${DOGFOOD_PREFIX}_$(date -r "${df_stamp_from}" +%Y%m%d-%H%M%S)${DOGFOOD_TAG:+_${DOGFOOD_TAG}}"
+		rm -rf "${rot_dest:?}/${df_name}"
+		if [[ -n "${DOGFOOD_PREFIX_SRC:-}" ]]; then
+			cp -a "${df_src}" "${rot_dest}/${df_name}"
+		else
+			cp -pf "${df_src}" "${rot_dest}/${df_name}"
+			chmod +x "${rot_dest}/${df_name}"
+		fi
 		fEcho "OK: installed (rotating) -> ${rot_dest}/${df_name}"
 		pruned=0
 		for old in "${rot_dest}/${DOGFOOD_PREFIX}_"*; do
@@ -627,7 +680,7 @@ if ((${#DOGFOOD_ROTATING_DESTS[@]})) && [[ -n "${DOGFOOD_PREFIX:-}" ]]; then
 			if in_use "$old"; then
 				fEcho_Clean "kept (running): $(basename "$old")"
 			else
-				rm -f "$old" && pruned=$((pruned + 1))
+				rm -rf "$old" && pruned=$((pruned + 1))
 			fi
 		done
 		if ((pruned)); then fEcho_Clean "pruned ${pruned} old copy(ies) not in use"; fi
@@ -635,6 +688,27 @@ if ((${#DOGFOOD_ROTATING_DESTS[@]})) && [[ -n "${DOGFOOD_PREFIX:-}" ]]; then
 	else
 		fEcho "WARNING: no rotating dogfood dest writable (${DOGFOOD_ROTATING_DESTS[*]}); skipping"
 	fi
+fi
+
+## 7c. Cross-built binaries under a fixed name, for the box that cannot build them
+## itself to pick up over the sync layer. Only targets built this run are copied.
+if ((${#DOGFOOD_CROSS_DESTS[@]})); then
+	for xd in "${DOGFOOD_CROSS_DESTS[@]}"; do
+		xosarch="${xd%%|*}"; xrest="${xd#*|}"; xname="${xrest%%|*}"; xdest="${xrest#*|}"
+		xsrc=""
+		for pair in "${built_arts[@]:-}"; do
+			[[ "${pair%%|*}" == "$xosarch" ]] && { xsrc="${pair#*|}"; break; }
+		done
+		if [[ -z "$xsrc" ]]; then
+			fEcho_Clean "no ${xosarch} build this run; cross dogfood skipped"
+		elif [[ -d "$xdest" && -w "$xdest" ]]; then
+			cp -pf "$xsrc" "${xdest}/${xname}"
+			fEcho "OK: installed (cross ${xosarch}) -> ${xdest}/${xname}"
+			df_did=1
+		else
+			fEcho "WARNING: cross dogfood dest not writable (${xdest}); skipping ${xosarch}"
+		fi
+	done
 fi
 
 if ((! df_did)); then fEcho_Clean "dogfood disabled"; fi

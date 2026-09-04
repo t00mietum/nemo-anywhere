@@ -116,24 +116,24 @@ LINT_CMD=(bash cicd/utility/lint-c.bash)
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 5: native release build. NOT READY - disabled (RELEASE_ENABLE=0).
-## The container builds into its own /build, which is NOT mounted back to the host,
-## so there's no host-side release binary to collect, version, or dogfood yet. The
-## build is also a single meson buildtype right now (no separate optimized release).
-## NEEDS: (1) an optimized release buildtype (meson --buildtype=release or a release
-## build dir), and (2) get the binary onto the host - either mount a build dir or
-## `docker cp` it out - before artifact collection/packaging/dogfood can run.
-RELEASE_ENABLE=0
-RELEASE_NATIVE_CMD=()
-RELEASE_NATIVE_BIN=""
+## Stage 5: native release build - READY.
+## release.bash owns the whole lane: it builds in nemo-build-jammy so the glibc floor
+## stays at 2.35, stages the relocatable prefix, writes the versioned tarball and the
+## sums file, and leaves the staged tree at cicd/artifacts/dogfood/ for stage 7 and
+## the launcher. Incremental, so only the first run after a clone is slow.
+## RELEASE_NATIVE_BIN is the wrapper inside that tree - the engine only checks it
+## exists, and stage 7 installs the tree around it rather than the file itself.
+RELEASE_ENABLE=1
+RELEASE_NATIVE_CMD=(bash cicd/linux/release.bash)
+RELEASE_NATIVE_BIN="cicd/artifacts/dogfood/${EXE_NAME}/bin/${EXE_NAME}"
 RELEASE_NATIVE_OSARCH="linux-x86_64"
-#	Rust-era original (reference only):
-#	RELEASE_NATIVE_CMD=(cargo build --release)
-#	RELEASE_NATIVE_BIN="target/release/${EXE_NAME}"
 
-## Stage 5: cross-release targets. NOT READY - disabled.
-## NEEDS: a meson cross-compilation story per target (Windows via MSYS2/MinGW-w64 is
-## the first planned toolchain; ARM later). This is Phase 2 work - see design.md.
+## Stage 5: cross-release targets. Deliberately off.
+## The Windows cross build works (cicd/win/build-cross.bash), but what a Windows box
+## actually dogfoods is the single packed exe, and the packer only runs on Windows -
+## so cross-building here every run would buy a fresher .zip and nothing else. The
+## Windows box builds and dogfoods its own through cicd-win.ps1. Run build-cross.bash
+## by hand before a release, which is what pack-zip.bash expects anyway.
 BUILD_CROSS=0
 CROSS_TARGETS=()
 #	Rust-era original (reference only - cargo/zig cross, not applicable to meson):
@@ -148,10 +148,12 @@ CROSS_TARGETS=()
 ## engine stage: cicd/linux/release.bash writes the Linux tarball + the sums file
 ## here, and the Windows exe is built and signed by the release-win workflow. Setting
 ## the dir is what lets utility/release.bash verify and attach them.
-## NEEDS (before RELEASE_ENABLE can flip to 1): the engine's own collector wipes this
-## dir and copies bare RELEASE_NATIVE_BIN binaries under Cargo-shaped version parsing
-## - it has to learn the meson version form and the archive contract first.
+## The dir is still where the sums file is written and where utility/release.bash
+## reads from, but the engine must not COLLECT into it: its collector wipes the dir
+## and re-copies bare RELEASE_NATIVE_BIN binaries under a Cargo-shaped name, which
+## would throw away the tarball release.bash just wrote.
 RELEASE_ARTIFACT_DIR="cicd/artifacts/release"
+RELEASE_COLLECT=0
 VERSION_MANIFEST="source/meson.build"
 #	Rust-era original (reference only):
 #	RELEASE_ARTIFACT_DIR="cicd/artifacts/release"
@@ -210,18 +212,27 @@ LINT_LOG_DIR="cicd/artifacts/lint"
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 7: dogfood (install the native release locally). NOT READY - disabled
-## (empty dest lists -> stage self-skips).
-## NEEDS: a host-side release binary (see RELEASE_ENABLE note) and a chosen install
-## story. nemo-anywhere installs via `meson install` into a prefix and co-installs
-## alongside upstream Nemo, so "dogfood" here likely means installing to a throwaway
-## prefix and launching from it, not dropping a single binary into ~/.local/bin.
-DOGFOOD_FIXED_DESTS=()
-DOGFOOD_ROTATING_DESTS=()
-DOGFOOD_PREFIX=""
-#	Rust-era original (reference only - single-binary drop, not how meson installs):
-#	DOGFOOD_FIXED_DESTS=("${HOME}/synced/0-0/common/exec/util/linux/bin" "/usr/local/sbin")
-#	DOGFOOD_ROTATING_DESTS=("${HOME}/.local/bin"); DOGFOOD_PREFIX="nmanywdf"
+## Stage 7: dogfood (install the native release locally) - READY.
+## The app is a relocatable prefix, not one binary, so DOGFOOD_PREFIX_SRC names the
+## staged tree stage 5 left behind and the stage installs that. Fixed installs put
+## the tree beside the bin dir as nemo-anywhere.app with the name on PATH pointing
+## into it; the rotating copy is the whole tree under a dated name.
+DOGFOOD_PREFIX_SRC="cicd/artifacts/dogfood/${EXE_NAME}"
+## First existing and writable wins. /usr/local/bin needs root, so it is the answer
+## for a box where the synced tree is not mounted, not the usual one.
+DOGFOOD_FIXED_DESTS=(
+	"${HOME}/synced/0-0/common/exec/util/linux/bin"
+	"/usr/local/bin"
+)
+## The pool utility/n8runfm.ps1 launches from.
+DOGFOOD_ROTATING_DESTS=(
+	"${HOME}/.local/bin"
+)
+DOGFOOD_PREFIX="nemofmdf"
+DOGFOOD_TAG="lin"
+## Cross-built binaries for another box to pick up over the sync layer. Empty: what
+## a Windows box dogfoods is the packed single exe, and only Windows can pack it.
+DOGFOOD_CROSS_DESTS=()
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••

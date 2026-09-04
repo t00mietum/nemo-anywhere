@@ -26,6 +26,7 @@ SLUG="nemo-anywhere"
 IMAGE="${NEMO_RELEASE_IMAGE:-nemo-build-jammy:latest}"
 CONTAINER="${NEMO_RELEASE_CONTAINER:-nemo-build-jammy}"
 OUT="${ROOT}/cicd/artifacts/release"
+DOGFOOD="${ROOT}/cicd/artifacts/dogfood/${SLUG}"
 BUILD=/build-release
 STAGE=/build-prefix/nemo-anywhere   # stage-prefix.bash guards its rm -rf on the dest being named after the app
 
@@ -94,7 +95,9 @@ docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 fEcho_Clean ""
 fEcho "Smoke test"
 smoke="$(docker exec "$CONTAINER" xvfb-run -a "${BUILD}/src/${SLUG}" --version)"
-[[ "$smoke" == "${SLUG} ${ver}" ]] || fDie "smoke test said '${smoke}', expected '${SLUG} ${ver}'"
+## Prefix match, not equality: the version string carries a build number that moves
+## on every reconfigure. An exact match here silently failed every release for a week.
+[[ "$smoke" == "${SLUG} v${ver} build "* ]] || fDie "smoke test said '${smoke}', expected '${SLUG} v${ver} build <n>'"
 fEcho_Clean "$smoke"
 
 fEcho_Clean ""
@@ -119,6 +122,15 @@ docker cp "${CONTAINER}:${STAGE}" "${OUT}/${name}" >/dev/null
 tar -czf "${OUT}/${name}.tar.gz" -C "$OUT" \
 	--owner=0 --group=0 --numeric-owner --sort=name --mtime="@${SOURCE_DATE_EPOCH}" \
 	"${name}"
+
+## Keep the staged tree on disk as well. The dogfood stage installs from it and the
+## launcher probes it, and neither should have to unpack the tarball to get at the
+## same files. Version-free name, so whatever is here is simply the current build.
+rm -rf "${DOGFOOD:?}"
+mkdir -p "$(dirname "${DOGFOOD}")"
+cp -a "${OUT}/${name}" "${DOGFOOD}"
+fEcho_Clean "staged prefix kept at cicd/artifacts/dogfood/${SLUG}"
+
 rm -rf "${OUT:?}/${name}"
 
 ## One sums file per release covering this version's artifacts - the installers grep
