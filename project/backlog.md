@@ -62,6 +62,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Change to search mode column sizing:
+	- In search mode when location column is shown:
+		- Only give 'Name' and 'Location' columns as much space as they need, not more.
+		- Only if they run out of space, shrink column proportional to their space demanded.
+			- But never one more than 2x the other.
+
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
 
