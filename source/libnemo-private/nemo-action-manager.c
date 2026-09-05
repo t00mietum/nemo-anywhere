@@ -157,7 +157,7 @@ set_up_actions_directories (NemoActionManager *action_manager)
 
     DEBUG ("Setting up action directories");
 
-    data_dirs = (gchar **) g_get_system_data_dirs ();
+    data_dirs = (gchar **) nemo_get_system_data_dirs ();
 
     for (i = 0; i < g_strv_length (data_dirs); i++) {
         path = nemo_action_manager_get_system_directory_path (data_dirs[i]);

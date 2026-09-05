@@ -466,6 +466,15 @@ test('Extract job test',
   args: []
 )
 
+test('Data dirs test',
+  executable('test-nemo-data-dirs',
+    [ 'test-nemo-data-dirs.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Path list text test',
   executable('test-nemo-path-list',
     [ 'test-nemo-path-list.c' ],

@@ -1031,6 +1031,50 @@ nemo_get_bin_dir (void)
 	return dir;
 }
 
+/* g_get_system_data_dirs with the repeats taken out. The prefix wrapper, the
+ * launcher and the packed exe's environment each put our own share dir on
+ * XDG_DATA_DIRS, and GLib on win32 adds the exe's share dir on top of that -
+ * so anything scanned per data dir (actions, search helpers, themes) showed
+ * up once per copy. */
+const char * const *
+nemo_get_system_data_dirs (void)
+{
+	static char **dirs;
+
+	if (g_once_init_enter (&dirs)) {
+		const char * const *sys = g_get_system_data_dirs ();
+		GPtrArray *out = g_ptr_array_new ();
+		GHashTable *seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+		guint i;
+
+		for (i = 0; sys != NULL && sys[i] != NULL; i++) {
+			char *key;
+
+			if (sys[i][0] == '\0') {
+				continue;
+			}
+			key = g_canonicalize_filename (sys[i], NULL);
+#ifdef G_OS_WIN32
+			{
+				char *folded = g_utf8_casefold (key, -1);
+				g_free (key);
+				key = folded;
+			}
+#endif
+			if (g_hash_table_contains (seen, key)) {
+				g_free (key);
+				continue;
+			}
+			g_hash_table_add (seen, key);
+			g_ptr_array_add (out, g_strdup (sys[i]));
+		}
+		g_ptr_array_add (out, NULL);
+		g_hash_table_destroy (seen);
+		g_once_init_leave (&dirs, (char **) g_ptr_array_free (out, FALSE));
+	}
+	return (const char * const *) dirs;
+}
+
 char *
 nemo_get_data_file_path (const char *partial_path)
 {

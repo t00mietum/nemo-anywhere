@@ -41,8 +41,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
-- 🔘 Plugins are duplicated.
-
 - 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
 
 - 🔘 Windows: When CTRL+L to editable current path:
@@ -168,6 +166,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Plugins are duplicated.
+	- Closed: 20260905-184500
+	- Cause: the same share folder reaches the data-dir list more than once. The prefix wrapper puts it on when a launcher already has, and on Windows GLib adds the exe's own share folder on top of the one in the environment. Every action file was then found once per copy.
+	- Fixed: the list is read through one place that drops repeats, and every scan that walks it (actions, search helpers, themes, thumbnailers) uses that. The wrapper also no longer adds a folder that is already there.
+	- The regression check feeds a list full of repeats and expects one of each, in order. It goes red with the fix backed out.
 
 - ✅ Windows: listing a drive root logs a batch of "GFileInfo created without standard::type" criticals.
 	- Opened: 20260902-190000
