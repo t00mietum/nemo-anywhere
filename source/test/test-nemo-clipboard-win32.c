@@ -222,6 +222,32 @@ main (int argc, char *argv[])
 	check (g_strcmp0 (got, second) == 0);
 	g_free (got);
 
+	/* An entry's own copy and cut end up written out rather than advertised.
+	 * With only the toolkit's advertised copy, nothing can be read back here. */
+	{
+		GtkWidget *entry = gtk_entry_new ();
+
+		gtk_container_add (GTK_CONTAINER (window), entry);
+		gtk_widget_show (entry);
+		nemo_clipboard_win32_watch_editables ();
+
+		gtk_entry_set_text (GTK_ENTRY (entry), "copied from an entry");
+		gtk_editable_select_region (GTK_EDITABLE (entry), 0, -1);
+		g_signal_emit_by_name (entry, "copy-clipboard");
+		while (g_main_context_iteration (NULL, FALSE));
+		got = clipboard_text ();
+		check (g_strcmp0 (got, "copied from an entry") == 0);
+		g_free (got);
+
+		gtk_editable_select_region (GTK_EDITABLE (entry), 0, 6);
+		g_signal_emit_by_name (entry, "cut-clipboard");
+		while (g_main_context_iteration (NULL, FALSE));
+		got = clipboard_text ();
+		check (g_strcmp0 (got, "copied") == 0);
+		check (g_strcmp0 (gtk_entry_get_text (GTK_ENTRY (entry)), " from an entry") == 0);
+		g_free (got);
+	}
+
 	dir = g_dir_make_tmp ("nemo-clip-XXXXXX", NULL);
 	if (dir != NULL) {
 		check_files (window, dir, FALSE);

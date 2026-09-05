@@ -43,6 +43,10 @@ GList *nemo_clipboard_win32_get_files (gboolean *cut);
 /* Whether the clipboard holds files at all. */
 gboolean nemo_clipboard_win32_has_files (void);
 
+/* Make every entry and text view write its cut or copied text out the same
+ * way, instead of only advertising it. Once, at startup. */
+void nemo_clipboard_win32_watch_editables (void);
+
 /* Empty it, which is what follows a cut once the paste has happened. */
 void nemo_clipboard_win32_clear (void);
 
