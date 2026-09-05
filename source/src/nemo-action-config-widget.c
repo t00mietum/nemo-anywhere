@@ -230,7 +230,7 @@ refresh_widget (NemoActionConfigWidget *widget)
 
     nemo_config_base_widget_clear_list (NEMO_CONFIG_BASE_WIDGET (widget));
 
-    data_dirs = (gchar **) g_get_system_data_dirs ();
+    data_dirs = (gchar **) nemo_get_system_data_dirs ();
 
     for (i = 0; i < g_strv_length (data_dirs); i++) {
         path = nemo_action_manager_get_system_directory_path (data_dirs[i]);
@@ -427,7 +427,7 @@ static void setup_dir_monitors (NemoActionConfigWidget *widget)
 {
     widget->dir_monitors = NULL;
 
-    gchar **data_dirs = (gchar **) g_get_system_data_dirs ();
+    gchar **data_dirs = (gchar **) nemo_get_system_data_dirs ();
 
     guint i;
     for (i = 0; i < g_strv_length (data_dirs); i++) {

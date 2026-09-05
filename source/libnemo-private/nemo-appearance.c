@@ -594,7 +594,7 @@ scan_gtk_dirs (ScanState *state)
 	scan_dir (state, dir, FALSE);
 	g_free (dir);
 
-	sys = g_get_system_data_dirs ();
+	sys = nemo_get_system_data_dirs ();
 	for (i = 0; sys != NULL && sys[i] != NULL; i++) {
 		dir = g_build_filename (sys[i], THEME_SUBDIR, NULL);
 		scan_dir (state, dir, FALSE);
@@ -845,7 +845,7 @@ gtk_knows_widget_theme (const char *name)
 		return TRUE;
 	}
 
-	sys = g_get_system_data_dirs ();
+	sys = nemo_get_system_data_dirs ();
 	for (i = 0; sys != NULL && sys[i] != NULL; i++) {
 		dir = g_build_filename (sys[i], THEME_SUBDIR, NULL);
 		found = widget_theme_at (dir, name, &unused);

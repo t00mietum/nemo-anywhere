@@ -48,6 +48,7 @@
 #include "nemo-desktop-thumbnail.h"
 #include <glib/gstdio.h>
 #include <libnemo-private/nemo-posix-compat.h>
+#include <libnemo-private/nemo-file-utilities.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -259,7 +260,7 @@ init_thumbnailers_dirs (gpointer data)
   gchar **thumbs_dirs;
   guint i, length;
 
-  data_dirs = g_get_system_data_dirs ();
+  data_dirs = nemo_get_system_data_dirs ();
   length = g_strv_length ((char **) data_dirs);
 
   thumbs_dirs = g_new (gchar *, length + 2);

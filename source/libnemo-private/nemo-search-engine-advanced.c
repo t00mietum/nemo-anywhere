@@ -116,7 +116,7 @@ get_cat_helper_directories (void)
     guint i;
     GList *helper_dirs = NULL;
 
-    data_dirs = (gchar **) g_get_system_data_dirs ();
+    data_dirs = (gchar **) nemo_get_system_data_dirs ();
 
     for (i = 0; i < g_strv_length (data_dirs); i++) {
         path = g_build_filename (data_dirs[i], NEMO_APP_SLUG, "search-helpers", NULL);

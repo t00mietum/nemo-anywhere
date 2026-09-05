@@ -101,7 +101,11 @@ cat > "${DEST}/bin/${SLUG}" <<-'WRAPPER'
 		[ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 	done
 	LD_LIBRARY_PATH="${prefix}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-	XDG_DATA_DIRS="${prefix}/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+	# A launcher may already have put this share dir first.
+	case ":${XDG_DATA_DIRS:-}:" in
+		*":${prefix}/share:"*) ;;
+		*) XDG_DATA_DIRS="${prefix}/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" ;;
+	esac
 	PATH="${prefix}/bin:${PATH}"
 	export LD_LIBRARY_PATH XDG_DATA_DIRS PATH
 
