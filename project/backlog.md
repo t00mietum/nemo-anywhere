@@ -89,8 +89,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done 20260903. A drop now names what it is about to do and where, and waits for an answer. Two settings under Behavior: moves ask by default, copies and links do not.
 	- Covers every drop that moves files: the file list, the icon view, both sidebars, the path bar and the tabs. A drop on the Trash still asks under its own setting, not twice.
 
-- 🔘 New process for each window. A crash in one shouldn't affect all others.
+- ✅ New process for each window. A crash in one shouldn't affect all others. And different versions (e.g. from n8runfm.ps1) should be able to run at once.
 	- Opened: 20260722-172504
+	- Done 20260905. Every launch and, by default, every new window is its own process. A command-line launch never joins a running copy, so two versions run side by side. `--quit` and Close All Windows still reach every copy.
+	- A setting under Behavior puts new windows back inside one process. The trade: a tab cannot move to a window in another process, and on Windows a new window takes the packed exe's start-up time.
 
 - 🔘 Target: BSD
 	- Opened: 20260730-185314

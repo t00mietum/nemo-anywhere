@@ -187,8 +187,8 @@ $RunAsAdmin = $false
 ## table); second is the GTK option group it adds. Keep them in step with that table.
 $KnownAppOptions = @(
 	"--check", "-c", "--browser", "--version", "--geometry", "-g",
-	"--no-default-window", "-n", "--no-desktop", "--tabs", "-t",
-	"--existing-window", "--fix-cache", "--debug", "--quit", "-q",
+	"--no-default-window", "-n", "--no-desktop", "--tabs", "-t", "--select", "-s",
+	"--existing-window", "--fix-cache", "--debug", "--quit", "-q", "--reset", "--about",
 	"--help", "--help-all", "-h", "-?",
 	"--display", "--screen", "--class", "--name", "--sync", "--gtk-module",
 	"--g-fatal-warnings", "--gdk-debug", "--gdk-no-debug", "--gtk-debug",

@@ -758,6 +758,17 @@ notebook_page_added_cb (GtkNotebook *notebook,
 	gtk_widget_show (GTK_WIDGET (pane->window));
 }
 
+static gboolean
+close_slot_idle (gpointer data)
+{
+	NemoWindowSlot *slot = data;
+
+	nemo_window_pane_close_slot (slot->pane, slot);
+	g_object_unref (slot);
+
+	return G_SOURCE_REMOVE;
+}
+
 static GtkNotebook *
 notebook_create_window_cb (GtkNotebook *notebook,
 			   GtkWidget *page,
@@ -775,10 +786,26 @@ notebook_create_window_cb (GtkNotebook *notebook,
 	}
 
 	app = NEMO_APPLICATION (g_application_get_default ());
+	slot = NEMO_WINDOW_SLOT (page);
+
+	if (nemo_application_window_per_process ()) {
+		/* A page cannot move into another process. A window there at the
+		 * same place, and this tab gone, is the nearest thing. GTK is still
+		 * inside the drop, so the tab goes on an idle. */
+		GFile *location = nemo_window_slot_get_location (slot);
+
+		if (location != NULL &&
+		    nemo_application_open_in_new_window (app, gtk_widget_get_screen (GTK_WIDGET (notebook)),
+							 location, NULL) == NULL) {
+			g_idle_add (close_slot_idle, g_object_ref (slot));
+		}
+		g_clear_object (&location);
+
+		return NULL;
+	}
+
 	new_window = nemo_application_create_window
 		(app, gtk_widget_get_screen (GTK_WIDGET (notebook)));
-
-	slot = NEMO_WINDOW_SLOT (page);
 	g_object_set_data (G_OBJECT (slot), "dnd-window-slot",
 			   GINT_TO_POINTER (TRUE));
 

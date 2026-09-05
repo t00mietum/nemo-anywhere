@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Each new window is its own process, so a crash in one leaves the others running, and two versions can be open side by side. A launch from the command line is always a fresh process too, never handed to a copy already running. `--quit` still takes every copy down. Off by a setting under Behavior, which puts new windows back inside one process.
+- `--select` opens the folder around each item given, with the item selected. Programs that ask for "show in folder" go through it.
 - Search results can be grouped under the folder that holds them instead of shown as one flat list, with a toggle next to the one for recursing into subfolders. Grouped results drop the Location column and switching either way happens without running the search again.
 - A drop that moves files asks first, naming the files and the folder they are headed for. Two settings under Behavior: moves ask by default, copies and links do not. The Trash keeps its own separate question rather than asking twice.
 - Content search ("Containing:") reads Word, Excel and PowerPoint documents in both their old and new formats, OpenDocument files and EPUB books, on every platform. The converters are built in, so nothing else needs installing.
@@ -37,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- `--existing-window` opens the URIs as tabs in one new window. There is no window of ours left to join, since every launch is its own process.
 - On Windows, bookmarks are kept beside the settings in the roaming profile, so they follow the settings between machines. A list from an earlier version is picked up from the old place on first start.
 - Search helpers: the `Priority` field is honoured, and one helper runs per file rather than every helper that claims the type.
 - The bundled icon themes are trimmed to the icons a file manager actually asks for. The Windows 11 set went from 1.8 MB to around 300 KB; anything not shipped falls back the way icon themes are meant to.

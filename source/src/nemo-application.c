@@ -43,6 +43,7 @@
 #include "nemo-icon-view.h"
 #include "nemo-image-properties-page.h"
 #include "nemo-list-view.h"
+#include "nemo-new-process.h"
 #include "nemo-previewer.h"
 #include "nemo-progress-ui-handler.h"
 #include "nemo-self-check-functions.h"
@@ -453,14 +454,53 @@ void
 nemo_application_open_location (NemoApplication *application,
                                 GFile           *location,
                                 GFile           *selection,
-                                const char      *startup_id,
-                                const gboolean  open_in_tabs)
+                                const char      *startup_id)
 {
     NEMO_APPLICATION_CLASS (G_OBJECT_GET_CLASS (application))->open_location (application,
                                                                               location,
                                                                               selection,
-                                                                              startup_id,
-                                                                              open_in_tabs);
+                                                                              startup_id);
+}
+
+gboolean
+nemo_application_window_per_process (void)
+{
+	return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_WINDOW_PER_PROCESS);
+}
+
+/* Every "somewhere other than this window" goes through here. By default that
+ * is another process, and NULL comes back; with the setting off the window is
+ * made here, already on its way to the location, and returned. A process that
+ * cannot be started falls back to a window here rather than to nothing. */
+NemoWindow *
+nemo_application_open_in_new_window (NemoApplication *application,
+                                     GdkScreen       *screen,
+                                     GFile           *location,
+                                     GFile           *selection)
+{
+	NemoWindow *window;
+	GList *sel_list = NULL;
+	GError *error = NULL;
+
+	if (nemo_application_window_per_process ()) {
+		if (nemo_new_process_spawn (location, selection, &error)) {
+			return NULL;
+		}
+		g_warning ("Could not start a new process for the window, opening it here: %s",
+		           error->message);
+		g_error_free (error);
+	}
+
+	window = nemo_application_create_window (application, screen);
+
+	if (selection != NULL) {
+		sel_list = g_list_prepend (NULL, nemo_file_get (selection));
+	}
+	nemo_window_slot_open_location_full (nemo_window_get_active_slot (window),
+	                                     location, 0, sel_list, NULL, NULL);
+	nemo_file_list_free (sel_list);
+
+	return window;
 }
 
 NemoWindow *

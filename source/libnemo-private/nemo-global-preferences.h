@@ -37,6 +37,9 @@ G_BEGIN_DECLS
 #define NEMO_PERFORMANCE_GROUP			"performance"
 #define NEMO_PREFERENCES_CPU_PERCENT	"cpu-percent"
 
+/* Windows */
+#define NEMO_PREFERENCES_WINDOW_PER_PROCESS	"window-per-process"
+
 /* Drag and drop options */
 #define NEMO_PREFERENCES_CONFIRM_DRAG_MOVE	"confirm-drag-move"
 #define NEMO_PREFERENCES_CONFIRM_DRAG_COPY	"confirm-drag-copy"

@@ -563,6 +563,11 @@ field: preferences.treat-root-as-normal
 	default: false
 	desc: Suppress any safeguards when running nemo/nemo-desktop as the root user. For some systems there is only a root user.
 
+field: preferences.window-per-process
+	type: bool
+	default: true
+	desc: Whether each new window runs as its own process, so a crash in one leaves the others standing
+
 field: preferences.menu-config.background-menu-compress
 	type: bool
 	default: true
