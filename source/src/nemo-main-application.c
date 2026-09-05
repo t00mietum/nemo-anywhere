@@ -115,8 +115,142 @@ struct _NemoMainApplicationPriv {
 	NemoDBusManager *dbus_manager;
 	NemoFreedesktopDBus *fdb_manager;
 
+	/* Command line, kept for the open handler. */
 	gchar *geometry;
+	gboolean open_in_tabs;
+	gboolean select;
+
+	GDBusConnection *instance_connection;
+	guint instance_name_id;
+	guint instance_actions_id;
 };
+
+/* Every running copy queues on the one name, so the oldest answers callers
+ * from outside and the rest are found through the queue. The actions ride at
+ * the path GApplication would use, so an older copy that still registers the
+ * old way is reachable the same way. */
+#define NEMO_INSTANCE_BUS_NAME    "org.NemoAnywhere"
+#define NEMO_INSTANCE_OBJECT_PATH "/org/NemoAnywhere"
+
+static void
+publish_instance (NemoMainApplication *self)
+{
+	GDBusConnection *connection;
+
+	connection = g_application_get_dbus_connection (G_APPLICATION (self));
+	if (connection == NULL) {
+		return;
+	}
+	self->priv->instance_connection = g_object_ref (connection);
+
+	self->priv->instance_name_id = g_bus_own_name_on_connection (connection,
+	                                                             NEMO_INSTANCE_BUS_NAME,
+	                                                             G_BUS_NAME_OWNER_FLAGS_NONE,
+	                                                             NULL, NULL, NULL, NULL);
+
+	/* GApplication may already serve the same group at this path; then the
+	 * export fails and nothing is missing. */
+	self->priv->instance_actions_id = g_dbus_connection_export_action_group (connection,
+	                                                                         NEMO_INSTANCE_OBJECT_PATH,
+	                                                                         G_ACTION_GROUP (self),
+	                                                                         NULL);
+}
+
+/* At finalize the application is no longer registered, so the connection is
+ * the one kept from publishing, not asked for again. */
+static void
+unpublish_instance (NemoMainApplication *self)
+{
+	GDBusConnection *connection = self->priv->instance_connection;
+
+	if (connection == NULL) {
+		return;
+	}
+
+	if (self->priv->instance_name_id != 0) {
+		g_bus_unown_name (self->priv->instance_name_id);
+		self->priv->instance_name_id = 0;
+	}
+	if (self->priv->instance_actions_id != 0) {
+		g_dbus_connection_unexport_action_group (connection, self->priv->instance_actions_id);
+		self->priv->instance_actions_id = 0;
+	}
+	g_clear_object (&self->priv->instance_connection);
+}
+
+/* Unique bus names of every other running copy; NULL with no bus. */
+static GStrv
+other_instances (GApplication *application)
+{
+	GDBusConnection *connection;
+	GVariant *reply;
+	GStrv names = NULL;
+	GPtrArray *others;
+	const char *me;
+	int i;
+
+	connection = g_application_get_dbus_connection (application);
+	if (connection == NULL) {
+		return NULL;
+	}
+
+	reply = g_dbus_connection_call_sync (connection,
+	                                     "org.freedesktop.DBus", "/org/freedesktop/DBus",
+	                                     "org.freedesktop.DBus", "ListQueuedOwners",
+	                                     g_variant_new ("(s)", NEMO_INSTANCE_BUS_NAME),
+	                                     G_VARIANT_TYPE ("(as)"),
+	                                     G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+	if (reply == NULL) {
+		/* No owner at all is an error reply, and means nobody is running. */
+		return g_new0 (char *, 1);
+	}
+
+	g_variant_get (reply, "(^as)", &names);
+	g_variant_unref (reply);
+
+	me = g_dbus_connection_get_unique_name (connection);
+	others = g_ptr_array_new ();
+	for (i = 0; names[i] != NULL; i++) {
+		if (g_strcmp0 (names[i], me) != 0) {
+			g_ptr_array_add (others, names[i]);
+		} else {
+			g_free (names[i]);
+		}
+	}
+	g_free (names);
+	g_ptr_array_add (others, NULL);
+
+	return (GStrv) g_ptr_array_free (others, FALSE);
+}
+
+/* Asks every other copy to quit. FALSE only when there is no bus to ask on. */
+static gboolean
+quit_other_instances (GApplication *application)
+{
+	GDBusConnection *connection;
+	GStrv others;
+	int i;
+
+	others = other_instances (application);
+	if (others == NULL) {
+		return FALSE;
+	}
+
+	connection = g_application_get_dbus_connection (application);
+	for (i = 0; others[i] != NULL; i++) {
+		GDBusActionGroup *group;
+
+		group = g_dbus_action_group_get (connection, others[i], NEMO_INSTANCE_OBJECT_PATH);
+		g_action_group_activate_action (G_ACTION_GROUP (group), "quit", NULL);
+		g_object_unref (group);
+	}
+	/* The requests are only queued; a copy about to exit has to see them out. */
+	g_dbus_connection_flush_sync (connection, NULL, NULL);
+
+	g_strfreev (others);
+
+	return TRUE;
+}
 
 static void
 nemo_main_application_send_notification (NemoApplication *application,
@@ -184,7 +318,9 @@ nemo_main_application_close_all_windows (NemoApplication *self)
 {
 	GList *list_copy;
 	GList *l;
-	
+
+	quit_other_instances (G_APPLICATION (self));
+
 	list_copy = g_list_copy (gtk_application_get_windows (GTK_APPLICATION (self)));
 	for (l = list_copy; l != NULL; l = l->next) {
 		if (NEMO_IS_WINDOW (l->data)) {
@@ -480,18 +616,24 @@ show_window_early (NemoWindow *window)
 
 static void
 open_window (NemoMainApplication *application,
-	     GFile *location, GdkScreen *screen, const char *geometry)
+	     GFile *location, GFile *selection, GdkScreen *screen, const char *geometry)
 {
 	NemoWindow *window;
 	gchar *uri;
 	gboolean have_geometry;
+	GList *sel_list = NULL;
 
 	uri = g_file_get_uri (location);
 	DEBUG ("Opening new window at uri %s", uri);
 
 	window = nemo_main_application_create_window (NEMO_APPLICATION (application),
 						     screen);
-	nemo_window_go_to (window, location);
+	if (selection != NULL) {
+		sel_list = g_list_prepend (NULL, nemo_file_get (selection));
+	}
+	nemo_window_slot_open_location_full (nemo_window_get_active_slot (window),
+					     location, 0, sel_list, NULL, NULL);
+	nemo_file_list_free (sel_list);
 
 	have_geometry = geometry != NULL && strcmp(geometry, "") != 0;
 
@@ -559,90 +701,38 @@ open_tabs (NemoMainApplication *application,
 }
 
 static void
-open_tabs_in_existing_window (NemoMainApplication *application,
-                              GFile **locations,
-                              guint n_files,
-                              GdkScreen *screen,
-                              const char *geometry)
-{
-    gchar *uri;
-
-    GList *list_copy;
-    GList *l;
-
-    list_copy = g_list_copy (gtk_application_get_windows (GTK_APPLICATION (&application->parent)));
-    for (l = list_copy; l != NULL; l = l->next) {
-        if (NEMO_IS_WINDOW (l->data)) {
-            NemoWindow *window;
-
-            window = NEMO_WINDOW (l->data);
-
-            /* open all locations */
-            for (int i = 1; i <= n_files; i++) {
-                /* open tabs in reverse order because each
-                 * tab is opened before the previous one */
-                guint tab = n_files - i;
-                uri = g_file_get_uri (locations[tab]);
-                g_debug ("Opening new tab at uri %s\n", uri);
-                nemo_window_go_to_tab (window, locations[tab]);
-                g_free(uri);
-            }
-
-            /* go to the last tab we opened */
-            NemoWindowPane *pane;
-
-            pane = nemo_window_get_active_pane (window);
-            nemo_notebook_set_current_page_relative (NEMO_NOTEBOOK (pane->notebook), n_files);
-
-            /* Don't use `gtk_window_present()`, as the window manager will ignore this window's focus request and try
-             * to just mark it urgent instead (flashing in the window list for example). */
-            if (eel_check_is_wayland ()) {
-                gtk_window_present (GTK_WINDOW (window));
-            } else {
-#ifdef GDK_WINDOWING_X11
-                gtk_window_present_with_time (GTK_WINDOW (window),
-                                              gdk_x11_get_server_time (gtk_widget_get_window (GTK_WIDGET (window))));
-#else
-                gtk_window_present (GTK_WINDOW (window));
-#endif
-            }
-
-          break;
-        }
-    }
-    if (l == NULL) {
-        /* no existing window was found, so open a new window */
-        open_tabs (application, locations, n_files, screen, geometry);
-    }
-    g_list_free (list_copy);
-}
-
-static void
 open_windows (NemoMainApplication *application,
 	      GFile **files,
 	      gint n_files,
 	      GdkScreen *screen,
 	      const char *geometry,
 	      gboolean open_in_tabs,
-	      gboolean open_in_existing_window)
+	      gboolean select)
 {
 	gint i;
 
 	if (files == NULL || files[0] == NULL) {
 		/* Open a window pointing at the default location. */
-		open_window (application, NULL, screen, geometry);
-	} else {
-		if (open_in_existing_window) {
-			/* Open one tab at each requested location in an existing window */
-			open_tabs_in_existing_window (application, files, n_files, screen, geometry);
-		} else if (open_in_tabs) {
-			/* Open one window with one tab at each requested location */
-			open_tabs (application, files, n_files, screen, geometry);
-		} else {
-			/* Open windows at each requested location. */
-			for (i = 0; i < n_files; i++) {
-				open_window (application, files[i], screen, geometry);
+		open_window (application, NULL, NULL, screen, geometry);
+	} else if (select) {
+		/* One window per item, each showing the folder around it. */
+		for (i = 0; i < n_files; i++) {
+			GFile *parent = g_file_get_parent (files[i]);
+
+			if (parent != NULL) {
+				open_window (application, parent, files[i], screen, geometry);
+				g_object_unref (parent);
+			} else {
+				open_window (application, files[i], NULL, screen, geometry);
 			}
+		}
+	} else if (open_in_tabs) {
+		/* Open one window with one tab at each requested location */
+		open_tabs (application, files, n_files, screen, geometry);
+	} else {
+		/* Open windows at each requested location. */
+		for (i = 0; i < n_files; i++) {
+			open_window (application, files[i], NULL, screen, geometry);
 		}
 	}
 }
@@ -651,75 +741,34 @@ static void
 nemo_main_application_open_location (NemoApplication     *application,
                                      GFile               *location,
                                      GFile               *selection,
-                                     const char          *startup_id,
-                                     const gboolean      open_in_tabs)
+                                     const char          *startup_id)
 {
 	NemoWindow *window;
-	GList *sel_list = NULL;
 
-	window = nemo_main_application_create_window (application, gdk_screen_get_default ());
-	gtk_window_set_startup_id (GTK_WINDOW (window), startup_id);
-
-	if (selection != NULL) {
-		sel_list = g_list_prepend (sel_list, nemo_file_get (selection));
+	window = nemo_application_open_in_new_window (application, gdk_screen_get_default (),
+	                                              location, selection);
+	if (window != NULL) {
+		gtk_window_set_startup_id (GTK_WINDOW (window), startup_id);
+		show_window_early (window);
 	}
-
-	if(open_in_tabs){
-		nemo_window_slot_open_location_full (nemo_window_get_active_slot (window), location,
-						 NEMO_WINDOW_OPEN_FLAG_NEW_TAB, sel_list, NULL, NULL);
-	} else {
-		nemo_window_slot_open_location_full (nemo_window_get_active_slot (window), location,
-						 0, sel_list, NULL, NULL);
-	}
-
-	if (sel_list != NULL) {
-		nemo_file_list_free (sel_list);
-	}
-
-	show_window_early (window);
 }
 
 static void
 nemo_main_application_open (GApplication *app,
                             GFile       **files,
                             gint          n_files,
-                            const gchar  *options)
+                            const gchar  *hint)
 {
 	NemoMainApplication *self = NEMO_MAIN_APPLICATION (app);
 
-	gboolean open_in_tabs = FALSE;
-	gchar *geometry = NULL;
-	gboolean open_in_existing_window = strcmp (options, "EXISTING_WINDOW") == 0;
-	const char splitter = '=';
+	DEBUG ("Open called on the GApplication instance; %d files, open in tabs: %s, select: %s, geometry: '%s'",
+	       n_files,
+	       self->priv->open_in_tabs ? "yes" : "no",
+	       self->priv->select ? "yes" : "no",
+	       self->priv->geometry ? self->priv->geometry : "none");
 
-	g_debug ("Open called on the GApplication instance; %d files", n_files);
-
-	if (!open_in_existing_window) {
-		/* Check if local command line passed --geometry or --tabs */
-		if (strlen (options) > 0) {
-			gchar** split_options = g_strsplit (options, &splitter, 2);
-			if (strcmp (split_options[0], "NULL") != 0) {
-				geometry = g_strdup (split_options[0]);
-			}
-			/* A caller-supplied hint with no '=' leaves split_options[1]
-			 * NULL (g_strsplit limit 2); sscanf(NULL) would crash. */
-			if (split_options[1] != NULL) {
-				sscanf (split_options[1], "%d", &open_in_tabs);
-			}
-			g_strfreev (split_options);
-		}
-	}
-
-	DEBUG ("Open called on the GApplication instance; %d files, open in tabs: %s, geometry: '%s',"
-           "open in existing window: %s",
-           n_files,
-           open_in_tabs ? "yes" : "no",
-           geometry ? geometry : "none",
-           open_in_existing_window ? "yes" : "no");
-
-	open_windows (self, files, n_files, gdk_screen_get_default (), geometry, open_in_tabs, open_in_existing_window);
-
-    g_clear_pointer (&geometry, g_free);
+	open_windows (self, files, n_files, gdk_screen_get_default (),
+	              self->priv->geometry, self->priv->open_in_tabs, self->priv->select);
 }
 
 static void
@@ -738,6 +787,8 @@ nemo_main_application_finalize (GObject *object)
     application = NEMO_MAIN_APPLICATION (object);
 
     nemo_bookmarks_exiting ();
+
+    unpublish_instance (application);
 
     g_clear_object (&application->priv->volume_monitor);
     g_free (application->priv->geometry);
@@ -813,7 +864,6 @@ nemo_main_application_local_command_line (GApplication *application,
 	gboolean version = FALSE;
 	gboolean about = FALSE;
 	gboolean browser = FALSE;
-	gboolean open_in_tabs = FALSE;
 	gboolean open_in_existing_window = FALSE;
 	gboolean kill_shell = FALSE;
 	gboolean no_default_window = FALSE;
@@ -822,7 +872,6 @@ nemo_main_application_local_command_line (GApplication *application,
 	gboolean reset_config = FALSE;
     gboolean debug = FALSE;
 	gchar **remaining = NULL;
-    GApplicationFlags init_flags;
 	NemoMainApplication *self = NEMO_MAIN_APPLICATION (application);
 
 	const GOptionEntry options[] = {
@@ -844,10 +893,14 @@ nemo_main_application_local_command_line (GApplication *application,
 		  N_("Only create windows for explicitly specified URIs."), NULL },
         { "no-desktop", '\0', 0, G_OPTION_ARG_NONE, &no_desktop_ignored,
           N_("Ignored argument - left for compatibility only."), NULL },
-		{ "tabs", 't', 0, G_OPTION_ARG_NONE, &open_in_tabs,
+		{ "tabs", 't', 0, G_OPTION_ARG_NONE, &self->priv->open_in_tabs,
 		  N_("Open URIs in tabs."), NULL },
-		{ "existing-window", 0, 0, G_OPTION_ARG_NONE, &open_in_existing_window,
-		  N_("Open URIs in an existing window."), NULL },
+		{ "select", 's', 0, G_OPTION_ARG_NONE, &self->priv->select,
+		  N_("Open the folder holding each URI, with the item selected."), NULL },
+		/* Every launch is its own process now, so there is no window of ours
+		 * to join; the nearest thing is one window with a tab per URI. */
+		{ "existing-window", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, &open_in_existing_window,
+		  NULL, NULL },
 		{ "fix-cache", '\0', 0, G_OPTION_ARG_NONE, &fix_cache,
 		  N_("Repair the user thumbnail cache - this can be useful if you're having trouble with file thumbnails.  Must be run as root"), NULL },
 		{ "reset", '\0', 0, G_OPTION_ARG_NONE, &reset_config,
@@ -908,8 +961,12 @@ nemo_main_application_local_command_line (GApplication *application,
 #endif
     }
 
+	if (open_in_existing_window) {
+		self->priv->open_in_tabs = TRUE;
+	}
+
 	if (!do_cmdline_sanity_checks (self, perform_self_check,
-				       version, kill_shell, open_in_tabs, remaining)) {
+				       version, kill_shell, self->priv->open_in_tabs, remaining)) {
 		*exit_status = EXIT_FAILURE;
 		goto out;
 	}
@@ -939,39 +996,25 @@ nemo_main_application_local_command_line (GApplication *application,
 	       "self checks %d",
 	       no_default_window, kill_shell, perform_self_check);
 
-    /* Keep our original flags handy */
-    init_flags = g_application_get_flags (application);
+	/* Non-unique: this is always the primary instance, whatever else is
+	 * running. Registering still gets the bus connection the copies find
+	 * each other on. */
+	if (!g_application_register (application, NULL, &error)) {
+		g_printerr ("Could not register nemo: %s\n", error->message);
+		g_clear_error (&error);
 
-    /* First try to register as a service (this allows our dbus activation to succeed
-     * if we're not already running */
-    g_application_set_flags (application, init_flags | G_APPLICATION_IS_SERVICE);
-    g_application_register (application, NULL, &error);
-
-	if (error != NULL) {
-        g_debug ("Could not register nemo as a service, trying as a remote: %s", error->message);
-        g_clear_error (&error);
-    } else {
-        goto post_registration;
-    }
-
-    /* If service registration failed, try to connect to the existing instance */
-    g_application_set_flags (application, init_flags | G_APPLICATION_IS_LAUNCHER);
-    g_application_register (application, NULL, &error);
-
-    if (error != NULL) {
-        g_printerr ("Could not register nemo as a remote: %s\n", error->message);
-        g_clear_error (&error);
-
-        *exit_status = EXIT_FAILURE;
-        goto out;
-    }
-
-post_registration:
+		*exit_status = EXIT_FAILURE;
+		goto out;
+	}
 
 	/* After registration, so a running copy is caught: it holds the settings in
 	 * memory and would write them straight back over anything cleared here. */
 	if (reset_config) {
-		if (g_application_get_is_remote (application)) {
+		GStrv running = other_instances (application);
+		gboolean busy = running != NULL && running[0] != NULL;
+
+		g_strfreev (running);
+		if (busy) {
 			g_printerr ("Nemo is already running - quit it first, then --reset.\n");
 			*exit_status = EXIT_FAILURE;
 		} else {
@@ -994,9 +1037,11 @@ post_registration:
 	}
 
 	if (kill_shell) {
-		DEBUG ("Killing application, as requested");
-		g_action_group_activate_action (G_ACTION_GROUP (application),
-						"quit", NULL);
+		DEBUG ("Asking every running copy to quit");
+		if (!quit_other_instances (application)) {
+			g_printerr ("No session bus, so running copies cannot be reached.\n");
+			*exit_status = EXIT_FAILURE;
+		}
 		goto out;
 	}
 
@@ -1043,20 +1088,8 @@ post_registration:
 		files[0] = g_file_new_for_path (g_get_home_dir ());
 		files[1] = NULL;
 	}
-	/* Invoke "Open" to open in existing window or create new windows */
 	if (len > 0) {
-		gchar* concatOptions = g_malloc0(64);
-		if (open_in_existing_window) {
-			g_stpcpy (concatOptions, "EXISTING_WINDOW");
-		} else {
-			if (self->priv->geometry == NULL) {
-				g_snprintf (concatOptions, 64, "NULL=%d", open_in_tabs);
-			} else {
-				g_snprintf (concatOptions, 64, "%s=%d", self->priv->geometry, open_in_tabs);
-			}
-		}
-		g_application_open (application, files, len, concatOptions);
-		g_free (concatOptions);
+		g_application_open (application, files, len, "");
 	}
 
 	for (idx = 0; idx < len; idx++) {
@@ -1123,6 +1156,7 @@ nemo_main_application_continue_startup (NemoApplication *app)
 	/* create DBus manager */
 	self->priv->dbus_manager = nemo_dbus_manager_new ();
 	self->priv->fdb_manager = nemo_freedesktop_dbus_new ();
+	publish_instance (self);
 
     /* Check the user's ~/.config/nemo directory and post warnings
      * if there are problems.
@@ -1195,7 +1229,7 @@ nemo_main_application_get_singleton (void)
 {
     return nemo_application_initialize_singleton (NEMO_TYPE_MAIN_APPLICATION,
                                                   "application-id", "org.NemoAnywhere",
-                                                  "flags", G_APPLICATION_HANDLES_OPEN,
+                                                  "flags", G_APPLICATION_HANDLES_OPEN | G_APPLICATION_NON_UNIQUE,
                                                   "register-session", TRUE,
                                                   NULL);
 }

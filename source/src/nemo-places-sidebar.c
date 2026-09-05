@@ -2674,12 +2674,9 @@ volume_mounted_cb (GVolume *volume,
 				nemo_window_slot_open_location (sidebar->go_to_after_mount_slot, location,
 								    sidebar->go_to_after_mount_flags);
 			} else {
-				NemoWindow *new, *cur;
-
-				cur = NEMO_WINDOW (sidebar->window);
-				new = nemo_application_create_window (nemo_application_get_singleton (),
-									  gtk_window_get_screen (GTK_WINDOW (cur)));
-				nemo_window_go_to (new, location);
+				nemo_application_open_in_new_window (nemo_application_get_singleton (),
+								     gtk_window_get_screen (GTK_WINDOW (sidebar->window)),
+								     location, NULL);
 			}
 		}
 
@@ -2743,12 +2740,9 @@ open_selected_bookmark (NemoPlacesSidebar *sidebar,
 			slot = nemo_window_get_active_slot (sidebar->window);
 			nemo_window_slot_open_location (slot, location, flags);
 		} else {
-			NemoWindow *cur, *new;
-
-			cur = NEMO_WINDOW (sidebar->window);
-			new = nemo_application_create_window (nemo_application_get_singleton (),
-								  gtk_window_get_screen (GTK_WINDOW (cur)));
-			nemo_window_go_to (new, location);
+			nemo_application_open_in_new_window (nemo_application_get_singleton (),
+							     gtk_window_get_screen (GTK_WINDOW (sidebar->window)),
+							     location, NULL);
 		}
 		g_object_unref (location);
 		g_free (uri);

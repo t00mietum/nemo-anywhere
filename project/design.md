@@ -295,6 +295,12 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 
 	- A link now counts as one item rather than a folder to walk into. That is what POSIX always did and Windows never did, and it is also what stops a copy following a link to somewhere large or unreachable.
 
+- Each window is its own process, by default. A crash then takes one window rather than all of them, and two versions can be open side by side, which is what trying a build next to the one in daily use needs. Every launch is a fresh process as well; nothing is handed to a copy already running.
+	- The copies still find each other. Each one queues on the one bus name, so a caller from outside always reaches the oldest, and the rest are read off the queue. That is how `--quit` and "Close All Windows" reach every copy, and how `--reset` knows one is running.
+	- What it costs: a tab cannot be dragged into a window that belongs to another process. Dragging a tab out onto the desktop opens that folder in a new process and closes the tab. On Windows a new window carries the packed program's start-up time rather than appearing at once.
+	- Those two are why it is a setting rather than fixed. Turning it off puts new windows back inside one process. Launches from outside stay separate either way.
+	- A selection has to be sayable on a command line for another process to show it, so `--select` was added: the folder around an item, with the item selected. "Show in folder" from other programs uses the same path.
+
 ## Architecture
 
 ### Software stack

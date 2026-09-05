@@ -36,6 +36,7 @@ nemoCommon_sources = [
   'nemo-location-entry.c',
   'nemo-mime-actions.c',
   'nemo-navigation-action.c',
+  'nemo-new-process.c',
   'nemo-navigation-state.c',
   'nemo-notebook.c',
   'nemo-pathbar.c',

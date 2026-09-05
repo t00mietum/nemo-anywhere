@@ -477,6 +477,25 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 	/* now get/create the window */
 	if (use_same) {
 		target_window = window;
+	} else if (nemo_application_window_per_process ()) {
+		/* The window is another process; there is nothing here to steer. */
+		GFile *selection = NULL;
+
+		if (new_selection != NULL) {
+			selection = nemo_file_get_location (NEMO_FILE (new_selection->data));
+		}
+		nemo_application_open_in_new_window (nemo_application_get_singleton (),
+						     gtk_window_get_screen (GTK_WINDOW (window)),
+						     location, selection);
+		g_clear_object (&selection);
+
+		if ((flags & NEMO_WINDOW_OPEN_FLAG_CLOSE_BEHIND) != 0) {
+			nemo_window_close (window);
+		}
+		if (callback != NULL) {
+			callback (window, NULL, user_data);
+		}
+		return;
 	} else {
 		app = nemo_application_get_singleton ();
         target_window = nemo_application_create_window (app, gtk_window_get_screen (GTK_WINDOW (window)));

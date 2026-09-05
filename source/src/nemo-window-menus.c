@@ -864,7 +864,6 @@ action_new_window_callback (GtkAction *action,
 
     {
         NemoApplication *application;
-        NemoWindow *new_window;
         gchar *uri;
         GFile *loc;
 
@@ -891,10 +890,9 @@ action_new_window_callback (GtkAction *action,
 
         application = nemo_application_get_singleton ();
 
-        new_window = nemo_application_create_window (application,
-                                                     gtk_window_get_screen (GTK_WINDOW (current_window)));
-
-        nemo_window_slot_open_location (nemo_window_get_active_slot (new_window), loc, 0);
+        nemo_application_open_in_new_window (application,
+                                             gtk_window_get_screen (GTK_WINDOW (current_window)),
+                                             loc, NULL);
 
         g_object_unref (loc);
         g_free (uri);

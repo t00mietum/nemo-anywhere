@@ -156,8 +156,8 @@ main (int argc, char *argv[])
 				    argc, argv);
 
 	/* Normally the window's first draw takes it down. This catches the runs
-	 * that never get one: a second instance handing its arguments to the
-	 * copy already running, or an option that fails to parse. */
+	 * that never get one: an option that does its work and exits, or one
+	 * that fails to parse. */
 	nemo_splash_hide ();
 
 	/* don't lose a save still sitting in its debounce window */

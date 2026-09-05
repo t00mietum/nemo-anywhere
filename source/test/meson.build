@@ -377,6 +377,28 @@ test('Search group test',
   args: []
 )
 
+test('New process argv test',
+  executable('test-nemo-new-process',
+    [ 'test-nemo-new-process.c', '../src/nemo-new-process.c' ],
+    include_directories: [ rootInclude, include_directories('../src') ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
+if not is_windows
+  test('Instances test',
+    executable('test-nemo-instances',
+      [ 'test-nemo-instances.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: [ nemo ],
+    timeout: 120
+  )
+endif
+
 test('Filename extension test',
   executable('test-nemo-filename-extension',
     [ 'test-nemo-filename-extension.c' ],

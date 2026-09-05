@@ -80,6 +80,8 @@ const char * nemo_get_data_dir                   (void);
 const char * nemo_get_locale_dir                 (void);
 const char * nemo_get_libexec_dir                (void);
 const char * nemo_get_bin_dir                    (void);
+/* The running executable itself. NULL when the platform gives no answer. */
+char *       nemo_get_exe_path                   (void);
 
 char *   nemo_get_data_file_path                 (const char *partial_path);
 

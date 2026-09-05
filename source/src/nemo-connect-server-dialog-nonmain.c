@@ -78,8 +78,20 @@ nemo_connect_server_dialog_display_location_async (NemoConnectServerDialog *self
 					 callback, user_data,
 					 nemo_connect_server_dialog_display_location_async);
 
-	window = nemo_application_create_window (nemo_application_get_singleton (),
-						     gtk_widget_get_screen (widget));
+	if (nemo_application_window_per_process ()) {
+		/* The other process does the connecting; nothing to wait for here. */
+		window = nemo_application_open_in_new_window (nemo_application_get_singleton (),
+							      gtk_widget_get_screen (widget),
+							      location, NULL);
+		if (window == NULL) {
+			g_simple_async_result_complete_in_idle (res);
+			g_object_unref (res);
+			return;
+		}
+	} else {
+		window = nemo_application_create_window (nemo_application_get_singleton (),
+							 gtk_widget_get_screen (widget));
+	}
 
 	nemo_window_go_to_full (window, location,
 				    window_go_to_cb, res);

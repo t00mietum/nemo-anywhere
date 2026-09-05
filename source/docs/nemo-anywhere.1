@@ -42,8 +42,10 @@ Create the initial window with the given geometry.
 .B \-\-tabs\fR
 Open URIs in tabs.
 .TP
-.B \-\-existing-window\fR
-Open URIs in an existing window.
+.B \-s
+.TP
+.B \-\-select
+Open the folder holding each URI, with the item selected.
 .TP
 .B \-n
 .TP
@@ -60,7 +62,7 @@ Enable debugging code.  Example usage: 'NEMO_DEBUG=Actions nemo-anywhere --debug
 .B \-q
 .TP
 .B \-\-quit
-Quit Nemo.
+Quit every running copy.
 .TP
 .B \-\-help
 Show a summary of options.
@@ -69,6 +71,9 @@ Show a summary of options.
 Show Nemo's version.
 .TP
 Other standard GNOME options not listed here are also supported.
+
+.SH PROCESSES
+Every launch is its own process, and by default so is every new window, so a crash in one leaves the others running and two versions can be open side by side. The copies find each other over the session bus, which is how \-\-quit reaches all of them. The Behavior page of the preferences can put new windows back inside one process.
 
 .SH NOTE ON THE ROOT USER
 Ordinarily, nemo and nemo-desktop treat being run as the root user as special, with certain

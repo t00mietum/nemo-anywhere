@@ -915,18 +915,10 @@ nemo_get_gmc_desktop_directory (void)
 	return g_build_filename (g_get_home_dir (), LEGACY_DESKTOP_DIRECTORY_NAME, NULL);
 }
 
-/* The compiled-in prefix is only right for an install that stayed where it was
- * built. A relocated Linux prefix and every Windows layout put the data beside
- * the executable instead, which is why translations and the info-bar docs went
- * missing there. Resolve against the running binary first, fall back to the
- * built-in path. */
-static const char *
-runtime_dir_for (const char *tail, const char *built_in)
+char *
+nemo_get_exe_path (void)
 {
 	char *exe = NULL;
-	char *dir;
-	const char *result = built_in;
-	int i;
 
 #ifdef G_OS_WIN32
 	{
@@ -945,6 +937,23 @@ runtime_dir_for (const char *tail, const char *built_in)
 	}
 #endif
 
+	return exe;
+}
+
+/* The compiled-in prefix is only right for an install that stayed where it was
+ * built. A relocated Linux prefix and every Windows layout put the data beside
+ * the executable instead, which is why translations and the info-bar docs went
+ * missing there. Resolve against the running binary first, fall back to the
+ * built-in path. */
+static const char *
+runtime_dir_for (const char *tail, const char *built_in)
+{
+	char *exe;
+	char *dir;
+	const char *result = built_in;
+	int i;
+
+	exe = nemo_get_exe_path ();
 	if (exe == NULL) {
 		return built_in;
 	}

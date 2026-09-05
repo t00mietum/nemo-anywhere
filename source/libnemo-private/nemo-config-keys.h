@@ -228,6 +228,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "tooltips-show-mod-date", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show file modified date in tooltip" },
 	{ "preferences", "tooltips-show-path", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show full path in tooltip" },
 	{ "preferences", "treat-root-as-normal", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Suppress any safeguards when running nemo/nemo-desktop as the root user. For some systems there is only a root user." },
+	{ "preferences", "window-per-process", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Whether each new window runs as its own process, so a crash in one leaves the others standing" },
 	{ "preferences.menu-config", "background-menu-compress", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the background context menu's Compress item." },
 	{ "preferences.menu-config", "background-menu-copy-path", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the background context menu's Copy Path item." },
 	{ "preferences.menu-config", "background-menu-create-new-folder", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show the background context menu's Create New Folder item." },
