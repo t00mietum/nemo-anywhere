@@ -142,7 +142,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- First, on its own: bump the vendored `shcl.h` to the release carrying the coming fix, and run the config tests against it.
 	- Each URI becomes a quoted section, each metadata key a string or string-array field under it. The store keeps its mutex, its debounced save and its re-keying on rename; only the file format changes.
 	- No migration of the old files, the same call as for settings pre-1.0.
-	- json-glib stays for now: the action layout file `actions-tree.json` also uses it, and its writer is the Python layout editor. Converting that one is a separate decision.
+	- Then the action layout: `actions-tree.json` -> `actions-tree.shcl`. Each node becomes a section named by its uuid, children nested under a submenu, order by file position; the unused `position` field goes. The C side only reads (`nemo-action-manager.c`); the writer is the Python layout editor, which takes shcl's single-file Python binding the way the C side took the header. Its drag-and-drop payload is in-memory and uses the standard library, so it can stay as it is or move to the same format. Fix the pre-fork `~/.config/nemo/` path in the editor and its notes on the way.
+	- With both done, json-glib leaves the build.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
