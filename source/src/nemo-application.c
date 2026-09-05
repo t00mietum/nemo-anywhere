@@ -85,6 +85,7 @@
 #include <libnemo-private/nemo-favorites.h>
 #include <libnemo-private/nemo-network-win32.h>
 #include <libnemo-private/nemo-trash-win32.h>
+#include <libnemo-private/nemo-clipboard-win32.h>
 #include <libnemo-private/nemo-appearance.h>
 
 #include <libnemo-private/nemo-desktop-thumbnail.h>
@@ -619,6 +620,7 @@ nemo_application_startup (GApplication *app)
 	 * same before-anything-queries rule */
 	nemo_trash_win32_register ();
 	nemo_network_win32_register ();
+	nemo_clipboard_win32_watch_editables ();
 
 	/* The manifest says we scale ourselves, so from here on the font size
 	 * has to follow the monitor. Before any widget is built, so nothing is

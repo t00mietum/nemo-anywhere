@@ -231,6 +231,92 @@ nemo_clipboard_win32_set_text (GtkWidget  *widget,
 	return TRUE;
 }
 
+/* An entry or text view copies the way the toolkit always has: it claims the
+ * clipboard and hands the text over when asked. That is the write that goes
+ * missing under a remote desktop, so the selection is written out here too,
+ * once the widget's own handler has run. A cut is read before that handler
+ * deletes it, which is why the hook runs first and the write waits. */
+
+typedef struct {
+	GtkWidget *widget;
+	char *text;
+} PendingText;
+
+static char *
+selected_text (GtkWidget *widget)
+{
+	if (GTK_IS_ENTRY (widget) && !gtk_entry_get_visibility (GTK_ENTRY (widget))) {
+		return NULL;
+	}
+	if (GTK_IS_EDITABLE (widget)) {
+		gint start, end;
+
+		if (gtk_editable_get_selection_bounds (GTK_EDITABLE (widget), &start, &end)) {
+			return gtk_editable_get_chars (GTK_EDITABLE (widget), start, end);
+		}
+		return NULL;
+	}
+	if (GTK_IS_TEXT_VIEW (widget)) {
+		GtkTextBuffer *buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (widget));
+		GtkTextIter start, end;
+
+		if (gtk_text_buffer_get_selection_bounds (buffer, &start, &end)) {
+			return gtk_text_buffer_get_text (buffer, &start, &end, FALSE);
+		}
+	}
+	return NULL;
+}
+
+static gboolean
+write_pending_text (gpointer data)
+{
+	PendingText *pending = data;
+
+	nemo_clipboard_win32_set_text (pending->widget, pending->text);
+	g_object_unref (pending->widget);
+	g_free (pending->text);
+	g_free (pending);
+	return G_SOURCE_REMOVE;
+}
+
+static gboolean
+editable_copy_hook (GSignalInvocationHint *hint,
+		    guint                  n_params,
+		    const GValue          *params,
+		    gpointer               data)
+{
+	GtkWidget *widget = g_value_get_object (&params[0]);
+	char *text = selected_text (widget);
+	PendingText *pending;
+
+	if (text == NULL || *text == '\0') {
+		g_free (text);
+		return TRUE;
+	}
+	pending = g_new0 (PendingText, 1);
+	pending->widget = g_object_ref (widget);
+	pending->text = text;
+	g_idle_add_full (G_PRIORITY_HIGH, write_pending_text, pending, NULL);
+	/* cppcheck-suppress memleak ; the idle owns pending and frees it */
+	return TRUE;
+}
+
+void
+nemo_clipboard_win32_watch_editables (void)
+{
+	static const char *names[] = { "copy-clipboard", "cut-clipboard" };
+	GType types[] = { GTK_TYPE_ENTRY, GTK_TYPE_TEXT_VIEW };
+	guint i, j;
+
+	for (i = 0; i < G_N_ELEMENTS (types); i++) {
+		g_type_class_ref (types[i]);	/* the signals exist once the class does */
+		for (j = 0; j < G_N_ELEMENTS (names); j++) {
+			g_signal_add_emission_hook (g_signal_lookup (names[j], types[i]), 0,
+						    editable_copy_hook, NULL, NULL);
+		}
+	}
+}
+
 gboolean
 nemo_clipboard_win32_set_files (GtkWidget *widget,
 				GList     *uris,

@@ -43,9 +43,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
 
-- 🔘 Windows: When CTRL+L to editable current path:
+- 🛠️ Windows: When CTRL+L to editable current path:
 	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
 	- Context menu key doesn't work on selected text.
+	- Fixed 20260905, the copy half: an entry's own cut and copy only advertised the text, the way the toolkit always has, which is the same write that went missing for "Copy path" and file copy. The selected text is now written out as well, for every entry and text box. The regression check goes red with the fix backed out.
+	- Left: the context menu key. Not reproduced away from the Windows box, and the same keystroke works in the file list there, so it needs a look on that box.
 
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
