@@ -62,8 +62,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Need a better icon for "recursive" in search mode. (It currently looks like "press this for enter".)
-
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
 
@@ -1057,6 +1055,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Need a better icon for "recursive" in search mode. (It currently looks like "press this for enter".)
+	- Done 20260905. A folder with a branch line down into a smaller folder, the usual "include subfolders" shape, in the same flat style as the group-by-folder toggle beside it. Mirrored for right-to-left.
 
 - ✅ Allow moving tabs to other windows.
 	- Opened: 20260722-172504
