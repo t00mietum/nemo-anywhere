@@ -39,7 +39,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Randomly crashes. (At least on Windows.) Sometimes just with a focus change.
+- 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
+
+- 🔘 Plugins are duplicated.
 
 - 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
 
@@ -59,6 +61,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
+
+- 🔘 Need a better icon for "recursive" in search mode. (It currently looks like "press this for enter".)
 
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
@@ -132,6 +136,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260904-160000
 	- Stage 7 understands a relocatable prefix, not just a single binary: the fixed install puts the tree beside the bin dir and points the name on PATH into it, and the rotating copy is the whole tree under a dated name.
 	- The dated name carries the build's own mtime rather than the run clock, so the pipeline's copy and the launcher's copy of one build agree and neither re-fetches it.
+
+- 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
+	- Opened: 20260905-112900
+	- First, on its own: bump the vendored `shcl.h` to the release carrying the coming fix, and run the config tests against it.
+	- Each URI becomes a quoted section, each metadata key a string or string-array field under it. The store keeps its mutex, its debounced save and its re-keying on rename; only the file format changes.
+	- No migration of the old files, the same call as for settings pre-1.0.
+	- json-glib stays for now: the action layout file `actions-tree.json` also uses it, and its writer is the Python layout editor. Converting that one is a separate decision.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
