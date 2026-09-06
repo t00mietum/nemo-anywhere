@@ -42,6 +42,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
 - 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
+	- Traced on paper, not yet confirmed on the box. A view swap only happens once the NEW view reports it has started loading, and a view will not report that until both of its metadata callbacks have fired. One of those asks the whole directory for INFO, MOUNT and FILESYSTEM_INFO across every file already known.
+	- That is why the first view gets through and the second does not. At startup the directory has no files yet, so the question is answered at once. By the time the view button is pressed the folder is full of links, and filesystem info is asked one file at a time - about twenty seconds each for a link to a share that is not answering.
+	- Fits the rest of the report: the answers are cached on each file, so leaving the folder and coming back makes the swap instant.
+	- To confirm on the box: time how long the second view sits before it appears, and check whether it is proportional to the number of links. The fix, if that is it, is not to make the view swap wait on per-file filesystem info - which is a change every platform feels, so it wants a decision rather than a quiet edit.
 
 - 🛠️ Windows: When CTRL+L to editable current path:
 	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
