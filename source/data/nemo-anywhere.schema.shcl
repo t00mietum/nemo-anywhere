@@ -4,58 +4,53 @@
 
 field: favorites
 	type: string-array
-	desc: Favorite files and folders
 
 field: favorites-root-metadata
 	type: string-array
-	desc: Metadata for the favorites root
 
 field: appearance.gtk-theme
 	type: string
 	default: 
-	desc: Widget theme to use, or empty to leave it to the platform
+	desc: Widget theme name, or empty for the platform's own
 
 field: appearance.icon-theme
 	type: string
 	default: 
-	desc: Icon theme to use, or empty to leave it to the platform
+	desc: Icon theme name, or empty for the platform's own
 
 field: appearance.mode
 	type: string
 	allowed: system, light, dark
 	default: system
-	desc: Light or dark appearance, or follow the system
 
 field: archive.create-with-7z
 	type: string
 	default: "{{PROGRAM}} a {{FORMAT}} {{LEVEL}} {{THREADS}} -y -bsp1 {{PASSWORD}} {{SPLIT}} {{SOLID}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
-	desc: Command line 7-Zip is run with to create an archive. {{PROGRAM}} is the 7z it found, {{SOURCE_ITEMS}} the files and folders being packed, and the rest stand for what the Compress dialog was asked for - drop one and that option stops reaching the program. Empty this line to get the built-in one back.
+	desc: Command line 7-Zip is run with to create an archive. Each {{NAME}} stands for something the Compress dialog fills in; drop one and that option stops working. Empty the line for the built-in one.
 
 field: archive.create-with-rar
 	type: string
 	default: "{{PROGRAM}} a {{LEVEL}} {{THREADS}} -r -y {{PASSWORD}} {{SPLIT}} {{SOLID}} {{DEDUPE}} {{RECOVERY}} {{LOCK}} {{LINKS}} -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
-	desc: Command line rar is run with to create an archive. Same placeholders as the 7-Zip line, plus {{DEDUPE}}, {{RECOVERY}} and {{LOCK}}, which rar alone can do.
+	desc: Command line rar is run with to create an archive. Same placeholders as the 7-Zip line, plus {{DEDUPE}}, {{RECOVERY}} and {{LOCK}}, which only rar has.
 
 field: archive.extract-with-7z
 	type: string
 	default: "{{PROGRAM}} x -y -bsp1 {{PASSWORD}} -o{{TARGET_FOLDER}} -- {{SOURCE_ARCHIVE}}"
-	desc: Command line 7-Zip is run with to unpack an archive it was reached for. {{PASSWORD}} is answered either way, since a prompt would wait on a console that is not there.
+	desc: Command line 7-Zip is run with to unpack an archive. Empty the line for the built-in one.
 
 field: archive.extract-with-rar
 	type: string
 	default: "{{PROGRAM}} x -y {{PASSWORD}} -- {{SOURCE_ARCHIVE}} {{TARGET_FOLDER_WITH_SEPARATOR}}"
-	desc: Command line rar or unrar is run with to unpack an archive. {{TARGET_FOLDER_WITH_SEPARATOR}} is the destination with a trailing separator, which is how rar tells it from an archive name.
+	desc: Command line rar or unrar is run with to unpack an archive. Empty the line for the built-in one.
 
 field: compact-view.all-columns-have-same-width
 	type: bool
 	default: false
-	desc: All columns have same width
 
 field: compact-view.default-zoom-level
 	type: string
 	allowed: smallest, smaller, small, standard, large, larger, largest
 	default: standard
-	desc: Default compact view zoom level
 
 field: interface.clock-use-24h
 	type: bool
@@ -68,11 +63,12 @@ field: media-handling.automount
 field: media-handling.automount-open
 	type: bool
 	default: false
+	desc: Open a window on media as soon as it is mounted
 
 field: performance.cpu-percent
 	type: int
 	default: 50
-	desc: Percentage of the machine's CPU cores any compression may use. 50% is the best balance for hyperthreaded CPUs. Rounds up, so there is always at least one.
+	desc: Share of the machine's CPU cores compression may use
 
 field: privacy.remember-recent-files
 	type: bool
@@ -81,749 +77,658 @@ field: privacy.remember-recent-files
 field: terminal.exec
 	type: string
 	default: ""
+	desc: Terminal used for Open in Terminal, or empty to let the system pick
 
 field: terminal.exec-arg
 	type: string
 	default: -e
+	desc: Argument that terminal takes before a command
 
 field: desktop.show-desktop-icons
 	type: bool
 	default: true
-	desc: Deprecated: Allow Nemo to manage the desktop
 
 field: desktop.text-ellipsis-limit
 	type: int
 	default: 2
-	desc: Text Ellipsis Limit
+	desc: Lines of a name under a desktop icon before it is cut short
 
 field: desktop.use-desktop-grid
 	type: bool
 	default: true
-	desc: Which desktop view type to use
 
 field: icon-view.captions
 	type: string-array
 	default: none, size, date_modified
-	desc: List of possible captions on icons
-
-field: icon-view.default-use-tighter-layout
-	type: bool
-	default: false
-	desc: deprecated - not used
+	desc: Extra details shown under an icon
 
 field: icon-view.default-zoom-level
 	type: string
 	allowed: smallest, smaller, small, standard, large, larger, largest
 	default: standard
-	desc: Default icon zoom level
 
 field: icon-view.labels-beside-icons
 	type: bool
 	default: false
-	desc: Put labels beside icons
 
 field: icon-view.text-ellipsis-limit
 	type: string-array
 	default: 3
-	desc: Text Ellipsis Limit
+	desc: Lines of a name under an icon before it is cut short
 
 field: icon-view.thumbnail-size
 	type: int
 	default: 64
-	desc: Default Thumbnail Icon Size
+	desc: Thumbnail size in pixels
 
 field: list-view.column-max-widths
 	type: string-array
-	desc: Per-column width ceilings the user set by dragging, as column:pixels entries. A listed column never grows past its ceiling as the window widens.
+	desc: Widest each column may get, in pixels. Set by dragging.
 
 field: list-view.default-column-order
 	type: string-array
 	default: name, where, size, extension, type, date_modified, owner, group, permissions
-	desc: Default column order in the list view
 
 field: list-view.default-visible-columns
 	type: string-array
 	default: name, size, extension, type, date_modified, owner, group, permissions
-	desc: Default list of columns visible in the list view
 
 field: list-view.default-zoom-level
 	type: string
 	allowed: smallest, smaller, small, standard, large, larger, largest
 	default: small
-	desc: Default list zoom level
 
 field: list-view.enable-folder-expansion
 	type: bool
 	default: true
-	desc: If true, allow folders with content to be expanded in the current view.
+	desc: Let a folder be expanded in place to show what is in it
 
 field: plugins.disabled-actions
 	type: string-array
-	desc: List of NemoActions -not- to load.
 
 field: plugins.disabled-extensions
 	type: string-array
-	desc: List of extensions -not- to load.
 
 field: plugins.disabled-scripts
 	type: string-array
-	desc: List of scripts -not- to load.
 
 field: preferences.always-show-tabs
 	type: bool
 	default: false
-	desc: Show the tab strip even when there is only one tab.
+	desc: Show the tab strip even with only one tab
 
 field: preferences.always-use-browser
 	type: bool
 	default: true
-	desc: Enables the classic Nemo behavior, where all windows are browsers
+	desc: Every window is a browser window, with a toolbar and history
 
 field: preferences.bulk-rename-tool
 	type: string
 	default: ""
-	desc: Bulk rename utility
+	desc: Program run for a bulk rename
 
 field: preferences.click-double-parent-folder
 	type: bool
 	default: false
-	desc: If true, double click left on blank area will go to parent folder
+	desc: Double-clicking empty space goes to the parent folder
 
 field: preferences.click-policy
 	type: string
 	allowed: single, double
 	default: double
-	desc: Type of click used to launch/open files
+	desc: One click or two to open a file
 
 field: preferences.close-device-view-on-device-eject
 	type: bool
 	default: false
-	desc: Whether to close a view of a removeable device instead of navigating Home
+	desc: Close the window when its device is ejected, rather than going home
 
 field: preferences.confirm-drag-copy
 	type: bool
 	default: false
-	desc: Whether to ask for confirmation before copying files dropped by a drag
+	desc: Ask before a drop copies files
 
 field: preferences.confirm-drag-move
 	type: bool
 	default: true
-	desc: Whether to ask for confirmation before moving files dropped by a drag
+	desc: Ask before a drop moves files
 
 field: preferences.confirm-move-to-trash
 	type: bool
 	default: true
-	desc: Whether to ask for confirmation when moving files to Trash
 
 field: preferences.confirm-trash
 	type: bool
 	default: true
-	desc: Whether to ask for confirmation when deleting files, or emptying Trash
-
-field: preferences.context-menus-show-all-actions
-	type: bool
-	default: false
-	desc: deprecated - no longer used
+	desc: Ask before deleting outright or emptying the Trash
 
 field: preferences.date-format
 	type: string
 	allowed: locale, iso, informal
 	default: iso
-	desc: Date Format
 
 field: preferences.default-folder-viewer
 	type: string
 	allowed: icon-view, compact-view, list-view
 	default: list-view
-	desc: Default folder viewer
 
 field: preferences.default-sort-in-reverse-order
 	type: bool
 	default: false
-	desc: Reverse sort order in new windows
 
 field: preferences.default-sort-order
 	type: string
 	allowed: manually, name, size, type, detailed_type, mtime, atime, trash-time
 	default: name
-	desc: Default sort order
 
 field: preferences.deferred-attribute-preload-limit
 	type: int
 	default: 150
-	desc: Maximum number of files to preload deferred attributes for when opening a directory
+	desc: How many files a folder reads extra details for up front
 
 field: preferences.desktop-is-home-dir
 	type: bool
 	default: false
-	desc: Nemo uses the users home folder as the desktop
 
 field: preferences.detect-content
 	type: bool
 	default: false
-	desc: If true, enable detection of the type of content of a mounted media and display a suggested application to open the media.
+	desc: Look inside mounted media to suggest a program for it
 
 field: preferences.disable-menu-warning
 	type: bool
 	default: false
-	desc: Don't show the explainer message when turning off the main menu
+	desc: Skip the explanation shown when the menu bar is turned off
 
 field: preferences.enable-delete
 	type: bool
 	default: true
-	desc: Whether to enable immediate deletion
+	desc: Offer Delete, which skips the Trash
 
 field: preferences.enable-mime-actions-make-executable
 	type: bool
 	default: false
-	desc: Display the 'Make executable and run' button in the mime-action dialog (open an unknown filetype)
+	desc: Offer to make an unknown file executable and run it
 
 field: preferences.executable-text-activation
 	type: string
 	allowed: launch, display, ask
 	default: ask
-	desc: What to do with executable text files when activated
+	desc: What opening an executable text file does
 
 field: preferences.expand-row-on-dnd-dwell
 	type: bool
 	default: true
-	desc: During drag-and-drop operations, automatically expand rows when hovering them briefly
+	desc: Hovering a folder during a drag opens it
 
 field: preferences.ignore-view-metadata
 	type: bool
 	default: false
-	desc: Whether to ignore folder metadata for view zoom levels and layouts
+	desc: Use the default view and zoom everywhere, ignoring what each folder remembers
 
 field: preferences.image-viewers-with-external-sort
 	type: string-array
 	default: xviewer, feh, sxiv
-	desc: Image viewer executables to pass sort order to
+	desc: Image viewers that are told the current sort order
 
 field: preferences.inherit-folder-viewer
 	type: bool
 	default: false
-	desc: Inherit the view type (icon, compact, list) from parent to children
+	desc: A folder opens in the view its parent used
 
 field: preferences.inherit-show-thumbnails
 	type: bool
 	default: true
-	desc: Inherit thumbnail visibility from parent
+	desc: A folder shows thumbnails if its parent did
 
 field: preferences.last-server-connect-method
 	type: int
 	default: 2
-	desc: Last server connect method used
 
 field: preferences.mouse-back-button
 	type: int
 	default: 8
-	desc: Mouse button to activate the "Back" command in browser window
+	desc: Mouse button that goes back
 
 field: preferences.mouse-forward-button
 	type: int
 	default: 9
-	desc: Mouse button to activate the "Forward" command in browser window
+	desc: Mouse button that goes forward
 
 field: preferences.mouse-use-extra-buttons
 	type: bool
 	default: true
-	desc: Use extra mouse button events in Nemo' browser window
+	desc: Use the extra mouse buttons for back and forward
 
 field: preferences.never-queue-file-ops
 	type: bool
 	default: false
-	desc: If true, all file operations will start immediately
+	desc: Start every file operation at once rather than queueing them
 
 field: preferences.rename-selects-whole-name
 	type: bool
 	default: true
-	desc: Whether starting a rename selects the whole name. False selects only the part before the extension, which is what most file managers do.
+	desc: Renaming selects the whole name, extension included
 
 field: preferences.quick-renames-with-pause-in-between
 	type: bool
 	default: false
-	desc: Enables renaming of icons by two times clicking with pause between clicks
+	desc: Two slow clicks on a name start a rename
 
 field: preferences.show-advanced-permissions
 	type: bool
 	default: false
-	desc: Show advanced permissions in the file property dialog
 
 field: preferences.show-bookmarks-in-to-menus
 	type: bool
 	default: true
-	desc: Whether to list bookmarks in the Move To/Copy To menus
+	desc: List bookmarks in the Move To and Copy To menus
 
 field: preferences.show-compact-view-icon-toolbar
 	type: bool
 	default: true
-	desc: Show Compact View button in nemo toolbar
 
 field: preferences.show-computer-icon-toolbar
 	type: bool
 	default: false
-	desc: Show Computer button in nemo toolbar
 
 field: preferences.show-directory-item-counts
 	type: string
 	allowed: always, local-only, never
 	default: local-only
-	desc: When to show number of items in a folder
+	desc: When to count what is in a folder
 
 field: preferences.show-edit-icon-toolbar
 	type: bool
 	default: true
-	desc: Show toggle button location entry/pathbar
+	desc: Show the button that swaps the path buttons for a typed location
 
 field: preferences.show-full-path-titles
 	type: bool
 	default: false
-	desc: Whether to show the full path of the current view in the title bar and tab bars
+	desc: Show the whole path in the title bar and on tabs
 
 field: preferences.show-hidden-files
 	type: bool
 	default: false
-	desc: Whether to show hidden files
 
 field: preferences.show-home-icon-toolbar
 	type: bool
 	default: false
-	desc: Show Home button in nemo toolbar
 
 field: preferences.show-icon-view-icon-toolbar
 	type: bool
 	default: true
-	desc: Show Icon View button in nemo toolbar
 
 field: preferences.show-image-thumbnails
 	type: string
 	allowed: always, local-only, never
 	default: local-only
-	desc: When to show thumbnails of image files
+	desc: When to draw thumbnails
 
 field: preferences.show-list-view-icon-toolbar
 	type: bool
 	default: true
-	desc: Show List View button in nemo toolbar
 
 field: preferences.show-location-entry
 	type: bool
 	default: false
-	desc: Show the location entry by default
+	desc: Start with a typed location instead of path buttons
 
 field: preferences.show-new-folder-icon-toolbar
 	type: bool
 	default: false
-	desc: Show new folder button in nemo toolbar
 
 field: preferences.show-next-icon-toolbar
 	type: bool
 	default: true
-	desc: Show Next button in nemo toolbar
 
 field: preferences.show-open-in-terminal-toolbar
 	type: bool
 	default: false
-	desc: Show open in terminal in the nemo toolbar
 
 field: preferences.show-places-in-to-menus
 	type: bool
 	default: true
-	desc: Whether to list places in the Move To/Copy To menus
+	desc: List places in the Move To and Copy To menus
 
 field: preferences.show-previous-icon-toolbar
 	type: bool
 	default: true
-	desc: Show Previous button in nemo toolbar
 
 field: preferences.show-reload-icon-toolbar
 	type: bool
 	default: false
-	desc: Show refresh button in nemo toolbar
 
 field: preferences.show-root-warning
 	type: bool
 	default: true
-	desc: Show warning when opening as root
+	desc: Warn before opening a window as root
 
 field: preferences.show-search-icon-toolbar
 	type: bool
 	default: true
-	desc: Show Search button in nemo toolbar
 
 field: preferences.show-shortcut-extension
 	type: bool
 	default: false
-	desc: Whether a shortcut's .lnk or .desktop extension is part of the name shown
+	desc: Count a shortcut's .lnk or .desktop extension as part of its name
 
 field: preferences.show-show-thumbnails-toolbar
 	type: bool
 	default: false
-	desc: Show Thumbnails button in nemo toolbar
 
 field: preferences.show-toggle-extra-pane-toolbar
 	type: bool
 	default: false
-	desc: Show Extra Pane button in nemo toolbar
 
 field: preferences.show-up-icon-toolbar
 	type: bool
 	default: true
-	desc: Show Up button in nemo toolbar
 
 field: preferences.size-prefixes
 	type: string
 	allowed: base-10, base-10-full, base-2, base-2-full
 	default: base-2
-	desc: Prefixes used for file sizes
+	desc: Whether sizes count in 1024s or 1000s
 
 field: preferences.sort-directories-first
 	type: bool
 	default: true
-	desc: Show folders first in windows
 
 field: preferences.sort-favorites-first
 	type: bool
 	default: true
-	desc: Show favorites first in windows
 
 field: preferences.start-with-dual-pane
 	type: bool
 	default: false
-	desc: Whether to default to showing dual-pane view when a new window is opened
 
 field: preferences.swap-trash-delete
 	type: bool
 	default: false
-	desc: Whether to swap the hotkeys for Trash and Delete
+	desc: Swap the Trash and Delete keys
 
 field: preferences.tab-width-max-percent
 	type: int
 	default: 25
-	desc: Widest a tab may get, as a percentage of the tab strip.
+	desc: Widest a tab may get, as a percentage of the tab strip
 
 field: preferences.tab-width-min-percent
 	type: int
 	default: 10
-	desc: Narrowest a tab may get, as a percentage of the tab strip.
+	desc: Narrowest a tab may get, as a percentage of the tab strip
 
 field: preferences.tabs-open-position
 	type: string
 	allowed: after-current-tab, end
 	default: after-current-tab
-	desc: Where to position newly open tabs in browser windows.
+	desc: Where a new tab goes
 
 field: preferences.thumbnail-limit
 	type: int
 	default: 1048576
-	desc: Maximum image size for thumbnailing
+	desc: Largest image a thumbnail is made for, in bytes
 
 field: preferences.thumbnail-cache-max-mb
 	type: int
 	default: 512
-	desc: Largest the thumbnail cache is allowed to get, in megabytes. 0 for no limit.
+	desc: Largest the thumbnail cache may get, in megabytes. 0 for no limit.
 
 field: preferences.thumbnail-cache-max-days
 	type: int
 	default: 180
-	desc: Discard a thumbnail this many days after it was last used. 0 to keep them however old.
+	desc: Discard a thumbnail unused for this many days. 0 to keep them however old.
 
 field: preferences.thumbnail-threads
 	type: int
 	default: -1
-	desc: Number of threads to dedicate to thumbnailing. -1 to let the program decide. The maximum allowed threads is half the number of logical processors, regardless of what is set here. If you change this setting you must restart Nemo for it to take effect.
+	desc: Threads used to make thumbnails, -1 to decide automatically. Takes effect on restart.
 
 field: preferences.tooltips-in-icon-view
 	type: bool
 	default: false
-	desc: Show tooltips when hovering on items in an icon or compact view
 
 field: preferences.tooltips-in-list-view
 	type: bool
 	default: false
-	desc: Show tooltips when hovering on items in a list view
 
 field: preferences.tooltips-show-access-date
 	type: bool
 	default: false
-	desc: Show file accessed date in tooltip
 
 field: preferences.tooltips-show-birth-date
 	type: bool
 	default: false
-	desc: Show file creation (birth) date in tooltip
+	desc: Show the creation date in a tooltip
 
 field: preferences.tooltips-show-file-type
 	type: bool
 	default: false
-	desc: Show detailed file type in tooltip
 
 field: preferences.tooltips-show-mod-date
 	type: bool
 	default: false
-	desc: Show file modified date in tooltip
 
 field: preferences.tooltips-show-path
 	type: bool
 	default: false
-	desc: Show full path in tooltip
 
 field: preferences.treat-root-as-normal
 	type: bool
 	default: false
-	desc: Suppress any safeguards when running nemo/nemo-desktop as the root user. For some systems there is only a root user.
+	desc: Drop the safeguards that apply when running as root
 
 field: preferences.window-per-process
 	type: bool
 	default: true
-	desc: Whether each new window runs as its own process, so a crash in one leaves the others standing
+	desc: Each new window runs as its own process
 
 field: preferences.menu-config.background-menu-compress
 	type: bool
 	default: true
-	desc: Show the background context menu's Compress item.
 
 field: preferences.menu-config.background-menu-copy-path
 	type: bool
 	default: true
-	desc: Show the background context menu's Copy Path item.
 
 field: preferences.menu-config.background-menu-create-new-folder
 	type: bool
 	default: true
-	desc: Show the background context menu's Create New Folder item.
 
 field: preferences.menu-config.background-menu-open-as-root
 	type: bool
 	default: true
-	desc: Show the background context menu's Open as Root item.
 
 field: preferences.menu-config.background-menu-open-in-terminal
 	type: bool
 	default: true
-	desc: Show the background context menu's Open in Terminal item.
 
 field: preferences.menu-config.background-menu-paste
 	type: bool
 	default: true
-	desc: Show the background context menu's Paste item.
 
 field: preferences.menu-config.background-menu-properties
 	type: bool
 	default: true
-	desc: Show the background context menu's Properties item.
 
 field: preferences.menu-config.background-menu-scripts
 	type: bool
 	default: true
-	desc: Show the background context menu's Scripts submenu.
 
 field: preferences.menu-config.background-menu-show-hidden-files
 	type: bool
 	default: true
-	desc: Show the background context menu's Show Hidden Files item.
 
 field: preferences.menu-config.iconview-menu-arrange-items
 	type: bool
 	default: true
-	desc: Show the background context menu's Arrange Items submenu (icon view only).
 
 field: preferences.menu-config.iconview-menu-organize-by-name
 	type: bool
 	default: true
-	desc: Show the background context menu's Organize by Name item (icon view only).
 
 field: preferences.menu-config.selection-menu-compress
 	type: bool
 	default: true
-	desc: Show the selection context menu's Compress item.
 
 field: preferences.menu-config.selection-menu-copy
 	type: bool
 	default: true
-	desc: Show the selection context menu's Copy item.
 
 field: preferences.menu-config.selection-menu-copy-to
 	type: bool
 	default: false
-	desc: Show the selection context menu's Copy To submenu.
 
 field: preferences.menu-config.selection-menu-copy-path
 	type: bool
 	default: true
-	desc: Show the selection context menu's Copy Path item.
 
 field: preferences.menu-config.selection-menu-cut
 	type: bool
 	default: true
-	desc: Show the selection context menu's Cut item.
 
 field: preferences.menu-config.selection-menu-duplicate
 	type: bool
 	default: false
-	desc: Show the selection context menu's Duplicate item.
 
 field: preferences.menu-config.selection-menu-extract
 	type: bool
 	default: true
-	desc: Show the selection context menu's Extract items.
 
 field: preferences.menu-config.selection-menu-favorite
 	type: bool
 	default: true
-	desc: Show the selection context menu's Favorite/Unfavorite item.
 
 field: preferences.menu-config.selection-menu-make-link
 	type: bool
 	default: true
-	desc: Show the selection context menu's link items.
 
 field: preferences.menu-config.selection-menu-move-to
 	type: bool
 	default: false
-	desc: Show the selection context menu's Move To submenu.
 
 field: preferences.menu-config.selection-menu-move-to-trash
 	type: bool
 	default: true
-	desc: Show the selection context menu's Move to Trash item.
 
 field: preferences.menu-config.selection-menu-open
 	type: bool
 	default: true
-	desc: Show the selection context menu's Open item.
 
 field: preferences.menu-config.selection-menu-open-as-root
 	type: bool
 	default: true
-	desc: Show the selection context menu's Open As Root item.
 
 field: preferences.menu-config.selection-menu-open-in-new-tab
 	type: bool
 	default: true
-	desc: Show the selection context menu's Open in New Tab item.
 
 field: preferences.menu-config.selection-menu-open-in-new-window
 	type: bool
 	default: true
-	desc: Show the selection context menu's Open in New Window item.
 
 field: preferences.menu-config.selection-menu-open-in-terminal
 	type: bool
 	default: true
-	desc: Show the selection context menu's Open in Terminal item.
 
 field: preferences.menu-config.selection-menu-paste
 	type: bool
 	default: true
-	desc: Show the selection context menu's Paste item.
 
 field: preferences.menu-config.selection-menu-pin
 	type: bool
 	default: true
-	desc: Show the selection context menu's Pin/Unpin item.
 
 field: preferences.menu-config.selection-menu-properties
 	type: bool
 	default: true
-	desc: Show the selection context menu's Properties item.
 
 field: preferences.menu-config.selection-menu-rename
 	type: bool
 	default: true
-	desc: Show the selection context menu's Rename item.
 
 field: preferences.menu-config.selection-menu-scripts
 	type: bool
 	default: true
-	desc: Show the selection context menu's Scripts submenu.
 
 field: search.disabled-search-helpers
 	type: string-array
-	desc: List of search helper filenames to skip when using content search.
+	desc: Content-search helpers to skip
 
 field: search.group-by-folder
 	type: bool
 	default: false
-	desc: Group search results under the folder holding them, rather than showing one flat list
+	desc: Group results under the folder holding them instead of one flat list
 
 field: search.name-location-split
 	type: int
 	default: 0
-	desc: Percent of the row the Name column takes in search results, the Location column taking the rest. 0 fits both to their contents instead. Set when either column is dragged.
+	desc: Percent of the row the Name column takes in results. 0 fits both to their contents.
 
 field: search.search-content-case-sensitive
 	type: bool
 	default: false
-	desc: Stores the most recent state of the content search case toggle
 
 field: search.search-content-use-raw
 	type: bool
 	default: false
-	desc: Treat patterns as raw bytes, not utf-8
+	desc: Match content as raw bytes rather than text
 
 field: search.search-content-use-regex
 	type: bool
 	default: false
-	desc: Stores the most recent state of the content search regex toggle
 
 field: search.search-file-case-sensitive
 	type: bool
 	default: false
-	desc: Stores the most recent state of the file search case toggle
 
 field: search.search-files-recursively
 	type: bool
 	default: true
-	desc: Recurse into subfolders when performing a search
 
 field: search.search-files-use-regex
 	type: bool
 	default: false
-	desc: Stores the most recent state of the file search regex toggle
 
 field: search.search-regex-format
 	type: string
 	default: pcre
-	desc: valid formats: pcre, javascript
+	desc: Regex flavour: pcre or javascript
 
 field: search.search-reverse-sort
 	type: bool
 	default: false
-	desc: Reverse the direction of the sort when viewing search results
 
 field: search.search-skip-folders
 	type: string-array
 	default: /dev, /proc, /sys, dosdevices, .git
-	desc: Paths or folder names to never recurse into when searching
+	desc: Paths or folder names a search never enters
 
 field: search.search-sort-column
 	type: string
 	default: ""
-	desc: Column to sort on when viewing search results
 
 field: search.search-visible-columns
 	type: string-array
-	desc: Saved list of columns visible in the search view.
 
 field: sidebar-panels.tree.show-only-directories
 	type: bool
 	default: true
-	desc: Only show folders in the tree side pane
+	desc: Show only folders in the tree side pane
 
 field: state.first-run-done
 	type: bool
 	default: false
-	desc: Set once first-run setup has run. Clear it to get the platform's default bookmarks back on the next start.
+	desc: Clear this to get the platform's default bookmarks back on the next start.
 
 field: thumbnailers.disable
 	type: string-array
-	desc: Disable external thumbnailers for these mime types
+	desc: Mime types not to use an external thumbnailer for
 
 field: thumbnailers.disable-all
 	type: bool
 	default: false
-	desc: Disable all external thumbnailers
 
 field: windows.path-separator
 	type: string
@@ -834,94 +739,85 @@ field: windows.path-separator
 field: windows.allow-slash-input
 	type: bool
 	default: true
-	desc: Whether a forward slash counts as a separator in a typed location
+	desc: Accept a forward slash as a separator in a typed location
 
 field: windows.show-dot-files
 	type: bool
 	default: false
-	desc: Whether to show files whose name starts with a dot. Windows keeps its own hidden flag, so the two are asked separately here; everywhere else one setting covers both
+	desc: Show files whose name starts with a dot. Separate from the Windows hidden flag.
 
 field: windows.use-search-index
 	type: bool
 	default: false
-	desc: Answer a search from the Windows Search index where the folder is indexed, rather than walking it
+	desc: Answer a search from the Windows Search index where the folder is indexed
 
 field: windows.associations
 	type: string-array
-	desc: The program to open a type with, as <extension>=<command line> with %1 standing for the file. Consulted before the registry, which is only ever read.
+	desc: The program to open a type with, as <extension>=<command line> with %1 for the file
 
 field: windows.terminal-candidates
 	type: string-array
 	default: wt.exe, pwsh.exe, powershell.exe, cmd.exe
-	desc: Terminals to try for "Open in Terminal", in order
+	desc: Terminals to try for Open in Terminal, in order
 
 field: window-state.bookmarks-expanded
 	type: bool
 	default: true
-	desc: Expand Bookmark section in places sidebar
 
 field: window-state.devices-expanded
 	type: bool
 	default: true
-	desc: Expand Devices section in places sidebar
 
 field: window-state.geometry
 	type: string
 	default: ""
-	desc: The geometry string for a navigation window.
 
 field: window-state.maximized
 	type: bool
 	default: false
-	desc: Whether the navigation window should be maximized.
 
 field: window-state.my-computer-expanded
 	type: bool
 	default: true
-	desc: Expand My Computer section in places sidebar
 
 field: window-state.network-expanded
 	type: bool
 	default: true
-	desc: Expand Network section in places sidebar
 
 field: window-state.side-pane-view
 	type: string
 	default: places
-	desc: Side pane view
 
 field: window-state.sidebar-bookmark-breakpoint
 	type: int
 	default: -1
-	desc: Index of the bookmark list to jump to the dedicated sidebar bookmark section
+	desc: Bookmark index where the dedicated sidebar section starts
 
 field: window-state.sidebar-width
 	type: int
 	default: 240
-	desc: Width of the side pane
 
 field: window-state.start-with-location-bar
 	type: bool
 	default: true
-	desc: Show location bar in new windows
+	desc: Show the location bar in new windows
 
 field: window-state.start-with-menu-bar
 	type: bool
 	default: true
-	desc: Show menu bar in new windows
+	desc: Show the menu bar in new windows
 
 field: window-state.start-with-sidebar
 	type: bool
 	default: true
-	desc: Show side pane in new windows
+	desc: Show the side pane in new windows
 
 field: window-state.start-with-status-bar
 	type: bool
 	default: true
-	desc: Show status bar in new windows
+	desc: Show the status bar in new windows
 
 field: window-state.start-with-toolbar
 	type: bool
 	default: true
-	desc: Show toolbar in new windows
-
+	desc: Show the toolbar in new windows

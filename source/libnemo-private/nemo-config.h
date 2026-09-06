@@ -51,6 +51,14 @@ typedef struct {
 	int         value;
 } NemoConfigEnumValue;
 
+typedef enum {
+	NEMO_CONFIG_KEY_NONE  = 0,
+	/* Written back by the app as it runs - a size, a position, the last state
+	   of a toggle. Left out of the catalog of defaults, where it would read as
+	   something to set and then be overwritten. */
+	NEMO_CONFIG_KEY_STATE = 1 << 0
+} NemoConfigKeyFlags;
+
 /* One settable key. Defaults live here rather than at the call site, so a
  * key read from two places cannot disagree about what its default is. */
 typedef struct {
@@ -60,7 +68,8 @@ typedef struct {
 	const char                *def;        /* scalar default, SHCL text; NULL for lists */
 	const char *const         *def_list;   /* STRING_LIST default, NULL-terminated */
 	const NemoConfigEnumValue *enum_values;/* ENUM only */
-	const char                *summary;    /* seeds the comment above the key */
+	const char                *summary;    /* comment above the key; NULL where the name says it */
+	NemoConfigKeyFlags         flags;
 } NemoConfigKey;
 
 /* Carries a value through a bind mapping - the typed stand-in for the

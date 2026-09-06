@@ -276,6 +276,294 @@ note_arena_use_locked (gsize bytes)
 	}
 }
 
+/* ---- Catalog of defaults ---- */
+
+/* Only changed values are stored, so nothing in the file says what else there
+ * is. Everything not set is listed at the end, commented out, with the value
+ * used instead. Uncommenting a line is the same as changing it in the dialog.
+ * Keys the app writes back itself are left out - a size, a position, the last
+ * state of a toggle. */
+
+static const char *const catalog_header[] = {
+	"# --------------------------------------------------------------------------",
+	"# Anything not set above, with the value used instead.",
+	"# Uncomment a line to change one.",
+	"# --------------------------------------------------------------------------",
+	NULL
+};
+
+typedef struct {
+	const NemoConfigKey *key;
+	char                *path;
+	char                *desc;   /* "# <summary>", or NULL */
+	char                *line;   /* "#<path>: <default>" */
+} CatalogEntry;
+
+static gboolean
+in_catalog (const NemoConfigKey *k)
+{
+	return (k->flags & NEMO_CONFIG_KEY_STATE) == 0;
+}
+
+/* SHCL's own writer decides how a value is spelled - the quoting, the list
+ * separator, the empty list - so ask it rather than keep a second opinion
+ * here. One throwaway document holds every default at a numbered top-level
+ * name, and its canonical form is one line per key in table order. */
+static char **
+default_texts (guint *n_out)
+{
+	shcl_doc            *scratch = shcl_new ();
+	const NemoConfigKey *k;
+	GPtrArray           *out = g_ptr_array_new ();
+	shcl_str             canon;
+	char               **lines;
+	guint                n = 0, i;
+
+	for (k = nemo_config_keys; k->key != NULL; k++) {
+		char  path[24];
+		gsize plen;
+
+		if (!in_catalog (k))
+			continue;
+		plen = g_snprintf (path, sizeof path, "k%u", n++);
+
+		switch (k->type) {
+		case NEMO_CONFIG_BOOL:
+			shcl_set_bool (scratch, path, plen, g_strcmp0 (k->def, "true") == 0);
+			break;
+		case NEMO_CONFIG_INT:
+			shcl_set_int (scratch, path, plen, g_ascii_strtoll (k->def, NULL, 10));
+			break;
+		case NEMO_CONFIG_FLOAT:
+			shcl_set_float (scratch, path, plen, g_ascii_strtod (k->def, NULL));
+			break;
+		case NEMO_CONFIG_STRING_LIST: {
+			gsize  count = 0, j;
+			gsize *lens;
+
+			while (k->def_list != NULL && k->def_list[count] != NULL)
+				count++;
+			lens = g_new0 (gsize, count + 1);
+			for (j = 0; j < count; j++)
+				lens[j] = strlen (k->def_list[j]);
+			shcl_set_string_array (scratch, path, plen,
+			                       (const char *const *) k->def_list, lens, count);
+			g_free (lens);
+			break;
+		}
+		default:
+			/* A string, and an enum, which is stored as its nick. */
+			shcl_set_string (scratch, path, plen, k->def, strlen (k->def));
+			break;
+		}
+	}
+
+	canon = shcl_to_canonical (scratch);
+	{
+		char *copy = g_strndup (canon.p, canon.n);
+
+		lines = g_strsplit (copy, "\n", -1);
+		g_free (copy);
+	}
+
+	for (i = 0; lines[i] != NULL; i++) {
+		const char *colon = strchr (lines[i], ':');
+
+		if (lines[i][0] != 'k' || colon == NULL)
+			continue;
+		colon++;
+		if (*colon == ' ')
+			colon++;
+		g_ptr_array_add (out, g_strdup (colon));
+	}
+	g_strfreev (lines);
+	shcl_free (scratch);
+
+	*n_out = out->len;
+	if (out->len != n)
+		g_warning ("nemo-config: catalog wrote %u keys but read back %u",
+		           n, out->len);
+
+	g_ptr_array_add (out, NULL);
+	return (char **) g_ptr_array_free (out, FALSE);
+}
+
+/* Built once - the key table and the defaults never move at runtime. */
+static const GPtrArray *
+catalog_entries (void)
+{
+	static GPtrArray *entries;
+	static gsize      once;
+
+	if (g_once_init_enter (&once)) {
+		GPtrArray           *list = g_ptr_array_new ();
+		guint                n_values = 0;
+		char               **values = default_texts (&n_values);
+		const NemoConfigKey *k;
+		guint                n = 0;
+
+		for (k = nemo_config_keys; k->key != NULL && n < n_values; k++) {
+			CatalogEntry *e;
+
+			if (!in_catalog (k))
+				continue;
+			e = g_new0 (CatalogEntry, 1);
+			e->key  = k;
+			e->path = key_path (k);
+			e->desc = k->summary != NULL ? g_strdup_printf ("# %s", k->summary) : NULL;
+			e->line = *values[n] == '\0'
+				? g_strdup_printf ("#%s:", e->path)
+				: g_strdup_printf ("#%s: %s", e->path, values[n]);
+			g_ptr_array_add (list, e);
+			n++;
+		}
+
+		g_strfreev (values);
+		entries = list;
+		g_once_init_leave (&once, 1);
+	}
+
+	return entries;
+}
+
+/* The lines the catalog can produce, for recognising a copy already in the
+ * file. Built from every key, not from the block about to be written: a key
+ * set since the last save drops out of the block and its old line still has to
+ * come off. Kept in two sets because a description alone is not evidence - the
+ * same text sits above the key once it is live. */
+static void
+catalog_line_sets (GHashTable **keys, GHashTable **descs)
+{
+	static GHashTable *key_set;
+	static GHashTable *desc_set;
+	static gsize       once;
+
+	if (g_once_init_enter (&once)) {
+		GHashTable      *k = g_hash_table_new (g_str_hash, g_str_equal);
+		GHashTable      *d = g_hash_table_new (g_str_hash, g_str_equal);
+		const GPtrArray *entries = catalog_entries ();
+		guint            i;
+
+		for (i = 0; catalog_header[i] != NULL; i++)
+			g_hash_table_add (k, (gpointer) catalog_header[i]);
+		for (i = 0; i < entries->len; i++) {
+			CatalogEntry *e = g_ptr_array_index (entries, i);
+
+			g_hash_table_add (k, e->line);
+			if (e->desc != NULL)
+				g_hash_table_add (d, e->desc);
+		}
+		key_set  = k;
+		desc_set = d;
+		g_once_init_leave (&once, 1);
+	}
+
+	*keys  = key_set;
+	*descs = desc_set;
+}
+
+/* The block to write: the header, then every key @doc does not already carry.
+ * Listing one that is set would invite uncommenting it, and two bindings of
+ * one key read as ambiguous and fall back to the default. */
+static char *
+catalog_body (shcl_doc *doc)
+{
+	GString         *text = g_string_new (NULL);
+	const GPtrArray *entries = catalog_entries ();
+	const char      *group = NULL;
+	guint            i;
+
+	for (i = 0; catalog_header[i] != NULL; i++)
+		g_string_append_printf (text, "%s\n", catalog_header[i]);
+
+	for (i = 0; i < entries->len; i++) {
+		CatalogEntry *e = g_ptr_array_index (entries, i);
+
+		if (shcl_exists (doc, e->path, strlen (e->path)))
+			continue;
+		if (group == NULL || strcmp (group, e->key->group) != 0) {
+			g_string_append_c (text, '\n');
+			group = e->key->group;
+		}
+		if (e->desc != NULL)
+			g_string_append_printf (text, "%s\n", e->desc);
+		g_string_append_printf (text, "%s\n", e->line);
+	}
+
+	return g_string_free (text, FALSE);
+}
+
+/* Take any catalog already in the text out and put a fresh one on the end. An
+ * external edit puts the old copy back into the document as ordinary comments,
+ * which SHCL then writes out again - indented under whatever group it decided
+ * they belong to, if a line was uncommented in the middle of them, so the
+ * match ignores leading whitespace. Byte length throughout: the file may
+ * legally hold a NUL. */
+static char *
+apply_catalog (shcl_doc *doc, const char *text, gsize len, gsize *out_len)
+{
+	GHashTable  *key_lines, *desc_lines;
+	GByteArray  *body = g_byte_array_new ();
+	GPtrArray   *lines = g_ptr_array_new_with_free_func (g_free);
+	GArray      *keeps = g_array_new (FALSE, FALSE, sizeof (gsize));
+	const char  *p = text;
+	const char  *end = text + len;
+	char        *catalog;
+	gboolean     dropped_last = FALSE;
+	guint        i;
+
+	catalog_line_sets (&key_lines, &desc_lines);
+
+	/* Split first: whether a description goes depends on the line after it. */
+	while (p < end) {
+		const char *nl = memchr (p, '\n', (gsize) (end - p));
+		gsize       n  = nl != NULL ? (gsize) (nl - p) : (gsize) (end - p);
+		gsize       whole = nl != NULL ? n + 1 : n;
+
+		g_ptr_array_add (lines, g_strndup (p, n));
+		g_array_append_val (keeps, whole);
+		p = nl != NULL ? nl + 1 : end;
+	}
+
+	p = text;
+	for (i = 0; i < lines->len; i++) {
+		const char *line = g_ptr_array_index (lines, i);
+		const char *bare = line + strspn (line, " \t");
+		gsize       whole = g_array_index (keeps, gsize, i);
+		gboolean    drop  = g_hash_table_contains (key_lines, bare);
+
+		if (!drop && g_hash_table_contains (desc_lines, bare) && i + 1 < lines->len) {
+			const char *next = g_ptr_array_index (lines, i + 1);
+
+			drop = g_hash_table_contains (key_lines, next + strspn (next, " \t"));
+		}
+		/* A blank that only sat between two stripped lines goes with them. */
+		if (!drop && *bare == '\0' && dropped_last)
+			drop = TRUE;
+		if (!drop)
+			g_byte_array_append (body, (const guint8 *) p, whole);
+		dropped_last = drop;
+		p += whole;
+	}
+	g_ptr_array_free (lines, TRUE);
+	g_array_free (keeps, TRUE);
+
+	/* Whatever blank lines taking those out left behind. */
+	while (body->len > 0 && (body->data[body->len - 1] == '\n' ||
+	                         body->data[body->len - 1] == '\r'))
+		g_byte_array_set_size (body, body->len - 1);
+	if (body->len > 0)
+		g_byte_array_append (body, (const guint8 *) "\n\n", 2);
+
+	catalog = catalog_body (doc);
+	g_byte_array_append (body, (const guint8 *) catalog, strlen (catalog));
+	g_free (catalog);
+
+	*out_len = body->len;
+	g_byte_array_append (body, (const guint8 *) "", 1);   /* NUL, for anything that prints it */
+	return (char *) g_byte_array_free (body, FALSE);
+}
+
 static gboolean
 save_now (gpointer data)
 {
@@ -290,15 +578,19 @@ save_now (gpointer data)
 	save_timeout_id = 0;
 
 	canon = shcl_to_canonical (config_doc);
-	/* By length, and g_memdup2 rather than g_strndup (which stops at a NUL
-	 * and pads): SHCL is NUL-transparent, so a NUL that came in from the
-	 * file must not truncate the write or the own-write check. */
-	text = g_memdup2 (canon.p, canon.n);
-	text_len = canon.n;
+	/* By length throughout: SHCL is NUL-transparent, so a NUL that came in
+	 * from the file must not truncate the write or the own-write check. */
+	text = apply_catalog (config_doc, canon.p, canon.n, &text_len);
 
-	/* The canonical form we just built is the cheapest moment to drop the
-	 * arena, and it is exactly what the new document would parse from. */
-	rebuild_locked (text != NULL ? text : "", text_len);
+	/* Cheapest moment to drop the arena. The document holds the settings
+	 * alone - the catalog goes on at write time, and keeping it out of the
+	 * next canonical form saves stripping it off again. */
+	{
+		char *settings = g_memdup2 (canon.p, canon.n);
+
+		rebuild_locked (settings != NULL ? settings : "", canon.n);
+		g_free (settings);
+	}
 	g_mutex_unlock (&config_lock);
 
 	dir = g_path_get_dirname (config_path);

@@ -26,6 +26,15 @@ test('Drag drop confirm test',
   args: []
 )
 
+test('Config defaults list test',
+  executable('test-nemo-config-catalog',
+    [ 'test-nemo-config-catalog.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Config store test',
   executable('test-nemo-config',
     [ 'test-nemo-config.c' ],

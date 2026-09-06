@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The settings file now ends with a commented list of everything you have not set, each line carrying the value used instead and, where the name is not obvious, a short note. Uncomment a line to change it. Sizes, positions and other things the app remembers for itself are left off the list.
 - The thumbnail cache is swept once a day rather than growing forever: a thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed. Both limits are on the Preview page and either can be turned off; the defaults match what a GNOME or Cinnamon desktop already applies to the same folder.
 - Search results give the Name and Location columns only the width their contents need, leaving the rest of the row empty. Where the two do not both fit they shrink in proportion to what each asked for, and neither ends more than twice the width of the other. Dragging either column still pins a split of the whole row.
 - `--existing-window` opens the URIs as tabs in one new window. There is no window of ours left to join, since every launch is its own process.
