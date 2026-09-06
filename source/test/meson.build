@@ -44,6 +44,15 @@ test('Favorites test',
   args: []
 )
 
+test('Thumbnail prune test',
+  executable('test-nemo-thumbnail-prune',
+    [ 'test-nemo-thumbnail-prune.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Thumbnail factory test',
   executable('test-nemo-thumbnail',
     [ 'test-nemo-thumbnail.c' ],

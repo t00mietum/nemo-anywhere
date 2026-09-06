@@ -49,6 +49,7 @@
 #include <glib/gstdio.h>
 #include <libnemo-private/nemo-posix-compat.h>
 #include <libnemo-private/nemo-file-utilities.h>
+#include <libnemo-private/nemo-thumbnail-prune.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -78,7 +79,7 @@ struct _NemoDesktopThumbnailFactoryPrivate {
   gid_t real_gid;
 };
 
-static const char *appname = "nemo-anywhere-thumbnail-factory";
+static const char *appname = NEMO_DESKTOP_THUMBNAIL_FAIL_APPNAME;
 
 /* When running elevated (pkexec/sudo), find the pwent of the invoking user so
  * files we touch stay owned by them rather than root. */
@@ -1005,10 +1006,13 @@ nemo_desktop_thumbnail_factory_lookup (NemoDesktopThumbnailFactory *factory,
   g_checksum_free (checksum);
 
   if (res)
-    return path;
+    {
+      nemo_thumbnail_prune_note_use (path);
+      return path;
+    }
 
   g_free (path);
-  return FALSE;
+  return NULL;
 }
 
 /**

@@ -518,6 +518,16 @@ field: preferences.thumbnail-limit
 	default: 1048576
 	desc: Maximum image size for thumbnailing
 
+field: preferences.thumbnail-cache-max-mb
+	type: int
+	default: 512
+	desc: Largest the thumbnail cache is allowed to get, in megabytes. 0 for no limit.
+
+field: preferences.thumbnail-cache-max-days
+	type: int
+	default: 180
+	desc: Discard a thumbnail this many days after it was last used. 0 to keep them however old.
+
 field: preferences.thumbnail-threads
 	type: int
 	default: -1

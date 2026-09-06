@@ -130,6 +130,8 @@
 
 /* int enums */
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_THUMBNAIL_LIMIT_WIDGET "preview_image_size_combobox"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_THUMBNAIL_CACHE_AGE_WIDGET "thumbnail_cache_age_combobox"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_THUMBNAIL_CACHE_SIZE_WIDGET "thumbnail_cache_size_combobox"
 
 #define W(s) (gtk_builder_get_object (builder, s))
 
@@ -249,6 +251,28 @@ static const guint64 thumbnail_limit_values[] = {
 	17179869184U,
 	34359738368U,
 	68719476736U
+};
+
+/* Days, and last of all "Never" - zero turns the limit off. */
+static const guint64 thumbnail_cache_age_values[] = {
+	7,
+	30,
+	90,
+	180,
+	365,
+	0
+};
+
+/* Megabytes, ending in "No limit". */
+static const guint64 thumbnail_cache_size_values[] = {
+	64,
+	128,
+	256,
+	512,
+	1024,
+	2048,
+	4096,
+	0
 };
 
 static const char * const icon_captions_components[] = {
@@ -868,6 +892,16 @@ uint_enum_get_mapping (GValue                *value,
 	int i;
 
 	v = (guint64) config_value->i;
+
+	/* Exact first, so a list carrying a zero for "no limit" finds it wherever
+	   it sits rather than settling on the smallest real entry. */
+	for (i = 0; i < binding->n_values; i++) {
+		if (binding->values[i] == v) {
+			g_value_set_int (value, i);
+			return TRUE;
+		}
+	}
+
 	for (i = 0; i < binding->n_values; i++) {
 		if (binding->values[i] >= v) {
 			g_value_set_int (value, i);
@@ -1435,6 +1469,18 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 				NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT,
 				thumbnail_limit_values,
 				G_N_ELEMENTS (thumbnail_limit_values));
+
+	bind_builder_uint_enum (builder, nemo_preferences,
+				NEMO_FILE_MANAGEMENT_PROPERTIES_THUMBNAIL_CACHE_AGE_WIDGET,
+				NEMO_PREFERENCES_THUMBNAIL_CACHE_MAX_DAYS,
+				thumbnail_cache_age_values,
+				G_N_ELEMENTS (thumbnail_cache_age_values));
+
+	bind_builder_uint_enum (builder, nemo_preferences,
+				NEMO_FILE_MANAGEMENT_PROPERTIES_THUMBNAIL_CACHE_SIZE_WIDGET,
+				NEMO_PREFERENCES_THUMBNAIL_CACHE_MAX_MB,
+				thumbnail_cache_size_values,
+				G_N_ELEMENTS (thumbnail_cache_size_values));
 
     bind_builder_bool (builder, nemo_media_handling_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOMOUNT_MEDIA_WIDGET,

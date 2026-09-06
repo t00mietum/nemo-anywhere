@@ -239,6 +239,8 @@ typedef enum
 #define NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS "show-directory-item-counts"
 #define NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS	"show-image-thumbnails"
 #define NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT	"thumbnail-limit"
+#define NEMO_PREFERENCES_THUMBNAIL_CACHE_MAX_MB	"thumbnail-cache-max-mb"
+#define NEMO_PREFERENCES_THUMBNAIL_CACHE_MAX_DAYS	"thumbnail-cache-max-days"
 #define NEMO_PREFERENCES_INHERIT_SHOW_THUMBNAILS "inherit-show-thumbnails"
 
 /* bulk rename utility */

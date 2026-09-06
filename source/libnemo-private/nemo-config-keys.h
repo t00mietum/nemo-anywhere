@@ -219,6 +219,8 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "tab-width-min-percent", NEMO_CONFIG_INT, "10", NULL, NULL, "Narrowest a tab may get, as a percentage of the tab strip." },
 	{ "preferences", "tabs-open-position", NEMO_CONFIG_ENUM, "after-current-tab", NULL, enum_TabPosition, "Where to position newly open tabs in browser windows." },
 	{ "preferences", "thumbnail-limit", NEMO_CONFIG_INT, "1048576", NULL, NULL, "Maximum image size for thumbnailing" },
+	{ "preferences", "thumbnail-cache-max-mb", NEMO_CONFIG_INT, "512", NULL, NULL, "Largest the thumbnail cache is allowed to get, in megabytes. 0 for no limit." },
+	{ "preferences", "thumbnail-cache-max-days", NEMO_CONFIG_INT, "180", NULL, NULL, "Discard a thumbnail this many days after it was last used. 0 to keep them however old." },
 	{ "preferences", "thumbnail-threads", NEMO_CONFIG_INT, "-1", NULL, NULL, "Number of threads to dedicate to thumbnailing. -1 to let the program decide. The maximum allowed threads is half the number of logical processors, regardless of what is set here. If you change this setting you must restart Nemo for it to take effect." },
 	{ "preferences", "tooltips-in-icon-view", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show tooltips when hovering on items in an icon or compact view" },
 	{ "preferences", "tooltips-in-list-view", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show tooltips when hovering on items in a list view" },
