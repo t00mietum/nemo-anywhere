@@ -324,3 +324,51 @@ nemo_column_layout_distribute (const NemoColumnLayoutItem *items,
 	g_free (targets);
 	g_free (floors);
 }
+
+void
+nemo_column_layout_search_pair (int  name_floor,
+				int  name_natural,
+				int  where_floor,
+				int  where_natural,
+				int  available,
+				int *name_width,
+				int *where_width)
+{
+	int wants_name;
+	int wants_where;
+	int total;
+	int name;
+	int where;
+
+	g_return_if_fail (name_width != NULL);
+	g_return_if_fail (where_width != NULL);
+
+	name_floor = MAX (1, name_floor);
+	where_floor = MAX (1, where_floor);
+	wants_name = MAX (name_floor, name_natural);
+	wants_where = MAX (where_floor, where_natural);
+	total = wants_name + wants_where;
+
+	if (available >= total) {
+		*name_width = wants_name;
+		*where_width = wants_where;
+		return;
+	}
+
+	available = MAX (available, 0);
+	name = (int) (((gint64) available * wants_name) / total);
+	where = available - name;
+
+	/* The narrower of the two stays readable: a third of the room, or all it
+	   asked for if that is less, in which case the other keeps the difference. */
+	if (name > 2 * where) {
+		where = MIN (available / 3, wants_where);
+		name = available - where;
+	} else if (where > 2 * name) {
+		name = MIN (available / 3, wants_name);
+		where = available - name;
+	}
+
+	*name_width = MAX (name_floor, name);
+	*where_width = MAX (where_floor, where);
+}

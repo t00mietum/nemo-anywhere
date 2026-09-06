@@ -739,8 +739,8 @@ field: search.group-by-folder
 
 field: search.name-location-split
 	type: int
-	default: 50
-	desc: Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column.
+	default: 0
+	desc: Percent of the row the Name column takes in search results, the Location column taking the rest. 0 fits both to their contents instead. Set when either column is dragged.
 
 field: search.search-content-case-sensitive
 	type: bool

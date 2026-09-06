@@ -133,7 +133,7 @@ struct NemoListViewDetails {
 	guint user_width_settle_id;
 	GHashTable *pending_user_widths;
 	gint laid_out_total;
-	gint laid_out_pair;	/* what Name and Location split in the last search layout */
+	gint laid_out_pair;	/* room Name and Location had in the last search layout */
 
 	char *original_name;
 
@@ -3219,6 +3219,7 @@ resize_columns_now (NemoListView *view)
 	gint shrink_first = -1;
 	gint name_index = -1;
 	gint where_index = -1;
+	gboolean pair_fitted = FALSE;
 	gint i = 0;
 
 	if (view->details->tree_view == NULL ||
@@ -3320,9 +3321,9 @@ resize_columns_now (NemoListView *view)
 
 	if (in_search && name_index >= 0 && where_index >= 0) {
 		/* Search results divide the row differently: every other column
-		   keeps its measured width, and Name and Location split what is
-		   left - evenly until the user drags either edge, and their
-		   split from then on. */
+		   keeps its measured width, and Name and Location take what they
+		   need out of what is left. A split dragged into place stands
+		   instead, and then the pair fills the row between them. */
 		gint others = 0;
 		gint remainder;
 		gint split;
@@ -3335,19 +3336,41 @@ resize_columns_now (NemoListView *view)
 			others += widths[i];
 		}
 
+		remainder = MAX (0, allocation.width - others);
 		split = nemo_config_get_int (nemo_search_preferences,
 					     NEMO_PREFERENCES_SEARCH_NAME_LOCATION_SPLIT);
-		split = CLAMP (split, 5, 95);
 
-		remainder = MAX (0, allocation.width - others);
-		widths[name_index] = MAX (items[name_index].floor_width,
-					  (gint) (((gint64) remainder * split) / 100));
-		widths[where_index] = MAX (items[where_index].floor_width,
-					   remainder - widths[name_index]);
-		view->details->laid_out_pair = widths[name_index] + widths[where_index];
+		if (split >= 5 && split <= 95) {
+			widths[name_index] = MAX (items[name_index].floor_width,
+						  (gint) (((gint64) remainder * split) / 100));
+			widths[where_index] = MAX (items[where_index].floor_width,
+						   remainder - widths[name_index]);
+		} else {
+			nemo_column_layout_search_pair (items[name_index].floor_width,
+							items[name_index].natural_width,
+							items[where_index].floor_width,
+							items[where_index].natural_width,
+							remainder,
+							&widths[name_index],
+							&widths[where_index]);
+			pair_fitted = TRUE;
+		}
+
+		/* The room the pair had, which is what a drag on either edge is
+		   read against - not what it chose to use. */
+		view->details->laid_out_pair =
+			MAX (remainder, widths[name_index] + widths[where_index]);
 	} else {
 		nemo_column_layout_distribute (items, n_columns, shrink_first,
 					       allocation.width, widths);
+	}
+
+	/* Name normally soaks up whatever rounding leaves over, so the row ends
+	   flush. Where the search pair is fitted to its contents the row is meant
+	   to end short, and an expanding column would fill the gap back in. */
+	if (view->details->file_name_column != NULL &&
+	    gtk_tree_view_column_get_expand (view->details->file_name_column) == pair_fitted) {
+		gtk_tree_view_column_set_expand (view->details->file_name_column, !pair_fitted);
 	}
 
 	view->details->applying_layout = TRUE;
