@@ -39,6 +39,22 @@ read_file (void)
 	return text ? text : g_strdup ("");
 }
 
+/* The file also carries a commented list of everything not set, which names
+   every key there is - so a check for what was stored has to read the settings
+   alone. */
+static char *
+read_settings (void)
+{
+	char *text = read_file ();
+	char *rule = strstr (text, "\n# ------");
+
+	if (rule != NULL) {
+		*rule = '\0';
+	}
+
+	return text;
+}
+
 /* --- change signal ------------------------------------------------------- */
 
 static int   changed_count;
@@ -121,14 +137,14 @@ test_default_not_stored (NemoConfigGroup *prefs)
 	nemo_config_set_boolean (prefs, "always-use-browser", TRUE);  /* == default */
 	nemo_config_flush ();
 
-	text = read_file ();
+	text = read_settings ();
 	check (strstr (text, "always-use-browser") == NULL);
 	g_free (text);
 
 	nemo_config_set_boolean (prefs, "always-use-browser", FALSE); /* != default */
 	nemo_config_flush ();
 
-	text = read_file ();
+	text = read_settings ();
 	check (strstr (text, "always-use-browser") != NULL);
 	g_free (text);
 
@@ -219,7 +235,7 @@ test_enum_bind_by_nick (NemoConfigGroup *prefs)
 	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (toggle), TRUE);
 	nemo_config_flush ();
 
-	text = read_file ();
+	text = read_settings ();
 	check (strstr (text, "default-folder-viewer: compact-view") != NULL);
 	/* icon-view is the zero-valued nick, i.e. what the bug stored */
 	check (strstr (text, "icon-view") == NULL);
@@ -232,15 +248,15 @@ test_enum_bind_by_nick (NemoConfigGroup *prefs)
 /* Setting a comment appends a line rather than replacing one, so re-applying
  * it on every write grew the same comment without bound. */
 static void
-test_comment_written_once (NemoConfigGroup *window_state)
+test_comment_written_once (NemoConfigGroup *prefs)
 {
-	const char *summary = "# Width of the side pane";
+	const char *summary = "# Widest a tab may get, as a percentage of the tab strip";
 	char       *text, *at;
 	int         seen = 0;
 
-	nemo_config_set_int (window_state, "sidebar-width", 201);
-	nemo_config_set_int (window_state, "sidebar-width", 202);
-	nemo_config_set_int (window_state, "sidebar-width", 203);
+	nemo_config_set_int (prefs, "tab-width-max-percent", 21);
+	nemo_config_set_int (prefs, "tab-width-max-percent", 22);
+	nemo_config_set_int (prefs, "tab-width-max-percent", 23);
 	nemo_config_flush ();
 
 	text = read_file ();
@@ -257,13 +273,15 @@ test_persistence (void)
 
 	nemo_config_set_boolean (nemo_config_get_group ("preferences"),
 	                         "show-hidden-files", TRUE);
+	nemo_config_set_boolean (nemo_config_get_group ("preferences"),
+	                         "confirm-drag-move", FALSE);
 	nemo_config_flush ();
 
-	text = read_file ();
+	text = read_settings ();
 	/* Written as SHCL, grouped, with the summary carried across as a comment. */
 	check (strstr (text, "preferences:") != NULL);
 	check (strstr (text, "show-hidden-files: true") != NULL);
-	check (strstr (text, "# Whether to show hidden files") != NULL);
+	check (strstr (text, "# Ask before a drop moves files") != NULL);
 	g_free (text);
 }
 
@@ -450,7 +468,7 @@ main (int argc, char *argv[])
 	test_changed_signal (prefs);
 	test_bind (prefs);
 	test_enum_bind_by_nick (prefs);
-	test_comment_written_once (window_state);
+	test_comment_written_once (prefs);
 	test_persistence ();
 	test_external_edit (prefs);
 	test_unreadable_file_kept (prefs);

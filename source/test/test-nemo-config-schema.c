@@ -38,6 +38,7 @@ typedef struct {
 	char *type;
 	char *allowed;
 	char *def;
+	char *desc;
 	gboolean seen;
 } SchemaField;
 
@@ -49,6 +50,7 @@ schema_field_free (gpointer data)
 	g_free (field->type);
 	g_free (field->allowed);
 	g_free (field->def);
+	g_free (field->desc);
 	g_free (field);
 }
 
@@ -87,6 +89,8 @@ read_schema (const char *path)
 			current->type = g_strdup (line + strlen ("\ttype: "));
 		} else if (current != NULL && g_str_has_prefix (line, "\tallowed: ")) {
 			current->allowed = g_strdup (line + strlen ("\tallowed: "));
+		} else if (current != NULL && g_str_has_prefix (line, "\tdesc: ")) {
+			current->desc = g_strdup (line + strlen ("\tdesc: "));
 		} else if (current != NULL && g_str_has_prefix (line, "\tdefault:")) {
 			/* An empty string default is written as a bare "default:", and a
 			   string one is quoted where a list or a number is not. */
@@ -213,6 +217,12 @@ main (int argc, char **argv)
 			g_free (nicks);
 		} else if (field->allowed != NULL) {
 			fail ("%s has an allowed list in the schema but is not an enum", full);
+		}
+
+		if (g_strcmp0 (field->desc, key->summary) != 0) {
+			fail ("%s is described as \"%s\" in the key table, \"%s\" in the schema",
+			      full, key->summary != NULL ? key->summary : "",
+			      field->desc != NULL ? field->desc : "");
 		}
 
 		/* The two list-view column defaults differ by platform and the schema

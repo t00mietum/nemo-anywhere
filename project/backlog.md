@@ -1057,6 +1057,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Add default user-tunable settings as comments to config file.
+	- Opened: n/a
+	- Done 20260906. The settings file ends with every key that is not set, commented out, with the value used instead. Uncommenting a line sets it; setting a key takes it off the list.
+	- Notes were rewritten to say only what a user would see, and dropped entirely where the key name already says it - which is about half of them. The list in the code and the shipped schema are checked against each other so the two cannot drift.
+	- Left off the list: keys the app writes back itself, such as a window size, a sidebar width or the last state of a search toggle. Setting one by hand only gets it overwritten.
+	- Two keys that nothing had read since the fork were dropped.
+
 - ✅ Better thumbnail cache management. Asked for as a database plus background pruning.
 	- Opened: 20260826-103001
 	- Done 20260905. The cache is swept once a day, on a worker thread a minute after startup. A thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed.
