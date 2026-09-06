@@ -292,6 +292,64 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
       </row>
     </data>
   </object>
+  <object class="GtkListStore" id="model_thumb_cache_age">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">A week</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">A month</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">Three months</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">Six months</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">A year</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">Never</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkListStore" id="model_thumb_cache_size">
+    <columns>
+      <!-- column-name gchararray -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">64 MB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">128 MB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">256 MB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">512 MB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">1 GB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">2 GB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">4 GB</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">No limit</col>
+      </row>
+    </data>
+  </object>
   <object class="GtkListStore" id="model64">
     <columns>
       <!-- column-name gchararray -->
@@ -3238,6 +3296,96 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                             <property name="expand">False</property>
                                             <property name="fill">True</property>
                                             <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkBox" id="hbox_thumb_cache_age">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="spacing">12</property>
+                                            <child>
+                                              <object class="GtkLabel" id="thumbnail_cache_age_label">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">_Discard a thumbnail unused for:</property>
+                                                <property name="use-underline">True</property>
+                                                <property name="mnemonic-widget">thumbnail_cache_age_combobox</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">False</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkComboBox" id="thumbnail_cache_age_combobox">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="model">model_thumb_cache_age</property>
+                                                <child>
+                                                  <object class="GtkCellRendererText" id="thumbnail_cache_age_combobox_renderer"/>
+                                                  <attributes>
+                                                    <attribute name="text">0</attribute>
+                                                  </attributes>
+                                                </child>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkBox" id="hbox_thumb_cache_size">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="spacing">12</property>
+                                            <child>
+                                              <object class="GtkLabel" id="thumbnail_cache_size_label">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">Cache at _most:</property>
+                                                <property name="use-underline">True</property>
+                                                <property name="mnemonic-widget">thumbnail_cache_size_combobox</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">False</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkComboBox" id="thumbnail_cache_size_combobox">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="model">model_thumb_cache_size</property>
+                                                <child>
+                                                  <object class="GtkCellRendererText" id="thumbnail_cache_size_combobox_renderer"/>
+                                                  <attributes>
+                                                    <attribute name="text">0</attribute>
+                                                  </attributes>
+                                                </child>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">4</property>
                                           </packing>
                                         </child>
                                       </object>

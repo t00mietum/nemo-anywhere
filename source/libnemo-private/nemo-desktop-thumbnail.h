@@ -40,6 +40,9 @@ typedef enum {
   NEMO_DESKTOP_THUMBNAIL_SIZE_LARGE
 } NemoDesktopThumbnailSize;
 
+/* The folder our own failure records go in, under the cache's fail dir. */
+#define NEMO_DESKTOP_THUMBNAIL_FAIL_APPNAME "nemo-anywhere-thumbnail-factory"
+
 #define NEMO_DESKTOP_TYPE_THUMBNAIL_FACTORY		(nemo_desktop_thumbnail_factory_get_type ())
 #define NEMO_DESKTOP_THUMBNAIL_FACTORY(obj)	(G_TYPE_CHECK_INSTANCE_CAST ((obj), NEMO_DESKTOP_TYPE_THUMBNAIL_FACTORY, NemoDesktopThumbnailFactory))
 #define NEMO_DESKTOP_THUMBNAIL_FACTORY_CLASS(klass)	(G_TYPE_CHECK_CLASS_CAST ((klass), NEMO_DESKTOP_TYPE_THUMBNAIL_FACTORY, NemoDesktopThumbnailFactoryClass))

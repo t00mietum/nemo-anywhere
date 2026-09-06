@@ -66,9 +66,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
-	- Opened: 20260826-103001
-
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe - the documented fallback, working as intended, but worth knowing before announcing a build.
@@ -1059,6 +1056,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Better thumbnail cache management. Asked for as a database plus background pruning.
+	- Opened: 20260826-103001
+	- Done 20260905. The cache is swept once a day, on a worker thread a minute after startup. A thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed.
+	- Two settings on the Preview page: how long an unused thumbnail is kept, and how big the cache may get. Either can be turned off.
+	- No database. The cache is the shared one every file manager on a Linux desktop uses, and a private store would have cost that sharing and added a dependency to three build environments. Growth was the complaint; sweeping fixes it. Reasoning is in design.md.
+	- Another program's failure records are left alone.
 
 - ✅ Change to search mode column sizing:
 	- In search mode when location column is shown:

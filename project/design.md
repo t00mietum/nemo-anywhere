@@ -352,6 +352,18 @@ Three separate stores, each with its own lifetime.
 
 Settings are deliberately isolated from an upstream Nemo installed alongside: our own config file, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
 
+The thumbnail cache is a fourth store, and not one of ours. It is the shared freedesktop cache: PNG files named by a hash of the file they were made from, under the user's cache directory. Every file manager and image viewer on a Linux desktop reads and writes the same folder, so a thumbnail made in one is already there in the next.
+
+- Nothing ever removed one, so the folder only grew. It is swept now: once a day at most, on a worker thread a minute after startup, and never on the path that draws a window.
+
+- Three rules, in that order. A thumbnail whose file is gone goes first, then anything not used for longer than the age allowed, then oldest-first until the rest fit in the size allowed. Both limits are on the Preview page of Settings, and either can be turned off.
+
+- The defaults are 180 days and 512 MB, which is what a GNOME or Cinnamon desktop's own housekeeping already applies to the same folder. So on those desktops nothing changes. On Windows, and on a desktop with no housekeeping of its own, something is finally minding it.
+
+- A private database was considered and dropped. It would have meant a new dependency in three build environments, and on Linux it would have cost the sharing that makes the cache worth having: our thumbnails invisible to everything else, and everything else's invisible to us. Growth was the actual complaint, and sweeping fixes that without giving anything up.
+
+- Only our own failure records are swept. Another program's are its business.
+
 ### UI
 
 The window is a menu and toolbar, a sidebar, a path bar, and a view - and the view is interchangeable.
