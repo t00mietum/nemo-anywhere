@@ -270,7 +270,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-files-recursively", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Recurse into subfolders when performing a search" },
 	{ "search", "search-files-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Stores the most recent state of the file search regex toggle" },
 	{ "search", "search-regex-format", NEMO_CONFIG_STRING, "pcre", NULL, NULL, "valid formats: pcre, javascript" },
-	{ "search", "name-location-split", NEMO_CONFIG_INT, "50", NULL, NULL, "Percent of the row the Name column takes in search results, the Location column taking the rest. Updated when the user drags either column." },
+	{ "search", "name-location-split", NEMO_CONFIG_INT, "0", NULL, NULL, "Percent of the row the Name column takes in search results, the Location column taking the rest. 0 fits both to their contents instead. Set when either column is dragged." },
 	{ "search", "search-reverse-sort", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Reverse the direction of the sort when viewing search results" },
 	{ "search", "search-skip-folders", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_skip_folders, NULL, "Paths or folder names to never recurse into when searching" },
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, "Column to sort on when viewing search results" },

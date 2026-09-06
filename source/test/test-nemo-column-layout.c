@@ -360,6 +360,74 @@ check_cap_stays_inside_the_pair (void)
 	}
 }
 
+/* Search results: both fit, so neither takes more than it needs and the rest of
+   the row is left empty. */
+static void
+check_search_pair_fits (void)
+{
+	int name, where;
+
+	nemo_column_layout_search_pair (100, 300, 30, 200, 1000, &name, &where);
+
+	check (name == 300);
+	check (where == 200);
+}
+
+/* They do not fit, so both give in proportion to what they asked for. */
+static void
+check_search_pair_shrinks_in_proportion (void)
+{
+	int name, where;
+
+	nemo_column_layout_search_pair (100, 600, 30, 300, 600, &name, &where);
+
+	check (name == 400);
+	check (where == 200);
+	check (name + where == 600);
+}
+
+/* Neither ends more than twice the other, however lopsided the demand. */
+static void
+check_search_pair_ratio_is_capped (void)
+{
+	int name, where;
+
+	nemo_column_layout_search_pair (30, 2000, 30, 400, 600, &name, &where);
+
+	check (name <= 2 * where);
+	check (name + where == 600);
+
+	nemo_column_layout_search_pair (30, 400, 30, 2000, 600, &name, &where);
+
+	check (where <= 2 * name);
+	check (name + where == 600);
+}
+
+/* The cap does not hand a column more than it asked for: a short Location keeps
+   its own width and Name has the difference. */
+static void
+check_search_pair_cap_wastes_nothing (void)
+{
+	int name, where;
+
+	nemo_column_layout_search_pair (30, 2000, 30, 100, 900, &name, &where);
+
+	check (where == 100);
+	check (name == 800);
+}
+
+/* Floors hold even where there is no room for them. */
+static void
+check_search_pair_floors (void)
+{
+	int name, where;
+
+	nemo_column_layout_search_pair (120, 600, 80, 600, 100, &name, &where);
+
+	check (name >= 120);
+	check (where >= 80);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -378,6 +446,11 @@ main (int argc, char *argv[])
 	check_dates_keep_their_width ();
 	check_cap_follows_the_pair ();
 	check_cap_stays_inside_the_pair ();
+	check_search_pair_fits ();
+	check_search_pair_shrinks_in_proportion ();
+	check_search_pair_ratio_is_capped ();
+	check_search_pair_cap_wastes_nothing ();
+	check_search_pair_floors ();
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

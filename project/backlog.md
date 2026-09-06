@@ -62,12 +62,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Change to search mode column sizing:
-	- In search mode when location column is shown:
-		- Only give 'Name' and 'Location' columns as much space as they need, not more.
-		- Only if they run out of space, shrink column proportional to their space demanded.
-			- But never one more than 2x the other.
-
 - 🔘 Better thumbnail cache management - a SQLite cache, background pruning, that sort of thing.
 	- Opened: 20260826-103001
 
@@ -1061,6 +1055,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Change to search mode column sizing:
+	- In search mode when location column is shown:
+		- Only give 'Name' and 'Location' columns as much space as they need, not more.
+		- Only if they run out of space, shrink column proportional to their space demanded.
+			- But never one more than 2x the other.
+	- Done 20260905. Search results now leave the rest of the row empty rather than stretching Name across it. When the two do not both fit they give in proportion to what they asked for, and neither ends more than twice the width of the other unless the narrower one did not want the extra.
+	- Dragging either column still pins the split, as before, and the pair then fills the row again. Clearing `search.name-location-split` in the settings file goes back to fitting the contents.
 
 - ✅ Need a better icon for "recursive" in search mode. (It currently looks like "press this for enter".)
 	- Done 20260905. A folder with a branch line down into a smaller folder, the usual "include subfolders" shape, in the same flat style as the group-by-folder toggle beside it. Mirrored for right-to-left.

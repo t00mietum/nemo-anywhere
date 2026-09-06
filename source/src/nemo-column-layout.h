@@ -21,8 +21,10 @@
 */
 
 /* The list view fills its width exactly: no column is pushed off the end of the
- * window and no strip of empty space is left after the last one. Nothing but
- * arithmetic lives here, so the rule can be checked without a screen.
+ * window and no strip of empty space is left after the last one. Search results
+ * are the one exception, and have their own rule at the bottom of this file.
+ * Nothing but arithmetic lives here, so the rule can be checked without a
+ * screen.
  *
  * Widening, from narrow to wide: every column takes the new space equally until
  * it can show the longest value in it, and then that one stops while the rest
@@ -73,6 +75,21 @@ void nemo_column_layout_distribute (const NemoColumnLayoutItem *items,
 				    int                         shrink_first,
 				    int                         available,
 				    int                        *widths);
+
+/* Search results divide the row differently, since the other columns there are
+ * already at the width their contents ask for: Name and Location take what they
+ * need out of `available` and no more, leaving the rest of the row empty. Only
+ * when the two together do not fit does either give, and then both give in
+ * proportion to what they asked for - except that neither ends up more than
+ * twice the width of the other, unless the narrower one did not want the extra.
+ */
+void nemo_column_layout_search_pair (int  name_floor,
+				     int  name_natural,
+				     int  where_floor,
+				     int  where_natural,
+				     int  available,
+				     int *name_width,
+				     int *where_width);
 
 G_END_DECLS
 
