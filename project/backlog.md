@@ -168,6 +168,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Bottom scrollbar: missing when the view is tiny, still there after a resize when nothing overflows, flashing at every step of a resize, and now and then strobing along with the vertical one.
+	- Opened: 20260906-110200
+	- Closed: 20260907-195000
+	- Rule, as set: Name never shrinks below the width that shows all but the widest tenth of the names in the folder (tunable), rows a subfolder adds included, and never grows past what shows every name plus some air. Type and the other variable-width columns follow the same rule over their distinct values. Type alone may go further, in proportion, down to twice the Ext column. A date, a size or any other fixed-width column never shrinks below what it shows. Past all that the view scrolls sideways. This replaces every earlier decision about column widths; no other item changes them.
+	- Cause of the flashing: the columns were laid out after the tree view had drawn at the new width, so each step of a resize showed one frame at the old widths. The overlay scrollbar's margin was also set on every allocation, and setting it asks for another.
+	- Fixed: the columns are laid out for the width the view is about to get, before the tree view sees it, and the margin only moves when it has to. Widths follow the rule above; the share is `column-fit-percent` under list-view, default 90. Collapsing a subfolder gives back the width its rows asked for.
+
 - ✅ A running copy on Linux moved everything under the home folder to the trash, with nobody asking it to. The mounts under it cannot be trashed, so the "delete immediately?" question came up for each of those, and they went for good.
 	- Opened: 20260906-110342
 	- Closed: 20260907-190000

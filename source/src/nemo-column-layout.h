@@ -20,35 +20,28 @@
    Boston, MA 02110-1335, USA.
 */
 
-/* The list view fills its width exactly: no column is pushed off the end of the
- * window and no strip of empty space is left after the last one. Search results
- * are the one exception, and have their own rule at the bottom of this file.
+/* Every column has three widths: the least it will ever be, the width that
+ * shows most of what is in it, and the width that shows all of it. For a date
+ * or a size the three are the same number - a value like that says nothing cut
+ * short, so it is never cut. Name and the columns with no natural length (a
+ * type, an owner, a path) have a spread: they show every value when the row has
+ * room, most of them when it does not, and Type alone goes a little further.
+ *
+ * Widening, from narrow to wide: once every column has the width that shows
+ * most of its values, the columns that can still grow do so together, each in
+ * proportion to its size, until each can show everything. What is left after
+ * that is Name's - or Location's, when it is on the row and growing alongside.
+ *
+ * Narrowing: the same thing read the other way, until every column is at the
+ * width that shows most of its values. Below that only the columns with a
+ * smaller minimum give (Type), in proportion to their size, and when they are
+ * spent the row is wider than the window and the view scrolls sideways. That is
+ * deliberate: a Name column crushed to nothing tells the user less than a
+ * scrollbar does.
+ *
+ * Search results are the one exception, and have their own rule at the bottom.
  * Nothing but arithmetic lives here, so the rule can be checked without a
  * screen.
- *
- * Widening, from narrow to wide: every column takes the new space equally until
- * it can show the longest value in it, and then that one stops while the rest
- * carry on. Name is the only column with no such stop, so once everything else
- * has what it needs the remainder is all Name's.
- *
- * Location, when it is on screen, grows alongside Name instead of stopping. The
- * two split whatever the other columns leave, Name taking no more than half, so
- * Location is never the narrower of the pair and everything Name does not need
- * for its longest name goes to Location.
- *
- * Narrowing, which is the same continuum read the other way: the growing pair
- * gives its surplus back first, since it had all of it. When every column is
- * down to the longest value it holds and it still does not fit, one nominated
- * column - Type, in the view - gives next, on its own, down to a floor of about
- * three characters. After that the elastic columns give together, each in
- * proportion to how much it has to give, and only when they are all on their
- * floors does anything else move. That last part is what keeps a date or a size
- * whole: a truncated date says nothing, where a truncated name still reads.
- *
- * A column whose values have no natural limit - Type, Owner - would otherwise
- * take half the window for one long value, so it stops at a third of whatever
- * is growing, unless its own floor is wider than that. That is Name on its own,
- * or Name and Location together, so turning Location on does not squeeze them.
  */
 
 #ifndef NEMO_COLUMN_LAYOUT_H
@@ -59,22 +52,25 @@
 G_BEGIN_DECLS
 
 typedef struct {
-	int      floor_width;	/* never narrower than this */
-	int      natural_width;	/* what it takes to show the longest value in it */
-	gboolean unbounded;	/* values have no natural limit; capped against name */
-	gboolean is_name;	/* the one column that keeps growing */
-	gboolean shares_growth;	/* grows with name and takes what name does not need */
-	gboolean elastic;	/* gives width back before the columns that stay whole */
+	int      min_width;	/* never narrower than this */
+	int      fit_width;	/* shows most of its values; where it stops when the row runs short */
+	int      max_width;	/* shows every value in it */
+	gboolean is_name;	/* the column the surplus goes to */
+	gboolean shares_growth;	/* takes the surplus instead of Name, when present */
 } NemoColumnLayoutItem;
 
-/* Writes n_items widths, summing to available wherever the floors allow it.
- * shrink_first is the index of the column that gives before the others, or -1
- * when that column is not on screen. */
+/* Writes n_items widths. They sum to available whenever the minimums allow it;
+ * when they do not, each column is at its minimum and the row overflows. */
 void nemo_column_layout_distribute (const NemoColumnLayoutItem *items,
 				    int                         n_items,
-				    int                         shrink_first,
 				    int                         available,
 				    int                        *widths);
+
+/* The width that shows `percent` of the values given - the smallest value that
+ * is at least as wide as that share of them. 100 is the widest; 0 values is 0. */
+int nemo_column_layout_fit (const int *values,
+			    int        n_values,
+			    int        percent);
 
 /* Search results divide the row differently, since the other columns there are
  * already at the width their contents ask for: Name and Location take what they
@@ -82,7 +78,7 @@ void nemo_column_layout_distribute (const NemoColumnLayoutItem *items,
  * when the two together do not fit does either give, and then both give in
  * proportion to what they asked for - except that neither ends up more than
  * twice the width of the other, unless the narrower one did not want the extra.
- */
+ * Neither goes under its floor, so the pair can still overflow the row. */
 void nemo_column_layout_search_pair (int  name_floor,
 				     int  name_natural,
 				     int  where_floor,
