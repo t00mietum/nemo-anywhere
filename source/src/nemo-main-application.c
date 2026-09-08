@@ -156,6 +156,58 @@ publish_instance (NemoMainApplication *self)
 	                                                                         NULL);
 }
 
+/* The activation file has to name a path, and a portable copy has no path until
+ * it runs - the one that ships in a prefix names wherever it was built. So it is
+ * written here instead, into the user's own service directory, and only when it
+ * does not already describe this copy. */
+static void
+refresh_dbus_service_file (NemoMainApplication *self)
+{
+#ifndef G_OS_WIN32
+	char *exe;
+	char *dir;
+	char *path;
+	char *wanted;
+	char *current = NULL;
+	gboolean same;
+
+	/* No connection means no session bus, so nothing would read it. */
+	if (self->priv->instance_connection == NULL) {
+		return;
+	}
+
+	exe = nemo_get_exe_path ();
+	if (exe == NULL) {
+		return;
+	}
+
+	wanted = g_strdup_printf ("[D-BUS Service]\nName=%s\nExec=%s --no-default-window\n",
+	                          NEMO_INSTANCE_BUS_NAME, exe);
+	g_free (exe);
+
+	dir = g_build_filename (g_get_user_data_dir (), "dbus-1", "services", NULL);
+	path = g_build_filename (dir, NEMO_INSTANCE_BUS_NAME ".service", NULL);
+
+	same = g_file_get_contents (path, &current, NULL, NULL) &&
+	       g_strcmp0 (current, wanted) == 0;
+	g_free (current);
+
+	if (!same && g_mkdir_with_parents (dir, 0755) == 0) {
+		GError *error = NULL;
+
+		if (!g_file_set_contents (path, wanted, -1, &error)) {
+			g_warning ("Could not write the D-Bus activation file (%s): %s",
+			           path, error->message);
+			g_clear_error (&error);
+		}
+	}
+
+	g_free (path);
+	g_free (dir);
+	g_free (wanted);
+#endif
+}
+
 /* At finalize the application is no longer registered, so the connection is
  * the one kept from publishing, not asked for again. */
 static void
@@ -1157,6 +1209,7 @@ nemo_main_application_continue_startup (NemoApplication *app)
 	self->priv->dbus_manager = nemo_dbus_manager_new ();
 	self->priv->fdb_manager = nemo_freedesktop_dbus_new ();
 	publish_instance (self);
+	refresh_dbus_service_file (self);
 
     /* Check the user's ~/.config/nemo directory and post warnings
      * if there are problems.

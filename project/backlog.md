@@ -80,8 +80,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: the three helper exes are gone. The connect and open-with dialogs already ran in-process, so those two were dead weight. The extensions lister is now `--extensions-list` on the program itself, which keeps it a separate process without a separate binary.
 	- Done: the `bin/` shell wrapper. The program points its own data and program paths at the folder it sits in, and finds the extension library through an rpath, so `bin/nemo-anywhere` is the program itself and `libexec/` is gone.
 	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
-	- What is left of `share/` moves into the compiled resources. Data that only other programs read leaves the portable drop: editor syntax files, mime, polkit, man pages.
-	- The D-Bus service file stays, but is written at runtime so a relocated copy names its own path.
+	- Done: data that only a system install would use has left the drop - mime, polkit, man pages and the editor syntax files. Nothing reads any of it out of a relocatable prefix or out of /opt, which is where both packages put one. A distro building its own install still gets all of it.
+	- Done: the D-Bus activation file is written at startup into the user's own service directory, naming the path this copy really runs from. The shipped one named wherever it was built.
+	- What is left of `share/` moves into the compiled resources.
 	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
 	- Static-linking the extension library is specced, not decided.
 

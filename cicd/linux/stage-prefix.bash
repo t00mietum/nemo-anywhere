@@ -68,6 +68,19 @@ gtk-update-icon-cache -qtf "${DEST}/share/icons/hicolor" 2>/dev/null || true
 rm -rf "${DEST}/include" "${DEST}"/lib/*/pkgconfig
 find "${DEST}/lib" -maxdepth 2 -type l -name "lib${SLUG}-extension.so" -delete
 
+## Files no program reads unless they sit under a system data dir. This prefix is
+## relocatable and the packages put it under /opt, so in every artifact we ship
+## they are dead weight. A distro doing its own `meson install --prefix=/usr` still
+## gets them; the install rules are untouched.
+##  - mime, polkit: read only out of /usr/share by their own daemons
+##  - man: only on MANPATH
+##  - gtksourceview: syntax files for editing .nemo_action files in someone else's editor
+##  - dbus-1: activation, which the app now writes into the user's own service dir
+##            at startup, naming the path this copy actually runs from
+fEcho "Dropping data only a system install would use"
+rm -rf "${DEST}/share/mime" "${DEST}/share/polkit-1" "${DEST}/share/man" "${DEST}/share/dbus-1"
+rm -rf "${DEST}"/share/gtksourceview-*
+
 
 fEcho "Staged $(du -sh "${DEST}" | cut -f1) at ${DEST}"
 
