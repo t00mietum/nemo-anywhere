@@ -138,7 +138,14 @@ $StageDir = Join-Path $Root "cicd\artifacts\win-run"
 ## for Windows (rides Dropbox, any box can grab it), one file per app alongside the
 ## others - no app subfolder, no dll tree. n8runfm.ps1 reads this dir and keeps its
 ## own GFS-rotated pool locally, so nothing dated is written here.
-$DogfoodRoot = Join-Path $HOME "synced\0-0\common\exec\app\mswin"
+## First one whose parent exists wins. Both spell the same directory where the
+## junction is present, but a box may have only the Dropbox name.
+$DogfoodRoots = @(
+	(Join-Path $HOME "synced\0-0\common\exec\app\mswin")
+	(Join-Path $HOME "Dropbox\0-0\common\exec\app\mswin")
+)
+$DogfoodRoot = $DogfoodRoots | Where-Object { Test-Path -LiteralPath (Split-Path $_ -Parent) } | Select-Object -First 1
+if (-not $DogfoodRoot) { $DogfoodRoot = $DogfoodRoots[0] }
 $DogfoodExe  = Join-Path $DogfoodRoot "$ExeName.exe"
 
 ## The packer's output - the single self-contained exe (cicd/win/pack-portable.ps1).

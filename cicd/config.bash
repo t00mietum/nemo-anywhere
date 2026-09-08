@@ -221,20 +221,34 @@ LINT_LOG_DIR="cicd/artifacts/lint"
 ## its own GFS-rotated pool of dated versions locally, and points a symlink at the
 ## newest - so the pipeline has no business writing dated copies or names on PATH.
 DOGFOOD_PREFIX_SRC="cicd/artifacts/dogfood/${EXE_NAME}"
-## First existing and writable wins. Both spellings resolve to the same directory on
-## this box, but only one of them exists on some others.
-DOGFOOD_FIXED_DESTS=(
+## One list per platform, first existing and writable wins. Both spellings resolve to
+## the same directory here, but a box usually has only one of them. A run only ever
+## writes its own platform's list - the other two are here so the layout is in one
+## place, and because this engine runs on macOS too.
+DOGFOOD_DESTS_LINUX=(
 	"${HOME}/synced/0-0/common/exec/app/linux"
 	"${HOME}/.synced/Dropbox/0-0/common/exec/app/linux"
 )
+DOGFOOD_DESTS_MSWIN=(
+	"${HOME}/synced/0-0/common/exec/app/mswin"
+	"${HOME}/.synced/Dropbox/0-0/common/exec/app/mswin"
+)
+DOGFOOD_DESTS_MACOS=(
+	"${HOME}/synced/0-0/common/exec/app/macos"
+	"${HOME}/.synced/Dropbox/0-0/common/exec/app/macos"
+)
+case "$(uname -s)" in
+	Darwin) DOGFOOD_FIXED_DESTS=("${DOGFOOD_DESTS_MACOS[@]}") ;;
+	*)      DOGFOOD_FIXED_DESTS=("${DOGFOOD_DESTS_LINUX[@]}") ;;
+esac
 ## The launcher owns the local pool now.
 DOGFOOD_ROTATING_DESTS=()
 DOGFOOD_PREFIX=""
 DOGFOOD_TAG=""
 ## Cross-built binaries for another box to pick up over the sync layer. Empty: what a
 ## Windows box dogfoods is the packed single exe, and only Windows can pack it, so
-## the mswin dir beside the linux one is written by that box's own pipeline. Same for
-## macos, once there is a macOS build at all.
+## DOGFOOD_DESTS_MSWIN is written by that box's own pipeline rather than from here.
+## Same for macos, once there is a macOS build at all.
 DOGFOOD_CROSS_DESTS=()
 ## Run after the installs. Keeps the launcher and its wrappers in step with the
 ## synced copies people actually run.
