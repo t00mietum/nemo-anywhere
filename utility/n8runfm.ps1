@@ -141,15 +141,17 @@ $LegacyDirs   = if ($IsWindows) {
 	)
 }
 
-## Files this launcher used to be, and drops it used to read, left behind in local
-## copies of the util tree from an older layout. Nothing points at them any more but
-## a hand-made Start Menu link, which is exactly how one box spent weeks with a
-## shortcut that did nothing. Only ever this app's own filenames, and only outside
-## the live synced tree - what is inside it is the sync client's to remove.
+## Drops this app used to be published to, retired when the synced app dir became
+## the one source the launcher reads. Nothing points at them any more but a hand-made
+## Start Menu link, which is how a box ends up with a shortcut that does nothing.
+##
+## The by-self path is the old dogfood drop and is retired on purpose, the same one
+## cicd-win.ps1 clears after a publish. Nothing else under there may be listed: on at
+## least one box 'exec\synced\util' is a LINK INTO THE LIVE SYNCED TREE, so a path
+## that looks local deletes the real file and the sync layer carries that everywhere.
+## Launcher files in particular are never swept - they live in that tree.
 $LegacyLaunchers = if ($IsWindows) {
 	@(
-		"C:\0-0\common\exec\synced\util\0_crossplatform\n8runfm.cmd"
-		"C:\0-0\common\exec\synced\util\0_crossplatform\n8runfm.ps1"
 		"C:\0-0\common\exec\synced\util\mswin\gui\by-self\win64\${ProgramName}.exe"
 		"C:\0-0\common\exec\synced\util\mswin\gui\by-self\win64\${ProgramName}"
 		"C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64\${ProgramName}.exe"
@@ -1463,8 +1465,8 @@ exit 0
 ##		  pointed into is pruned. Windows gets the desktop-entry treatment too: a
 ##		  shortcut aimed at this app is repointed at the current launcher and icon, and
 ##		  one is made if there is none - both boxes had a Start Menu link to a launcher
-##		  and an exe drop retired weeks ago. Retired launcher files in local copies of
-##		  the util tree are swept as well. The desktop step runs whether or not there is
+##		  and an exe drop retired weeks ago. The old by-self exe drop is swept as well.
+##		  The desktop step runs whether or not there is
 ##		  a build, and a copy run from outside its deployed home writes no shortcut at
 ##		  all rather than one naming a path that will not last.
 ##		- 2026-09-07: Source is now the synced dogfood dir for the running platform and
