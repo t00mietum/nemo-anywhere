@@ -1,0 +1,62 @@
+#!/bin/bash
+
+##	Purpose:
+##		- Lets 'runfm' be typed at a shell, or put in a .desktop file, without anyone
+##		  having to know the launcher is a pwsh script. Hands off to n8runfm.ps1 in
+##		  the same window and passes everything through.
+##		- Deployed to both the linux/bash and macos/bash util dirs; the .ps1 sorts out
+##		  the per-platform paths itself.
+##	History: At bottom of script.
+
+##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
+##	Licensed under The MIT License (MIT). Full text at:
+##		https://mit-license.org/
+##	SPDX-License-Identifier: MIT
+
+set -eu
+
+## Resolve this script through however many symlinks, so the sibling lookup below
+## works from a link on PATH as well as from the file itself.
+self="${BASH_SOURCE[0]}"
+while [[ -L "${self}" ]]; do
+	target="$(readlink "${self}")"
+	if [[ "${target}" == /* ]]; then self="${target}"
+	else                             self="$(dirname "${self}")/${target}"; fi
+done
+selfDir="$(cd -P "$(dirname "${self}")" && pwd)"
+
+## Sits two levels under the util dir, next to which 0_crossplatform lives. The
+## home-relative spelling is the fallback for a copy dropped somewhere else.
+candidates=(
+	"${selfDir}/../../0_crossplatform/n8runfm.ps1"
+	"${HOME}/synced/0-0/common/exec/util/0_crossplatform/n8runfm.ps1"
+)
+
+ps1=""
+for candidate in "${candidates[@]}"; do
+	[[ -f "${candidate}" ]] && { ps1="${candidate}"; break; }
+done
+if [[ -z "${ps1}" ]]; then
+	ps1="$(command -v n8runfm.ps1 2>/dev/null || true)"
+fi
+if [[ -z "${ps1}" ]]; then
+	echo "Not found: n8runfm.ps1" >&2
+	exit 1
+fi
+
+## pwsh 7 only. The launcher uses $IsWindows and friends, which 5.1 does not have,
+## and 5.1 does not exist here anyway.
+if ! command -v pwsh >/dev/null 2>&1; then
+	echo "PowerShell 7 (pwsh) was not found on PATH." >&2
+	exit 1
+fi
+
+## The launcher writes a desktop entry pointing back here, and has no other way to
+## learn where 'here' is.
+export N8RUNFM_WRAPPER="${self}"
+
+exec pwsh -NoProfile -File "${ps1}" "${@}"
+
+
+##	History:
+##		- 2026-09-07: Created.

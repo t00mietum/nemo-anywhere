@@ -135,6 +135,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260904-160000
 	- Stage 7 understands a relocatable prefix, not just a single binary: the fixed install puts the tree beside the bin dir and points the name on PATH into it, and the rotating copy is the whole tree under a dated name.
 	- The dated name carries the build's own mtime rather than the run clock, so the pipeline's copy and the launcher's copy of one build agree and neither re-fetches it.
+	- Superseded on 20260907 by the item below: the pipeline publishes one drop and writes no dated copies at all, so the second and third bullets here describe how it used to work.
+
+- ✅ One dogfood location per platform, and a launcher pool that keeps its history.
+	- Opened: 20260907-203000
+	- Every platform's build now lands in `common/exec/app/<platform>/` under its own name: the whole prefix on Linux, the packed exe on Windows. Both pipelines publish there and nowhere else.
+	- The launcher keeps the local pool: `<name>_versions/` beside a symlink at the fixed name, in `~/.local/bin` on Linux, `%LOCALAPPDATA%\Programs` on Windows and `~/Applications` on macOS.
+	- The pool is rotated on every run instead of aged out after a week. It keeps the newest of each finished hour, day, week, month and year, the most recent few, and the very first build forever, then trims to at most ten versions, at least five, and 1 GB between the two. A version something is running out of is never removed.
+	- A build already held is recognised by its bytes rather than its date, so a stamp the sync layer rounded no longer costs a re-copy.
+	- `runfm` is the name to type or put in a `.desktop` file, on every platform. The masters live in `utility/`; stage 7 copies them out to the synced util dirs.
+	- The menu entry now runs the launcher rather than a dated copy of the app, so a menu click picks up a new build the same way a shell launch does. Its icon comes from the newest version.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
 	- Opened: 20260905-112900

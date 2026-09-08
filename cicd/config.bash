@@ -212,27 +212,33 @@ LINT_LOG_DIR="cicd/artifacts/lint"
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Stage 7: dogfood (install the native release locally) - READY.
+## Stage 7: dogfood (publish the native release to the synced app dir) - READY.
 ## The app is a relocatable prefix, not one binary, so DOGFOOD_PREFIX_SRC names the
-## staged tree stage 5 left behind and the stage installs that. Fixed installs put
-## the tree beside the bin dir as nemo-anywhere.app with the name on PATH pointing
-## into it; the rotating copy is the whole tree under a dated name.
+## staged tree stage 5 left behind and the stage publishes that whole tree under the
+## program's own name.
+##
+## One drop, nothing else. utility/n8runfm.ps1 reads this dir on every launch, keeps
+## its own GFS-rotated pool of dated versions locally, and points a symlink at the
+## newest - so the pipeline has no business writing dated copies or names on PATH.
 DOGFOOD_PREFIX_SRC="cicd/artifacts/dogfood/${EXE_NAME}"
-## First existing and writable wins. /usr/local/bin needs root, so it is the answer
-## for a box where the synced tree is not mounted, not the usual one.
+## First existing and writable wins. Both spellings resolve to the same directory on
+## this box, but only one of them exists on some others.
 DOGFOOD_FIXED_DESTS=(
-	"${HOME}/synced/0-0/common/exec/util/linux/bin"
-	"/usr/local/bin"
+	"${HOME}/synced/0-0/common/exec/app/linux"
+	"${HOME}/.synced/Dropbox/0-0/common/exec/app/linux"
 )
-## The pool utility/n8runfm.ps1 launches from.
-DOGFOOD_ROTATING_DESTS=(
-	"${HOME}/.local/bin"
-)
-DOGFOOD_PREFIX="nemofmdf"
-DOGFOOD_TAG="lin"
-## Cross-built binaries for another box to pick up over the sync layer. Empty: what
-## a Windows box dogfoods is the packed single exe, and only Windows can pack it.
+## The launcher owns the local pool now.
+DOGFOOD_ROTATING_DESTS=()
+DOGFOOD_PREFIX=""
+DOGFOOD_TAG=""
+## Cross-built binaries for another box to pick up over the sync layer. Empty: what a
+## Windows box dogfoods is the packed single exe, and only Windows can pack it, so
+## the mswin dir beside the linux one is written by that box's own pipeline. Same for
+## macos, once there is a macOS build at all.
 DOGFOOD_CROSS_DESTS=()
+## Run after the installs. Keeps the launcher and its wrappers in step with the
+## synced copies people actually run.
+DOGFOOD_HOOK=(bash cicd/utility/deploy-launcher.bash)
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••

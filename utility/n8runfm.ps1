@@ -1,24 +1,31 @@
 #!/usr/bin/env pwsh
 
 ##	Purpose:
-##		- Dogfood launcher for Nemo Anywhere, Windows and Linux from the one script.
-##		  Keeps a pool of date-stamped copies, refreshes it from whichever source is
-##		  holding the newest build, and launches the newest, passing arguments through.
-##		- A copy is named 'nemofmdf_<YYYYMMDD-HHMMSS>_<tag>' (+ '.exe' on Windows) where
-##		  the stamp is the source build's mtime, so a build is copied once and a running
-##		  copy never blocks the next one. On Windows a copy is the packed single exe; on
-##		  Linux it is the whole relocatable prefix, and the launcher wires its runtime
-##		  environment before handing off.
-##		- Every source is probed each run rather than tried in order, so the newest
-##		  build wins wherever it happens to sit. A source on a share gets a short
-##		  timeout, and two sources holding the same build are reported once.
-##		- Also sweeps idle copies over a week old, opens at a configured startup
-##		  location when the caller names none, and falls back to another file manager
-##		  when there is nothing of ours to launch.
-##		- On Windows it self-elevates, so a shortcut click behaves like running from an
-##		  elevated shell rather than silently launching a stale build. Not offered on
-##		  unix, where a file manager running as root is a footgun.
-##		- '--admin', '--no-admin' and '--gui' are consumed here; everything else is
+##		- Dogfood launcher for Nemo Anywhere, same script on Linux, Windows and macOS.
+##		  Copies the current build out of the synced dogfood dir into a local pool of
+##		  date-stamped versions, points a symlink at the newest, and runs it with
+##		  whatever arguments were passed.
+##		- A version is named '<name>_<YYYYMMDD-HHMMSS>_<role>' (+ '.exe' on Windows)
+##		  where the stamp is the source build's mtime. Stamped names mean a running
+##		  copy never blocks the next one, and the symlink is the only fixed name.
+##		- On Windows a build is one packed self-contained exe. Everywhere else it is a
+##		  relocatable prefix tree, so a version is a directory and the symlink points
+##		  at the wrapper in its bin/, which sorts out the runtime environment itself.
+##		- The pool is GFS-rotated on every run: the newest of each completed hour, day,
+##		  week, month and year, plus the most recent few, plus the very first build,
+##		  which is kept forever. On top of that a hard budget - at most 10 versions, at
+##		  least 5, and between those two only as many as fit in 1 GB. A version with a
+##		  running process in it is never removed.
+##		- Copies of one build do not agree on mtime (the sync layer restamps what it
+##		  carries), so a build that is already held is settled on its bytes, not its
+##		  date. Otherwise the same build comes back in under a new stamp every run.
+##		- On Windows the whole launcher self-elevates: making a symlink needs a
+##		  privilege a filtered token does not have, so an unelevated run could not
+##		  repoint the link and would keep launching the version it already had.
+##		  '--no-admin' opts out.
+##		- Opens at a configured startup location when the caller names none, and falls
+##		  back to another file manager when there is no build to run at all.
+##		- '--no-admin', '--no-update' and '--gui' are consumed here; everything else is
 ##		  checked against the app's own options and forwarded.
 ##	History: At bottom of script.
 
@@ -31,150 +38,83 @@
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Configuration
 
-## The same tree gets spelled differently from box to box - a junction, a sync root
-## that is a symlink, a clone somewhere else - so every source lists several roots
-## and all of them are probed. Nothing here has to exist. The newest build across a
-## source's roots is that source's build; an exact tie keeps the first, which is the
-## local spelling of a junction pair.
-##
-## $SourceMainBin turns a root into the thing actually looked at - reachability, the
-## build stamp (its mtime) and the size. On Windows the root IS the packed exe, so
-## there is no sub-path.
+$ProgramName = "nemo-anywhere"
 
-$User = if ($IsWindows) { $env:USERNAME } else { $env:USER }
+## Windows needs the extension on both the pool copies and the symlink, or nothing
+## will run them.
+$ExeExt  = if ($IsWindows) { ".exe" } else { "" }
+$ExeName = "${ProgramName}${ExeExt}"
 
-## Roots a clone of this repo may sit under, and the path to it inside one.
-$RepoTrees = if ($IsWindows) {
+## What a build looks like. Windows packs the whole GTK runtime into one exe; every
+## other platform ships the relocatable prefix, so a version is a directory and
+## $PayloadMainBin is the wrapper inside it that the symlink and the launch point at.
+## $PayloadIdBin is the real binary, which is what a build is identified by - the
+## wrapper is generated boilerplate and is byte-identical between builds.
+$PayloadIsFile  = $IsWindows
+$PayloadMainBin = if ($IsWindows) { "" } else { "bin/${ProgramName}" }
+$PayloadIdBin   = if ($IsWindows) { "" } else { "libexec/${ProgramName}" }
+
+## Where a build arrives from: the synced dogfood dir for this platform, which is
+## what the pipeline's dogfood stage publishes to. One entry each for now, but the
+## sync tree gets spelled differently from box to box, so each platform keeps a list
+## and the first one actually holding a build wins.
+$SourceDirs = if ($IsWindows) {
 	@(
-		"C:\opt\0-0\users\${User}\data\prs\dev"
-		"C:\0-0\users\${User}\data\prs\dev"
+		(Join-Path $HOME "synced\0-0\common\exec\app\mswin")
+	)
+} elseif ($IsMacOS) {
+	@(
+		(Join-Path $HOME "synced/0-0/common/exec/app/macos")
 	)
 } else {
 	@(
-		"/mnt/zfs/zf10/0-0/users/${User}/data/prs/dev"
-		"/opt/0-0/users/${User}/data/prs/dev"
-		(Join-Path $HOME "data/prs/dev")
-	)
-}
-$RepoRel = "github.com/t00mietum/nemo-anywhere/github"
-
-## Roots the synced 0-0 tree may sit under. On unix ~/synced and ~/.synced/Dropbox
-## are usually the same directory; listing both costs one stat and covers the box
-## where only one of them is there.
-$SyncedTrees = if ($IsWindows) {
-	@("C:\opt\0-0", "C:\0-0")
-} else {
-	@(
-		(Join-Path $HOME "synced/0-0")
-		(Join-Path $HOME ".synced/Dropbox/0-0")
+		(Join-Path $HOME "synced/0-0/common/exec/app/linux")
 	)
 }
 
+## Where the pool lives and what the fixed name is. Deliberately local rather than
+## synced: versions churn on every build and have no business riding Dropbox. A
+## packed exe also starts noticeably faster from LOCALAPPDATA than from a synced
+## tree, where a scanner or the sync client is watching every read.
 if ($IsWindows) {
-	## Single self-contained exe (extension + whole GTK runtime packed in), so a
-	## copy is one file, not a prefix tree - the same shape as silkterm's n8runterm.
-	$Sources = @(
-		@{
-			## This box's own build, straight out of the repo - what cicd-win.ps1 packs.
-			Label = "local build"
-			Roots = @($RepoTrees | ForEach-Object {
-				Join-Path $_ "${RepoRel}/cicd/artifacts/win-portable/nemo-anywhere.exe" })
-		}
-		@{
-			## The Linux box's own drop, read straight off its share. Same file the
-			## sync layer eventually brings here, but reachable now rather than
-			## whenever the sync client next gets round to it.
-			Label = "b23"
-			Roots = @(
-				"\\b23\home-collierjr\synced\0-0\common\exec\util\mswin\gui\by-self\win64\nemo-anywhere.exe"
-			)
-		}
-		@{
-			## The synced by-self drop on this box, wherever it came from.
-			Label = "dogfood"
-			Roots = @($SyncedTrees | ForEach-Object {
-				Join-Path $_ "common\exec\synced\util\mswin\gui\by-self\win64\nemo-anywhere.exe" })
-		}
-	)
-	$SourceMainBin = ""            # the source IS the exe (single file, no sub-path)
-	$SourceTag     = "win"
-	$CopyIsFile    = $true         # a held copy is one .exe file, not a dir tree
-	$CopyExt       = ".exe"
-	## The pool sits in the LOCAL (not synced) by-self folder, beside n8runterm's -
-	## stamped copies are per-box churn and must not ride the sync. Created if absent.
-	$TargetDir     = "C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64"
-	$LogDir        = $TargetDir
+	$InstallDir = Join-Path $env:LOCALAPPDATA "Programs"
+} elseif ($IsMacOS) {
+	$InstallDir = Join-Path $HOME "Applications"
 } else {
-	$Sources = @(
-		@{
-			## The prefix cicd/linux/release.bash stages out of this box's own repo.
-			Label = "local build"
-			Roots = @($RepoTrees | ForEach-Object {
-				Join-Path $_ "${RepoRel}/cicd/artifacts/dogfood/nemo-anywhere" })
-		}
-		@{
-			## The fixed-name install the pipeline's dogfood stage writes, which the
-			## sync layer then carries between boxes. /mnt/b23 covers running from
-			## another unix box with that share mounted.
-			Label = "dogfood"
-			Roots = @(
-				($SyncedTrees | ForEach-Object { Join-Path $_ "common/exec/util/linux/nemo-anywhere.app" })
-				"/mnt/b23/home-collierjr/synced/0-0/common/exec/util/linux/nemo-anywhere.app"
-			)
-		}
-	)
-	$SourceMainBin = "bin/nemo-anywhere"
-	$SourceTag     = "lin"
-	$CopyIsFile    = $false        # a held copy is the whole prefix dir
-	$CopyExt       = ""
-	## Same pool the pipeline's rotating dogfood install writes to, so a build made
-	## on this box is already here and never has to be copied from anywhere.
-	$TargetDir     = Join-Path $HOME ".local/bin"
-	## Logs stay out of a PATH directory.
-	$LogDir        = Join-Path $HOME ".local/share/nemo-anywhere-dogfood"
+	$InstallDir = Join-Path $HOME ".local/bin"
 }
+$TargetDir = Join-Path $InstallDir "${ProgramName}_versions"
+$LinkPath  = Join-Path $InstallDir $ExeName
 
-## How long a source on a network share gets to answer the probe. An unreachable
-## share otherwise wedges the query for the SMB stack's own timeout, tens of
-## seconds of nothing while a held copy sits ready to launch.
-$ProbeTimeoutMs = 1500
+## Pool from before it was GFS-rotated: stamped copies sat loose in $InstallDir under
+## their own prefix. Retired on sight, since neither sweep below can see them.
+$LegacyPrefix = "nemofmdf"
 
-## What the probe asks of a path: is it there, when was it built, how big is it.
-## Held as text because the network case runs it in its own runspace, and the two
-## cases must not be allowed to drift apart.
-$ProbeScript = @'
-param($p)
-$item = Get-Item -LiteralPath $p -ErrorAction SilentlyContinue
-if (-not $item) { return $null }
-$len = 0
-if ($item -is [System.IO.FileInfo]) { $len = $item.Length }
-[pscustomobject]@{ Stamp = $item.LastWriteTime; Length = [int64]$len }
-'@
+## Pool budget. Never more than $MaxVersions, never fewer than $MinVersions, and
+## between the two only as many as fit in $MaxPoolBytes. The oldest version held is
+## exempt: it is the one build that is kept forever.
+$MaxVersions  = 10
+$MinVersions  = 5
+$MaxPoolBytes = 1GB
 
-## Filled in by fProbeBuild when a probe comes back empty for a reason worth
-## saying out loud (it timed out rather than simply not being there).
-$ProbeNote = ""
+## GFS retention, before the budget above trims it. Roles are retrospective: a
+## version is tagged hour/day/week/month/year only once that period has ended and it
+## is the last one in it. Sums to the budget's ceiling plus the first.
+$KeepFrequent = 3
+$KeepHourly   = 2
+$KeepDaily    = 2
+$KeepWeekly   = 1
+$KeepMonthly  = 1
+$KeepYearly   = 1
 
-## How far apart two same-sized builds' stamps may be and still be the same build
-## (see fSameBuild). Wide enough to absorb the sync layer's rounding, far too
-## narrow to swallow a real rebuild.
-$SameBuildSlackSec = 2
+## Stamp format shared by every copy name and date comparison below.
+$StampFormat = "yyyyMMdd-HHmmss"
 
+## Same instant, spelled for a person.
+$StampDisplay = "yyyy-MM-dd HH:mm:ss"
 
-## Get-ChildItem item-type for the pool: files on Windows (single exe), dirs on Linux.
-$CopyGciType = if ($CopyIsFile) { @{ File = $true } } else { @{ Directory = $true } }
-
-## Prefix for the date-stamped copy dirs.
-$DogfoodPrefix = "nemofmdf"
-
-## Delete idle stamped copies older than this many days.
-$MaxAgeDays = 7
-
-## Launch elevated (as administrator). On by default on Windows; the '--no-admin'
-## arg (consumed at the entry point below, never forwarded) turns it off. RunAs pops
-## a UAC consent unless the calling session is already elevated. Windows only - a
-## file manager running as root on unix is a footgun, not a feature. Set from the
-## flag at the entry point, so this initial value is not the default.
+## Launch elevated. Windows only, on by default, '--no-admin' turns it off. Set from
+## the flag at the entry point, so this initial value is not the default.
 $RunAsAdmin = $false
 
 ## Options the app itself accepts, so a typo is refused here instead of forwarded.
@@ -195,8 +135,15 @@ $KnownAppOptions = @(
 	"--gtk-no-debug", "--help-gtk", "--help-gtk-1", "--help-gdk"
 )
 
-## Fallback file managers, tried in order when no copy is held and the source is
-## unreachable. Launched plainly (generic managers accept a path arg at most).
+## Options whose value arrives as its own token. That token is a value, not a
+## location, even though it doesn't lead with '-'.
+$ValueAppOptions = @(
+	"--geometry", "-g", "--display", "--screen", "--class", "--name",
+	"--gtk-module", "--gdk-debug", "--gdk-no-debug", "--gtk-debug", "--gtk-no-debug"
+)
+
+## Fallback file managers, tried in order when there is no build of ours to run.
+## Launched plainly (generic managers accept a path arg at most).
 $FallbackManagers = if ($IsWindows) {
 	@("explorer.exe")
 } else {
@@ -218,28 +165,18 @@ $StartupLocations = if ($IsWindows) {
 	)
 }
 
-## Options whose value arrives as its own token. That token is a value, not a
-## location, even though it doesn't lead with '-'.
-$ValueAppOptions = @(
-	"--geometry", "-g", "--display", "--screen", "--class", "--name",
-	"--gtk-module", "--gdk-debug", "--gdk-no-debug", "--gtk-debug", "--gtk-no-debug"
-)
+## Logs. On unix they stay out of a PATH directory and keep the path the project's
+## notes refer to; on Windows the pool dir is as good a home as any.
+$LogDir = if ($IsWindows) { $TargetDir } else { Join-Path $HOME ".local/share/nemo-anywhere-dogfood" }
 
-## Per-run decision log, so a closed console can't lose the copy/skip reasons
+## Per-run decision log, so a window that closes on its own cannot lose the reason
 ## behind a launch.
 $RunLog = Join-Path $LogDir "n8runfm.log"
 
-## Unix only: where the detached app's own output goes (GTK/GLib gripes and any
-## crash message), since it no longer has the caller's console. Appended to and
-## trimmed like the run log.
+## Unix only: where the detached app's own output goes (GTK/GLib gripes, the trash
+## and delete job log, and any crash message), since it no longer has the caller's
+## console. Appended to and trimmed like the run log.
 $AppLog = Join-Path $LogDir "n8runfm-app.log"
-
-## Stamp format shared by the copy name and every date comparison below.
-$StampFormat = "yyyyMMdd-HHmmss"
-
-## Same instant, spelled for a person - the report says when a build was made, the
-## copy name carries $StampFormat.
-$StampDisplay = "yyyy-MM-dd HH:mm:ss"
 
 ## Running-process image paths, filled in on first use (see fRunningExePaths).
 $RunningPaths = $null
@@ -250,7 +187,7 @@ $RunningPaths = $null
 
 ## Entry point.
 function fMain {
-	param([string[]]$PassArgs)
+	param([string[]]$PassArgs, [switch]$NoUpdate)
 
 	foreach ($dir in @($TargetDir, $LogDir)) {
 		if (-not (Test-Path -LiteralPath $dir)) {
@@ -266,37 +203,34 @@ function fMain {
 
 	fBanner "n8runfm - Nemo Anywhere dogfood launcher"
 
-	## 1. Sweep stale partial copies, stale idle copies, anything left by the old
-	##    layout, and (Windows) a synced-on mark-of-the-web that would get a later
-	##    click policy-blocked.
 	fStep "Housekeeping"
 	if ($IsWindows) { fSelfHealMotw }
-	fDeleteStaleTmp
-	fDeleteOldBuilds
+	fDeleteStalePartials
 	fRetireLegacyCopies
 	if (-not $script:StepRows) { fItem "-" "" "nothing to clean up" }
 
-	## 2. Ask every source what it is holding.
-	fStep "Sources"
-	$sources = fProbeSources
+	if ($NoUpdate) {
+		fStep "Build in hand"
+		fItem "skip" "update" "--no-update: running what is already held"
+	} else {
+		fStep "Build in hand"
+		fCopyIfNewer
+		fStep "Pool"
+		fRotate
+		fUpdateLink
+	}
 
-	## 3. Take a copy from whichever source has the newest build.
-	fStep "Build in hand"
-	fCopyIfNewer -Rows $sources
-
-	## 4. Launch the newest copy. The Process goes nowhere - it's there for a
-	##    test harness, and letting it reach the output stream would dump a
-	##    process table on the way out.
 	fStep "Launch"
 	$PassArgs = fAddStartupLocation -PassArgs $PassArgs
-	$copy = fNewestCopy
-	if ($copy) {
-		$null = fLaunchNemo -CopyPath $copy.File.FullName -PassArgs $PassArgs
+	$exe = fRunTarget
+	if ($exe) {
+		## The Process goes nowhere - it's there for a test harness, and letting it
+		## reach the output stream would dump a process table on the way out.
+		$null = fLaunchApp -Exe $exe -PassArgs $PassArgs
 		return
 	}
 
-	## 5. Nothing held and no source reachable - fall back to any file manager.
-	fWarn -Gui "no dogfood copy held and no source reachable; trying fallbacks"
+	fWarn -Gui "no ${ProgramName} build held and none in $($SourceDirs -join ', ')"
 	$null = fLaunchFallback -PassArgs $PassArgs
 }
 
@@ -326,7 +260,7 @@ function fCheckPassArgs {
 
 		fFail ("the app doesn't accept '$name'" +
 			$(if ($name -ieq "-admin") { " - did you mean '--admin' (elevate)?" } else { "" }) +
-			"`n`nLauncher flags: --admin, --no-admin, --gui" +
+			"`n`nLauncher flags: --admin, --no-admin, --no-update, --gui" +
 			"`nApp options:    " + (($KnownAppOptions | Where-Object { $_ -match '^--' }) -join " "))
 	}
 }
@@ -379,323 +313,300 @@ function fHasLocationArg {
 }
 
 
-## What to look at to decide a source root is really there: its main binary inside
-## the prefix on Linux, or the root itself on Windows, where the source IS the exe.
-function fSourceProbePath {
-	param([Parameter(Mandatory)][string]$Root)
-	if ($SourceMainBin) { return (Join-Path $Root $SourceMainBin) }
-	return $Root
-}
-
-
-## Ask every source what build it is holding. One row per source:
-##   { Label, Root, Probe, Stamp(DateTime), Length, Reachable, Duplicate }
-##
-## Every root is probed, not just the first to answer - on some boxes two of them
-## really are separate trees. Two sources holding the same build is normal, since the
-## sync layer copies one drop to the other box and back, so sameness is judged on the
-## build (stamp plus size) rather than the path; the later one is flagged so it is
-## reported once and the copy step ignores it.
-function fProbeSources {
-	$rows = @()
-
-	foreach ($src in $Sources) {
-		$row = [pscustomobject]@{
-			Label     = $src.Label
-			Root      = $src.Roots[0]
-			Probe     = fSourceProbePath $src.Roots[0]
-			Stamp     = $null
-			Length    = [int64]0
-			Reachable = $false
-			Duplicate = $false
-		}
-
-		$why = "not there"
-		foreach ($root in $src.Roots) {
-			$probe = fSourceProbePath $root
-			$build = fProbeBuild $probe
-			if (-not $build) {
-				if (-not $row.Reachable) { $row.Probe = $probe }
-				if ($script:ProbeNote) { $why = $script:ProbeNote }
-				continue
-			}
-			## Truncate to the granularity the copy name is written at, right here,
-			## so the report, the sameness test, the sort and the name a copy ends
-			## up with can't disagree. They already did: a build handed over by the
-			## sync layer keeps whole seconds while the one it was copied from keeps
-			## ticks, which made one build look like two.
-			$stamp = fParseStamp $build.Stamp.ToString($StampFormat)
-			if ($row.Reachable -and $stamp -le $row.Stamp) { continue }
-			$row.Root      = $root
-			$row.Probe     = $probe
-			$row.Stamp     = $stamp
-			$row.Length    = $build.Length
-			$row.Reachable = $true
-		}
-
-		if (-not $row.Reachable) {
-			fItem "skip" $row.Label "${why}: $($row.Probe)"
-		} else {
-			$same = fSameBuild -Row $row -Against $rows
-			if ($same) {
-				$row.Duplicate = $true
-				fItem "-" $row.Label "same build as $($same.Label)"
-			} else {
-				fItem "ok" $row.Label ("{0}   {1}" -f $row.Stamp.ToString($StampDisplay), $row.Probe)
-			}
-		}
-
-		$rows += $row
-	}
-
-	return $rows
-}
-
-
-## The first earlier source holding the same build as this one, or $null. Same build
-## = identical size, and stamps within $SameBuildSlackSec.
-##
-## Size is the strong half. The slack covers the sync layer rounding an mtime to
-## whole seconds without promising to round down: a build that rounds up reads as
-## newer than the copy it was made from, and tens of megabytes come back across the
-## network for nothing. Two different builds of identical size seconds apart does
-## not happen.
-function fSameBuild {
-	param(
-		[Parameter(Mandatory)]$Row,
-		$Against
-	)
-	if (-not $Against) { return $null }
-	foreach ($other in $Against) {
-		if (-not $other.Reachable -or $other.Duplicate) { continue }
-		if ($other.Length -ne $Row.Length) { continue }
-		if ([math]::Abs(($other.Stamp - $Row.Stamp).TotalSeconds) -le $SameBuildSlackSec) { return $other }
+## The build to consider: the first configured source dir that actually holds one.
+## Returns a FileInfo (Windows) or DirectoryInfo (the prefix everywhere else), or
+## $null.
+function fPickSource {
+	foreach ($dir in $SourceDirs) {
+		$path = Join-Path $dir $ExeName
+		$item = Get-Item -LiteralPath $path -ErrorAction SilentlyContinue
+		if (-not $item) { continue }
+		if ($PayloadIsFile -ne ($item -is [System.IO.FileInfo])) { continue }
+		if (fIdFile $item.FullName) { return $item }
 	}
 	return $null
 }
 
 
-## What a source is holding: build stamp (mtime) and size, or $null when the path
-## isn't there. A local path answers from the filesystem straight away, so it is
-## asked directly. A path on a network share gets a short leash instead: a share
-## that is down wedges the query until the SMB stack gives up on its own schedule,
-## and a launcher with a perfectly good local copy in hand has no business making
-## the user wait that long. Past the deadline the probe is abandoned - its thread
-## unwinds whenever SMB is done with it - and the source is treated as absent.
-function fProbeBuild {
-	param([Parameter(Mandatory)][string]$Path)
-
-	## Why the last probe came back empty, for the caller's one-line report. Set
-	## here rather than printed here, so a source with several roots still gets a
-	## single row instead of one per root.
-	$script:ProbeNote = ""
-
-	if (-not (fIsRemotePath $Path)) {
-		return (& ([scriptblock]::Create($ProbeScript)) $Path)
-	}
-
-	$probe = [powershell]::Create()
-	$null  = $probe.AddScript($ProbeScript).AddArgument($Path)
-	$async = $probe.BeginInvoke()
-
-	if ($async.AsyncWaitHandle.WaitOne($ProbeTimeoutMs)) {
-		$build = $null
-		try { $build = $probe.EndInvoke($async) | Select-Object -First 1 } catch { }
-		$probe.Dispose()
-		return $build
-	}
-
-	## Dispose would block on the wedged probe, so hand it off and walk away.
-	$null = $probe.BeginStop($null, $null)
-	$script:ProbeNote = "gave up after ${ProbeTimeoutMs}ms"
-	return $null
+## The one file that says which build a payload is: the payload itself on Windows,
+## the real binary inside the prefix everywhere else. Its mtime is the build stamp
+## and its bytes settle whether two copies are the same build. Returns a FileInfo,
+## or $null when the payload is incomplete.
+function fIdFile {
+	param([Parameter(Mandatory)][string]$PayloadPath)
+	$path = if ($PayloadIdBin) { Join-Path $PayloadPath $PayloadIdBin } else { $PayloadPath }
+	return (Get-Item -LiteralPath $path -ErrorAction SilentlyContinue)
 }
 
 
-## True for a path that may be served over the network - a UNC name, a drive letter
-## mapped to a share, or a unix path under a mount dir. The last is a guess, but a
-## dead mount wedges exactly the way a down share does and the probe timeout costs
-## a local path nothing. Everything else is local and needs no protection.
-function fIsRemotePath {
-	param([Parameter(Mandatory)][string]$Path)
-
-	if ($Path -match '^(\\\\|//)') { return $true }
-	if (-not $IsWindows -and $Path -match '^/(mnt|media|net)/') { return $true }
-	if ($IsWindows -and $Path -match '^([A-Za-z]):') {
-		try {
-			$drive = [System.IO.DriveInfo]::new($Matches[1] + ":\")
-			return ($drive.DriveType -eq [System.IO.DriveType]::Network)
-		} catch { return $false }
-	}
-	return $false
-}
-
-
-## Copy in the newest source build as '<prefix>_<stamp>_<tag>' when it beats what
-## we already hold. Copies to a .tmp name then renames, so an interrupted copy can
-## never pass for a complete one. No-op when nothing is reachable, or when the copy
-## in hand already IS the newest build anyone is offering.
+## Bring in the synced build when it is newer than everything held. Copies to a
+## '.partial' name and renames into place, so a run that dies mid-copy cannot leave
+## a half-written version that later reads as a perfectly good one.
 function fCopyIfNewer {
-	param($Rows)
-
-	$held = fNewestCopy
-	if ($held) { fItem "-" "held" ("{0}   {1}" -f $held.Stamp.ToString($StampDisplay), $held.Name) }
-	else       { fItem "-" "held" "nothing held yet" }
-
-	## Duplicates are the same build reached by another name, so they can't win.
-	## -Stable so an exact tie falls to listing order, which puts the local copy of
-	## a build ahead of the one across the network.
-	$best = @($Rows | Where-Object { $_.Reachable -and -not $_.Duplicate } |
-		Sort-Object Stamp -Descending -Stable)
-	$best = if ($best.Count) { $best[0] } else { $null }
-
-	if (-not $best) {
-		if ($held) { fItem "skip" "source" "none reachable - running the copy in hand" }
-		else       { fWarn -Gui "no source reachable and no copy held" }
+	$src = fPickSource
+	if (-not $src) {
+		fItem "skip" "source" "no build in $($SourceDirs -join ', ')"
+		$held = fNewestCopy
+		if ($held) { fItem "-" "held" ("{0}   {1}" -f $held.Stamp.ToString($StampDisplay), $held.Name) }
 		return
 	}
 
-	## Round-trip through the stamp text the copy is named with, so the comparison
-	## can't disagree with the name over sub-second precision.
-	$stamp     = $best.Stamp.ToString($StampFormat)
+	$srcId     = fIdFile $src.FullName
+	$stamp     = $srcId.LastWriteTime.ToString($StampFormat)
 	$stampTime = fParseStamp $stamp
+	$newest    = fNewestCopy
 
-	if ($held -and $held.Stamp -ge $stampTime) {
-		fItem "ok" "newest" "$($best.Label) - already held, nothing to copy"
-		return
-	}
-	fItem "-" "newest" ("{0}   {1}" -f $best.Stamp.ToString($StampDisplay), $best.Label)
+	if ($newest) { fItem "-" "held" ("{0}   {1}" -f $newest.Stamp.ToString($StampDisplay), $newest.Name) }
+	else         { fItem "-" "held" "nothing held yet" }
 
-	$dst = Join-Path $TargetDir "${DogfoodPrefix}_${stamp}_${SourceTag}${CopyExt}"
-	if (Test-Path -LiteralPath $dst) {
-		fItem "ok" "copy" "already present: $(Split-Path $dst -Leaf)"
+	if ($newest -and $newest.Stamp -ge $stampTime) {
+		fItem "ok" "source" "already current ($($src.FullName))"
 		return
 	}
 
-	$tmp   = "$dst.tmp"
+	## The sync layer restamps what it carries, so a build already held keeps looking
+	## new. Settle it on the bytes and just take the newer stamp, which makes the
+	## cheap date test above answer it next run.
+	$twin = fHeldMatching -SourceId $srcId
+	if ($twin) {
+		$restamped = Join-Path $TargetDir "${ProgramName}_${stamp}${ExeExt}"
+		if (fHeldCopies | Where-Object { $_.Stamp -eq $stampTime }) {
+			fItem "ok" "source" "same build as $($twin.Name); already held under that stamp"
+			return
+		}
+		try {
+			Move-Item -LiteralPath $twin.Payload.FullName -Destination $restamped -ErrorAction Stop
+			fItem "ok" "source" "same build as $($twin.Name) - restamped to $stamp"
+		} catch {
+			fItem "-" "source" "same build as $($twin.Name), but the rename was refused"
+		}
+		return
+	}
+
+	$dst   = Join-Path $TargetDir "${ProgramName}_${stamp}${ExeExt}"
+	$tmp   = "$dst.partial"
 	$clock = [System.Diagnostics.Stopwatch]::StartNew()
-	fItem "-" "copy" "$($best.Root) -> $(Split-Path $dst -Leaf)"
+	fItem "-" "copy" "$($src.FullName) -> $(Split-Path $dst -Leaf)"
 	try {
 		if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
-		if ($CopyIsFile) { Copy-Item -LiteralPath $best.Root -Destination $tmp -Force -ErrorAction Stop }
-		else             { Copy-Item -LiteralPath $best.Root -Destination $tmp -Recurse -Force -ErrorAction Stop }
-		Rename-Item -LiteralPath $tmp -NewName (Split-Path $dst -Leaf) -ErrorAction Stop
+		if ($PayloadIsFile) { Copy-Item -LiteralPath $src.FullName -Destination $tmp -Force -ErrorAction Stop }
+		else                { Copy-Item -LiteralPath $src.FullName -Destination $tmp -Recurse -Force -ErrorAction Stop }
 		## A synced-sourced exe can carry a mark-of-the-web; clear it so the launch
-		## isn't SmartScreen-blocked. Best-effort, Windows-only (no-op for a dir).
-		if ($CopyIsFile) { try { Unblock-File -LiteralPath $dst -ErrorAction SilentlyContinue } catch { } }
+		## isn't SmartScreen-blocked. Best-effort, and no-op for a prefix dir.
+		if ($PayloadIsFile) { try { Unblock-File -LiteralPath $tmp -ErrorAction SilentlyContinue } catch { } }
+		Move-Item -LiteralPath $tmp -Destination $dst -Force -ErrorAction Stop
 		$clock.Stop()
-		$size = if ($CopyIsFile) { " " + (fHumanSize (Get-Item -LiteralPath $dst).Length) } else { "" }
-		fItem "ok" "copy" ("done{0} in {1:n2}s" -f $size, $clock.Elapsed.TotalSeconds)
+		fItem "ok" "copy" ("done, {0} in {1:n2}s" -f (fHumanSize (fPayloadSize $dst)), $clock.Elapsed.TotalSeconds)
 	} catch {
-		fWarn -Gui "couldn't copy the build from $($best.Label) ($($_.Exception.Message))"
+		fWarn -Gui "couldn't copy the build ($($_.Exception.Message))"
 		if (Test-Path -LiteralPath $tmp) { try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch { } }
 	}
 }
 
 
-## Delete stamped copies whose build is older than $MaxAgeDays, skipping any
-## with a running process inside (a delete that throws is also treated as in
-## use). Only ever touches dirs matching THIS launcher's own name spec - never
-## a foreign entry that merely shares the dir.
-##
-## The newest copy is exempt whatever its age: it is the one about to launch, and
-## a source that has itself gone quiet for longer than the cutoff would otherwise
-## have us delete and re-copy the very same build on every single run.
-function fDeleteOldBuilds {
-	## Any tag ages out here (incl. one-off hand-dropped tags).
-	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?$([regex]::Escape($CopyExt))$"
-	$cutoff  = (Get-Date).AddDays(-$MaxAgeDays)
-	$running = @(fRunningExePaths)
-	$newest  = fNewestCopy
-	$keep    = if ($newest) { $newest.File.FullName } else { "" }
-	$deleted = 0
+## A held version built from the same bytes as $SourceId, or $null. Size first,
+## because these are large and a hash of every one of them is not free.
+function fHeldMatching {
+	param([Parameter(Mandatory)]$SourceId)
 
-	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
-		Where-Object { $_.Name -match $rx } |
-		Where-Object { $_.FullName -ne $keep } |
-		Where-Object { (fBuildTime $_) -lt $cutoff } |
-		ForEach-Object {
-			if (fRemoveIfIdle -DirInfo $_ -Running $running) { $deleted++ }
-		}
+	## Newest first: every twin has the same bytes, so which one comes back only
+	## decides which one gets carried forward under the new stamp. Taking the newest
+	## keeps the pool's history in order.
+	$candidates = @(fHeldCopies |
+		Where-Object { $_.IdFile -and $_.IdFile.Length -eq $SourceId.Length } |
+		Sort-Object Stamp -Descending)
+	if (-not $candidates) { return $null }
 
-	if ($deleted) { fNote "deleted $deleted copy(ies) older than $MaxAgeDays days" }
-}
+	try {
+		$want = (Get-FileHash -LiteralPath $SourceId.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+	} catch { return $null }
 
-
-## Delete leftover partial copies (an interrupted run's .tmp dirs), unless
-## fresh enough to be a concurrent run's copy in progress.
-function fDeleteStaleTmp {
-	$cutoff = (Get-Date).AddHours(-1)
-	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*.tmp" -ErrorAction SilentlyContinue |
-		Where-Object { $_.LastWriteTime -lt $cutoff } |
-		ForEach-Object {
-			try {
-				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
-				fNote "deleted stale partial copy: $($_.Name)"
-			} catch { }
-		}
-}
-
-
-## Copies an older layout left behind: on Windows the pre-single-exe ones, where a
-## copy was the whole app\+mingw64\ tree rather than one exe; on unix the pool from
-## before it moved into ~/.local/bin. Neither is visible to the sweeps above, so
-## both would sit there for good at a couple of hundred MB each.
-function fRetireLegacyCopies {
-	$legacyDir = if ($CopyIsFile) { $TargetDir } else { Join-Path $HOME ".local/share/nemo-anywhere-dogfood" }
-	if (-not (Test-Path -LiteralPath $legacyDir)) { return }
-
-	$rx      = "^$([regex]::Escape($DogfoodPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?(\.tmp)?$"
-	$running = @(fRunningExePaths)
-
-	Get-ChildItem -LiteralPath $legacyDir -Directory -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
-		Where-Object { $_.Name -match $rx } |
-		ForEach-Object {
-			$prefix = $_.FullName + [System.IO.Path]::DirectorySeparatorChar
-			if ($running | Where-Object { $_.StartsWith($prefix) }) {
-				fNote "kept (running): $($_.Name)"
-				return
+	foreach ($copy in $candidates) {
+		try {
+			if ((Get-FileHash -LiteralPath $copy.IdFile.FullName -Algorithm SHA256 -ErrorAction Stop).Hash -eq $want) {
+				return $copy
 			}
-			try {
-				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
-				fNote "retired copy from the old layout: $($_.Name)"
-			} catch {
-				fNote "kept (locked): $($_.Name)"
-			}
-		}
+		} catch { }
+	}
+	return $null
 }
 
 
-## All stamped copies as objects { File, Name, Tag, Stamp(DateTime) }, current
-## OS's tag only - a lin prefix can't run on Windows or vice versa.
+## GFS-rotate the pool, then trim what survives to the budget. Kept versions are
+## renamed to '<name>_<stamp>_<role>', so a plain listing sorts chronologically and
+## says what each one is being kept for.
+function fRotate {
+	$copies = @(fHeldCopies | Sort-Object Stamp)
+	if (-not $copies) { fItem "-" "pool" "empty"; return }
+
+	$roles  = fGfsRoles -Copies $copies
+	$budget = fBudget -Copies $copies -Roles $roles
+
+	$running = @(fRunningExePaths)
+	$pruned  = 0
+
+	foreach ($copy in $copies) {
+		if ($budget.Contains($copy.Name)) { continue }
+		if (fRemoveIfIdle -Copy $copy -Running $running) { $pruned++ }
+	}
+
+	## Rename after the prune, so a name freed up this run is available.
+	foreach ($copy in $copies) {
+		if (-not $budget.Contains($copy.Name)) { continue }
+		$want = "${ProgramName}_$($copy.Stamp.ToString($StampFormat))_$($roles[$copy.Name])${ExeExt}"
+		if ($copy.Name -eq $want) { continue }
+		$wantPath = Join-Path $TargetDir $want
+		if (Test-Path -LiteralPath $wantPath) { continue }
+		try {
+			Move-Item -LiteralPath $copy.Payload.FullName -Destination $wantPath -ErrorAction Stop
+		} catch {
+			## A running image refuses the rename on Windows; next run tries again.
+			fItem "-" "kept" "under its old name (in use): $($copy.Name)"
+		}
+	}
+
+	$kept = ($budget.Count)
+	fItem "ok" "pool" ("{0} version(s) kept{1}" -f $kept, $(if ($pruned) { ", $pruned pruned" } else { "" }))
+}
+
+
+## Assign each version its GFS role, coarsest wins: first, year, month, week, day,
+## hour, frequent, and 'latest' for the single newest. Returns a name -> role map; a
+## version with no entry is one nothing is keeping. Same role names as the pipeline's
+## gfs-rotate.bash, so both pools read alike.
+function fGfsRoles {
+	param([Parameter(Mandatory)][object[]]$Copies)
+
+	$cur = fPeriodKeys (Get-Date)
+
+	## Last version in each COMPLETED period. The still-open current period is
+	## skipped, which is what makes the roles retrospective.
+	$per = @{}
+	foreach ($p in "hour", "day", "week", "month", "year") { $per[$p] = @{} }
+	foreach ($copy in $Copies) {
+		$keys = fPeriodKeys $copy.Stamp
+		foreach ($p in "hour", "day", "week", "month", "year") {
+			if ($keys[$p] -ne $cur[$p]) { $per[$p][$keys[$p]] = $copy }
+		}
+	}
+
+	$roles = @{}
+	$roles[$Copies[0].Name] = "first"
+
+	foreach ($spec in @(
+		@("year",  $KeepYearly),  @("month", $KeepMonthly), @("week", $KeepWeekly),
+		@("day",   $KeepDaily),   @("hour",  $KeepHourly)
+	)) {
+		$role  = $spec[0]
+		$keys  = @($per[$role].Keys | Sort-Object)
+		$start = [Math]::Max(0, $keys.Count - $spec[1])
+		for ($i = $start; $i -lt $keys.Count; $i++) {
+			$name = $per[$role][$keys[$i]].Name
+			if (-not $roles.ContainsKey($name)) { $roles[$name] = $role }
+		}
+	}
+
+	$start = [Math]::Max(0, $Copies.Count - $KeepFrequent)
+	for ($i = $start; $i -lt $Copies.Count; $i++) {
+		if (-not $roles.ContainsKey($Copies[$i].Name)) { $roles[$Copies[$i].Name] = "frequent" }
+	}
+
+	## The newest is labelled 'latest' rather than by period - a stable, naturally
+	## sorting pointer at the most recent build. Unless it is also the only one, in
+	## which case 'first' already claimed it.
+	$last = $Copies[$Copies.Count - 1].Name
+	if ($roles[$last] -ne "first") { $roles[$last] = "latest" }
+
+	return $roles
+}
+
+
+## The hour/day/week/month/year keys a timestamp falls in.
+function fPeriodKeys {
+	param([Parameter(Mandatory)][datetime]$When)
+	return @{
+		hour  = $When.ToString("yyyyMMddHH")
+		day   = $When.ToString("yyyyMMdd")
+		week  = "{0:D4}{1:D2}" -f [System.Globalization.ISOWeek]::GetYear($When),
+		                          [System.Globalization.ISOWeek]::GetWeekOfYear($When)
+		month = $When.ToString("yyyyMM")
+		year  = $When.ToString("yyyy")
+	}
+}
+
+
+## Trim the GFS-kept set to what the pool is allowed to hold: at most $MaxVersions,
+## at least $MinVersions, and between those only as many as fit $MaxPoolBytes.
+## Filled newest-first, because that is the end that gets run. The oldest version is
+## seeded in first and so survives whatever the budget does to the rest.
+## Returns a set of names to keep.
+function fBudget {
+	param(
+		[Parameter(Mandatory)][object[]]$Copies,
+		[Parameter(Mandatory)][hashtable]$Roles
+	)
+
+	$keep = [System.Collections.Generic.HashSet[string]]::new()
+	$kept = @($Copies | Where-Object { $Roles.ContainsKey($_.Name) })
+	if (-not $kept) { return ,$keep }
+
+	$oldest = $kept[0]
+	$keep.Add($oldest.Name) | Out-Null
+	$bytes = fPayloadSize $oldest.Payload.FullName
+
+	foreach ($copy in @($kept | Sort-Object Stamp -Descending)) {
+		if ($keep.Contains($copy.Name)) { continue }
+		if ($keep.Count -ge $MaxVersions) { break }
+		$size = fPayloadSize $copy.Payload.FullName
+		if ($keep.Count -ge $MinVersions -and ($bytes + $size) -gt $MaxPoolBytes) { break }
+		$keep.Add($copy.Name) | Out-Null
+		$bytes += $size
+	}
+
+	## Comma: a HashSet is enumerable, so a plain return unrolls it - and a one-version
+	## pool then comes back as a bare string whose .Contains is a substring test.
+	return ,$keep
+}
+
+
+## Bytes a version occupies: the file's own length, or everything under the prefix.
+## Asked at most once per version per run, and only by the budget.
+function fPayloadSize {
+	param([Parameter(Mandatory)][string]$Path)
+	if ($PayloadIsFile) {
+		$item = Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue
+		if ($item) { return [int64]$item.Length }
+		return [int64]0
+	}
+	$total = [int64]0
+	Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue |
+		ForEach-Object { $total += $_.Length }
+	return $total
+}
+
+
+## Every stamped version in the pool, as { Payload, Name, Stamp, IdFile }. The role
+## suffix is optional: a version copied in this run has not been tagged yet.
 function fHeldCopies {
-	$rx = "^$([regex]::Escape($DogfoodPrefix))_(?<stamp>\d{8}-\d{6})_$([regex]::Escape($SourceTag))$([regex]::Escape($CopyExt))$"
-	Get-ChildItem -LiteralPath $TargetDir @CopyGciType -Filter "${DogfoodPrefix}_*" -ErrorAction SilentlyContinue |
+	$rx   = "^$([regex]::Escape($ProgramName))_(?<stamp>\d{8}-\d{6})(_[a-z]+)?$([regex]::Escape($ExeExt))$"
+	$type = if ($PayloadIsFile) { @{ File = $true } } else { @{ Directory = $true } }
+	Get-ChildItem -LiteralPath $TargetDir @type -Filter "${ProgramName}_*" -ErrorAction SilentlyContinue |
 		ForEach-Object {
 			if ($_.Name -match $rx) {
 				[pscustomobject]@{
-					File  = $_
-					Name  = $_.Name
-					Stamp = fParseStamp $Matches.stamp
+					Payload = $_
+					Name    = $_.Name
+					Stamp   = fParseStamp $Matches.stamp
+					IdFile  = fIdFile $_.FullName
 				}
 			}
 		}
 }
 
 
-## Newest held copy (object from fHeldCopies), or $null.
+## Newest held version, or $null.
 function fNewestCopy {
 	fHeldCopies | Sort-Object Stamp -Descending | Select-Object -First 1
-}
-
-
-## A copy's build time: the stamp embedded in its name if present, else mtime.
-function fBuildTime {
-	param([Parameter(Mandatory)]$DirInfo)
-	if ($DirInfo.Name -match "_(?<stamp>\d{8}-\d{6})(?:_[a-z0-9]+)?(?:\.[A-Za-z0-9]+)?$") {
-		return fParseStamp $Matches.stamp
-	}
-	return $DirInfo.LastWriteTime
 }
 
 
@@ -706,43 +617,42 @@ function fParseStamp {
 }
 
 
-## Delete one copy dir unless a running process lives inside it. Returns $true
-## if deleted.
+## Delete one version unless something is running out of it, or it is locked.
+## Returns $true if deleted.
 function fRemoveIfIdle {
 	param(
-		[Parameter(Mandatory)]$DirInfo,
+		[Parameter(Mandatory)]$Copy,
 		[string[]]$Running
 	)
-	if ($CopyIsFile) {
+	if ($PayloadIsFile) {
 		## Single exe: in use = a running process whose image IS this exact copy.
-		$inUse = $Running | Where-Object { $_ -ieq $DirInfo.FullName }
+		$inUse = $Running | Where-Object { $_ -ieq $Copy.Payload.FullName }
 	} else {
-		## Prefix dir: in use = a running process whose image lives inside the copy.
-		$prefix = $DirInfo.FullName + [System.IO.Path]::DirectorySeparatorChar
+		## Prefix: in use = a running process whose image lives anywhere inside it.
+		$prefix = $Copy.Payload.FullName + [System.IO.Path]::DirectorySeparatorChar
 		$inUse = $Running | Where-Object { $_.StartsWith($prefix) }
 	}
 	if ($inUse) {
-		fNote "kept (running): $($DirInfo.Name)"
+		fItem "-" "kept" "running: $($Copy.Name)"
 		return $false
 	}
 	try {
-		Remove-Item -LiteralPath $DirInfo.FullName -Recurse -Force -ErrorAction Stop
+		Remove-Item -LiteralPath $Copy.Payload.FullName -Recurse -Force -ErrorAction Stop
 		return $true
 	} catch {
-		fNote "kept (locked): $($DirInfo.Name)"
+		fItem "-" "kept" "locked: $($Copy.Name)"
 		return $false
 	}
 }
 
 
-## Full image paths of all currently running processes (best-effort). Paths we
-## can't read are skipped. Worked out once per run - every sweep asks the same
-## question, and the answer is not cheap.
+## Full image paths of everything currently running (best-effort). Worked out once
+## per run - every sweep asks the same question, and the answer is not cheap.
 ##
-## On Windows the Path property throws for each of the few hundred protected
-## system processes, and swallowing those exceptions costs whole seconds; one CIM
-## query answers the same thing in a fraction of the time. Elsewhere the property
-## is the cheap way round.
+## On Windows the Path property throws for each of the few hundred protected system
+## processes, and swallowing those exceptions costs whole seconds; one CIM query
+## answers the same thing in a fraction of the time. Elsewhere the property is the
+## cheap way round.
 function fRunningExePaths {
 	if ($null -ne $script:RunningPaths) { return $script:RunningPaths }
 
@@ -763,17 +673,117 @@ function fRunningExePaths {
 }
 
 
-## Give the desktop a menu entry for the stamped copy, so it shows the program
-## icon in the menu and the switcher instead of a generic one. Rewritten on every
-## launch because the copy it points at is dated and moves. Linux only - Windows
-## takes its icon out of the exe. Never fatal: a missing entry costs an icon.
+## Delete leftover partial copies (an interrupted run's '.partial'), unless fresh
+## enough to be a concurrent run's copy in progress.
+function fDeleteStalePartials {
+	$cutoff = (Get-Date).AddHours(-1)
+	Get-ChildItem -LiteralPath $TargetDir -Force -Filter "${ProgramName}_*.partial" -ErrorAction SilentlyContinue |
+		Where-Object { $_.LastWriteTime -lt $cutoff } |
+		ForEach-Object {
+			try {
+				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
+				fItem "ok" "cleaned" "stale partial copy: $($_.Name)"
+			} catch { }
+		}
+}
+
+
+## Retire the pool from before it was GFS-rotated: stamped copies loose in the
+## install dir under their own prefix. Neither sweep above can see them, so they
+## would sit there for good at a couple of hundred MB each.
+function fRetireLegacyCopies {
+	$rx      = "^$([regex]::Escape($LegacyPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?(\.tmp)?$([regex]::Escape($ExeExt))?$"
+	$running = @(fRunningExePaths)
+
+	Get-ChildItem -LiteralPath $InstallDir -Force -Filter "$($LegacyPrefix)_*" -ErrorAction SilentlyContinue |
+		Where-Object { $_.Name -match $rx } |
+		ForEach-Object {
+			## $_ is rebound by the Where-Object below, so hold the item first.
+			$item   = $_
+			$prefix = $item.FullName + [System.IO.Path]::DirectorySeparatorChar
+			if ($running | Where-Object { $_ -ieq $item.FullName -or $_.StartsWith($prefix) }) {
+				fItem "-" "kept" "running, old layout: $($item.Name)"
+				return
+			}
+			try {
+				Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction Stop
+				fItem "ok" "retired" "copy from the old layout: $($item.Name)"
+			} catch {
+				fItem "-" "kept" "locked, old layout: $($item.Name)"
+			}
+		}
+}
+
+
+## Point the fixed name at the newest version. Replaced rather than updated in place:
+## repointing an existing symlink is not something every platform agrees on, and the
+## launch reads the link fresh anyway.
+function fUpdateLink {
+	$newest = fNewestCopy
+	if (-not $newest) { return }
+
+	$target = fMainBin $newest.Payload.FullName
+	$cur    = Get-Item -LiteralPath $LinkPath -Force -ErrorAction SilentlyContinue
+	if ($cur -and $cur.Target -eq $target) { fItem "ok" "link" "$LinkPath -> $($newest.Name)"; return }
+
+	try {
+		if ($cur) { Remove-Item -LiteralPath $LinkPath -Force -ErrorAction Stop }
+		New-Item -ItemType SymbolicLink -Path $LinkPath -Target $target -Force -ErrorAction Stop | Out-Null
+		fItem "ok" "link" "$LinkPath -> $($newest.Name)"
+	} catch {
+		## Windows without the symlink privilege is the case this catches. A plain
+		## copy still runs, it just costs the disk space - and only where a version
+		## is one file; a prefix is left alone and the launch falls back to it.
+		if (-not $PayloadIsFile) {
+			fWarn -Gui "couldn't link $LinkPath ($($_.Exception.Message))"
+			return
+		}
+		try {
+			Copy-Item -LiteralPath $target -Destination $LinkPath -Force -ErrorAction Stop
+			fItem "ok" "link" "$LinkPath copied from $($newest.Name) (no symlink privilege)"
+		} catch {
+			fWarn -Gui "couldn't update $LinkPath ($($_.Exception.Message))"
+		}
+	}
+}
+
+
+## The thing to run inside a version: the payload itself on Windows, the prefix's
+## own wrapper everywhere else - it resolves its own location through the symlink and
+## sets up the runtime environment, so nothing here has to.
+function fMainBin {
+	param([Parameter(Mandatory)][string]$PayloadPath)
+	if ($PayloadMainBin) { return (Join-Path $PayloadPath $PayloadMainBin) }
+	return $PayloadPath
+}
+
+
+## What to actually run: the fixed name when it is there, else the newest version
+## directly, else nothing.
+function fRunTarget {
+	if (Test-Path -LiteralPath $LinkPath) { return $LinkPath }
+	$newest = fNewestCopy
+	if ($newest) { return (fMainBin $newest.Payload.FullName) }
+	return $null
+}
+
+
+## Give the desktop a menu entry, so the program shows its own icon in the menu and
+## the switcher instead of a generic one. Exec is this launcher, not the app: a menu
+## click should pick up a new build the same way a shell launch does. The icon comes
+## from the newest version, so it is rewritten every run. Linux only - Windows takes
+## its icon out of the exe. Never fatal: a missing entry costs an icon.
 function fRegisterDesktopEntry {
-	param([Parameter(Mandatory)][string]$CopyPath)
+	$newest = fNewestCopy
+	if (-not $newest) { return }
 
 	$dataHome = if ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } else { Join-Path $HOME ".local/share" }
 	$appsDir  = Join-Path $dataHome "applications"
-	$icon     = Join-Path $CopyPath "share/icons/hicolor/256x256/apps/nemo-anywhere.png"
-	$exe      = Join-Path $CopyPath "bin/nemo-anywhere"
+	$icon     = Join-Path $newest.Payload.FullName "share/icons/hicolor/256x256/apps/${ProgramName}.png"
+	$exec     = fWrapperPath
+	## The wrapper is directly executable; this script itself needs pwsh in front of it.
+	$execLine = if ($exec -like "*.ps1") { "Exec=pwsh -NoProfile -File `"$exec`" %U" }
+	            else                     { "Exec=`"$exec`" %U" }
 
 	try {
 		if (-not (Test-Path -LiteralPath $icon)) { return }
@@ -787,58 +797,47 @@ function fRegisterDesktopEntry {
 			"Type=Application"
 			"Name=Nemo Anywhere (dogfood)"
 			"Comment=Access and organize files"
-			"Exec=`"$exe`" %U"
+			$execLine
 			"Icon=$icon"
 			"Terminal=false"
 			"StartupNotify=false"
-			"StartupWMClass=nemo-anywhere"
+			"StartupWMClass=${ProgramName}"
 			"Categories=GTK;Utility;Core;FileTools;"
 			"MimeType=inode/directory;"
 			"Keywords=folders;filesystem;explorer;"
 		) -join "`n"
-		Set-Content -LiteralPath (Join-Path $appsDir "nemo-anywhere-dogfood.desktop") -Value $entry -Encoding utf8NoBOM
+		Set-Content -LiteralPath (Join-Path $appsDir "${ProgramName}-dogfood.desktop") -Value $entry -Encoding utf8NoBOM
 		$update = fFindOnPath "update-desktop-database"
 		if ($update) { & $update $appsDir 2>$null | Out-Null }
 	} catch {
-		fNote "could not register the menu entry: $($_.Exception.Message)"
+		fItem "-" "menu" "could not register the entry: $($_.Exception.Message)"
 	}
 }
 
 
-## Launch a stamped copy detached, wiring the runtime env at the copy the same
-## way the fixed dogfood wrapper (Linux) / wine runner (Windows) do. The env
-## edits ride process inheritance; this launcher exits right after, so nothing
-## else sees them.
-function fLaunchNemo {
+## The shell wrapper a desktop entry should run. The wrapper tells us where it is;
+## failing that, whatever is on PATH; failing that, this script, which at least works
+## for anyone who has pwsh associated.
+function fWrapperPath {
+	if ($env:N8RUNFM_WRAPPER -and (Test-Path -LiteralPath $env:N8RUNFM_WRAPPER)) {
+		return $env:N8RUNFM_WRAPPER
+	}
+	$onPath = fFindOnPath "runfm"
+	if ($onPath) { return $onPath }
+	return $PSCommandPath
+}
+
+
+## Launch the app detached, so the launcher exits while the app runs on.
+function fLaunchApp {
 	param(
-		[Parameter(Mandatory)][string]$CopyPath,
+		[Parameter(Mandatory)][string]$Exe,
 		[string[]]$PassArgs
 	)
 
-	if ($IsWindows) {
-		## Single self-contained exe - the copy IS the exe, and it carries its whole
-		## GTK runtime (dlls, schemas, data) packed inside, so nothing is wired.
-		$exe = $CopyPath
-	} else {
-		$exe = Join-Path $CopyPath "bin/nemo-anywhere"
-		## The extension lib sits under whatever multiarch dir the prefix was built
-		## for, which is not x86_64 on arm64 - find it rather than bake one in.
-		$libDirs = @(Get-ChildItem -LiteralPath (Join-Path $CopyPath "lib") -Directory -ErrorAction SilentlyContinue |
-			Where-Object { $_.Name -like "*-linux-gnu*" } | ForEach-Object { $_.FullName })
-		$libDirs += (Join-Path $CopyPath "lib")
-		$env:LD_LIBRARY_PATH = ($libDirs -join ":") +
-			$(if ($env:LD_LIBRARY_PATH) { ":" + $env:LD_LIBRARY_PATH } else { "" })
-		$env:GSETTINGS_SCHEMA_DIR = (Join-Path $CopyPath "share/glib-2.0/schemas") +
-			$(if ($env:GSETTINGS_SCHEMA_DIR) { ":" + $env:GSETTINGS_SCHEMA_DIR } else { "" })
-		$env:XDG_DATA_DIRS = (Join-Path $CopyPath "share") + ":" +
-			$(if ($env:XDG_DATA_DIRS) { $env:XDG_DATA_DIRS } else { "/usr/local/share:/usr/share" })
-		fRegisterDesktopEntry -CopyPath $CopyPath
-	}
-
-	if (-not (Test-Path -LiteralPath $exe)) {
-		fFail "copy is missing its main binary: $exe"
-	}
-	return fStartApp -Exe $exe -ArgList $PassArgs
+	if (-not (Test-Path -LiteralPath $Exe)) { fFail "nothing to run at $Exe" }
+	if (-not $IsWindows) { fRegisterDesktopEntry }
+	return fStartApp -Exe $Exe -ArgList $PassArgs
 }
 
 
@@ -849,11 +848,11 @@ function fLaunchFallback {
 	foreach ($cand in $FallbackManagers) {
 		$path = fFindOnPath $cand
 		if (-not $path) { continue }
-		fNote "falling back to ${cand}: $path"
+		fItem "-" "fallback" "${cand}: $path"
 		return fStartApp -Exe $path -ArgList $PassArgs
 	}
 
-	fFail ("no file manager available (no dogfood copy/source, and none of " +
+	fFail ("no file manager available (no ${ProgramName} build, and none of " +
 		($FallbackManagers -join ", ") + " on PATH)")
 }
 
@@ -869,9 +868,8 @@ function fFindOnPath {
 }
 
 
-## Launch detached and return the Process, so the launcher exits while the app runs
-## on. The Process lets a test harness stop this exact instance by PID; matching on
-## name risks hitting a copy someone else started.
+## Launch detached and return the Process. The Process lets a test harness stop this
+## exact instance by PID; matching on name risks hitting a copy someone else started.
 ##
 ## Windows needs nothing extra: with no redirections Start-Process goes through
 ## ShellExecute, which already detaches.
@@ -902,26 +900,25 @@ function fStartApp {
 			$sp.ArgumentList = @("/bin/sh") + $shArgs
 		} else {
 			## No setsid (macOS, some BSDs): streams still detached, session not.
-			fWarn "setsid not found; launching without a new session"
 			$sp.FilePath     = "/bin/sh"
 			$sp.ArgumentList = $shArgs
 		}
 	}
 
-	## Start-Process joins ArgumentList into one command line with a naive space
-	## join and no quoting, then the target re-splits it (.NET on unix, the MSVCRT
-	## parser on Windows). Quote every element so args with spaces, quotes or
-	## trailing backslashes survive that round trip.
+	## Start-Process joins ArgumentList into one command line with a naive space join
+	## and no quoting, then the target re-splits it (.NET on unix, the MSVCRT parser
+	## on Windows). Quote every element so args with spaces, quotes or trailing
+	## backslashes survive that round trip.
 	## ContainsKey, not $sp.ArgumentList: under Set-StrictMode -Version Latest a
-	## hashtable member that was never set throws rather than answering $null, so
-	## the plain read blew up every launch that passed no arguments.
+	## hashtable member that was never set throws rather than answering $null, so the
+	## plain read blew up every launch that passed no arguments.
 	if ($sp.ContainsKey("ArgumentList")) {
 		$sp.ArgumentList = @($sp.ArgumentList | ForEach-Object { fQuoteArg $_ })
 	}
 
-	## RunAs is a ShellExecute verb, so Windows only - and only reached when the
-	## whole launcher is already elevated (the entry point self-elevates first), so
-	## this raises no second consent prompt.
+	## RunAs is a ShellExecute verb, so Windows only - and only reached when the whole
+	## launcher is already elevated (the entry point self-elevates first), so this
+	## raises no second consent prompt.
 	if ($IsWindows -and $RunAsAdmin) { $sp.Verb = "RunAs" }
 
 	try {
@@ -937,10 +934,10 @@ function fStartApp {
 }
 
 
-## Quote one argument so it survives Start-Process joining ArgumentList into a
-## single command line and the target re-splitting it. MSVCRT/CommandLineToArgvW
-## rules: only quote when needed; double the backslashes that precede a quote or
-## end the arg; escape embedded quotes.
+## Quote one argument so it survives Start-Process joining ArgumentList into a single
+## command line and the target re-splitting it. MSVCRT/CommandLineToArgvW rules: only
+## quote when needed; double the backslashes that precede a quote or end the arg;
+## escape embedded quotes.
 function fQuoteArg {
 	param([string]$Arg)
 	if ($Arg -ne '' -and $Arg -notmatch '[\s"]') { return $Arg }
@@ -975,8 +972,8 @@ function fBanner {
 }
 
 
-## Start a step. Everything a step decides prints under it as an fItem row, so a
-## run reads as a short report rather than a stream of loose notes.
+## Start a step. Everything a step decides prints under it as an fItem row, so a run
+## reads as a short report rather than a stream of loose notes.
 function fStep {
 	param([string]$Msg)
 	fLog "-- $Msg"
@@ -986,8 +983,8 @@ function fStep {
 }
 
 
-## One row under a step: a status tag, an optional label column, then free text.
-## Only the tag is coloured - a whole coloured line is a wall of green.
+## One row under a step: a status tag, an optional label column, then free text. Only
+## the tag is coloured - a whole coloured line is a wall of green.
 function fItem {
 	param([string]$Status = "-", [string]$Label = "", [string]$Detail = "")
 
@@ -1007,8 +1004,7 @@ function fItem {
 }
 
 
-## Byte count for a human, one decimal. Only ever describes a copy we just made,
-## so no need to care about anything past GB.
+## Byte count for a human, one decimal.
 function fHumanSize {
 	param([Parameter(Mandatory)][int64]$Bytes)
 	if ($Bytes -ge 1GB) { return ("{0:n1} GB" -f ($Bytes / 1GB)) }
@@ -1018,12 +1014,9 @@ function fHumanSize {
 }
 
 
-## Informational row (and the run log).
-function fNote { param([string]$Msg); fItem "-" "" $Msg }
-
 ## Non-fatal problem (and the run log). Pass -Gui to also surface it in the
 ## end-of-run dialog (the shortcut case, where the console flashes shut) - reserved
-## for real problems (a failed copy), not benign skips (an offline source).
+## for real problems (a failed copy), not benign skips (a source that isn't there).
 function fWarn {
 	param([string]$Msg, [switch]$Gui)
 	fItem "warn" "" $Msg
@@ -1089,8 +1082,8 @@ function fGuiShow {
 }
 
 
-## Append a timestamped line to the run log. Best-effort: logging must never be
-## the thing that stops a launch.
+## Append a timestamped line to the run log. Best-effort: logging must never be the
+## thing that stops a launch.
 function fLog {
 	param([string]$Msg)
 	try {
@@ -1112,15 +1105,16 @@ function fTrimLog {
 }
 
 
-## Remove any mark-of-the-web this script picked up from the sync layer, so an
-## unsigned script under a RemoteSigned policy isn't silently refused on the
-## NEXT run. Best-effort; never let it stop a launch.
+## Remove any mark-of-the-web this script picked up from the sync layer. An unsigned
+## script carrying MOTW is refused under a RemoteSigned policy, which silently kills a
+## shortcut click - the body never runs, so nothing copies and nothing logs. Only
+## helps the NEXT run; this one already got past the policy.
 function fSelfHealMotw {
 	try {
 		$zone = Get-Content -LiteralPath $PSCommandPath -Stream Zone.Identifier -ErrorAction SilentlyContinue
 		if ($zone) {
 			Unblock-File -LiteralPath $PSCommandPath -ErrorAction Stop
-			fNote "cleared mark-of-the-web on this script"
+			fItem "ok" "cleaned" "cleared mark-of-the-web on this script"
 		}
 	} catch {
 		fWarn "couldn't clear mark-of-the-web on this script ($($_.Exception.Message))"
@@ -1144,29 +1138,32 @@ $script:RunWarnings = @()
 $script:StepRows = 0
 
 ## Consume our own flags; forward everything else to the app.
-##   --no-admin  run without elevating. On Windows elevation is on by default: the
-##               whole launcher self-elevates below, so the copy, the log and the
-##               launched app all get admin rights. '--admin' is still accepted, and
-##               is the only way to ask for it on unix - where it is then refused.
-##   --gui       force the end-of-run / failure dialog on (auto-on for a shortcut click).
+##   --no-admin   run without elevating. On Windows elevation is on by default: the
+##                whole launcher self-elevates below, so the copy, the symlink and
+##                the launched app all get admin rights. '--admin' is still accepted,
+##                and is the only way to ask for it on unix - where it is refused.
+##   --no-update  skip the copy, rotate and relink; just run what is already held.
+##   --gui        force the end-of-run / failure dialog on (auto-on for a shortcut).
 ## Single-dash spellings are accepted too: '-admin' is what a PowerShell user types,
 ## and it collides with nothing in the app's own option set.
 $wantAdmin = $IsWindows
+$noUpdate  = $false
 $forceGui  = $false
 $passArgs  = @()
 foreach ($arg in $args) {
 	switch -Regex ($arg) {
-		'^--?admin$'    { $wantAdmin = $true;  continue }
-		'^--?no-admin$' { $wantAdmin = $false; continue }
-		'^--?gui$'      { $forceGui  = $true;  continue }
-		default         { $passArgs += $arg }
+		'^--?admin$'     { $wantAdmin = $true;  continue }
+		'^--?no-admin$'  { $wantAdmin = $false; continue }
+		'^--?no-update$' { $noUpdate  = $true;  continue }
+		'^--?gui$'       { $forceGui  = $true;  continue }
+		default          { $passArgs += $arg }
 	}
 }
 
 $script:GuiFeedback = $forceGui -or (fLaunchedFromShortcut)
 
-## Refuse a flag the app doesn't know before anything else happens - ahead of the
-## UAC prompt in particular, so a typo can't cost a consent click and a copy first.
+## Refuse a flag the app doesn't know before anything else happens - ahead of the UAC
+## prompt in particular, so a typo can't cost a consent click and a copy first.
 fCheckPassArgs -PassArgs $passArgs
 
 if ($wantAdmin -and -not $IsWindows) {
@@ -1175,26 +1172,25 @@ if ($wantAdmin -and -not $IsWindows) {
 }
 
 ## Self-elevate: unless '--no-admin', and not already elevated, relaunch the whole
-## script elevated and hand off. Everything then runs high-integrity, so it no longer
-## matters whether the target dir grants a normal user write - the real fix for
-## "a shortcut click launches a stale build". The relaunch carries the original args
-## plus '--gui' (its parent is the UAC broker, not Explorer, so it can't re-detect
-## the shortcut). If consent is declined we DON'T abort - we fall through and run
-## non-elevated so the user still gets a file manager, with a dialog saying it may
-## be stale.
+## script elevated and hand off. Making the symlink needs a privilege a filtered token
+## does not carry, so an unelevated run could not repoint the fixed name and would go
+## on launching whatever it already had. The relaunch carries the original args plus
+## '--gui' (its parent is the UAC broker, not Explorer, so it can't re-detect the
+## shortcut). A declined consent is not fatal: fall through and run unelevated, with a
+## dialog saying the build may be stale.
 if ($wantAdmin -and -not (fIsElevated)) {
 	$self = (Get-Process -Id $PID).Path      # the pwsh.exe hosting this script
 	$fwd  = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath) + $args + "--gui"
 	$fwd  = @($fwd | ForEach-Object { fQuoteArg $_ })
 	try {
-		Start-Process -FilePath $self -Verb RunAs -ArgumentList $fwd -ErrorAction Stop | Out-Null
+		Start-Process -FilePath $self -Verb RunAs -ArgumentList $fwd -WindowStyle Minimized -ErrorAction Stop | Out-Null
 		exit 0
 	} catch {
-		fWarn "elevation declined; running without admin (a newer build may not copy)"
+		fWarn "elevation declined; running without admin (a newer build may not be linked in)"
 		if ($script:GuiFeedback) {
 			fGuiShow -Icon Warning -Title "Nemo Anywhere dogfood - not elevated" -Msg (
 				"Administrator access was declined.`n`nRunning without it - a newer " +
-				"build may not copy in, so an older one could launch.")
+				"build may not be linked in, so an older one could launch.")
 		}
 	}
 }
@@ -1202,8 +1198,7 @@ if ($wantAdmin -and -not (fIsElevated)) {
 ## Elevated (self- or from an elevated shell): also launch the app elevated.
 if ($wantAdmin) { $RunAsAdmin = $true }
 
-## Kick everything off, passing through whatever's left.
-fMain -PassArgs $passArgs
+fMain -PassArgs $passArgs -NoUpdate:$noUpdate
 
 ## Surface any real problems (a failed copy etc.) for the shortcut case.
 if ($script:GuiFeedback -and $script:RunWarnings.Count) {
@@ -1215,6 +1210,16 @@ exit 0
 
 
 ##	History:
+##		- 2026-09-07: Source is now the synced dogfood dir for the running platform and
+##		  nothing else - the repo build and the b23 share are gone, along with the
+##		  probe-every-source machinery and its network timeout. The pool moved into
+##		  '<name>_versions' beside a symlink at the fixed name, and is GFS-rotated on
+##		  every run (hour/day/week/month/year plus the most recent few and the very
+##		  first build) under a 10/5/1GB budget, replacing the flat seven-day sweep. A
+##		  build already held is recognised by its bytes rather than its date, so a
+##		  restamp by the sync layer no longer costs a re-copy. macOS joins Linux and
+##		  Windows. '--no-update' runs what is held without touching the pool. The
+##		  desktop entry now runs this launcher rather than a dated copy of the app.
 ##		- 2026-09-01: Elevate by default on Windows; '--no-admin' opts out. A
 ##		  filtered token has no SeCreateSymbolicLinkPrivilege, so an unelevated app
 ##		  can't make a symlink at all. Unchanged on unix.
