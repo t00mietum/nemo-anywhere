@@ -39,6 +39,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 The action layout editor does not run.
+	- Opened: 20260908-000856
+	- Reachable from Preferences > Actions, which spawns it, but it dies at startup: its paths were baked in at configure time and point at an install prefix a portable copy never has.
+	- Also still reads and writes the pre-fork `nemo` config and data directories, so even once it starts, the app would not see what it saved.
+	- Around sixteen lines. Proven in a scratch copy: it comes up, lists the shipped actions, and saves where the action manager reads.
+	- One thing to settle: the editor's enable/disable checkboxes read a GSettings key that no longer exists.
+
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
 - 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
@@ -65,6 +72,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
+
+- 🔘 Cut the Linux drop down toward a single file.
+	- Opened: 20260908-000856
+	- 102 files and 3.8 MB today. Three helper exes are 2.6 MB of that, and nothing spawns two of them.
+	- Going: the connect-server and open-with helpers, the extensions lister (becomes a flag on the main binary), and the `bin/` shell wrapper, once the binary sets its own data and program paths.
+	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
+	- What is left of `share/` moves into the compiled resources. Data that only other programs read leaves the portable drop: editor syntax files, mime, polkit, man pages.
+	- The D-Bus service file stays, but is written at runtime so a relocated copy names its own path.
+	- The eight Cinnamon-only actions ship disabled.
+	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
