@@ -1062,17 +1062,24 @@ function fShortcutIcon {
 }
 
 
-## The shell wrapper a desktop entry or shortcut should run. The wrapper tells us
-## where it is; failing that, whatever is on PATH; failing that, its known home in
-## the synced tree; failing that, this script, which at least works for anyone who
-## has pwsh associated.
+## The shell wrapper a desktop entry or shortcut should run.
+##
+## The deploy-managed homes come first on purpose. A shortcut records a path and
+## keeps it, so it should record the same spelling on every box - and PATH does not
+## give that: on one box 'runfm' resolved through two chained links, and the .lnk
+## kept the chained spelling rather than the plain one that names the same file.
+## The environment variable and PATH stay as fallbacks for a box laid out some other
+## way. Nothing is written at all if none of them exist.
 function fWrapperPath {
+	foreach ($cand in $WrapperPaths) {
+		if (Test-Path -LiteralPath $cand) { return $cand }
+	}
 	if ($env:N8RUNFM_WRAPPER -and (Test-Path -LiteralPath $env:N8RUNFM_WRAPPER)) {
 		return $env:N8RUNFM_WRAPPER
 	}
 	$onPath = fFindOnPath "runfm"
 	if ($onPath) { return $onPath }
-	foreach ($cand in ($WrapperPaths + $LauncherPaths)) {
+	foreach ($cand in $LauncherPaths) {
 		if (Test-Path -LiteralPath $cand) { return $cand }
 	}
 	## Only if this copy is itself deployed. Anywhere else, say so and write nothing.
@@ -1469,9 +1476,11 @@ exit 0
 ##		  shortcut aimed at this app is repointed at the current launcher and icon, and
 ##		  one is made if there is none - both boxes had a Start Menu link to a launcher
 ##		  and an exe drop retired weeks ago. The old by-self exe drop is swept as well.
-##		  The desktop step runs whether or not there is
-##		  a build, and a copy run from outside its deployed home writes no shortcut at
-##		  all rather than one naming a path that will not last.
+##		  The desktop step runs whether or not there is a build, and a copy run from
+##		  outside its deployed home writes no shortcut at all rather than one naming a
+##		  path that will not last. A shortcut now records the wrapper's deploy-managed
+##		  path in preference to whatever PATH resolves to, which on one box reached the
+##		  same file through two chained links.
 ##		- 2026-09-07: Source is now the synced dogfood dir for the running platform and
 ##		  nothing else - the repo build and the b23 share are gone, along with the
 ##		  probe-every-source machinery and its network timeout. The pool moved into

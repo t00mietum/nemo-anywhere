@@ -27,12 +27,14 @@ readonly syncedRoots=(
 	"${HOME}/.synced/Dropbox/0-0"
 )
 
-## master|destination relative to a synced root. The bash wrapper goes to two homes;
-## the .ps1 is the one file both of them and the .cmd hand off to.
+## master|destination relative to a synced root. The bash wrapper goes to three homes;
+## the .ps1 is the one file all of them and the .cmd hand off to. The wsl copy was
+## drifting because nothing kept it in step - it is the same file as the linux one.
 readonly deployments=(
 	"n8runfm.ps1|common/exec/util/0_crossplatform/n8runfm.ps1"
 	"runfm|common/exec/util/linux/bash/runfm"
 	"runfm|common/exec/util/macos/bash/runfm"
+	"runfm|common/exec/util/wsl/bash/runfm"
 	"runfm.cmd|common/exec/util/mswin/cli/by-self/cmd/runfm.cmd"
 )
 
@@ -88,4 +90,5 @@ fMain "${@}"
 
 
 ##	History:
+##		- 2026-09-08: Keep the wsl wrapper in step too.
 ##		- 2026-09-07: Created.
