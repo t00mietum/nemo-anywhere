@@ -168,6 +168,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `runfm` is the name to type or put in a `.desktop` file, on every platform. The masters live in `utility/`; stage 7 copies them out to the synced util dirs.
 	- The menu entry now runs the launcher rather than a dated copy of the app, so a menu click picks up a new build the same way a shell launch does. Its icon comes from the newest version.
 
+- ✅ Menu entries and shortcuts that keep working, and one sync path spelling per platform.
+	- Opened: 20260908-013000
+	- Every list of sync-tree paths carries both spellings now - the source dir, the wrapper the menu entry runs, and the launcher itself. `synced` is a link to the Dropbox folder, and a box without the link found nothing at all.
+	- The app icon is copied out of the newest version and kept beside the pool under a fixed name. A menu entry used to point into a version directory and go blank the moment that version was pruned.
+	- Windows shortcuts get the same treatment the Linux menu entry already had. A Start Menu or taskbar link aimed at this app is repointed at the current launcher and icon, and one is created if there is none. Both dev boxes had a link to a launcher path and an exe drop that were retired weeks ago, so clicking it did nothing.
+	- The old by-self exe drop is swept on sight, wherever a run finds one.
+	- The desktop step no longer waits on a successful launch, so a box with no build yet still gets its shortcut fixed.
+	- A launcher run from outside its deployed home writes no shortcut at all, rather than one naming a path that will not last.
+	- Note: `exec/synced/util` is a link into the live synced tree on at least one box. Anything swept under a path that looks local can be the real file, and the sync layer then carries the delete everywhere.
+
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
 	- Opened: 20260905-112900
 	- First, on its own: bump the vendored `shcl.h` to the release carrying the coming fix, and run the config tests against it.
