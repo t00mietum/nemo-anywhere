@@ -68,6 +68,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Fuzz the parsers that read untrusted input.
+	- Opened: 20260908-133615
+	- Nothing in the tree is fuzzed today. The settings file, the action files and the `.desktop` and `.lnk` readers all parse text that arrives from outside the program.
+	- Wants a libFuzzer or AFL target per parser plus a seed corpus, run from the pipeline and skippable on a quick run.
+
+- 🔘 Write the public UI and UX style guide.
+	- Opened: 20260908-133615
+	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
+
+- 🔘 Fill the gaps in design.md.
+	- Opened: 20260908-133615
+	- Missing: a status and revision block, the non-functional requirements (startup time, memory, listing speed on a large folder), a security section, what the program logs and how to turn it up, and any diagram at all.
+
 - 🛠️ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856
 	- 102 files and 3.8 MB today. Three helper exes are 2.6 MB of that, and nothing spawns two of them.
@@ -83,10 +96,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
+	- Opened: 20260908-021923
 
-- 🔘 Update so (or valitade) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
+- 🔘 Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
+	- Opened: 20260908-133001
 
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
+	- Opened: 20260908-111526
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
@@ -99,16 +115,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
 
 - 🔘 Change to username columns (two new columns):
+	- Opened: 20260908-133001
 	- Owner (the short version), with no display name. This is a change to the current column of the same name.
 	- Owner Name (the display version)
 	- Owner - Name (i.e. "[Owner] - [Owner Name]")
 
 - 🔘 Optional alternating row shading
+	- Opened: 20260908-133001
 	- Subtle
-	- Compimentary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
+	- Complimentary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
 	- Themable, customizable.
 
-- Cut an RC1 release.
+- 🔘 Cut an RC1 release.
+	- Opened: 20260908-111526
 
 - 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
 	- Opened: 20260819-141014

@@ -325,12 +325,12 @@ This rule has been rewritten several times and will probably move again, so the 
 	- The minimum column width that overrides all minimum-width definitions below: Column header text.
 	- Primary variable-width class:
 		- Members: "Name", "Location".
-		- Min witdh:
+		- Min width:
 			- What will display all of the shortest N% values, as set `list-view.column-fit-percent`, default 90.
 			- Name counts every file in the folder, since every name matters.
 			- Location count each distinct value once, so a location repeated down a folder counts once rather than fifty times.
 			- The share calculation: max(1, floor(count*FITPERCENT))
-			- Plus elipses for values that are too short.
+			- Plus ellipses for values that are too short.
 			- Plus one character of air on the right.
 		- Default width if room:
 			- The width that shows all of values for the column, plus one character of air on the right.
@@ -345,7 +345,7 @@ This rule has been rewritten several times and will probably move again, so the 
 		- All other columns
 		- Min width:
 			- Uses the same formula as "Default width if room" for [Primary variable-width class], but for the shortest 50%, plus one character of air on the right.
-			- Plus elipses for values that are too short - except for columns that are already very narrow (e.g. Ext with only 1 to 4 character extensions.)
+			- Plus ellipses for values that are too short - except for columns that are already very narrow (e.g. Ext with only 1 to 4 character extensions.)
 			- Plus one character of air on the right.
 		- Default width if room:
 			- Default size: Same formula and % as "Default width if room" for [Primary variable-width class], plus one character of air on the right.
