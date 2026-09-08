@@ -53,7 +53,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
 	- Context menu key doesn't work on selected text.
 	- Fixed 20260905, the copy half: an entry's own cut and copy only advertised the text, the way the toolkit always has, which is the same write that went missing for "Copy path" and file copy. The selected text is now written out as well, for every entry and text box. The regression check goes red with the fix backed out.
-	- Left: the context menu key. Not reproduced away from the Windows box, and the same keystroke works in the file list there, so it needs a look on that box.
+	- The key does open a context menu in the location entry with the caret in it, so the plain case is not broken.
+	- Left: the reported case is the key over selected text, which is still unconfirmed either way.
 
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
@@ -67,6 +68,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
+
+- 🔘 Fuzz the parsers that read untrusted input.
+	- Opened: 20260908-133615
+	- Nothing in the tree is fuzzed today. The settings file, the action files and the `.desktop` and `.lnk` readers all parse text that arrives from outside the program.
+	- Wants a libFuzzer or AFL target per parser plus a seed corpus, run from the pipeline and skippable on a quick run.
+
+- 🔘 Write the public UI and UX style guide.
+	- Opened: 20260908-133615
+	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
+
+- 🔘 Fill the gaps in design.md.
+	- Opened: 20260908-133615
+	- Missing: a status and revision block, the non-functional requirements (startup time, memory, listing speed on a large folder), a security section, what the program logs and how to turn it up, and any diagram at all.
 
 - 🛠️ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856
@@ -83,8 +97,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
+	- Opened: 20260908-021923
+
+- 🔘 Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
+	- Opened: 20260908-133001
+	- Three places where the code and that section disagree, each needing a decision rather than a guess:
+		- The share is `max(1, floor(count * percent))` in the section and rounds up in the code, so at 90% a three-value column is two values by the section and all three by the code.
+		- The section no longer covers search results, and the code still gives Name and Location their own split there, kept in `search.name-location-split`.
+		- The section no longer mentions Name's hundred-pixel floor, and the code still applies it.
+	- Two more that the code cannot settle, because the section is at odds with itself:
+		- "Remember per-folder settings" is named as the thing that makes a hand drag stick, and no setting by that name has ever existed. Either it gets built or the clause loses the name.
+		- The same bullet says a hand drag is not persisted, and four lines later a hand drag becomes a ceiling kept in `list-view.column-max-widths`, which is a state key that persists exactly that.
 
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
+	- Opened: 20260908-111526
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
@@ -96,7 +122,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
 
-- Cut an RC1 release.
+- 🔘 Change to username columns (two new columns):
+	- Opened: 20260908-133001
+	- Owner (the short version), with no display name. This is a change to the current column of the same name.
+	- Owner Name (the display version)
+	- Owner - Name (i.e. "[Owner] - [Owner Name]")
+
+- 🔘 Optional alternating row shading
+	- Opened: 20260908-133001
+	- Subtle
+	- Complementary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
+	- Themable, customizable.
+
+- 🔘 Cut an RC1 release.
+	- Opened: 20260908-111526
 
 - 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
 	- Opened: 20260819-141014
