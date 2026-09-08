@@ -315,13 +315,6 @@ process_system_theme (GtkSettings *gtk_settings)
 static void
 init_icons_and_styles (void)
 {
-    /* initialize search path for custom icons */
-    gchar *icon_dir = g_build_filename (nemo_get_data_dir (), "icons", NULL);
-
-    gtk_icon_theme_append_search_path (gtk_icon_theme_get_default (),
-                       icon_dir);
-    g_free (icon_dir);
-
     add_css_provider_at_priority ("/org/nemo/nemo-style-fallback.css",
                                   GTK_STYLE_PROVIDER_PRIORITY_FALLBACK);
 

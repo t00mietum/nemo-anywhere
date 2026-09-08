@@ -470,4 +470,6 @@ Guiding constraint: GitHub is dumb git hosting plus optional release storage, an
 	- There used to be a shell wrapper in `bin/` doing that, with the real binary hidden in `libexec/`. Two files where one would do, so it went.
 	- What the staging step leaves out of the prefix: mime, polkit, man pages and the gtksourceview syntax files. None of them are read anywhere but a system data dir, and both packages install the prefix under `/opt`. The install rules still produce them, so a distro building `--prefix=/usr` is unaffected.
 	- The D-Bus activation file is written at startup instead of shipped, into `$XDG_DATA_HOME/dbus-1/services`. It has to name an absolute path, and a portable copy does not have one until it runs.
+	- Icons: everything the app draws with is compiled in, so the prefix keeps only the app icon at its eight sizes, which packaging and the launcher's menu entry need as real files. The rest of the installed icon tree was a second copy for a system theme.
+	- The actions folder, the search helpers and the settings schema stay as files. Those are the drop-in folders a user adds to, and two of them have an "Open folder" button in Preferences pointing at them.
 - Build matrix: Linux x86_64 today (container). Windows (MSYS2/MinGW-w64) is the first cross target and is Phase 2; ARM and others follow. macOS/BSD deferred.

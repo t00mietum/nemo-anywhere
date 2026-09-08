@@ -81,6 +81,14 @@ fEcho "Dropping data only a system install would use"
 rm -rf "${DEST}/share/mime" "${DEST}/share/polkit-1" "${DEST}/share/man" "${DEST}/share/dbus-1"
 rm -rf "${DEST}"/share/gtksourceview-*
 
+## Same again for the icons. Every one the app draws with is compiled into the
+## binary, so what is installed here is the copy a system icon theme would serve
+## to other programs - and this prefix is not one. The app icon itself stays:
+## package.bash lifts it into /usr/share/icons and the launcher points a menu
+## entry at it.
+find "${DEST}/share/icons" -type f ! -path "*/apps/*" -delete
+find "${DEST}/share/icons" -type d -empty -delete
+
 
 fEcho "Staged $(du -sh "${DEST}" | cut -f1) at ${DEST}"
 

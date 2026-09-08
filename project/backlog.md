@@ -82,7 +82,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
 	- Done: data that only a system install would use has left the drop - mime, polkit, man pages and the editor syntax files. Nothing reads any of it out of a relocatable prefix or out of /opt, which is where both packages put one. A distro building its own install still gets all of it.
 	- Done: the D-Bus activation file is written at startup into the user's own service directory, naming the path this copy really runs from. The shipped one named wherever it was built.
-	- What is left of `share/` moves into the compiled resources.
+	- Done: what could move into the compiled resources has. The whole icon tree except the app icon itself was a second copy of art already in the binary, kept only for a system icon theme; the two info-bar documents are written out to the cache when the button that opens them is pressed, since another program has to read them.
+	- Left as files, deliberately: actions, search helpers and the settings schema. All three are drop-in folders a user adds to or edits, and Preferences has a button that opens two of them.
+	- 102 files down to 44.
 	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
 	- Static-linking the extension library is specced, not decided.
 

@@ -44,11 +44,6 @@ publicIcons = [
   'hicolor/status/scalable/nemo-progress-90-symbolic.svg',
   'hicolor/status/scalable/nemo-progress-100-symbolic.svg',
 ]
-privateIcons = [
-  'hicolor/emblems/16x16/emblem-note.png',
-  'hicolor/emblems/24x24/emblem-note.png',
-  'hicolor/emblems/48x48/emblem-note.png',
-]
 
 foreach icon : publicIcons
   nameParts = icon.split('/')
@@ -58,18 +53,6 @@ foreach icon : publicIcons
   file    = nameParts[3]
   install_data(icon,
     install_dir: join_paths(get_option('datadir'), 'icons', theme, size, context)
-  )
-endforeach
-
-
-foreach icon : privateIcons
-  nameParts = icon.split('/')
-  theme   = nameParts[0]
-  context = nameParts[1]
-  size    = nameParts[2]
-  file    = nameParts[3]
-  install_data(icon,
-    install_dir: join_paths(get_option('datadir'), appSlug, 'icons', theme, size, context)
   )
 endforeach
 

@@ -229,6 +229,16 @@ link_copy_job = executable('test-nemo-link-copy-job',
 test('Link copy keeps the link', link_copy_job, args: [ 'keep' ])
 test('Link copy follows the link', link_copy_job, args: [ 'copy' ])
 
+# Carries its own copy of the resource, for the reason the next test explains.
+test('App resources test',
+  executable('test-nemo-app-resources',
+    [ 'test-nemo-app-resources.c' ] + gresources,
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 # The resource has to be compiled straight in for the same reason the exe does:
 # nothing else references the self-registering object, so the linker drops it.
 test('Preferences widgets test',
