@@ -16,7 +16,6 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 
 - [What and why](#what-and-why)
 - [Goals](#goals)
-- [Status](#status)
 - [Fork decisions](#fork-decisions)
 - [Architecture](#architecture)
 	- [Software stack](#software-stack)
@@ -47,59 +46,62 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 
 ## What and why
 
-A hard fork of linuxmint/nemo at its 6.6.4 release, decoupled from Cinnamon and from Linux-desktop assumptions so it runs standalone anywhere. Independent and divergent: no upstream contribution, no downstream sync. GPL-2.0-only.
+This is a hard fork of linuxmint/nemo at its 6.6.4 release, decoupled from Cinnamon and from Linux-desktop assumptions so it runs standalone anywhere. (And it is already far ahead of Nemo 6.6.4 in terms of bug fixes and feature improvements, and new features.) Independent and divergent: no upstream contribution, no downstream sync. GPL-2.0-only.
 
-Targets in order: Windows, then Linux on any desktop or none, then BSD and macOS. One codebase; per-platform builds are labels, not separate projects.
+Targets in order: Linux on any desktop or none, then Windows, then macOS, then BSD and other minor niche targets. One codebase; per-platform builds are labels, not separate projects.
 
-Windows is first because it forces the cleanest separation. Nothing Linux-specific can be assumed there, so the couplings show up as build errors rather than as things that quietly still work. A de-Cinnamon Linux build falls out of the same work.
+Windows is the first not-Linux target because it forces the cleanest separation. Nothing Linux-specific can be assumed there, so the couplings show up as build errors rather than as things that quietly still work. A de-Cinnamon Linux build falls out of the same work.
 
 ## Goals
 
-What the project is trying to be, roughly in priority order. The rest of this document is how.
-
-- Run on any desktop OS, from one codebase. Windows first, then Linux on any desktop or none, then BSD and macOS.
-	- "For Windows" and friends are labels on builds, not separate projects.
+What the project is trying to be, roughly in priority order:
 
 - Belong to no desktop. Nothing in the program assumes Cinnamon, GNOME, or even Linux, and it never draws or owns the desktop. It can sit beside whatever already does, original Nemo included.
 
-- Keep what makes Nemo worth porting. Fast navigation, real progress on file operations, sane folder merging, proper bookmarks, a deep set of preferences, and an extension API that still works.
+- Run on any desktop OS, from one codebase. Linux on any desktop or none, then Windows, then macOS, then BSD and other minor niche targets.
+	- "For Windows" are labels on builds, not separate projects.
+
+- Keep what makes Nemo worth porting: Fast navigation, tree folder view in list mode, sane folder merging, proper bookmarks, useful and simple settings, and an extension API that still works.
 
 - Be portable in the copy-it-and-run sense. On Windows that is one executable with the runtime inside it. On Linux it is a small folder using the GTK the distro already has.
-	- Nothing installed, nothing registered, no repository to add. Installers and distro packages exist for people who want them, but nothing depends on them.
+	- If not obtained via provided installers or packages: Nothing required to be installed, nothing registered, no repository to add. Installers and distro packages exist for people who want them, but nothing depends on them.
 
-- Make it hard to lose a file by accident. This is where the fork is willing to be less convenient than its ancestors.
-	- A drag that moves files says what it is about to do, and waits.
+- Make it hard to lose a file by accident. This is where the fork is willing to be less convenient than its ancestors, e.g.:
+	- A drag that moves files says what it is about to do, and waits. (Because accidental mouse drag-an-drops - especially large ones across filesystems - are the bane of GUI file managers.)
 	- Trash and delete jobs each write a line saying what was taken and what asked for it.
-	- A job with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
+	- A copy/move/delete with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
+	- A copy/move/delete over a size threshold, asks first no matter what the preferences say.
 
 - Keep configuration in plain sight. One text file, readable and editable by hand, with no registry keys, no dconf, and no compiled schema to install. Hand-editing it behaves the same as changing the setting in the dialog.
 
 - Fit each platform natively instead of pretending to be its file manager. Drive letters, the Recycle Bin, shortcuts, UNC paths and file associations are all done the way that platform does them.
 	- Read the system's settings, don't rewrite them. File associations come out of the registry; the app's own overrides stay in the app's own config.
 
+- Minimize dependencies. On Windows, for example, minimize depenedence on Explorer.
+
+- Handle natively in own code (and or reliance on optionally-installed CLI tools), far more robustly than Nemo's reliance on external tools - and lack of really good tools:
+	- Archive/extract.
+	- Find.
+	- Robust rename that surpasses Thunar Renamer and Directory Opus in functionality, simplicity, and repeatability (e.g. saveable templates). For media types, be at least as robust as "CamHauler" (formerly "Rapid Photo Downloader Pro" and may get yet another rename).
+	- Smart duplicate file and directory finder and handler.
+
+- Never follow links of any kind for deletes or moves. The copy portion presents user with options for how to handle links.
+
+- Be tolerant of crashes. Each instance of Nemo Anywhere gets its own process (not just thread).
+
+- Interoperate with OS-native file managers. (E.g. bidirectional copy/paste and drag-n-drop.)
+
 - Hide or gray out what a platform cannot do, rather than failing at it. A missing runtime service should cost a menu entry, not a crash.
 
-- Look presentable on a bare system. Icon sets and window styles are inside the program, so a fresh copy has no missing art and nothing to download.
+- Look presentable on a bare system. Icon sets and window styles are inside the program (for non-Linux OSes), so a fresh copy has no missing art and nothing to download.
 
 - Start fast and stay small. A file manager gets launched dozens of times a day, and a slow one is noticed every time.
 
 - Ship builds that can be checked. Reproducible from the commit they were built at, published with checksums, and cut by the same pipeline that runs on a developer's own machine.
 
-- Stay Nemo. Same lineage, same license (GPL-2.0-only), per-file attribution intact. Independent and divergent: nothing goes upstream and nothing is pulled back down.
+- Stay "Nemo". Same lineage, same license (GPL-2.0-only), per-file attribution intact. Independent and divergent: nothing goes upstream and nothing is pulled back down.
 
 - Deliberately out of scope: drawing the desktop, autorun of any kind on any platform, and migrating settings from a pre-1.0 install.
-
-## Status
-
-Beta, at `1.0.0-beta2`. It builds and runs on Linux and Windows, and browses, copies, moves, trashes, searches, compresses and thumbnails on both. The Cinnamon decoupling is finished: the build links neither xapp nor cinnamon-desktop, and there is no desktop-drawing binary.
-
-- Linux x86_64 and Windows x86_64 are the two builds that exist. Linux arm64 needs an arm64 GTK3 environment that nothing here provides yet.
-
-- BSD and macOS are not built. Neither is expected to need much beyond a toolchain, since the Windows work removed the Linux assumptions, but neither claim is tested.
-
-- Windows releases go out unsigned. The free signing program applied for was refused, so the hosted release workflow still builds and packs but its signing step is dormant.
-
-- Known rough edges: a fractional display scale is applied to text but not to widget sizes and spacing, and settings from a pre-1.0 install do not carry over.
 
 ## Fork decisions
 

@@ -82,7 +82,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
 	- Static-linking the extension library is specced, not decided.
 
-- 🔘 Make extra sure that deleting symlinks, junctions, [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted.
+- 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
+
+- 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
@@ -93,6 +95,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260821-150232
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
+
+- Cut an RC1 release.
 
 - 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
 	- Opened: 20260819-141014
@@ -115,22 +119,27 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done 20260905. Every launch and, by default, every new window is its own process. A command-line launch never joins a running copy, so two versions run side by side. `--quit` and Close All Windows still reach every copy.
 	- A setting under Behavior puts new windows back inside one process. The trade: a tab cannot move to a window in another process, and on Windows a new window takes the packed exe's start-up time.
 
+- 🔘 Native renamer:
+	- Robust rename that surpasses Thunar Renamer and Directory Opus in functionality, simplicity, and repeatability (e.g. saveable templates).
+	- For media types, be at least as robust as "CamHauler" (formerly "Rapid Photo Downloader Pro" and may get yet another rename), including move functionality.
+		- With an option to preserve restoration attributes in xattrs [e.g. original name, datetimes, etc.]
+
+- 🔘 Feature: Find duplicate files and directories
+	- Smart duplicate file and directory finder with smart, useful options.
+	- Cache content hashes in local SQLite as well as optionally xattrs.
+	- And related, smart:
+		- Deduper for CoW systems.
+		- Dupe deleter.
+			- Optionally, create hardlinks under a per-volume, dot-hidden, "deleted-duplicate-hardlinks" directory (with a "readme.txt" in each describing the purpose, and a datetime-stamped log of each run.
+
+- 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
+	- Opened: 20260804-133646
+
 - 🔘 Target: BSD
 	- Opened: 20260730-185314
 
 - 🔘 Target: macOS
 	- Opened: 20260730-185314
-
-- 🔘 Advanced file/folder rename functionality.
-	- Opened: 20260831-164337
-	- Work in search mode too.
-	- Needs design work first.
-	- Use best of Directory Opus renamer and Thunar renamer.
-		- Including wildcard (default) or regex.
-		- With variables for various attributes, such as date/time, original name/ext, parent folder name, etc.
-	- Advanced dates: Allow obtaining date from various EXIF dates, fallback to date in filename, and final optional fallback, mtime.
-		- As already designed for sister camhauler project, including name templates for filenames.
-	- Remove Preferences|Behavior|"Bulk rename" option.
 
 - 🛠️ Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
 	- Opened: 20260829-071437
@@ -179,15 +188,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A full sweep of both Windows boxes and this one found no stray versions or launchers left to move or trash. The only stale copies remaining sit inside a scheduled local mirror frozen at 20260903, which other tooling owns.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
+	- UPDATE 20260908-111214: Don't do this if it breaks compatibility with plugins or addons.
 	- Opened: 20260905-112900
 	- First, on its own: bump the vendored `shcl.h` to the release carrying the coming fix, and run the config tests against it.
 	- Each URI becomes a quoted section, each metadata key a string or string-array field under it. The store keeps its mutex, its debounced save and its re-keying on rename; only the file format changes.
 	- No migration of the old files, the same call as for settings pre-1.0.
 	- Then the action layout: `actions-tree.json` -> `actions-tree.shcl`. Each node becomes a section named by its uuid, children nested under a submenu, order by file position; the unused `position` field goes. The C side only reads (`nemo-action-manager.c`); the writer is the Python layout editor, which takes shcl's single-file Python binding the way the C side took the header. Its drag-and-drop payload is in-memory and uses the standard library, so it can stay as it is or move to the same format. Fix the pre-fork `~/.config/nemo/` path in the editor and its notes on the way.
 	- With both done, json-glib leaves the build.
-
-- 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
-	- Opened: 20260804-133646
 
 - 🔘 Recorded demo of the app in use, generated by the pipeline and skippable on a quick run.
 	- Opened: 20260804-230307
