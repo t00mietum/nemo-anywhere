@@ -8,6 +8,7 @@ SETLOCAL
 ::		association opens an editor rather than running it.
 ::		The launcher self-elevates, so nothing here needs to.
 ::	History:
+::		- 20260908 JC: Second spelling of the synced tree as a fallback.
 ::		- 20260907 JC: Created.
 
 ::----------------------------------------------------------------------------
@@ -19,6 +20,8 @@ SETLOCAL
 	set PSFILE=%~dp0..\..\..\..\0_crossplatform\n8runfm.ps1
 	if exist "%PSFILE%" goto :OK005
 	set PSFILE=%USERPROFILE%\synced\0-0\common\exec\util\0_crossplatform\n8runfm.ps1
+	if exist "%PSFILE%" goto :OK005
+	set PSFILE=%USERPROFILE%\Dropbox\0-0\common\exec\util\0_crossplatform\n8runfm.ps1
 	if exist "%PSFILE%" goto :OK005
 		echo Not found: n8runfm.ps1
 		goto :ERROR

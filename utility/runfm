@@ -30,6 +30,7 @@ selfDir="$(cd -P "$(dirname "${self}")" && pwd)"
 candidates=(
 	"${selfDir}/../../0_crossplatform/n8runfm.ps1"
 	"${HOME}/synced/0-0/common/exec/util/0_crossplatform/n8runfm.ps1"
+	"${HOME}/.synced/Dropbox/0-0/common/exec/util/0_crossplatform/n8runfm.ps1"
 )
 
 ps1=""
@@ -59,4 +60,5 @@ exec pwsh -NoProfile -File "${ps1}" "${@}"
 
 
 ##	History:
+##		- 2026-09-08: Second spelling of the synced tree as a fallback.
 ##		- 2026-09-07: Created.

@@ -53,20 +53,60 @@ $PayloadIsFile  = $IsWindows
 $PayloadMainBin = if ($IsWindows) { "" } else { "bin/${ProgramName}" }
 
 ## Where a build arrives from: the synced dogfood dir for this platform, which is
-## what the pipeline's dogfood stage publishes to. One entry each for now, but the
-## sync tree gets spelled differently from box to box, so each platform keeps a list
-## and the first one actually holding a build wins.
+## what the pipeline's dogfood stage publishes to. Only ever this platform's dir - a
+## Windows box has no use for the linux prefix sitting next to it. The sync tree gets
+## spelled differently from box to box, so each platform keeps a list and the first
+## one actually holding a build wins. 'synced' is a link to the Dropbox folder where
+## it exists at all, so the second spelling is what saves a box that lacks the link.
 $SourceDirs = if ($IsWindows) {
 	@(
 		(Join-Path $HOME "synced\0-0\common\exec\app\mswin")
+		(Join-Path $HOME "Dropbox\0-0\common\exec\app\mswin")
 	)
 } elseif ($IsMacOS) {
 	@(
 		(Join-Path $HOME "synced/0-0/common/exec/app/macos")
+		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/app/macos")
 	)
 } else {
 	@(
 		(Join-Path $HOME "synced/0-0/common/exec/app/linux")
+		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/app/linux")
+	)
+}
+
+## The shell wrapper a menu entry or shortcut should run, so a click goes through the
+## same path a typed 'runfm' does. Neither box has the wrapper dir on PATH, so a
+## lookup alone is not enough - these are where deploy-launcher.bash puts them.
+$WrapperPaths = if ($IsWindows) {
+	@(
+		(Join-Path $HOME "synced\0-0\common\exec\util\mswin\cli\by-self\cmd\runfm.cmd")
+		(Join-Path $HOME "Dropbox\0-0\common\exec\util\mswin\cli\by-self\cmd\runfm.cmd")
+	)
+} elseif ($IsMacOS) {
+	@(
+		(Join-Path $HOME "synced/0-0/common/exec/util/macos/bash/runfm")
+		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/macos/bash/runfm")
+	)
+} else {
+	@(
+		(Join-Path $HOME "synced/0-0/common/exec/util/linux/bash/runfm")
+		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/linux/bash/runfm")
+	)
+}
+
+## Where this script itself gets deployed. A menu entry or shortcut has to name a
+## path that will still be there next week, so a copy run from a scratch directory
+## writes no shortcut at all rather than one aimed at a file that is about to go.
+$LauncherPaths = if ($IsWindows) {
+	@(
+		(Join-Path $HOME "synced\0-0\common\exec\util\0_crossplatform\n8runfm.ps1")
+		(Join-Path $HOME "Dropbox\0-0\common\exec\util\0_crossplatform\n8runfm.ps1")
+	)
+} else {
+	@(
+		(Join-Path $HOME "synced/0-0/common/exec/util/0_crossplatform/n8runfm.ps1")
+		(Join-Path $HOME ".synced/Dropbox/0-0/common/exec/util/0_crossplatform/n8runfm.ps1")
 	)
 }
 
@@ -99,6 +139,25 @@ $LegacyDirs   = if ($IsWindows) {
 		$InstallDir
 		(Join-Path $HOME ".local/share/nemo-anywhere-dogfood")
 	)
+}
+
+## Drops this app used to be published to, retired when the synced app dir became
+## the one source the launcher reads. Nothing points at them any more but a hand-made
+## Start Menu link, which is how a box ends up with a shortcut that does nothing.
+##
+## The by-self path is the old dogfood drop and is retired on purpose, the same one
+## cicd-win.ps1 clears after a publish. Nothing else under there may be listed: on at
+## least one box 'exec\synced\util' is a LINK INTO THE LIVE SYNCED TREE, so a path
+## that looks local deletes the real file and the sync layer carries that everywhere.
+## Launcher files in particular are never swept - they live in that tree.
+$LegacyLaunchers = if ($IsWindows) {
+	@(
+		"C:\0-0\common\exec\synced\util\mswin\gui\by-self\win64\${ProgramName}.exe"
+		"C:\0-0\common\exec\synced\util\mswin\gui\by-self\win64\${ProgramName}"
+		"C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64\${ProgramName}.exe"
+	)
+} else {
+	@()
 }
 
 ## Pool budget. Never more than $MaxVersions, never fewer than $MinVersions, and
@@ -218,6 +277,7 @@ function fMain {
 	if ($IsWindows) { fSelfHealMotw }
 	fDeleteStalePartials
 	fRetireLegacyCopies
+	fRetireLegacyLaunchers
 	if (-not $script:StepRows) { fItem "-" "" "nothing to clean up" }
 
 	if ($NoUpdate) {
@@ -230,6 +290,13 @@ function fMain {
 		fRotate
 		fUpdateLink
 	}
+
+	## Not tied to the launch: a box that has no build yet still has a stale shortcut
+	## worth repointing, and one that was pruned to nothing would otherwise keep a
+	## menu entry aimed at a version directory that is gone.
+	fStep "Desktop"
+	if ($IsWindows) { fRefreshShortcuts } else { fRegisterDesktopEntry }
+	if (-not $script:StepRows) { fItem "-" "" "nothing to update" }
 
 	fStep "Launch"
 	$PassArgs = fAddStartupLocation -PassArgs $PassArgs
@@ -739,6 +806,21 @@ function fRetireLegacyIn {
 }
 
 
+## Delete the retired launcher files and exe drops in $LegacyLaunchers. Paths only,
+## no globbing, so nothing here can widen by accident.
+function fRetireLegacyLaunchers {
+	foreach ($path in $LegacyLaunchers) {
+		if (-not (Test-Path -LiteralPath $path)) { continue }
+		try {
+			Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+			fItem "ok" "retired" "stray from the old layout: $path"
+		} catch {
+			fItem "-" "kept" "locked: $path"
+		}
+	}
+}
+
+
 ## Point the fixed name at the newest version. Replaced rather than updated in place:
 ## repointing an existing symlink is not something every platform agrees on, and the
 ## launch reads the link fresh anyway.
@@ -792,25 +874,57 @@ function fRunTarget {
 }
 
 
+## Lift the app icon out of the newest version and keep it beside the pool under a
+## fixed name. A desktop entry or shortcut that points into a version directory goes
+## dark the moment rotation prunes that version, and a stale icon is exactly what
+## nobody notices until the menu entry is blank. Returns the fixed path, or $null.
+function fPublishIcon {
+	$newest = fNewestCopy
+	if (-not $newest) { return $null }
+
+	$dest = Join-Path $TargetDir "${ProgramName}.png"
+	$src  = if ($PayloadIsFile) { $null }
+	        else { Join-Path $newest.Payload.FullName "share/icons/hicolor/256x256/apps/${ProgramName}.png" }
+	if (-not $src -or -not (Test-Path -LiteralPath $src)) {
+		## Windows carries its icon inside the exe, and an older prefix may not have
+		## the file at all. A copy already published still beats nothing.
+		if (Test-Path -LiteralPath $dest) { return $dest }
+		return $null
+	}
+
+	try {
+		$cur = Get-Item -LiteralPath $dest -ErrorAction SilentlyContinue
+		$new = Get-Item -LiteralPath $src
+		if (-not $cur -or $cur.Length -ne $new.Length) {
+			Copy-Item -LiteralPath $src -Destination $dest -Force -ErrorAction Stop
+		}
+		return $dest
+	} catch {
+		fItem "-" "icon" "could not publish it: $($_.Exception.Message)"
+		return $null
+	}
+}
+
+
 ## Give the desktop a menu entry, so the program shows its own icon in the menu and
 ## the switcher instead of a generic one. Exec is this launcher, not the app: a menu
-## click should pick up a new build the same way a shell launch does. The icon comes
-## from the newest version, so it is rewritten every run. Linux only - Windows takes
-## its icon out of the exe. Never fatal: a missing entry costs an icon.
+## click should pick up a new build the same way a shell launch does. Linux only -
+## Windows takes its icon out of the exe. Never fatal: a missing entry costs an icon.
 function fRegisterDesktopEntry {
 	$newest = fNewestCopy
 	if (-not $newest) { return }
 
 	$dataHome = if ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } else { Join-Path $HOME ".local/share" }
 	$appsDir  = Join-Path $dataHome "applications"
-	$icon     = Join-Path $newest.Payload.FullName "share/icons/hicolor/256x256/apps/${ProgramName}.png"
+	$icon     = fPublishIcon
 	$exec     = fWrapperPath
+	if (-not $exec) { fItem "-" "menu" "no deployed launcher to point at; entry left alone"; return }
 	## The wrapper is directly executable; this script itself needs pwsh in front of it.
 	$execLine = if ($exec -like "*.ps1") { "Exec=pwsh -NoProfile -File `"$exec`" %U" }
 	            else                     { "Exec=`"$exec`" %U" }
 
 	try {
-		if (-not (Test-Path -LiteralPath $icon)) { return }
+		if (-not $icon) { return }
 		if (-not (Test-Path -LiteralPath $appsDir)) {
 			New-Item -ItemType Directory -Path $appsDir -Force | Out-Null
 		}
@@ -830,7 +944,11 @@ function fRegisterDesktopEntry {
 			"MimeType=inode/directory;"
 			"Keywords=folders;filesystem;explorer;"
 		) -join "`n"
-		Set-Content -LiteralPath (Join-Path $appsDir "${ProgramName}-dogfood.desktop") -Value $entry -Encoding utf8NoBOM
+		$path = Join-Path $appsDir "${ProgramName}-dogfood.desktop"
+		$was  = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { "" }
+		if ($was.TrimEnd("`n") -eq $entry) { fItem "ok" "menu" "entry already current"; return }
+		Set-Content -LiteralPath $path -Value $entry -Encoding utf8NoBOM
+		fItem "ok" "menu" "entry written: $path"
 		$update = fFindOnPath "update-desktop-database"
 		if ($update) { & $update $appsDir 2>$null | Out-Null }
 	} catch {
@@ -839,16 +957,124 @@ function fRegisterDesktopEntry {
 }
 
 
-## The shell wrapper a desktop entry should run. The wrapper tells us where it is;
-## failing that, whatever is on PATH; failing that, this script, which at least works
-## for anyone who has pwsh associated.
+## Windows counterpart of the desktop entry. Shortcuts here are made by hand and
+## then outlive whatever they pointed at: both boxes still carried a Start Menu link
+## to a launcher path and an exe drop that were retired weeks ago, so clicking it did
+## nothing at all. Anything already pointing at this app is repointed at the current
+## launcher and the published icon; if nothing does, one is made in the user's own
+## Start Menu. Never fatal.
+function fRefreshShortcuts {
+	$cmd = fShortcutCommand
+	if (-not $cmd) { return }
+	$icon = fShortcutIcon
+
+	$dirs = @(
+		(Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs")
+		(Join-Path $env:APPDATA "Microsoft\Internet Explorer\Quick Launch")
+		(Join-Path $env:APPDATA "Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar")
+		(Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs")
+		(Join-Path $HOME "Desktop")
+		$env:PUBLIC ? (Join-Path $env:PUBLIC "Desktop") : $null
+	) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+	## Names this app's shortcuts have gone by, in the target, the arguments or the
+	## icon. Deliberately narrow: 'runfm' on its own would catch someone else's.
+	$mine = '(n8runfm|[\\/]runfm\.(cmd|ps1)|nemo-anywhere)'
+
+	$shell = New-Object -ComObject WScript.Shell
+	$fixed = 0
+	$found = $false
+
+	## A plain foreach, not a pipeline: assigning to $found inside a ForEach-Object
+	## block writes a copy in that block's own scope and the count comes out zero.
+	$links = @(foreach ($dir in $dirs) {
+		Get-ChildItem -LiteralPath $dir -Recurse -Filter "*.lnk" -ErrorAction SilentlyContinue
+	})
+
+	foreach ($file in $links) {
+		try { $link = $shell.CreateShortcut($file.FullName) } catch { continue }
+		$blob = "$($link.TargetPath) $($link.Arguments) $($link.IconLocation)"
+		if ($blob -notmatch $mine) { continue }
+		$found = $true
+		if ($link.TargetPath -eq $cmd.Target -and $link.Arguments -eq $cmd.Arguments -and
+		    (-not $icon -or $link.IconLocation -eq $icon)) { continue }
+		try {
+			$link.TargetPath       = $cmd.Target
+			$link.Arguments        = $cmd.Arguments
+			$link.WorkingDirectory = $HOME
+			$link.WindowStyle      = 7
+			if ($icon) { $link.IconLocation = $icon }
+			$link.Save()
+			fItem "ok" "shortcut" "repointed $($file.FullName)"
+			$fixed++
+		} catch {
+			fItem "-" "shortcut" "could not update $($file.Name): $($_.Exception.Message)"
+		}
+	}
+
+	if (-not $found) {
+		$path = Join-Path $dirs[0] "Nemo Anywhere (dogfood).lnk"
+		try {
+			$link = $shell.CreateShortcut($path)
+			$link.TargetPath       = $cmd.Target
+			$link.Arguments        = $cmd.Arguments
+			$link.WorkingDirectory = $HOME
+			$link.WindowStyle      = 7
+			$link.Description      = "Nemo Anywhere (dogfood)"
+			if ($icon) { $link.IconLocation = $icon }
+			$link.Save()
+			fItem "ok" "shortcut" "created $path"
+		} catch {
+			fItem "-" "shortcut" "could not create it: $($_.Exception.Message)"
+		}
+	} elseif (-not $fixed) {
+		fItem "ok" "shortcut" "already current"
+	}
+}
+
+
+## What a shortcut should run. The .cmd wrapper when there is one - it is what a
+## double-click has always gone through - otherwise pwsh on this script. Minimized
+## either way: the console is a stepping stone to a GUI and nobody wants to see it.
+function fShortcutCommand {
+	$wrapper = fWrapperPath
+	if (-not $wrapper) { fItem "-" "shortcut" "no deployed launcher to point at; left alone"; return $null }
+	if ($wrapper -like "*.cmd") {
+		return @{ Target = "$env:SystemRoot\System32\cmd.exe"; Arguments = "/c `"`"$wrapper`"`"" }
+	}
+	$pwsh = fFindOnPath "pwsh"
+	if (-not $pwsh) { return $null }
+	return @{ Target = $pwsh; Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$wrapper`"" }
+}
+
+
+## Icon for a Windows shortcut: the fixed name in the pool, whose icon comes out of
+## the exe. Pointing at a version directly would go stale the next time one is
+## pruned, which is how the links on both boxes ended up dark.
+function fShortcutIcon {
+	if (Test-Path -LiteralPath $LinkPath) { return "$LinkPath,0" }
+	$newest = fNewestCopy
+	if ($newest) { return "$(fMainBin $newest.Payload.FullName),0" }
+	return $null
+}
+
+
+## The shell wrapper a desktop entry or shortcut should run. The wrapper tells us
+## where it is; failing that, whatever is on PATH; failing that, its known home in
+## the synced tree; failing that, this script, which at least works for anyone who
+## has pwsh associated.
 function fWrapperPath {
 	if ($env:N8RUNFM_WRAPPER -and (Test-Path -LiteralPath $env:N8RUNFM_WRAPPER)) {
 		return $env:N8RUNFM_WRAPPER
 	}
 	$onPath = fFindOnPath "runfm"
 	if ($onPath) { return $onPath }
-	return $PSCommandPath
+	foreach ($cand in ($WrapperPaths + $LauncherPaths)) {
+		if (Test-Path -LiteralPath $cand) { return $cand }
+	}
+	## Only if this copy is itself deployed. Anywhere else, say so and write nothing.
+	if ($LauncherPaths -contains $PSCommandPath) { return $PSCommandPath }
+	return $null
 }
 
 
@@ -860,7 +1086,6 @@ function fLaunchApp {
 	)
 
 	if (-not (Test-Path -LiteralPath $Exe)) { fFail "nothing to run at $Exe" }
-	if (-not $IsWindows) { fRegisterDesktopEntry }
 	return fStartApp -Exe $Exe -ArgList $PassArgs
 }
 
@@ -1234,6 +1459,16 @@ exit 0
 
 
 ##	History:
+##		- 2026-09-08: Each platform's source dir gets a second spelling, since 'synced'
+##		  is a link that not every box has. The menu icon is published beside the pool
+##		  under a fixed name, so an entry no longer goes dark when the version it
+##		  pointed into is pruned. Windows gets the desktop-entry treatment too: a
+##		  shortcut aimed at this app is repointed at the current launcher and icon, and
+##		  one is made if there is none - both boxes had a Start Menu link to a launcher
+##		  and an exe drop retired weeks ago. The old by-self exe drop is swept as well.
+##		  The desktop step runs whether or not there is
+##		  a build, and a copy run from outside its deployed home writes no shortcut at
+##		  all rather than one naming a path that will not last.
 ##		- 2026-09-07: Source is now the synced dogfood dir for the running platform and
 ##		  nothing else - the repo build and the b23 share are gone, along with the
 ##		  probe-every-source machinery and its network timeout. The pool moved into
