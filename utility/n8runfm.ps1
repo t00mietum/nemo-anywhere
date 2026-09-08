@@ -155,6 +155,9 @@ $LegacyLaunchers = if ($IsWindows) {
 		"C:\0-0\common\exec\synced\util\mswin\gui\by-self\win64\${ProgramName}.exe"
 		"C:\0-0\common\exec\synced\util\mswin\gui\by-self\win64\${ProgramName}"
 		"C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64\${ProgramName}.exe"
+		## The run log the launcher left behind when the pool lived there.
+		"C:\0-0\common\exec\local\util\mswin\gui\by-self\win64\n8runfm.log"
+		"C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64\n8runfm.log"
 	)
 } else {
 	@()
