@@ -181,6 +181,9 @@ if ((do_deb)); then
 			echo "Maintainer: ${MAINTAINER}"
 			echo "Installed-Size: ${installed_kb}"
 			echo "Depends: ${depends}"
+			## The action layout editor is a PyGObject script. Everything else
+			## runs without it, so a missing python only costs that one window.
+			echo "Recommends: python3-gi, python3-gi-cairo, gir1.2-gtk-3.0"
 			echo "Section: utils"
 			echo "Priority: optional"
 			echo "Homepage: https://github.com/t00mietum/${SLUG}"

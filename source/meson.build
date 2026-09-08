@@ -244,7 +244,10 @@ add_test_setup('nobus',
 
 subdir('test')
 subdir('docs')
-subdir('action-layout-editor')
+# A /bin/sh launcher and a PyGObject script; neither ships on Windows.
+if not is_windows
+  subdir('action-layout-editor')
+endif
 
 message('\n'.join(['',
 '        @0@-@1@'.format(meson.project_name(), meson.project_version()),

@@ -39,12 +39,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 The action layout editor does not run.
+- ✅ The action layout editor does not run.
 	- Opened: 20260908-000856
 	- Reachable from Preferences > Actions, which spawns it, but it dies at startup: its paths were baked in at configure time and point at an install prefix a portable copy never has.
 	- Also still reads and writes the pre-fork `nemo` config and data directories, so even once it starts, the app would not see what it saved.
-	- Around sixteen lines. Proven in a scratch copy: it comes up, lists the shipped actions, and saves where the action manager reads.
-	- One thing to settle: the editor's enable/disable checkboxes read a GSettings key that no longer exists.
+	- Fixed: it resolves its own prefix, uses the fork's config and data directories, and no longer needs the two Cinnamon libraries it imported. It comes up, lists the shipped actions, reorders them and saves where the action manager reads.
+	- The enable/disable checkboxes went with it. They read a GSettings key that no longer exists, and they duplicated Preferences > Actions, which already does the job. A switched-off action still shows greyed out here, read out of the config file.
+	- Not part of the Windows build: a /bin/sh launcher and a PyGObject script. The button that starts it is hidden there.
 
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
@@ -81,7 +82,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
 	- What is left of `share/` moves into the compiled resources. Data that only other programs read leaves the portable drop: editor syntax files, mime, polkit, man pages.
 	- The D-Bus service file stays, but is written at runtime so a relocated copy names its own path.
-	- The eight Cinnamon-only actions ship disabled.
+	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
 	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.

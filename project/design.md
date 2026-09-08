@@ -130,6 +130,7 @@ The container the day-to-day build actually runs in is `cicd/linux/Dockerfile.de
 	- `meson setup build source`
 	- `ninja -C build`
 - The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
+- The action layout editor is a separate PyGObject script rather than part of the binary, so at run time it wants `python3-gi`, `python3-gi-cairo` and `gir1.2-gtk-3.0`. Nothing else needs them, and without them only that one window is missing.
 
 ### Building (Windows cross)
 

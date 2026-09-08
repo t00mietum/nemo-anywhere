@@ -150,6 +150,8 @@ field: list-view.enable-folder-expansion
 
 field: plugins.disabled-actions
 	type: string-array
+	default: 90_new-launcher.nemo_action, 90_new-workspace.nemo_action, 91_delete-workspace.nemo_action, 92_show-expo.nemo_action, add-desklets.nemo_action, change-background.nemo_action, set-as-background.nemo_action, set-resolution.nemo_action
+	desc: Action files that are switched off. The shipped Cinnamon-only ones start here
 
 field: plugins.disabled-extensions
 	type: string-array

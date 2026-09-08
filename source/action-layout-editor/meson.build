@@ -1,5 +1,6 @@
 conf = configuration_data()
 conf.set_quoted('PKG_DATADIR', nemoDataPath)
+conf.set_quoted('APP_SLUG', appSlug)
 conf.set_quoted('LOCALE_DIR', join_paths(get_option('prefix'), get_option('localedir')))
 conf.set_quoted('PACKAGE', meson.project_name())
 conf.set_quoted('VERSION', meson.project_version())
