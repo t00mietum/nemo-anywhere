@@ -1766,6 +1766,10 @@ subdirectory_unloaded_callback (NemoListModel *model,
 					      G_CALLBACK (subdirectory_done_loading_callback),
 					      view);
 	nemo_view_remove_subdirectory (NEMO_VIEW (view), directory);
+
+	/* The rows that just left were measured on their way in, so the columns
+	   would keep the width they asked for. Once per collapse is cheap. */
+	remeasure_rows (view);
 }
 
 static gboolean

@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The settings file now ends with a commented list of everything you have not set, each line carrying the value used instead and, where the name is not obvious, a short note. Uncomment a line to change it. Sizes, positions and other things the app remembers for itself are left off the list.
 - The thumbnail cache is swept once a day rather than growing forever: a thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed. Both limits are on the Preview page and either can be turned off; the defaults match what a GNOME or Cinnamon desktop already applies to the same folder.
+- The list view no longer shrinks a column past what it shows. Name keeps the width that shows all but the widest tenth of the names in the folder (a setting under list-view), a type or owner column the width that shows most of its distinct values, and a date or a size is never cut at all. Type gives a little further, down to twice the Ext column, and past that the view scrolls sideways.
 - Search results give the Name and Location columns only the width their contents need, leaving the rest of the row empty. Where the two do not both fit they shrink in proportion to what each asked for, and neither ends more than twice the width of the other. Dragging either column still pins a split of the whole row.
 - `--existing-window` opens the URIs as tabs in one new window. There is no window of ours left to join, since every launch is its own process.
 - On Windows, bookmarks are kept beside the settings in the roaming profile, so they follow the settings between machines. A list from an earlier version is picked up from the old place on first start.
@@ -52,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- The bottom scrollbar flashed at every step of a resize, could stay after one when nothing needed it, and now and then strobed along with the vertical one.
 - On Windows, a first start with a fresh roaming profile carried the local data folder (actions, scripts) off into the settings folder, mistaking it for settings left by an older version. Only a folder that holds a settings file is moved now.
 - On Windows the window opened behind whatever you were already looking at, so a launch could look like nothing had happened until you noticed the taskbar button. It comes to the front now.
 ## v1.0.0-beta2 - 2026-08-04
