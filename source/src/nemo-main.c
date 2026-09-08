@@ -32,6 +32,9 @@
 
 #include "nemo-main-application.h"
 #include "nemo-splash.h"
+#ifndef G_OS_WIN32
+#include "nemo-extensions-list.h"
+#endif
 
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-debug.h>
@@ -104,6 +107,9 @@ main (int argc, char *argv[])
 	mallopt (M_MMAP_THRESHOLD, 128 *1024);
 #endif
 
+	/* Before anything reads a data dir, because GLib caches the list. */
+	nemo_setup_runtime_environment ();
+
 	/* This will be done by gtk+ later, but for now, force it to GNOME */
 #ifdef G_OS_UNIX
 	g_desktop_app_info_set_desktop_env ("GNOME");
@@ -112,6 +118,16 @@ main (int argc, char *argv[])
 	if (g_getenv ("NEMO_DEBUG") != NULL) {
 		eel_make_warnings_and_criticals_stop_in_debugger ();
 	}
+
+#ifndef G_OS_WIN32
+	/* Answered before anything else starts up: this run exists only to print the
+	 * list and go away, and loading the extensions to do it is one-way. Not in
+	 * the option table, because it must not reach a window that is already open. */
+	if (argc == 2 && strcmp (argv[1], "--extensions-list") == 0) {
+		nemo_extensions_list_print ();
+		return 0;
+	}
+#endif
 
 #ifdef G_OS_WIN32
 	/* Freetype's default v40 interpreter hints lighter/thinner than native

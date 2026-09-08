@@ -207,13 +207,16 @@ configure_file(
 rootInclude = include_directories('.')
 shclInclude = include_directories('../vendor/shcl')
 nemoDataPath      = join_paths(get_option('prefix'), get_option('datadir'), appSlug)
-libExecPath       = join_paths(get_option('prefix'), get_option('libexecdir'))
 nemoExtensionPath = join_paths(get_option('prefix'), get_option('libdir'), appSlug, 'extensions-3.0')
+
+# The installed program has no wrapper script in front of it, so it has to find
+# the extension library relative to itself. libdir carries the multiarch triplet
+# on Debian and friends, which is why this is not a fixed '../lib'.
+nemoRpath = join_paths('$ORIGIN', '..', get_option('libdir'))
 
 nemo_definitions =  [
   '-DNEMO_DATADIR="@0@"'.format(nemoDataPath),
   '-DNEMO_EXTENSIONDIR="@0@"'.format(nemoExtensionPath),
-  '-DLIBEXECDIR="@0@"'.format(libExecPath),
   '-DNEMO_APP_SLUG="@0@"'.format(appSlug),
   '-DG_LOG_DOMAIN="Nemo"'
 ]
@@ -241,7 +244,10 @@ add_test_setup('nobus',
 
 subdir('test')
 subdir('docs')
-subdir('action-layout-editor')
+# A /bin/sh launcher and a PyGObject script; neither ships on Windows.
+if not is_windows
+  subdir('action-layout-editor')
+endif
 
 message('\n'.join(['',
 '        @0@-@1@'.format(meson.project_name(), meson.project_version()),

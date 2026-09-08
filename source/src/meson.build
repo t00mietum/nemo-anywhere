@@ -87,6 +87,13 @@ if enableEmptyView
   nemoCommon_sources += 'nemo-empty-view.c'
 endif
 
+# The extension lister runs as its own process on purpose: it instantiates every
+# installed extension to read its name, and there is no way to unload them again.
+# It is a flag on our own exe rather than a second binary.
+if not is_windows
+  nemoCommon_sources += 'nemo-extensions-list.c'
+endif
+
 nemo_deps = [ gail, glib, gtk, math,
   egg, nemo_extension, nemo_private, win_shell ]
 
@@ -135,42 +142,6 @@ nemo = executable('nemo-anywhere',
   dependencies: nemo_deps,
   # GUI subsystem so Windows doesn't spawn a console window (no-op elsewhere)
   win_subsystem: 'windows',
-  install: true
+  install: true,
+  install_rpath: is_windows ? '' : nemoRpath,
 )
-
-# Helper exes are Unix-only. On Windows the connect + open-with dialogs run
-# in-process and nothing spawns the standalone launchers; the extensions lister
-# has nothing to enumerate with no external plugin loading. Keeps Windows to a
-# single exe (the ultra-portable goal).
-if not is_windows
-  nemo_connect_server = executable('nemo-anywhere-connect-server',
-    [
-      'nemo-bookmark-list.c',
-      'nemo-connect-server-dialog.c',
-      'nemo-connect-server-dialog-main.c',
-      'nemo-connect-server-operation.c'
-    ],
-    include_directories: [ rootInclude, ],
-    c_args: nemo_definitions,
-    dependencies: nemo_deps,
-    install: true
-  )
-
-  nemo_open_with = executable('nemo-anywhere-open-with',
-    [ 'nemo-open-with-main.c' ],
-    include_directories: [ rootInclude, ],
-    c_args: nemo_definitions,
-    dependencies: nemo_deps,
-    install: true
-  )
-
-  # LibExecs
-  nemo_extensions_list = executable('nemo-anywhere-extensions-list',
-    [ 'nemo-extensions-list.c' ],
-    include_directories: [ rootInclude, ],
-    c_args: nemo_definitions,
-    dependencies: [ nemo_deps ],
-    install: true,
-    install_dir: libExecPath,
-  )
-endif

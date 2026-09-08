@@ -144,7 +144,7 @@ deb_depends(){
 			libargs=""
 			for ld in lib/*/; do [ -d "$ld" ] && libargs="$libargs -l$PWD/$ld"; done
 			dpkg-shlibdeps -O --ignore-missing-info $libargs \
-				-Tdebian/pkg.substvars bin/* libexec/* 2>/dev/null
+				-Tdebian/pkg.substvars bin/* 2>/dev/null
 		' < "$tarball" | sed -n 's/^shlibs:Depends=//p' | head -1)" || line=""
 	fi
 
@@ -181,6 +181,9 @@ if ((do_deb)); then
 			echo "Maintainer: ${MAINTAINER}"
 			echo "Installed-Size: ${installed_kb}"
 			echo "Depends: ${depends}"
+			## The action layout editor is a PyGObject script. Everything else
+			## runs without it, so a missing python only costs that one window.
+			echo "Recommends: python3-gi, python3-gi-cairo, gir1.2-gtk-3.0"
 			echo "Section: utils"
 			echo "Priority: optional"
 			echo "Homepage: https://github.com/t00mietum/${SLUG}"

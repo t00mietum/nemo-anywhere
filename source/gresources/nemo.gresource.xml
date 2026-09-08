@@ -7,6 +7,11 @@
 
     <file>nemo-shortcuts.ui</file>
 
+    <!-- Shown from the info bar in the actions and scripts folders. Handed to
+         whatever opens markdown, so they get written out to the cache first. -->
+    <file>action-info.md</file>
+    <file>script-info.md</file>
+
     <file>nemo-blank-desktop-window-ui.xml</file>
     <file>nemo-desktop-icon-grid-view-ui.xml</file>
     <file>nemo-desktop-icon-view-ui.xml</file>
@@ -66,6 +71,9 @@
     <file alias="appicons/scalable/actions/nemo-recursive-search-symbolic-rtl.svg">hicolor/actions/scalable/nemo-recursive-search-symbolic-rtl.svg</file>
     <file alias="appicons/scalable/emblems/nemo-emblem-shortcut.svg">hicolor/emblems/scalable/nemo-emblem-shortcut.svg</file>
     <file alias="appicons/scalable/emblems/nemo-emblem-symlink.svg">hicolor/emblems/scalable/nemo-emblem-symlink.svg</file>
+    <file alias="appicons/16x16/emblems/emblem-note.png">hicolor/emblems/16x16/emblem-note.png</file>
+    <file alias="appicons/24x24/emblems/emblem-note.png">hicolor/emblems/24x24/emblem-note.png</file>
+    <file alias="appicons/48x48/emblems/emblem-note.png">hicolor/emblems/48x48/emblem-note.png</file>
     <file alias="appicons/scalable/status/nemo-progress-0-symbolic.svg">hicolor/status/scalable/nemo-progress-0-symbolic.svg</file>
     <file alias="appicons/scalable/status/nemo-progress-10-symbolic.svg">hicolor/status/scalable/nemo-progress-10-symbolic.svg</file>
     <file alias="appicons/scalable/status/nemo-progress-20-symbolic.svg">hicolor/status/scalable/nemo-progress-20-symbolic.svg</file>

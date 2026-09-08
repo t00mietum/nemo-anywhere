@@ -103,7 +103,20 @@ static const char *const deflist_list_view_default_visible_columns[] = { "name",
 static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "group", "permissions", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", "group", "permissions", NULL };
 #endif
-static const char *const deflist_plugins_disabled_actions[] = { NULL };
+/* The actions that only do anything under Cinnamon: they call cinnamon-settings,
+ * the desktop editor, or org.Cinnamon over the bus. Off unless someone turns them
+ * on, and still listed in Preferences > Actions so a Cinnamon user can. */
+static const char *const deflist_plugins_disabled_actions[] = {
+	"90_new-launcher.nemo_action",
+	"90_new-workspace.nemo_action",
+	"91_delete-workspace.nemo_action",
+	"92_show-expo.nemo_action",
+	"add-desklets.nemo_action",
+	"change-background.nemo_action",
+	"set-as-background.nemo_action",
+	"set-resolution.nemo_action",
+	NULL
+};
 static const char *const deflist_plugins_disabled_extensions[] = { NULL };
 static const char *const deflist_plugins_disabled_scripts[] = { NULL };
 static const char *const deflist_preferences_image_viewers_with_external_sort[] = { "xviewer", "feh", "sxiv", NULL };
@@ -148,7 +161,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "list-view", "default-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_visible_columns, NULL, NULL },
 	{ "list-view", "default-zoom-level", NEMO_CONFIG_ENUM, "small", NULL, enum_ZoomLevel, NULL },
 	{ "list-view", "enable-folder-expansion", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Let a folder be expanded in place to show what is in it" },
-	{ "plugins", "disabled-actions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_actions, NULL, NULL },
+	{ "plugins", "disabled-actions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_actions, NULL, "Action files that are switched off. The shipped Cinnamon-only ones start here" },
 	{ "plugins", "disabled-extensions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_extensions, NULL, NULL },
 	{ "plugins", "disabled-scripts", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_scripts, NULL, NULL },
 	{ "preferences", "always-show-tabs", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Show the tab strip even with only one tab" },

@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 import gi
 gi.require_version('Gtk', '3.0')
-gi.require_version('XApp', '1.0')
-gi.require_version('Xmlb', '2.0')
-from gi.repository import Gtk, Gdk, GLib, Gio, XApp, GdkPixbuf, Pango, Xmlb
+from gi.repository import Gtk, Gdk, GLib, Gio, GdkPixbuf, Pango
 import cairo
 import json
 from pathlib import Path
@@ -13,19 +11,31 @@ import locale
 from collections import OrderedDict
 import subprocess
 import os
+import xml.etree.ElementTree as ElementTree
 
 import leconfig
 
-locale.bindtextdomain("nemo", leconfig.LOCALE_DIR)
-gettext.bindtextdomain("nemo", leconfig.LOCALE_DIR)
-gettext.textdomain("nemo")
+# The configured paths are only right for an install that stayed where it was
+# built, so work them out from this file first: it sits in
+# <prefix>/share/<slug>/layout-editor.
+_DATA_HERE = Path(__file__).resolve().parent.parent
+_LOCALE_HERE = _DATA_HERE.parent / "locale"
+
+PKG_DATADIR = str(_DATA_HERE) if (_DATA_HERE / "nemo-action-layout-editor-resources.gresource").is_file() \
+              else leconfig.PKG_DATADIR
+LOCALE_DIR = str(_LOCALE_HERE) if _LOCALE_HERE.is_dir() else leconfig.LOCALE_DIR
+
+locale.bindtextdomain(leconfig.APP_SLUG, LOCALE_DIR)
+gettext.bindtextdomain(leconfig.APP_SLUG, LOCALE_DIR)
+gettext.textdomain(leconfig.APP_SLUG)
 _ = gettext.gettext
 
-gresources = Gio.Resource.load(os.path.join(leconfig.PKG_DATADIR, "nemo-action-layout-editor-resources.gresource"))
+gresources = Gio.Resource.load(os.path.join(PKG_DATADIR, "nemo-action-layout-editor-resources.gresource"))
 gresources._register()
 
-JSON_FILE = Path(GLib.get_user_config_dir()).joinpath("nemo/actions-tree.json")
-USER_ACTIONS_DIR = Path(GLib.get_user_data_dir()).joinpath("nemo/actions")
+JSON_FILE = Path(GLib.get_user_config_dir()).joinpath(leconfig.APP_SLUG, "actions-tree.json")
+USER_ACTIONS_DIR = Path(GLib.get_user_data_dir()).joinpath(leconfig.APP_SLUG, "actions")
+CONFIG_FILE = Path(GLib.get_user_config_dir()).joinpath(leconfig.APP_SLUG, "settings.shcl")
 
 NON_SPICE_UUID_SUFFIX = "@untracked"
 
@@ -35,8 +45,173 @@ ROW_TYPE_ACTION = "action"
 ROW_TYPE_SUBMENU = "submenu"
 ROW_TYPE_SEPARATOR = "separator"
 
+
 def new_hash():
     return uuid.uuid4().hex
+
+
+
+def read_text(path):
+    """A whole file as text, or None when it is not there."""
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+
+def split_list(value):
+    """An SHCL list value as plain strings. Only ever names here, so a comma
+    split and a strip is the whole job."""
+    return [part.strip().strip("\"'") for part in value.split("#", 1)[0].split(",")
+            if part.strip()]
+
+
+def action_data_dirs():
+    """Where action files can live. The prefix this script sits in goes on the
+    list itself, so the editor still finds the actions that shipped with it when
+    it was started from a shell rather than from the app."""
+    dirs = list(GLib.get_system_data_dirs())
+    own = str(_DATA_HERE.parent)
+
+    if own not in dirs:
+        dirs.append(own)
+
+    dirs.append(GLib.get_user_data_dir())
+
+    return dirs
+
+
+class WidgetGroup:
+    """Sensitivity applied to several widgets at once. Was XApp.VisibilityGroup,
+    which is not available off Cinnamon."""
+
+    def __init__(self, widgets):
+        self.widgets = widgets
+
+    def set_sensitive(self, sensitive):
+        for widget in self.widgets:
+            widget.set_sensitive(sensitive)
+
+
+class IconChooserDialog(Gtk.Dialog):
+    """A themed icon name or the path of an image file, with a preview of
+    whichever is typed. Was XApp.IconChooserDialog."""
+
+    def __init__(self, parent=None):
+        super().__init__(title=_("Choose an icon"), transient_for=parent, modal=True)
+        self.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        self.add_button(_("Select"), Gtk.ResponseType.OK)
+        self.set_default_response(Gtk.ResponseType.OK)
+
+        self.entry = Gtk.Entry(activates_default=True, hexpand=True)
+        self.entry.connect("changed", self.on_entry_changed)
+        self.preview = Gtk.Image()
+        browse = Gtk.Button(label=_("Browse..."))
+        browse.connect("clicked", self.on_browse_clicked)
+
+        grid = Gtk.Grid(row_spacing=8, column_spacing=8, margin=12)
+        grid.attach(Gtk.Label(label=_("Icon name or image file"), xalign=0), 0, 0, 2, 1)
+        grid.attach(self.entry, 0, 1, 1, 1)
+        grid.attach(browse, 1, 1, 1, 1)
+        grid.attach(self.preview, 0, 2, 2, 1)
+        self.get_content_area().add(grid)
+        self.show_all()
+
+    def on_entry_changed(self, entry):
+        text = entry.get_text().strip()
+        if os.path.isfile(text):
+            self.preview.set_from_file(text)
+        else:
+            self.preview.set_from_icon_name(text or "image-missing", Gtk.IconSize.DIALOG)
+
+    def on_browse_clicked(self, button):
+        chooser = Gtk.FileChooserDialog(title=_("Choose an image file"), transient_for=self,
+                                        action=Gtk.FileChooserAction.OPEN, modal=True)
+        chooser.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        chooser.add_button(_("Open"), Gtk.ResponseType.OK)
+
+        images = Gtk.FileFilter()
+        images.set_name(_("Images"))
+        images.add_pixbuf_formats()
+        chooser.add_filter(images)
+
+        if chooser.run() == Gtk.ResponseType.OK:
+            self.entry.set_text(chooser.get_filename() or "")
+        chooser.destroy()
+
+    def get_icon_string(self):
+        return self.entry.get_text().strip()
+
+    def run_with_icon(self, icon):
+        self.entry.set_text(icon or "")
+        return self.run()
+
+
+class DisabledActions:
+    """Which actions are switched off, read out of the app's own config file.
+    Read-only on purpose: the app owns that file, and turning an action on or off
+    belongs on its Preferences page, which is where a change here is seen live."""
+
+    KEY = "plugins.disabled-actions"
+
+    def __init__(self):
+        self.monitor = Gio.File.new_for_path(str(CONFIG_FILE)).monitor_file(Gio.FileMonitorFlags.NONE, None)
+
+    def connect(self, signal, callback):
+        self.monitor.connect("changed", lambda *args: callback(self, self.KEY))
+
+    def get_strv(self, key):
+        # Only settings that differ from their default are written, so an
+        # untouched install has no line at all and the schema is the answer.
+        values = self.from_settings()
+        return values if values is not None else self.from_schema()
+
+    def from_settings(self):
+        """The list as set in the config file, or None when it is not set there."""
+        text = read_text(CONFIG_FILE)
+        if text is None:
+            return None
+
+        # Enough SHCL to find one list of plain names. A value is written either
+        # flat (group.key) or under a group header, and a name never needs quoting.
+        group = ""
+        for raw in text.splitlines():
+            stripped = raw.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+
+            name, sep, value = stripped.partition(":")
+            if not sep:
+                continue
+
+            name = name.strip()
+            indented = raw[:1] in (" ", "\t")
+            full = "%s.%s" % (group, name) if indented and group else name
+
+            if full == self.KEY:
+                return split_list(value)
+            if not indented and not value.strip():
+                group = name
+
+        return None
+
+    def from_schema(self):
+        """The shipped default, out of the schema that sits beside the app."""
+        text = read_text(Path(PKG_DATADIR).joinpath(leconfig.APP_SLUG + ".schema.shcl"))
+        if text is None:
+            return []
+
+        in_field = False
+        for raw in text.splitlines():
+            stripped = raw.strip()
+            if stripped.startswith("field:"):
+                in_field = stripped.partition(":")[2].strip() == self.KEY
+            elif in_field and stripped.startswith("default:"):
+                return split_list(stripped.partition(":")[2])
+
+        return []
+
+
 
 class BuiltinShortcut():
     def __init__(self, label, accel_string):
@@ -46,6 +221,7 @@ class BuiltinShortcut():
             self.label = "invalid (%s)" % accel_string
 
         self.label = _(label)
+
 
 class Row():
     def __init__(self, row_meta=None, keyfile=None, path=None, enabled=True, scale_factor=1):
@@ -182,7 +358,7 @@ class NemoActionsOrganizer(Gtk.Box):
         self.clear_icon_button = self.builder.get_object("clear_icon_button")
         self.icon_selector_menu_button = self.builder.get_object("icon_selector_menu_button")
         self.icon_selector_image = self.builder.get_object("icon_selector_image")
-        self.selected_item_widgets_group = XApp.VisibilityGroup.new(True, True, [
+        self.selected_item_widgets_group = WidgetGroup([
             self.icon_selector_menu_button,
             self.name_entry
         ])
@@ -192,8 +368,8 @@ class NemoActionsOrganizer(Gtk.Box):
         self.down_button = self.builder.get_object("down_button")
         self.down_button.connect("clicked", self.down_button_clicked)
 
-        self.nemo_plugin_settings = Gio.Settings(schema_id="org.nemo-anywhere.plugins")
-        # Disabled/Enabled may be toggled in nemo preferences directly, keep us in sync.
+        self.nemo_plugin_settings = DisabledActions()
+        # Actions are switched on and off in the app's preferences, so follow it.
         self.nemo_plugin_settings.connect("changed", self.on_disabled_settings_list_changed)
 
         # Icon MenuButton
@@ -249,10 +425,6 @@ class NemoActionsOrganizer(Gtk.Box):
         column.set_expand(True)
         column.set_spacing(2)
 
-        cell = Gtk.CellRendererToggle(activatable=True)
-        cell.connect("toggled", self.on_action_row_toggled)
-        column.pack_start(cell, False)
-        column.set_cell_data_func(cell, self.toggle_render_func)
         cell = Gtk.CellRendererPixbuf()
         column.pack_start(cell, False)
         column.set_cell_data_func(cell, self.menu_icon_render_func)
@@ -291,7 +463,6 @@ class NemoActionsOrganizer(Gtk.Box):
         self.name_entry.connect("icon-press", self.on_name_entry_icon_clicked)
         self.remove_submenu_button.connect("clicked", self.on_remove_submenu_clicked)
 
-        self.treeview.connect("row-activated", self.on_row_activated)
 
         # DND
         self.treeview.drag_source_set(
@@ -327,25 +498,26 @@ class NemoActionsOrganizer(Gtk.Box):
         self.set_needs_saved(False)
 
     def load_nemo_shortcuts(self):
-        source = Xmlb.BuilderSource()
         try:
-            xml = Gio.resources_lookup_data("/org/nemo/action-layout-editor/nemo-shortcuts.ui", Gio.ResourceLookupFlags.NONE)
-            ret = source.load_bytes(xml, Xmlb.BuilderSourceFlags.NONE)
-            builder = Xmlb.Builder()
-            builder.import_source(source)
-            silo = builder.compile(Xmlb.BuilderCompileFlags.NONE, None)
-        except GLib.Error as e:
-            print("Could not load nemo-shortcuts.ui from resource file - we won't be able to detect built-in shortcut collisions: %s" % e.message)
+            data = Gio.resources_lookup_data("/org/nemo/action-layout-editor/nemo-shortcuts.ui",
+                                             Gio.ResourceLookupFlags.NONE)
+            root = ElementTree.fromstring(data.get_data().decode("utf-8"))
+        except (GLib.Error, ElementTree.ParseError, UnicodeDecodeError) as e:
+            print("Could not read the shortcut list, so collisions with a built-in one will not be spotted: %s" % e)
             return
 
-        root = silo.query_first("interface")
-        for child in root.query(f"object/child", 0):
-            for section in child.query("object[@class='GtkShortcutsSection']", 0):
-                for group in section.query("child/object[@class='GtkShortcutsGroup']", 0):
-                    for shortcut in group.query("child/object[@class='GtkShortcutsShortcut']", 0):
-                        label = shortcut.query_text("property[@name='title']")
-                        accel = shortcut.query_text("property[@name='accelerator']")
-                        self.builtin_shortcuts.append(BuiltinShortcut(label, accel))
+        for obj in root.iter("object"):
+            if obj.get("class") != "GtkShortcutsShortcut":
+                continue
+
+            label = accel = None
+            for prop in obj.findall("property"):
+                if prop.get("name") == "title":
+                    label = prop.text
+                elif prop.get("name") == "accelerator":
+                    accel = prop.text
+
+            self.builtin_shortcuts.append(BuiltinShortcut(label, accel))
 
     def reload_model(self, flat=False):
         self.updating_model = True
@@ -377,18 +549,19 @@ class NemoActionsOrganizer(Gtk.Box):
         installed_actions = self.load_installed_actions()
         self.fill_model(self.model, None, self.data['toplevel'], installed_actions)
 
-        start_path = Gtk.TreePath.new_first()
-        self.treeview.get_selection().select_path(start_path)
-        self.treeview.scroll_to_cell(start_path, None, True, 0, 0)
+        if self.model.get_iter_first() is not None:
+            start_path = Gtk.TreePath.new_first()
+            self.treeview.get_selection().select_path(start_path)
+            self.treeview.scroll_to_cell(start_path, None, True, 0, 0)
         self.update_row_controls()
 
         self.updating_model = False
 
     def monitor_action_dirs (self):
-        data_dirs = GLib.get_system_data_dirs() + [GLib.get_user_data_dir()]
+        data_dirs = action_data_dirs()
 
         for d in data_dirs:
-            full = os.path.join(d, "nemo", "actions")
+            full = os.path.join(d, leconfig.APP_SLUG, "actions")
             file = Gio.File.new_for_path(full)
             try:
                 if not file.query_exists(None):
@@ -488,10 +661,10 @@ class NemoActionsOrganizer(Gtk.Box):
         # Load installed actions from the system
         action_list = []
 
-        data_dirs = GLib.get_system_data_dirs() + [GLib.get_user_data_dir()]
+        data_dirs = action_data_dirs()
 
         for data_dir in data_dirs:
-            actions_dir = Path(data_dir).joinpath("nemo/actions")
+            actions_dir = Path(data_dir).joinpath(leconfig.APP_SLUG, "actions")
             if actions_dir.is_dir():
                 for path in actions_dir.iterdir():
                     file = Path(path)
@@ -513,7 +686,7 @@ class NemoActionsOrganizer(Gtk.Box):
         return actions
 
     def fill_model(self, model, parent, items, installed_actions):
-        disabled_actions = self.nemo_plugin_settings.get_strv("disabled-actions")
+        disabled_actions = self.nemo_plugin_settings.get_strv(DisabledActions.KEY)
         scale_factor = self.main_window.get_scale_factor()
 
         for item in items:
@@ -553,25 +726,8 @@ class NemoActionsOrganizer(Gtk.Box):
             enabled = path.name not in disabled_actions
             model.append(parent, [new_hash(), uuid, ROW_TYPE_ACTION, Row(None, kf, path, enabled, scale_factor)])
 
-    def save_disabled_list(self):
-        disabled = []
-
-        def get_disabled(model, path, iter, data=None):
-            row = model.get_value(iter, ROW_OBJ)
-            row_type = model.get_value(iter, ROW_TYPE)
-            if row_type == ROW_TYPE_ACTION:
-                if not row.enabled:
-                    nonlocal disabled
-                    disabled.append(row.get_path().name)
-
-            return False
-
-        self.model.foreach(get_disabled)
-
-        self.nemo_plugin_settings.set_strv("disabled-actions", disabled)
-
     def on_disabled_settings_list_changed(self, settings, key, data=None):
-        disabled_actions = self.nemo_plugin_settings.get_strv("disabled-actions")
+        disabled_actions = self.nemo_plugin_settings.get_strv(DisabledActions.KEY)
 
         def update_disabled(model, path, iter, data=None):
             row = model.get_value(iter, ROW_OBJ)
@@ -701,26 +857,6 @@ class NemoActionsOrganizer(Gtk.Box):
 
         self.updating_row_edit_fields = False
 
-    def _toggle_row_enabled(self, row):
-        row.enabled = not row.enabled
-        self.selected_row_changed(needs_saved=False)
-        self.save_disabled_list()
-
-    def on_row_activated(self, treeview, path, column, data=None):
-        if self.updating_row_edit_fields:
-            return
-
-        row = self.get_selected_row_field(ROW_OBJ)
-        if row is not None:
-            self._toggle_row_enabled(row)
-
-    def on_action_row_toggled(self, renderer, path, data=None):
-        iter = self.model.get_iter(path)
-        row = self.model.get_value(iter, ROW_OBJ)
-
-        if row is not None:
-            self._toggle_row_enabled(row)
-
     def set_icon_button(self, row):
         for image, use_orig in ([self.icon_selector_image, False], [self.original_icon_menu_image, True]):
 
@@ -776,7 +912,6 @@ class NemoActionsOrganizer(Gtk.Box):
 
     def on_save_clicked(self, button):
         self.save_model()
-        self.save_disabled_list()
         self.set_needs_saved(False)
 
     def on_discard_changes_clicked(self, button):
@@ -800,22 +935,17 @@ class NemoActionsOrganizer(Gtk.Box):
             self.selected_row_changed()
 
     def on_choose_icon_clicked(self, menuitem):
-        chooser = XApp.IconChooserDialog()
-
         row = self.get_selected_row_field(ROW_OBJ)
-        if row is not None:
-            icon_name = row.get_icon_string()
+        if row is None:
+            return
 
-            if icon_name is not None:
-                response = chooser.run_with_icon(icon_name)
-            else:
-                response = chooser.run()
+        chooser = IconChooserDialog(self.main_window)
+        response = chooser.run_with_icon(row.get_icon_string())
 
         if response == Gtk.ResponseType.OK:
             row.set_custom_icon(chooser.get_icon_string())
             self.selected_row_changed()
 
-        chooser.hide()
         chooser.destroy()
 
     def on_new_submenu_clicked(self, menuitem):
@@ -991,16 +1121,6 @@ class NemoActionsOrganizer(Gtk.Box):
         return not conflict
 
     # Cell render functions
-    def toggle_render_func(self, column, cell, model, iter, data):
-        row_type = model.get_value(iter, ROW_TYPE)
-        row = model.get_value(iter, ROW_OBJ)
-
-        if row_type in (ROW_TYPE_SUBMENU, ROW_TYPE_SEPARATOR):
-            cell.set_property("visible", False)
-        else:
-            cell.set_property("visible", True)
-            cell.set_property("active", row.enabled)
-
     def menu_icon_render_func(self, column, cell, model, iter, data):
         row = model.get_value(iter, ROW_OBJ)
 
@@ -1518,7 +1638,6 @@ class NemoActionsOrganizer(Gtk.Box):
 
             if response == Gtk.ResponseType.YES:
                 self.save_model()
-                self.save_disabled_list()
 
         for monitor in self.monitors:
             monitor.cancel()

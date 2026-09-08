@@ -31,6 +31,8 @@
 #include <libnemo-private/nemo-trash-monitor.h>
 #include <libnemo-private/nemo-action-manager.h>
 
+#include <string.h>
+
 #define NEMO_INTERESTING_FOLDER_BAR_GET_PRIVATE(o)\
 	(G_TYPE_INSTANCE_GET_PRIVATE ((o), NEMO_TYPE_INTERESTING_FOLDER_BAR, NemoInterestingFolderBarPrivate))
 
@@ -55,33 +57,74 @@ struct NemoInterestingFolderBarPrivate
 
 G_DEFINE_TYPE (NemoInterestingFolderBar, nemo_interesting_folder_bar, GTK_TYPE_INFO_BAR);
 
+/* The document rides inside the binary, but it is handed to whatever the user
+ * reads markdown with, and that needs a real file. Written out to the cache and
+ * refreshed whenever the copy there is not what we carry. NULL if it could not
+ * be written. */
+static char *
+info_doc_path (const char *name)
+{
+    g_autofree char *dir = g_build_filename (g_get_user_cache_dir (), NEMO_APP_SLUG, NULL);
+    g_autofree char *resource = g_strconcat ("/org/nemo/", name, NULL);
+    g_autoptr (GBytes) bytes = NULL;
+    g_autofree char *current = NULL;
+    gsize current_len = 0;
+    gsize len = 0;
+    const char *data;
+    char *path;
+
+    bytes = g_resources_lookup_data (resource, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+    if (bytes == NULL) {
+        return NULL;
+    }
+
+    data = g_bytes_get_data (bytes, &len);
+    path = g_build_filename (dir, name, NULL);
+
+    if (g_file_get_contents (path, &current, &current_len, NULL) &&
+        current_len == len && memcmp (current, data, len) == 0) {
+        return path;
+    }
+
+    if (g_mkdir_with_parents (dir, 0700) != 0 ||
+        !g_file_set_contents (path, data, len, NULL)) {
+        g_free (path);
+        return NULL;
+    }
+
+    return path;
+}
+
+static void
+open_info_doc (NemoInterestingFolderBar *bar, const char *name)
+{
+    g_autofree char *path = info_doc_path (name);
+    GFile *f;
+
+    if (path == NULL) {
+        return;
+    }
+
+    f = g_file_new_for_path (path);
+    nemo_view_activate_file (bar->priv->view, nemo_file_get (f), NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW);
+    g_object_unref (f);
+}
+
 static void
 interesting_folder_bar_response_cb (GtkInfoBar *infobar,
                                           gint  response_id,
                                       gpointer  user_data)
 {
     NemoInterestingFolderBar *bar;
-    GFile *f = NULL;
-    gchar *path;
 
     bar = NEMO_INTERESTING_FOLDER_BAR (infobar);
 
     switch (response_id) {
         case INTERESTING_FOLDER_BAR_ACTION_OPEN_DOC:
-            path = g_build_filename (nemo_get_data_dir (), "action-info.md", NULL);
-            f = g_file_new_for_path (path);
-            g_free (path);
-            if (g_file_query_exists (f, NULL))
-                nemo_view_activate_file (bar->priv->view, nemo_file_get (f), NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW);
-            g_object_unref (f);
+            open_info_doc (bar, "action-info.md");
             break;
         case INTERESTING_FOLDER_BAR_SCRIPT_OPEN_DOC:
-            path = g_build_filename (nemo_get_data_dir (), "script-info.md", NULL);
-            f = g_file_new_for_path (path);
-            g_free (path);
-            if (g_file_query_exists (f, NULL))
-                nemo_view_activate_file (bar->priv->view, nemo_file_get (f), NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW);
-            g_object_unref (f);
+            open_info_doc (bar, "script-info.md");
             break;
         default:
             break;

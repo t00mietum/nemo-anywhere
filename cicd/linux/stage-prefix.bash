@@ -7,9 +7,9 @@
 ##	  from the distro. Only nemo's own binaries, libs and data are here (~5MB).
 ##	- Runs INSIDE the build container (meson, glib-compile-schemas and
 ##	  gtk-update-icon-cache all have to be the ones the build used).
-##	- The real binary moves to libexec/ so bin/nemo-anywhere can be the wrapper
-##	  that wires the environment. Everything the app looks up through XDG_DATA_DIRS
-##	  (actions, search helpers, icons, mime) then resolves wherever the folder ends up.
+##	- One executable, at bin/nemo-anywhere, with no wrapper script in front of it.
+##	  It points XDG_DATA_DIRS and PATH at its own folder on startup and finds the
+##	  extension library through an $ORIGIN rpath, so the prefix runs from anywhere.
 ##	- Syntax: stage-prefix.bash <build-dir> <dest-dir>   (dest is wiped and rebuilt)
 
 ##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
@@ -68,56 +68,27 @@ gtk-update-icon-cache -qtf "${DEST}/share/icons/hicolor" 2>/dev/null || true
 rm -rf "${DEST}/include" "${DEST}"/lib/*/pkgconfig
 find "${DEST}/lib" -maxdepth 2 -type l -name "lib${SLUG}-extension.so" -delete
 
+## Files no program reads unless they sit under a system data dir. This prefix is
+## relocatable and the packages put it under /opt, so in every artifact we ship
+## they are dead weight. A distro doing its own `meson install --prefix=/usr` still
+## gets them; the install rules are untouched.
+##  - mime, polkit: read only out of /usr/share by their own daemons
+##  - man: only on MANPATH
+##  - gtksourceview: syntax files for editing .nemo_action files in someone else's editor
+##  - dbus-1: activation, which the app now writes into the user's own service dir
+##            at startup, naming the path this copy actually runs from
+fEcho "Dropping data only a system install would use"
+rm -rf "${DEST}/share/mime" "${DEST}/share/polkit-1" "${DEST}/share/man" "${DEST}/share/dbus-1"
+rm -rf "${DEST}"/share/gtksourceview-*
 
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Entry point
+## Same again for the icons. Every one the app draws with is compiled into the
+## binary, so what is installed here is the copy a system icon theme would serve
+## to other programs - and this prefix is not one. The app icon itself stays:
+## package.bash lifts it into /usr/share/icons and the launcher points a menu
+## entry at it.
+find "${DEST}/share/icons" -type f ! -path "*/apps/*" -delete
+find "${DEST}/share/icons" -type d -empty -delete
 
-## The prefix has to run from anywhere - the installer drops it in ~/.local/share or
-## /opt, and links ~/.local/bin/nemo-anywhere at this wrapper - so every path is
-## derived from the wrapper's own resolved location, never baked in.
-fEcho "Writing bin/${SLUG} wrapper"
-mkdir -p "${DEST}/libexec"
-mv "${DEST}/bin/${SLUG}" "${DEST}/libexec/${SLUG}"
-cat > "${DEST}/bin/${SLUG}" <<-'WRAPPER'
-	#!/bin/sh
-	# Entry point for a relocatable nemo-anywhere prefix. Resolves its own location
-	# (following the symlink the installer puts on PATH) and points the runtime at
-	# this folder: the extension lib and the data dirs that carry nemo's actions,
-	# search helpers, icons and mime info.
-
-	self="$0"
-	while [ -L "$self" ]; do
-		link="$(readlink "$self")"
-		case "$link" in
-			/*) self="$link" ;;
-			 *) self="$(dirname "$self")/$link" ;;
-		esac
-	done
-	prefix="$(cd "$(dirname "$self")/.." && pwd)"
-
-	# The extension library sits under the build machine's multiarch dir, which
-	# is not x86_64 on an arm64 build - glob rather than bake one triplet in.
-	for libdir in "${prefix}"/lib/*-linux-gnu*; do
-		[ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-	done
-	LD_LIBRARY_PATH="${prefix}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-	# A launcher may already have put this share dir first.
-	case ":${XDG_DATA_DIRS:-}:" in
-		*":${prefix}/share:"*) ;;
-		*) XDG_DATA_DIRS="${prefix}/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" ;;
-	esac
-	PATH="${prefix}/bin:${PATH}"
-	export LD_LIBRARY_PATH XDG_DATA_DIRS PATH
-
-	# Settings no longer use GSettings, so there is normally no schema here.
-	if [ -d "${prefix}/share/glib-2.0/schemas" ]; then
-		GSETTINGS_SCHEMA_DIR="${prefix}/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:${GSETTINGS_SCHEMA_DIR}}"
-		export GSETTINGS_SCHEMA_DIR
-	fi
-
-	exec "${prefix}/libexec/nemo-anywhere" "$@"
-WRAPPER
-chmod 755 "${DEST}/bin/${SLUG}"
 
 fEcho "Staged $(du -sh "${DEST}" | cut -f1) at ${DEST}"
 

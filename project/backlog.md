@@ -39,12 +39,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 The action layout editor does not run.
+- ✅ The action layout editor does not run.
 	- Opened: 20260908-000856
 	- Reachable from Preferences > Actions, which spawns it, but it dies at startup: its paths were baked in at configure time and point at an install prefix a portable copy never has.
 	- Also still reads and writes the pre-fork `nemo` config and data directories, so even once it starts, the app would not see what it saved.
-	- Around sixteen lines. Proven in a scratch copy: it comes up, lists the shipped actions, and saves where the action manager reads.
-	- One thing to settle: the editor's enable/disable checkboxes read a GSettings key that no longer exists.
+	- Fixed: it resolves its own prefix, uses the fork's config and data directories, and no longer needs the two Cinnamon libraries it imported. It comes up, lists the shipped actions, reorders them and saves where the action manager reads.
+	- The enable/disable checkboxes went with it. They read a GSettings key that no longer exists, and they duplicated Preferences > Actions, which already does the job. A switched-off action still shows greyed out here, read out of the config file.
+	- Not part of the Windows build: a /bin/sh launcher and a PyGObject script. The button that starts it is hidden there.
 
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
@@ -73,14 +74,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Cut the Linux drop down toward a single file.
+- 🛠️ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856
 	- 102 files and 3.8 MB today. Three helper exes are 2.6 MB of that, and nothing spawns two of them.
-	- Going: the connect-server and open-with helpers, the extensions lister (becomes a flag on the main binary), and the `bin/` shell wrapper, once the binary sets its own data and program paths.
+	- Done: the three helper exes are gone. The connect and open-with dialogs already ran in-process, so those two were dead weight. The extensions lister is now `--extensions-list` on the program itself, which keeps it a separate process without a separate binary.
+	- Done: the `bin/` shell wrapper. The program points its own data and program paths at the folder it sits in, and finds the extension library through an rpath, so `bin/nemo-anywhere` is the program itself and `libexec/` is gone.
 	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
-	- What is left of `share/` moves into the compiled resources. Data that only other programs read leaves the portable drop: editor syntax files, mime, polkit, man pages.
-	- The D-Bus service file stays, but is written at runtime so a relocated copy names its own path.
-	- The eight Cinnamon-only actions ship disabled.
+	- Done: data that only a system install would use has left the drop - mime, polkit, man pages and the editor syntax files. Nothing reads any of it out of a relocatable prefix or out of /opt, which is where both packages put one. A distro building its own install still gets all of it.
+	- Done: the D-Bus activation file is written at startup into the user's own service directory, naming the path this copy really runs from. The shipped one named wherever it was built.
+	- Done: what could move into the compiled resources has. The whole icon tree except the app icon itself was a second copy of art already in the binary, kept only for a system icon theme; the two info-bar documents are written out to the cache when the button that opens them is pressed, since another program has to read them.
+	- Left as files, deliberately: actions, search helpers and the settings schema. All three are drop-in folders a user adds to or edits, and Preferences has a button that opens two of them.
+	- 102 files down to 44.
+	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
 	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.

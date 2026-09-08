@@ -372,6 +372,7 @@ on_open_folder_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
     g_object_unref (location);
 }
 
+#ifndef G_OS_WIN32
 static void
 on_layout_editor_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
 {
@@ -395,6 +396,7 @@ on_layout_editor_clicked (GtkWidget *button, NemoActionConfigWidget *widget)
 
     g_free (editor);
 }
+#endif
 
 static void
 on_dir_changed (GFileMonitor     *monitor,
@@ -502,6 +504,9 @@ nemo_action_config_widget_init (NemoActionConfigWidget *self)
     gtk_widget_show (widget);
     g_signal_connect (widget, "clicked", G_CALLBACK (on_open_folder_clicked), self);
 
+#ifndef G_OS_WIN32
+    /* The editor is a PyGObject script behind a /bin/sh launcher, so it is not
+     * part of the Windows build and there would be nothing to start. */
     widget = gtk_button_new_with_label (_("Edit layout"));
 
     bb = NEMO_CONFIG_BASE_WIDGET (self)->lbuttonbox;
@@ -510,6 +515,7 @@ nemo_action_config_widget_init (NemoActionConfigWidget *self)
                         FALSE, FALSE, 0);
     gtk_widget_show (widget);
     g_signal_connect (widget, "clicked", G_CALLBACK (on_layout_editor_clicked), self);
+#endif
 
     g_signal_connect (nemo_config_base_widget_get_enable_button (NEMO_CONFIG_BASE_WIDGET (self)), "clicked",
                                                                  G_CALLBACK (on_enable_clicked), self);

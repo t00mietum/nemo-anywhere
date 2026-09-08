@@ -52,7 +52,6 @@ src/nemo-bookmarks-window.c
 [type: gettext/glade]src/nemo-bookmarks-window.glade
 src/nemo-config-base-widget.c
 src/nemo-connect-server-dialog.c
-src/nemo-connect-server-dialog-main.c
 src/nemo-desktop-application.c
 src/nemo-desktop-icon-grid-view.c
 src/nemo-desktop-icon-view.c
@@ -79,7 +78,6 @@ src/nemo-main-application.c
 src/nemo-main.c
 src/nemo-mime-actions.c
 src/nemo-notebook.c
-src/nemo-open-with-main.c
 src/nemo-pathbar.c
 src/nemo-places-sidebar.c
 src/nemo-plugin-manager.c
