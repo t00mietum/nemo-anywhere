@@ -86,9 +86,22 @@ if ($IsWindows) {
 $TargetDir = Join-Path $InstallDir "${ProgramName}_versions"
 $LinkPath  = Join-Path $InstallDir $ExeName
 
-## Pool from before it was GFS-rotated: stamped copies sat loose in $InstallDir under
-## their own prefix. Retired on sight, since neither sweep below can see them.
+## Pools from before this one: stamped copies under their own prefix, in whichever
+## directory that version of the launcher kept them in. Retired on sight, since
+## neither sweep below can see them - and on Windows they are ~40 MB each.
 $LegacyPrefix = "nemofmdf"
+$LegacyDirs   = if ($IsWindows) {
+	@(
+		$InstallDir
+		"C:\opt\0-0\common\exec\local\util\mswin\gui\by-self\win64"
+		"C:\0-0\common\exec\local\util\mswin\gui\by-self\win64"
+	)
+} else {
+	@(
+		$InstallDir
+		(Join-Path $HOME ".local/share/nemo-anywhere-dogfood")
+	)
+}
 
 ## Pool budget. Never more than $MaxVersions, never fewer than $MinVersions, and
 ## between the two only as many as fit in $MaxPoolBytes. The oldest version held is
@@ -688,20 +701,33 @@ function fDeleteStalePartials {
 }
 
 
-## Retire the pool from before it was GFS-rotated: stamped copies loose in the
-## install dir under their own prefix. Neither sweep above can see them, so they
-## would sit there for good at a couple of hundred MB each.
+## Retire the pools from before this one: stamped copies under their own prefix, in
+## whichever directory an older launcher kept them in. Neither sweep above can see
+## them, so they would sit there for good at a couple of hundred MB each.
 function fRetireLegacyCopies {
 	$rx      = "^$([regex]::Escape($LegacyPrefix))_\d{8}-\d{6}(_[a-z0-9]+)?(\.tmp)?$([regex]::Escape($ExeExt))?$"
 	$running = @(fRunningExePaths)
 
-	Get-ChildItem -LiteralPath $InstallDir -Force -Filter "$($LegacyPrefix)_*" -ErrorAction SilentlyContinue |
-		Where-Object { $_.Name -match $rx } |
+	foreach ($dir in $LegacyDirs) { fRetireLegacyIn -Dir $dir -Pattern $rx -Running $running }
+}
+
+
+## One legacy pool directory's worth. The current pool lives under $TargetDir, so a
+## sweep of $InstallDir cannot reach a version this launcher is keeping.
+function fRetireLegacyIn {
+	param(
+		[Parameter(Mandatory)][string]$Dir,
+		[Parameter(Mandatory)][string]$Pattern,
+		[string[]]$Running
+	)
+
+	Get-ChildItem -LiteralPath $Dir -Force -Filter "$($LegacyPrefix)_*" -ErrorAction SilentlyContinue |
+		Where-Object { $_.Name -match $Pattern } |
 		ForEach-Object {
 			## $_ is rebound by the Where-Object below, so hold the item first.
 			$item   = $_
 			$prefix = $item.FullName + [System.IO.Path]::DirectorySeparatorChar
-			if ($running | Where-Object { $_ -ieq $item.FullName -or $_.StartsWith($prefix) }) {
+			if ($Running | Where-Object { $_ -ieq $item.FullName -or $_.StartsWith($prefix) }) {
 				fItem "-" "kept" "running, old layout: $($item.Name)"
 				return
 			}
