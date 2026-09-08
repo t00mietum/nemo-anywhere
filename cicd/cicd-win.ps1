@@ -12,7 +12,7 @@
 ##		   3. tests         (native --version smoke of the built exe)
 ##		   4. stage         (self-contained runtime bundle - the packer's input)
 ##		   5. packages      (portable single-exe via Enigma Virtual Box; NSIS later)
-##		   6. dogfood       (drop the single exe into the synced by-self folder)
+##		   6. dogfood       (drop the single exe into the synced app dir)
 ##		   7. publish       (stash -> pull -> add -> commit -> push, current branch)
 ##		- The build needs MSYS2 with the mingw64 GTK toolchain (gtk3, meson, ninja,
 ##		  json-glib, libexif, libgsf). A missing toolchain warn-skips the build/stage
@@ -134,10 +134,11 @@ $StagerRel = "cicd/win/stage-native.bash"
 $BuildDir = Join-Path $Root "cicd\artifacts\build-win"
 $StageDir = Join-Path $Root "cicd\artifacts\win-run"
 
-## Dogfood: the single self-contained exe dropped straight into the SYNCED by-self
-## win64 folder (rides Dropbox, any box can grab it), one file per app alongside the
-## others - no app subfolder, no dll tree. n8runfm.ps1 keeps its own local pool.
-$DogfoodRoot = "C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64"
+## Dogfood: the single self-contained exe dropped straight into the SYNCED app dir
+## for Windows (rides Dropbox, any box can grab it), one file per app alongside the
+## others - no app subfolder, no dll tree. n8runfm.ps1 reads this dir and keeps its
+## own GFS-rotated pool locally, so nothing dated is written here.
+$DogfoodRoot = Join-Path $HOME "synced\0-0\common\exec\app\mswin"
 $DogfoodExe  = Join-Path $DogfoodRoot "$ExeName.exe"
 
 ## The packer's output - the single self-contained exe (cicd/win/pack-portable.ps1).
@@ -285,19 +286,32 @@ function fStage {
 	fSmoke -Exe $exe -RuntimeBin (Join-Path $StageDir "mingw64\bin")
 }
 
-## Dogfood: drop the single packed exe into the synced by-self folder as one file.
-## Needs the packer's output, so it runs after stage 5. Self-heals the pre-single-exe
-## layout: an old nemo-anywhere\ bundle subfolder here is retired on sight.
+## Dogfood: drop the single packed exe into the synced app dir as one file. Needs
+## the packer's output, so it runs after stage 5. Also retires what earlier layouts
+## left in the by-self folder this drop used to live in.
 function fDogfood {
 	if (-not (Test-Path -LiteralPath $PortableExe)) { fWarn "no portable exe to dogfood (pack skipped or failed); skipping"; return }
 	New-Item -ItemType Directory -Path $DogfoodRoot -Force | Out-Null
-	$oldBundle = Join-Path $DogfoodRoot $ExeName
-	if (Test-Path -LiteralPath $oldBundle) {
-		try { Remove-Item -LiteralPath $oldBundle -Recurse -Force -ErrorAction Stop; fNote "retired old bundle folder: $oldBundle" }
-		catch { fWarn "couldn't remove old bundle folder $oldBundle ($($_.Exception.Message))" }
-	}
 	Copy-Item -LiteralPath $PortableExe -Destination $DogfoodExe -Force
 	fEcho "OK: dogfood -> $DogfoodExe"
+	fRetireOldDogfood
+}
+
+
+## The drop used to go to the by-self win64 folder, and before that as a whole
+## nemo-anywhere\ bundle inside it. Both are dead weight once the app dir above is
+## the source the launcher reads, and neither goes away on its own.
+function fRetireOldDogfood {
+	$oldRoot = "C:\opt\0-0\common\exec\synced\util\mswin\gui\by-self\win64"
+	foreach ($stale in @((Join-Path $oldRoot "$ExeName.exe"), (Join-Path $oldRoot $ExeName))) {
+		if (-not (Test-Path -LiteralPath $stale)) { continue }
+		try {
+			Remove-Item -LiteralPath $stale -Recurse -Force -ErrorAction Stop
+			fNote "retired the old dogfood drop: $stale"
+		} catch {
+			fWarn "couldn't remove $stale ($($_.Exception.Message))"
+		}
+	}
 }
 
 ## True when a signing identity is configured (thumbprint or pfx).

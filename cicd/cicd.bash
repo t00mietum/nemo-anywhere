@@ -112,7 +112,7 @@ while (($#)); do case "$1" in
 	--no-arm)                 no_arm=1; shift ;;                ## drop ARM64 builds + packages
 	--no-package)             PACKAGE_ENABLE=0; shift ;;
 	--no-profile)             PROFILE_ENABLE=0; shift ;;
-	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); DOGFOOD_CROSS_DESTS=(); shift ;;
+	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); DOGFOOD_CROSS_DESTS=(); DOGFOOD_HOOK=(); shift ;;
 	--no-publish)             GIT_PUBLISH=(); shift ;;
 	--allow-dirty)            allow_dirty=1; shift ;;
 	--shots)                  SHOTS_ENABLE=1; shift ;;
@@ -133,6 +133,7 @@ if ((no_arm)) && declare -p CROSS_TARGETS &>/dev/null; then
 fi
 declare -p PACKAGE_ENABLE &>/dev/null || PACKAGE_ENABLE=0        ## tolerate a config predating the packages stage
 declare -p DOGFOOD_CROSS_DESTS &>/dev/null || DOGFOOD_CROSS_DESTS=()   ## ditto, cross dogfood
+declare -p DOGFOOD_HOOK &>/dev/null || DOGFOOD_HOOK=()                 ## ditto, post-dogfood hook
 
 ## Publish commit message: -m wins, then config, then whatever the auto-message
 ## helper makes of the tree when unattended - one place owns the wording, so this
@@ -370,7 +371,7 @@ fi
 if ((${#DOGFOOD_FIXED_DESTS[@]})); then
 	if [[ -n "$fixed_dest" ]]; then
 		if [[ -n "${DOGFOOD_PREFIX_SRC:-}" ]]; then
-			fEcho_Clean "Dogfood, fixed name .: ${fixed_dest%/bin}/${EXE_NAME}.app + ${fixed_dest}/${EXE_NAME} -> it"
+			fEcho_Clean "Dogfood, fixed name .: ${fixed_dest}/${EXE_NAME}/  (the whole prefix)"
 		else
 			fEcho_Clean "Dogfood, fixed name .: overwrite ${fixed_dest}/${EXE_NAME}"
 		fi
@@ -642,14 +643,16 @@ fi
 if ((${#DOGFOOD_FIXED_DESTS[@]})); then
 	if [[ -n "$fixed_dest" ]]; then
 		if [[ -n "${DOGFOOD_PREFIX_SRC:-}" ]]; then
-			## The tree sits beside the bin dir; the name on PATH is a symlink into
-			## it, which the wrapper follows to find its own prefix.
-			df_app="${fixed_dest%/bin}/${EXE_NAME}.app"
-			[[ "$df_app" == /*/"${EXE_NAME}.app" ]] || fDie "refusing to replace ${df_app}"
+			## Copied alongside and swapped in, not rebuilt in place: a launcher on
+			## another box reads this dir whenever it feels like it, and a half-copied
+			## tree there reads as a perfectly good build.
+			df_app="${fixed_dest}/${EXE_NAME}"
+			[[ "$df_app" == /*/"${EXE_NAME}" ]] || fDie "refusing to replace ${df_app}"
+			rm -rf "${df_app}.new"
+			cp -a "${df_src}" "${df_app}.new"
 			rm -rf "${df_app}"
-			cp -a "${df_src}" "${df_app}"
-			ln -sfn "$(realpath -m --relative-to="${fixed_dest}" "${df_app}")/bin/${EXE_NAME}" "${fixed_dest}/${EXE_NAME}"
-			fEcho "OK: installed (fixed) -> ${df_app}, linked from ${fixed_dest}/${EXE_NAME}"
+			mv "${df_app}.new" "${df_app}"
+			fEcho "OK: published (fixed) -> ${df_app}"
 		else
 			cp -pf "${df_src}" "${fixed_dest}/${EXE_NAME}"
 			fEcho "OK: installed (fixed) -> ${fixed_dest}/${EXE_NAME}"
@@ -712,6 +715,14 @@ if ((${#DOGFOOD_CROSS_DESTS[@]})); then
 fi
 
 if ((! df_did)); then fEcho_Clean "dogfood disabled"; fi
+
+## 7d. Whatever else this project wants kept in step with a dogfood drop. Never
+## fatal - a launcher that didn't get updated is not a reason to fail a build.
+if ((${#DOGFOOD_HOOK[@]})); then
+	if ! (cd "${root}" && "${DOGFOOD_HOOK[@]}"); then
+		fEcho "WARNING: dogfood hook failed (${DOGFOOD_HOOK[0]})"
+	fi
+fi
 
 ## Refresh README screenshots (skipped under --quick; non-fatal - a miss never
 ## aborts). Runs before publish so changed images get committed; rendering needs

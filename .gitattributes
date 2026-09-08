@@ -3,8 +3,10 @@
 *.bash text eol=lf
 *.sh   text eol=lf
 
-# Git hooks are shell too, just without an extension to match on.
+# Git hooks are shell too, just without an extension to match on. So is the launcher
+# wrapper, which has to be named for the command it stands in for.
 cicd/hooks/* text eol=lf
+utility/runfm text eol=lf
 
 # The cross-platform pwsh scripts carry a shebang and run on unix as well, where
 # CRLF would send the kernel looking for an interpreter named 'pwsh\r'.
