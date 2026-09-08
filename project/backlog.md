@@ -88,6 +88,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
 	- Static-linking the extension library is specced, not decided.
 
+- 🔘 Make extra sure that deleting symlinks, junctions, [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted.
+
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe - the documented fallback, working as intended, but worth knowing before announcing a build.
@@ -176,6 +178,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The old by-self exe drop is swept on sight, wherever a run finds one.
 	- The desktop step no longer waits on a successful launch, so a box with no build yet still gets its shortcut fixed.
 	- A launcher run from outside its deployed home writes no shortcut at all, rather than one naming a path that will not last.
+	- Both dev Windows boxes were swept: the stale run log and the last 38 MB copy from the old pool are gone, and each Start Menu and taskbar link now names a launcher and an icon that exist.
 	- Note: `exec/synced/util` is a link into the live synced tree on at least one box. Anything swept under a path that looks local can be the real file, and the sync layer then carries the delete everywhere.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
