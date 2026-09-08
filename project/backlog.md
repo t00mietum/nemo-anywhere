@@ -84,6 +84,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
 
+- 🔘 Update so (or valitade) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
+
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
@@ -95,6 +97,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260821-150232
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
+
+- 🔘 Change to username columns (two new columns):
+	- Owner (the short version), with no display name. This is a change to the current column of the same name.
+	- Owner Name (the display version)
+	- Owner - Name (i.e. "[Owner] - [Owner Name]")
+
+- 🔘 Optional alternating row shading
+	- Subtle
+	- Compimentary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
+	- Themable, customizable.
 
 - Cut an RC1 release.
 

@@ -319,31 +319,40 @@ The window is a menu and toolbar, a sidebar, a path bar and a view, and the view
 
 ### List view column widths
 
-This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
+This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. This should be treated (and updated) as THE canonical, precise, complete, conflict-free definition. The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
 
-- Every column has three widths.
-	- The least it will ever be.
-	- The width that shows most of its values. This is where it stops when the row runs short.
-	- The width that shows all of them, plus one character of air on the right.
-	- For a column whose values have a longest form - a date, a size, permissions, Ext - the three are one number. A value like that says nothing cut short, so it is never cut.
-	- The columns with a spread between the three are Name and the ones with no natural length: Type, Detailed type, MIME type, Owner, Group, Location and SELinux context.
-	- A heading wider than everything under it raises all three, so a column's own label is always readable.
+- There are three "classes" of columns, for width sizing:
+	- The minimum column width that overrides all minimum-width definitions below: Column header text.
+	- Primary variable-width class:
+		- Members: "Name", "Location".
+		- Min witdh:
+			- What will display all of the shortest N% values, as set `list-view.column-fit-percent`, default 90.
+			- Name counts every file in the folder, since every name matters.
+			- Location count each distinct value once, so a location repeated down a folder counts once rather than fifty times.
+			- The share calculation: max(1, floor(count*FITPERCENT))
+			- Plus elipses for values that are too short.
+			- Plus one character of air on the right.
+		- Default width if room:
+			- The width that shows all of values for the column, plus one character of air on the right.
+		- Max width (the width if the available horizontal space is more than all default widths combined):
+			- The columns in this class expand proportionally (or either one alone if the other is not visible), so that the rightmost visible column's right edge is adjacent to the window edge.
+	- Fixed-width class:
+		- Columns that display values that vary in narrow bounds based on the nature of their data.
+		- These columns don't resize, and can't even be manually resized.
+		- Sized to fit the longest displayed row, plus one character of air on the right.
+		- Examples: All date/time-related columns, octal and *nix-style permissions
+	- Minor variable-width class:
+		- All other columns
+		- Min width:
+			- Uses the same formula as "Default width if room" for [Primary variable-width class], but for the shortest 50%, plus one character of air on the right.
+			- Plus elipses for values that are too short - except for columns that are already very narrow (e.g. Ext with only 1 to 4 character extensions.)
+			- Plus one character of air on the right.
+		- Default width if room:
+			- Default size: Same formula and % as "Default width if room" for [Primary variable-width class], plus one character of air on the right.
+		- Max width:
+			- The width that shows all of values for the column, plus one character of air on the right.
 
-- "Most of its values" means the share set by `list-view.column-fit-percent`, default 90.
-	- Name counts every file in the folder, since every name matters.
-	- The others count each distinct value once, so a type repeated down a folder counts once rather than fifty times.
-	- The share rounds up, so 90 percent of three values is all three.
-
-- Widening, from a narrow window to a wide one.
-	- Every column starts at the width that shows most of its values.
-	- The surplus is handed out in proportion to those widths, so a wide column takes the most - it has the most left to show.
-	- That repeats, because a column reaching the width that shows everything part way through leaves its share to the others.
-	- Whatever is still left over goes to Name. Outside search, Location takes it instead when it is on the row and has no hand-dragged width of its own.
-
-- Narrowing is the same read backwards, down to the width that shows most of each column's values.
-	- Below that only Type gives - Type, Detailed type and MIME type - down to twice the Ext column. That is Ext as measured when it is on the row, and three characters when it is not, which is about what an extension comes to.
-	- Name never goes below 100 pixels.
-	- Once those are spent the row is wider than the window and the view scrolls sideways. That is the intended end state: a Name column crushed to nothing tells you less than a scrollbar does. It replaced an older rule that shrank Name to make the row fit.
+- Manual resizing of columns is not persisted, unless "remember per-folder settings" is enabled.
 
 - A width dragged by hand outranks all of the above for that column.
 	- A drag is a stream of width changes, so the decision is made 350 ms after the last one rather than on each.
@@ -352,19 +361,13 @@ This rule has been rewritten several times and will probably move again, so the 
 	- A column whose values have a longest is left alone. Its drag holds until the window or the folder changes, the way it always did.
 	- Dragging Location outside search is what ends its claim on the surplus and pins it.
 
-- Search results divide the row differently, because Location is carrying the answer there rather than decorating it.
-	- Every other column is at the width that shows all of its values.
-	- Name and Location take what they need out of what is left, and the row ends short rather than stretching to fill it.
-	- Where the two do not both fit, they give in proportion to what they asked for - except that neither ends up more than twice the width of the other, unless the narrower one did not want the extra. Neither goes below its own floor, so the pair can still overflow the row.
-	- Dragging either edge pins a split instead, as a percentage of the pair's room in `search.name-location-split`, clamped to between 5 and 95. Zero means fit both to their contents, which is the default. With a split set, the pair fills the row between them.
-	- The split is worked out from the drag's own number against the room the pair had, not from the live widths. GTK reflows the expanding column the moment the button is let go, so a live read answers for GTK rather than for the drag.
-
 - What gets measured, and when.
 	- Every row is measured as it arrives and as its details fill in, which is a handful of cells at a time rather than a walk of the folder.
 	- Rows a subfolder adds count while it is open, and are forgotten when it collapses.
 	- Everything is measured again when the zoom level changes the font or icon size, and when a column is switched on that was not there to be measured while it was hidden.
 	- Samples are thrown away on a folder change. The names in the last folder say nothing about this one.
-	- Cells are asked for their natural width. The obvious call answers with a cell's minimum, and a cell that can ellipsize has almost none, so measuring that way collapses every column to a few pixels.
+
+- A horizontal scrollbar appears, if there is not enough room because the combined min column widths exceed the displayable area.
 
 - The columns are laid out in the view's own size allocation, for the width the tree view is about to be given, not in the tree view's own. Laying them out from the tree view's allocation draws one frame at the old widths on every step of a resize, which reads as flicker. The difference between the two allocations is learned from the previous one, so the frame where a scrollbar appears or goes is the one case still caught late.
 
