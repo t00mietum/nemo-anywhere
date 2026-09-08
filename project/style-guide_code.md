@@ -57,7 +57,7 @@ So the rules are written down here instead.
 
 - Alignment runs to the nearest tab stop with tabs, then the rest of the way with spaces. The continuation lines in the sample below are two tabs and five spaces, not twenty-one spaces.
 
-- About half the files carry an Emacs mode line saying the same thing: `/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */`. It came with the inherited code and is optional. Keep it on a file that has one; a new file does not need it.
+- Roughly two thirds of the files carry an Emacs mode line saying the same thing: `/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */`. It came with the inherited code and is optional. Keep it on a file that has one; a new file does not need it.
 
 - Function definitions put the return type on its own line, the name at column zero, and the opening brace on its own line. Parameters that wrap are aligned under the first one.
 
@@ -101,7 +101,9 @@ move_proportionally (const NemoColumnLayoutItem *items,
 
 - Header guards are `#ifndef NEMO_THING_H`, not `#pragma once`.
 
-- A file under `src/` or `libnemo-private/` opens with a one-line description, then the copyright and the GPL-2.0-only notice. Two shapes are in use and both are fine: the inherited one, an indented block after the description, and the newer first-party one, a star-continuation comment. `nemo-column-layout.c` and `nemo-launch-win32.c` are the two. Copy from whichever neighbor you are working next to rather than retyping. Tests and the extension headers carry no block.
+- A file under `src/` or `libnemo-private/` carries a one-line description, then the copyright and the GPL-2.0-only notice, after the mode line if it has one. Two comment shapes are in use and both are fine: an indented block after the description, as in `nemo-column-layout.c`, or a star-continuation comment, as in `nemo-launch-win32.c`. Copy from whichever neighbor you are working next to rather than retyping. Tests carry no block.
+
+- `libnemo-extension/` is LGPL, not GPL-2.0-only, because it is the public API other people's extensions compile against. Do not put a GPL notice in there and do not take an LGPL one out.
 
 - A file that keeps an upstream copyright keeps it. Add a line, do not replace one.
 

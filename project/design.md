@@ -319,7 +319,7 @@ The window is a menu and toolbar, a sidebar, a path bar and a view, and the view
 
 ### List view column widths
 
-This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. This should be treated (and updated) as THE canonical, precise, complete, conflict-free definition. It describes where the behavior is going, so where the code differs it is the code that moves; the differences open today are listed against the conformance item in [backlog.md](backlog.md). The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
+This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. This should be treated (and updated) as THE canonical, precise, complete, conflict-free definition. It describes where the behavior is going, so where the code differs it is the code that moves; the differences open today, including two places where the section is at odds with itself, are listed against the conformance item in [backlog.md](backlog.md). The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
 
 - There are three "classes" of columns, for width sizing:
 	- The minimum column width that overrides all minimum-width definitions below: Column header text.
