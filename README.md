@@ -125,7 +125,7 @@ Everything that makes Nemo worth porting:
 
 - A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
 
-- Anything large, or anything nobody clearly asked for, prompts whatever the settings say. A delete with no click or keystroke behind it counts as nobody asking.
+- A large delete, or one nobody clearly asked for, prompts whatever the settings say. A delete with no click or keystroke behind it counts as nobody asking.
 
 - Trash and delete write down what they did: how many items, which folder, the first name in the batch, and what set it off.
 
@@ -173,8 +173,7 @@ Provenance and licence for every vendored set is in [vendor/README.md](vendor/RE
 
 ### Adding your own
 
-Drop a theme folder into the icons directory beside your settings file and it appears in the picker next launch - `~/.config/nemo-anywhere/icons/` on Linux and BSD, `%APPDATA%
-emo-anywhere\icons\` on Windows, `~/Library/Application Support/nemo-anywhere/icons/` on macOS. Widget themes work the same way in `themes/` beside it. Both folders are created empty on first run.
+Drop a theme folder into the icons directory beside your settings file and it appears in the picker next launch - `~/.config/nemo-anywhere/icons/` on Linux and BSD, `%APPDATA%\nemo-anywhere\icons\` on Windows, `~/Library/Application Support/nemo-anywhere/icons/` on macOS. Widget themes work the same way in `themes/` beside it. Both folders are created empty on first run.
 
 [filesystem/README.md](filesystem/README.md) covers the layout, the two optional `index.theme` keys that tell the picker which modes a theme suits, and one-line fetch commands for Buuf - a set worth having that cannot be bundled, because its NonCommercial licence rules it out of anything shipped.
 

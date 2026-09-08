@@ -101,6 +101,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
 	- Opened: 20260908-133001
+	- Four places where the code and that section already disagree, all needing a decision rather than a guess:
+		- The share is `max(1, floor(count * percent))` in the section and rounds up in the code, so at 90% a three-value column is two values by the section and all three by the code.
+		- "Remember per-folder settings" is named as the thing that makes a hand drag stick, and no setting by that name exists.
+		- The section no longer covers search results, and the code still gives Name and Location their own split there, kept in `search.name-location-split`.
+		- The section no longer mentions Name's hundred-pixel floor, and the code still applies it.
 
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 	- Opened: 20260908-111526
@@ -124,7 +129,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Optional alternating row shading
 	- Opened: 20260908-133001
 	- Subtle
-	- Complimentary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
+	- Complementary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
 	- Themable, customizable.
 
 - 🔘 Cut an RC1 release.

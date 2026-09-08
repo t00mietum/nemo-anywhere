@@ -3,13 +3,15 @@
 <!-- markdownlint-disable MD033 -- No inline html -->
 <!-- markdownlint-disable MD041 -- First line in a file should be a top-level heading -->
 
-<!-- omit in toc -->
+<!-- TOC ignore:true -->
 # Contributing
 
 Thanks for looking. This is a small, independent hard fork of [linuxmint/nemo](https://github.com/linuxmint/nemo), run by one person, so the process here is short.
 
-<!-- omit in toc -->
+<!-- TOC ignore:true -->
 ## Table of contents
+
+<!-- TOC -->
 
 - [Before anything else](#before-anything-else)
 - [Reporting a bug](#reporting-a-bug)
@@ -17,6 +19,8 @@ Thanks for looking. This is a small, independent hard fork of [linuxmint/nemo](h
 - [Suggesting a feature](#suggesting-a-feature)
 - [Sending code](#sending-code)
 - [Code of conduct](#code-of-conduct)
+
+<!-- /TOC -->
 
 ## Before anything else
 
