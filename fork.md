@@ -4,8 +4,11 @@ Fork provenance
 nemo-anywhere is a hard fork of the Nemo file manager: a portable, standalone build decoupled from Cinnamon, targeting Windows, plain Linux, BSD, and macOS.
 
 - Upstream: https://github.com/linuxmint/nemo
+
 - Fork point: tag `6.6.4` (commit `8d23a398`)
+
 - This repository starts from a clean, detached baseline at the fork point; it does not carry upstream commit history. Lineage is recorded here and in the retained per-file copyright and license headers.
+
 - No upstream contribution and no downstream sync are planned. This is a divergent, independent project.
 
 Affiliation

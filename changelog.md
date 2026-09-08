@@ -57,6 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The bottom scrollbar flashed at every step of a resize, could stay after one when nothing needed it, and now and then strobed along with the vertical one.
 - On Windows, a first start with a fresh roaming profile carried the local data folder (actions, scripts) off into the settings folder, mistaking it for settings left by an older version. Only a folder that holds a settings file is moved now.
 - On Windows the window opened behind whatever you were already looking at, so a launch could look like nothing had happened until you noticed the taskbar button. It comes to the front now.
+
 ## v1.0.0-beta2 - 2026-08-04
 
 ### Notes

@@ -81,9 +81,9 @@ That means, in order:
 
 - **Windows**: A real native build, not a compatibility shim.
 
-- **BSD**: Just works.
+- **BSD**: Should need little beyond a compile, but nobody has done one yet.
 
-- **macOS** - coming soon.
+- **macOS**: Later. Nothing in the code should stand in the way, but it has not been tried.
 
 One codebase. "For Windows" and friends are just labels on builds, not separate projects.
 
@@ -115,17 +115,29 @@ Everything that makes Nemo worth porting:
 
 - Runs without Cinnamon. No desktop-drawing baggage, no pulled-in desktop stack.
 
-- Runs without Linux. Native Windows first, BSD and macOS after.
+- Runs without Linux. Windows is a real native build, not a compatibility layer. BSD and macOS come after.
 
 - On Windows it is one executable. The whole runtime is packed inside it, so there is nothing to install and nothing to keep in step. Copy it where you like and run it.
 	- Same idea as an AppImage or a Flatpak, without the runtime or the sandbox.
 	- On Linux it stays a small folder that uses the GTK3 your distro already has, because that is what a Linux user expects and it keeps the download tiny.
 
+- Every window is its own process. One window falling over leaves the rest alone, and two versions can run side by side.
+
 - A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
+
+- Anything large, or anything nobody clearly asked for, prompts whatever the settings say. A delete with no click or keystroke behind it counts as nobody asking.
+
+- Trash and delete write down what they did: how many items, which folder, the first name in the batch, and what set it off.
 
 - Search results can be grouped under the folder they came from. A flat list of thirty files all called `notes.txt` tells you nothing; a row per folder with the matches under it tells you where to look. One toggle in the search bar, and the same results either way.
 
-- Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema.
+- Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema. Editing it by hand does the same thing as changing the setting in the dialog.
+
+- Copy, paste and drag work with the platform's own file manager, in both directions.
+
+- What a platform cannot do is hidden or grayed out rather than failing when clicked. No "Make Link" on Windows, no permissions tab where there are no permissions.
+
+- Releases can be checked. Each one is reproducible from the commit it was built at, and published with checksums.
 
 - Stays Nemo. Same code lineage, GPL intact.
 
@@ -146,6 +158,8 @@ Details:
 - Plans and progress: [project/backlog.md](project/backlog.md)
 
 - Design and reasoning: [project/design.md](project/design.md)
+
+- Code style: [project/style-guide_code.md](project/style-guide_code.md)
 
 ## Icon themes
 
@@ -243,7 +257,7 @@ pacman -S --needed mingw-w64-x86_64-{gcc,meson,ninja,pkgconf,gtk3,json-glib,liba
 pwsh cicd/cicd-win.ps1 -Gate     # lint, build and smoke
 ~~~
 
-The full picture - the exact package list, the Windows cross-compile, the release lanes and the pipeline stages - is in [project/design.md](project/design.md). Conventions for contributors are in [contributing.md](contributing.md).
+The full picture, meaning the exact package list, the Windows cross-compile, the release lanes and the pipeline stages, is in [project/design.md](project/design.md). How to send a change is in [contributing.md](contributing.md), and how the code is written is in [project/style-guide_code.md](project/style-guide_code.md).
 
 ## Longer-term roadmap
 

@@ -49,7 +49,7 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 
 This is a hard fork of linuxmint/nemo at its 6.6.4 release, decoupled from Cinnamon and from Linux-desktop assumptions so it runs standalone anywhere. (And it is already far ahead of Nemo 6.6.4 in terms of bug fixes and feature improvements, and new features.) Independent and divergent: no upstream contribution, no downstream sync. GPL-2.0-only.
 
-Targets in order: Linux on any desktop or none, then Windows, then macOS, then BSD and other minor niche targets. One codebase; per-platform builds are labels, not separate projects.
+Targets in order: Linux on any desktop or none, then Windows, then BSD, then macOS. One codebase; per-platform builds are labels, not separate projects.
 
 Windows is the first not-Linux target because it forces the cleanest separation. Nothing Linux-specific can be assumed there, so the couplings show up as build errors rather than as things that quietly still work. A de-Cinnamon Linux build falls out of the same work.
 
@@ -59,7 +59,7 @@ What the project is trying to be, roughly in priority order:
 
 - Belong to no desktop. Nothing in the program assumes Cinnamon, GNOME, or even Linux, and it never draws or owns the desktop. It can sit beside whatever already does, original Nemo included.
 
-- Run on any desktop OS, from one codebase. Linux on any desktop or none, then Windows, then macOS, then BSD and other minor niche targets.
+- Run on any desktop OS, from one codebase. Linux on any desktop or none, then Windows, then BSD, then macOS.
 	- "For Windows" are labels on builds, not separate projects.
 
 - Keep what makes Nemo worth porting: Fast navigation, tree folder view in list mode, sane folder merging, proper bookmarks, useful and simple settings, and an extension API that still works.
