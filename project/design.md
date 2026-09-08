@@ -15,6 +15,7 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 <!-- TOC -->
 
 - [Overview](#overview)
+	- [Goals](#goals)
 	- [What and why](#what-and-why)
 	- [Fork decisions](#fork-decisions)
 	- [High-level port strategy](#high-level-port-strategy)
@@ -43,13 +44,49 @@ High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [
 
 ## Overview
 
-### What and why
+## Goals
+
+What the project is trying to be, roughly in priority order. The rest of this document is how.
+
+- Run on any desktop OS, from one codebase. Windows first, then Linux on any desktop or none, then BSD and macOS.
+	- "For Windows" and friends are labels on builds, not separate projects.
+
+- Belong to no desktop. Nothing in the program assumes Cinnamon, GNOME, or even Linux, and it never draws or owns the desktop. It can sit beside whatever already does, original Nemo included.
+
+- Keep what makes Nemo worth porting. Fast navigation, real progress on file operations, sane folder merging, proper bookmarks, a deep set of preferences, and an extension API that still works.
+
+- Be portable in the copy-it-and-run sense. On Windows that is one executable with the runtime inside it. On Linux it is a small folder using the GTK the distro already ships.
+	- Nothing installed, nothing registered, no repository to add. Installers and distro packages exist for people who want them, but nothing depends on them.
+
+- Make it hard to lose a file by accident. This is where the fork is willing to be less convenient than its ancestors.
+	- A drag that moves files says what it is about to do, and waits.
+	- Trash and delete jobs each write a line saying what was taken and what asked for it.
+	- A job with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
+
+- Keep configuration in plain sight. One text file, readable and editable by hand, with no registry keys, no dconf, and no compiled schema to install. Hand-editing it behaves the same as changing the setting in the dialog.
+
+- Fit each platform natively instead of pretending to be its file manager. Drive letters, the Recycle Bin, shortcuts, UNC paths and file associations are all done the way that platform does them.
+	- Read the system's settings, don't rewrite them. File associations come out of the registry; the app's own overrides stay in the app's own config.
+
+- Hide or gray out what a platform cannot do, rather than failing at it. A missing runtime service should cost a menu entry, not a crash.
+
+- Look presentable on a bare system. Icon sets and window styles are inside the program, so a fresh copy has no missing art and nothing to download.
+
+- Start fast and stay small. A file manager gets launched dozens of times a day, and a slow one is noticed every time.
+
+- Ship builds that can be checked. Reproducible from the commit they were built at, published with checksums, and cut by the same pipeline that runs on a developer's own machine.
+
+- Stay Nemo. Same lineage, same license (GPL-2.0-only), per-file attribution intact. Independent and divergent: nothing goes upstream and nothing is pulled back down.
+
+- Deliberately out of scope: drawing the desktop, autorun of any kind on any platform, and migrating settings from a pre-1.0 install.
+
+## What and why
 
 A hard fork of linuxmint/nemo (based on 6.6.4) that decouples Nemo from Cinnamon and from Linux-desktop assumptions, so it runs standalone across platforms. Independent and divergent: no upstream contribution, no downstream sync. Started from a clean detached baseline at the fork point. License is GPL-2.0-only.
 
 Targets, in order: Windows (first), de-Cinnamon Linux (standalone on any desktop or none), then BSD and macOS. One codebase; per-platform builds are informal labels, not separate projects.
 
-### Fork decisions
+## Fork decisions
 
 - Among the import decisions: start from a clean detached baseline at the fork point rather than dragging in upstream commit history, giving the fresh fork an uncluttered starting point. Lineage and attribution are carried by fork.md and the retained per-file copyright/license headers, not by git ancestry.
 
@@ -63,7 +100,7 @@ Targets, in order: Windows (first), de-Cinnamon Linux (standalone on any desktop
 
 - Packaging/installer approach per platform. (Common package managers per-platform, including .deb, .rpm, .AppImage, and eventually Flatpak for Linux.)
 
-### High-level port strategy
+## High-level port strategy
 
 The unifying work is decoupling. The same de-Cinnamon, de-Linux-desktop separation benefits every target, including Linux itself. Windows is first because it forces the cleanest separation (nothing Linux-specific can be assumed).
 
@@ -87,7 +124,7 @@ Staged, lowest-risk-first:
 
 A de-Cinnamon Linux build tends to fall out of the same decoupling, and is a good early proof that the separation is clean before tackling Windows-specific APIs.
 
-### Dependency landscape
+## Dependency landscape
 
 Nemo is C with GTK3, built with meson. The stack splits into portable and platform-bound layers.
 
@@ -107,13 +144,13 @@ Nemo is C with GTK3, built with meson. The stack splits into portable and platfo
 
 	- `.desktop` launchers, polkit ("open as root"), "open in terminal" - per-platform equivalents (Windows: `.lnk`, UAC, terminal; macOS: `.app`, `open`) or removal.
 
-### Toolchain
+## Toolchain
 
 First target is Windows. Among the options - native MSYS2/MinGW-w64 on Windows, MSVC via gvsbuild, and cross-compiling from Linux - we chose to **cross-compile from the Linux host with mingw-w64 and smoke-test under wine**. It reuses the toolchain already on the box, needs no Windows hardware, and fits the same "containerized reference build" model as Linux. The GTK3 Windows stack still comes from MSYS2, but as prebuilt packages extracted into a cross sysroot rather than a native MSYS2 environment. Native-Windows validation (running the .exe on real Windows) is deferred to when the cross build first links and runs under wine.
 
 The Linux reference build lives in a stock Debian 13 container rather than on the dev host directly - we decided that a pinned, clean distro image is the better known-good baseline, and it sidesteps host library drift. Upstream 6.6.4 builds and runs there unmodified with distro packages only.
 
-### Building (Linux reference)
+## Building (Linux reference)
 
 Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable project lives under `source/` (the repo root is kept clean), so meson is pointed there.
 
@@ -132,7 +169,7 @@ The container the day-to-day build actually runs in is `cicd/linux/Dockerfile.de
 - The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
 - The action layout editor is a separate PyGObject script rather than part of the binary, so at run time it wants `python3-gi`, `python3-gi-cairo` and `gir1.2-gtk-3.0`. Nothing else needs them, and without them only that one window is missing.
 
-### Building (Windows cross)
+## Building (Windows cross)
 
 Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt MSYS2 packages unpacked into a sysroot. All of it lives in a dedicated `nemo-winbuild` container so neither the host nor the repo carries the Windows binaries.
 
@@ -147,8 +184,6 @@ Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt 
 ### Open questions
 
 - How far to push a clean internal platform-abstraction boundary vs. per-target `#ifdef`s.
-
-## New project
 
 ## Project structure
 
