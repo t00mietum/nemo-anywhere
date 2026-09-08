@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 
-/* nemo-open-with-main.c - Start the "Open with" dialog.
+/* nemo-extensions-list.c - List the installed extensions.
  * Nemo
  *
  * Copyright (C) 2005 Vincent Untz
@@ -26,6 +26,8 @@
  */
 
 #include <config.h>
+
+#include "nemo-extensions-list.h"
 
 #include <gmodule.h>
 #include <libnemo-private/nemo-module.h>
@@ -126,8 +128,8 @@ module_get_extensions_for_type (GType type)
     return ret; 
 }
 
-int
-main (int argc, char *argv[])
+void
+nemo_extensions_list_print (void)
 {
     populate_from_directory (NEMO_EXTENSIONDIR);
 
@@ -159,6 +161,4 @@ main (int argc, char *argv[])
     }
 
     g_list_free_full (nd_providers, (GDestroyNotify) g_object_unref);
-
-    return 0;
 }
