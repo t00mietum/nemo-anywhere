@@ -1,7 +1,7 @@
 /* How the list view divides its width between columns. Pure arithmetic, so all
  * of it is checkable without a screen - which matters, because the failure this
- * guards against is a column pushed off the end of the window or a strip of dead
- * space after the last one, and neither shows up in any other test. */
+ * guards against is a column crushed to nothing, or a strip of dead space after
+ * the last one, and neither shows up in any other test. */
 
 #include <config.h>
 
@@ -22,34 +22,21 @@ static int failures = 0;
 
 enum { NAME, SIZE, TYPE, DATE, N_COLS };
 
-/* A plausible row of columns: Name, Size, Type, Date Modified. Type is the one
-   with no natural limit and the one nominated to give first, which is what the
-   view does. */
+/* A plausible row: Name, Size, Type, Date Modified. Size and Date are fixed at
+   the width their widest value needs. Name shows most names at 300 and all of
+   them at 500. Type shows most at 120, all at 200, and may go down to 60. */
 static void
 usual_columns (NemoColumnLayoutItem *items)
 {
-	items[NAME] = (NemoColumnLayoutItem) { 100, 300, FALSE, TRUE };
-	items[SIZE] = (NemoColumnLayoutItem) {  30,  80, FALSE, FALSE };
-	items[TYPE] = (NemoColumnLayoutItem) {  30, 120, TRUE,  FALSE };
-	items[DATE] = (NemoColumnLayoutItem) {  30, 160, FALSE, FALSE };
+	items[NAME] = (NemoColumnLayoutItem) { 300, 300, 500, TRUE,  FALSE };
+	items[SIZE] = (NemoColumnLayoutItem) {  80,  80,  80, FALSE, FALSE };
+	items[TYPE] = (NemoColumnLayoutItem) {  60, 120, 200, FALSE, FALSE };
+	items[DATE] = (NemoColumnLayoutItem) { 160, 160, 160, FALSE, FALSE };
 }
 
-/* The same row with Location on it. Location grows with Name here, so neither
-   is capped and the two divide what Size and Date leave. */
-enum { P_NAME, P_LOC, P_SIZE, P_DATE, N_PAIR };
-
-static void
-paired_columns (NemoColumnLayoutItem *items)
-{
-	items[P_NAME] = (NemoColumnLayoutItem) { 100, 300, FALSE, TRUE };
-	items[P_LOC]  = (NemoColumnLayoutItem) {  30, 200, FALSE, FALSE };
-	items[P_SIZE] = (NemoColumnLayoutItem) {  30,  80, FALSE, FALSE };
-	items[P_DATE] = (NemoColumnLayoutItem) {  30, 160, FALSE, FALSE };
-
-	items[P_LOC].shares_growth = TRUE;
-	items[P_NAME].elastic = TRUE;
-	items[P_LOC].elastic = TRUE;
-}
+#define SUM_MIN (300 + 80 + 60 + 160)
+#define SUM_FIT (300 + 80 + 120 + 160)
+#define SUM_MAX (500 + 80 + 200 + 160)
 
 static int
 total (const int *widths, int n)
@@ -63,7 +50,8 @@ total (const int *widths, int n)
 	return sum;
 }
 
-/* Nothing is left over and nothing hangs off the end. */
+/* Wherever the minimums allow it, nothing is left over and nothing hangs off
+   the end. */
 static void
 check_fills_the_width (void)
 {
@@ -73,13 +61,13 @@ check_fills_the_width (void)
 
 	usual_columns (items);
 
-	for (available = 220; available <= 2000; available += 7) {
-		nemo_column_layout_distribute (items, N_COLS, TYPE, available, widths);
+	for (available = SUM_MIN; available <= 2000; available += 7) {
+		nemo_column_layout_distribute (items, N_COLS, available, widths);
 		check (total (widths, N_COLS) == available);
 	}
 }
 
-/* Room to spare: every column shows its longest value and Name has the rest. */
+/* Room to spare: every column shows every value and Name has the rest. */
 static void
 check_wide (void)
 {
@@ -87,277 +75,216 @@ check_wide (void)
 	int widths[N_COLS];
 
 	usual_columns (items);
-	nemo_column_layout_distribute (items, N_COLS, TYPE, 1400, widths);
+	nemo_column_layout_distribute (items, N_COLS, 1400, widths);
 
 	check (widths[SIZE] == 80);
 	check (widths[DATE] == 160);
-	/* Type has a limit here well under a third of Name, so it stops at its own
-	   longest value and Name takes everything that is left. */
-	check (widths[TYPE] == 120);
-	check (widths[NAME] == 1400 - 80 - 120 - 160);
+	check (widths[TYPE] == 200);
+	check (widths[NAME] == 1400 - 80 - 200 - 160);
 }
 
-/* Just short: Type gives, and nothing else moves. */
+/* Between showing most and showing all, Name and Type grow together, Name the
+   faster for being the wider; the fixed columns do not move. */
 static void
-check_type_gives_first (void)
+check_grows_in_proportion (void)
 {
 	NemoColumnLayoutItem items[N_COLS];
 	int widths[N_COLS];
-	int natural_total;
 
 	usual_columns (items);
-	natural_total = 300 + 80 + 120 + 160;
+	nemo_column_layout_distribute (items, N_COLS, SUM_FIT + 140, widths);
 
-	nemo_column_layout_distribute (items, N_COLS, TYPE, natural_total - 40, widths);
+	check (widths[SIZE] == 80);
+	check (widths[DATE] == 160);
+	/* 140 shared 300:120 */
+	check (widths[NAME] == 400);
+	check (widths[TYPE] == 160);
+	check (total (widths, N_COLS) == SUM_FIT + 140);
+}
+
+/* A column that reaches the width showing everything stops, and the others
+   carry on with its share. */
+static void
+check_stops_at_max (void)
+{
+	NemoColumnLayoutItem items[N_COLS];
+	int widths[N_COLS];
+
+	usual_columns (items);
+	nemo_column_layout_distribute (items, N_COLS, SUM_FIT + 400, widths);
+
+	check (widths[TYPE] == 200);
+	check (widths[NAME] == SUM_FIT + 400 - 80 - 200 - 160);
+	check (total (widths, N_COLS) == SUM_FIT + 400);
+}
+
+/* Short of the width that shows most values: only Type gives, and only down to
+   its minimum. Name does not move, and neither does a date or a size. */
+static void
+check_type_gives_alone (void)
+{
+	NemoColumnLayoutItem items[N_COLS];
+	int widths[N_COLS];
+
+	usual_columns (items);
+	nemo_column_layout_distribute (items, N_COLS, SUM_FIT - 40, widths);
 
 	check (widths[NAME] == 300);
 	check (widths[SIZE] == 80);
 	check (widths[DATE] == 160);
 	check (widths[TYPE] == 80);
+	check (total (widths, N_COLS) == SUM_FIT - 40);
 }
 
-/* Shorter still: Type is on its floor and everything else gives together, the
-   widest giving the most. */
+/* Two columns with room below their fit give in proportion to their size. */
 static void
-check_then_everyone (void)
+check_shrinks_in_proportion (void)
 {
 	NemoColumnLayoutItem items[N_COLS];
 	int widths[N_COLS];
 
 	usual_columns (items);
-	/* natural is 660, and Type has 90 to give before its floor */
-	nemo_column_layout_distribute (items, N_COLS, TYPE, 460, widths);
+	items[DATE].min_width = 80;	/* pretend Date could give too */
 
-	check (widths[TYPE] == 30);
-	check (widths[NAME] < 300);
-	check (widths[SIZE] < 80);
-	check (widths[DATE] < 160);
-	/* Name started widest, so Name gave the most. */
-	check (300 - widths[NAME] > 160 - widths[DATE]);
-	check (160 - widths[DATE] > 80 - widths[SIZE]);
-	check (total (widths, N_COLS) == 460);
+	/* 70 to give back, shared 120:160 between Type and Date */
+	nemo_column_layout_distribute (items, N_COLS, SUM_FIT - 70, widths);
+
+	check (widths[NAME] == 300);
+	check (widths[SIZE] == 80);
+	check (widths[TYPE] == 90);
+	check (widths[DATE] == 120);
+	check (total (widths, N_COLS) == SUM_FIT - 70);
 }
 
-/* With no column nominated to go first, everything gives from the start. */
+/* Narrower than the minimums add up to. Nothing goes below its minimum, nothing
+   comes back negative, and the row is wider than the window. */
 static void
-check_no_first_giver (void)
-{
-	NemoColumnLayoutItem items[N_COLS];
-	int widths[N_COLS];
-
-	usual_columns (items);
-	nemo_column_layout_distribute (items, N_COLS, -1, 620, widths);
-
-	check (widths[TYPE] < 120);
-	check (widths[NAME] < 300);
-	check (widths[DATE] < 160);
-	check (total (widths, N_COLS) == 620);
-}
-
-/* A column with no natural limit does not get to take the window. */
-static void
-check_unbounded_is_capped (void)
-{
-	NemoColumnLayoutItem items[N_COLS];
-	int widths[N_COLS];
-
-	usual_columns (items);
-	items[TYPE].natural_width = 5000;
-
-	nemo_column_layout_distribute (items, N_COLS, TYPE, 1200, widths);
-
-	/* Exactly a third of what Name ends up with, not a third of some earlier
-	   guess at it - the cap and Name's width have to agree with each other. */
-	check (widths[TYPE] == 240);
-	check (widths[NAME] == 720);
-	check (widths[TYPE] * 3 == widths[NAME]);
-	check (total (widths, N_COLS) == 1200);
-
-	/* Without the flag it would simply take what it says it needs. */
-	usual_columns (items);
-	items[TYPE].natural_width = 5000;
-	items[TYPE].unbounded = FALSE;
-
-	nemo_column_layout_distribute (items, N_COLS, -1, 1200, widths);
-	check (widths[TYPE] > widths[NAME]);
-}
-
-/* Narrower than the floors add up to. Nothing goes below its floor and nothing
-   comes back negative; the view scrolls sideways instead. */
-static void
-check_impossibly_narrow (void)
+check_overflows (void)
 {
 	NemoColumnLayoutItem items[N_COLS];
 	int widths[N_COLS];
 	int i;
 
 	usual_columns (items);
-	nemo_column_layout_distribute (items, N_COLS, TYPE, 40, widths);
+	nemo_column_layout_distribute (items, N_COLS, 400, widths);
 
 	for (i = 0; i < N_COLS; i++) {
-		check (widths[i] >= items[i].floor_width);
+		check (widths[i] == items[i].min_width);
 	}
 
-	check (total (widths, N_COLS) == 100 + 30 + 30 + 30);
+	check (total (widths, N_COLS) == SUM_MIN);
+	check (total (widths, N_COLS) > 400);
+
+	nemo_column_layout_distribute (items, N_COLS, 0, widths);
+	check (total (widths, N_COLS) == SUM_MIN);
 }
 
-/* One column on its own is still the whole width. */
+/* One column on its own is still the whole width, down to its minimum. */
 static void
 check_single_column (void)
 {
-	NemoColumnLayoutItem only = { 100, 300, FALSE, TRUE };
+	NemoColumnLayoutItem only = { 100, 200, 300, TRUE, FALSE };
 	int width = 0;
 
-	nemo_column_layout_distribute (&only, 1, -1, 900, &width);
+	nemo_column_layout_distribute (&only, 1, 900, &width);
 	check (width == 900);
 
-	nemo_column_layout_distribute (&only, 1, -1, 50, &width);
+	nemo_column_layout_distribute (&only, 1, 150, &width);
+	check (width == 150);
+
+	nemo_column_layout_distribute (&only, 1, 50, &width);
 	check (width == 100);
 }
 
-/* A floor wider than the longest value in the column still wins. */
+/* The three widths out of order: the larger wins, and nothing breaks. */
 static void
-check_floor_beats_natural (void)
+check_widths_out_of_order (void)
 {
 	NemoColumnLayoutItem items[2] = {
-		{ 100, 300, FALSE, TRUE },
-		{ 120,  20, FALSE, FALSE }
+		{ 100, 300, 250, TRUE,  FALSE },	/* max under fit */
+		{ 120,  20,  10, FALSE, FALSE }		/* fit and max under min */
 	};
 	int widths[2];
 
-	nemo_column_layout_distribute (items, 2, -1, 1000, widths);
+	nemo_column_layout_distribute (items, 2, 1000, widths);
 	check (widths[1] == 120);
 	check (widths[0] == 880);
+
+	nemo_column_layout_distribute (items, 2, 100, widths);
+	check (widths[0] == 100);
+	check (widths[1] == 120);
 }
 
-/* Room to spare with Location on the row: Name stops at its longest name and
-   everything past that is Location's. */
+/* With no Name column nothing takes the surplus, and the row ends short. */
+static void
+check_no_grower (void)
+{
+	NemoColumnLayoutItem items[2] = {
+		{ 100, 100, 100, FALSE, FALSE },
+		{ 100, 100, 100, FALSE, FALSE }
+	};
+	int widths[2];
+
+	nemo_column_layout_distribute (items, 2, 1000, widths);
+	check (widths[0] == 100);
+	check (widths[1] == 100);
+}
+
+/* Location on the row, growing alongside Name: the surplus past everything
+   shown whole is Location's. Below that the two grow together like any other
+   pair, Name being the wider. */
+enum { P_NAME, P_LOC, P_SIZE, N_PAIR };
+
 static void
 check_location_takes_the_surplus (void)
 {
-	NemoColumnLayoutItem items[N_PAIR];
+	NemoColumnLayoutItem items[N_PAIR] = {
+		{ 300, 300, 500, TRUE,  FALSE },
+		{ 200, 200, 400, FALSE, TRUE  },
+		{  80,  80,  80, FALSE, FALSE }
+	};
 	int widths[N_PAIR];
 
-	paired_columns (items);
-	nemo_column_layout_distribute (items, N_PAIR, -1, 1400, widths);
-
+	nemo_column_layout_distribute (items, N_PAIR, 1400, widths);
+	check (widths[P_NAME] == 500);
 	check (widths[P_SIZE] == 80);
-	check (widths[P_DATE] == 160);
-	check (widths[P_NAME] == 300);
-	check (widths[P_LOC] == 1400 - 300 - 80 - 160);
-	check (total (widths, N_PAIR) == 1400);
+	check (widths[P_LOC] == 1400 - 500 - 80);
+
+	nemo_column_layout_distribute (items, N_PAIR, 580 + 100, widths);
+	check (widths[P_NAME] == 360);
+	check (widths[P_LOC] == 240);
+	check (widths[P_SIZE] == 80);
 }
 
-/* Not enough for both: they halve what is left, so Location is never the
-   narrower of the two - until Name is down on its floor, which is well below
-   half of anything, and Location takes what is left of the pair's room. */
+/* The width that shows a share of the values. */
 static void
-check_location_never_narrower (void)
+check_fit (void)
 {
-	NemoColumnLayoutItem items[N_PAIR];
-	int widths[N_PAIR];
-	int available;
+	int ten[10] = { 50, 10, 20, 30, 40, 60, 70, 80, 90, 900 };
+	int three[3] = { 30, 10, 20 };
+	int one[1] = { 42 };
 
-	paired_columns (items);
+	/* The nine that are not the outlier fit at 90; the outlier needs 900. */
+	check (nemo_column_layout_fit (ten, 10, 90) == 90);
+	check (nemo_column_layout_fit (ten, 10, 100) == 900);
+	check (nemo_column_layout_fit (ten, 10, 50) == 50);
+	check (nemo_column_layout_fit (ten, 10, 1) == 10);
 
-	for (available = 400; available <= 2000; available += 13) {
-		nemo_column_layout_distribute (items, N_PAIR, -1, available, widths);
-		check (widths[P_LOC] >= widths[P_NAME] ||
-		       widths[P_NAME] == items[P_NAME].floor_width);
-		check (total (widths, N_PAIR) == available);
-	}
-}
+	/* Ninety percent of three values is all three - a share is rounded up to
+	   whole values, never down to fewer. */
+	check (nemo_column_layout_fit (three, 3, 90) == 30);
+	check (nemo_column_layout_fit (three, 3, 34) == 20);
+	check (nemo_column_layout_fit (one, 1, 10) == 42);
 
-/* Narrow enough that the pair cannot have its floors and its share both. Name
-   and Location give everything they have before Size or Date give anything. */
-static void
-check_pair_gives_before_the_rest (void)
-{
-	NemoColumnLayoutItem items[N_PAIR];
-	int widths[N_PAIR];
+	check (nemo_column_layout_fit (NULL, 0, 90) == 0);
+	check (nemo_column_layout_fit (ten, 0, 90) == 0);
 
-	paired_columns (items);
-	nemo_column_layout_distribute (items, N_PAIR, -1, 300, widths);
+	/* Out of range reads as the nearest end. */
+	check (nemo_column_layout_fit (ten, 10, 500) == 900);
+	check (nemo_column_layout_fit (ten, 10, -5) == 10);
 
-	check (widths[P_NAME] == 100);
-	check (widths[P_LOC] == 30);
-	check (widths[P_SIZE] < 80);
-	check (widths[P_DATE] < 160);
-	check (total (widths, N_PAIR) == 300);
-}
-
-/* A date or a size says nothing at all cut short, so the columns that still
-   read cut short give first and those two keep their width. */
-static void
-check_dates_keep_their_width (void)
-{
-	NemoColumnLayoutItem items[N_COLS];
-	int widths[N_COLS];
-
-	usual_columns (items);
-	items[NAME].elastic = TRUE;
-	items[TYPE].elastic = TRUE;
-
-	nemo_column_layout_distribute (items, N_COLS, TYPE, 500, widths);
-
-	check (widths[SIZE] == 80);
-	check (widths[DATE] == 160);
-	check (widths[TYPE] == 30);
-	check (widths[NAME] == 230);
-
-	/* Narrower still, with Name and Type both spent, and they finally give. */
-	usual_columns (items);
-	items[NAME].elastic = TRUE;
-	items[TYPE].elastic = TRUE;
-
-	nemo_column_layout_distribute (items, N_COLS, TYPE, 300, widths);
-
-	check (widths[NAME] == 100);
-	check (widths[TYPE] == 30);
-	check (widths[DATE] < 160);
-	check (widths[SIZE] < 80);
-	check (total (widths, N_COLS) == 300);
-}
-
-/* The cap on a column with no natural limit is a third of what grows, and with
-   Location on the row that is both of them. */
-static void
-check_cap_follows_the_pair (void)
-{
-	NemoColumnLayoutItem items[N_PAIR];
-	int widths[N_PAIR];
-
-	paired_columns (items);
-	items[P_DATE].unbounded = TRUE;
-	items[P_DATE].natural_width = 5000;
-
-	nemo_column_layout_distribute (items, N_PAIR, -1, 1200, widths);
-
-	check (widths[P_DATE] * 3 == widths[P_NAME] + widths[P_LOC]);
-	check (total (widths, N_PAIR) == 1200);
-}
-
-/* A capped column never ends up wider than Name or Location, however short the
-   names in the folder are. */
-static void
-check_cap_stays_inside_the_pair (void)
-{
-	NemoColumnLayoutItem items[N_PAIR];
-	int widths[N_PAIR];
-	int available;
-
-	paired_columns (items);
-	/* Short names, so Name settles well below half the row. */
-	items[P_NAME].natural_width = 140;
-	items[P_DATE].unbounded = TRUE;
-	items[P_DATE].natural_width = 5000;
-
-	for (available = 500; available <= 2000; available += 11) {
-		nemo_column_layout_distribute (items, N_PAIR, -1, available, widths);
-		check (widths[P_DATE] <= widths[P_NAME]);
-		check (widths[P_DATE] <= widths[P_LOC]);
-		check (total (widths, N_PAIR) == available);
-	}
+	/* The caller's array is left alone. */
+	check (ten[0] == 50 && ten[9] == 900);
 }
 
 /* Search results: both fit, so neither takes more than it needs and the rest of
@@ -416,7 +343,7 @@ check_search_pair_cap_wastes_nothing (void)
 	check (name == 800);
 }
 
-/* Floors hold even where there is no room for them. */
+/* Floors hold even where there is no room for them, and the pair overflows. */
 static void
 check_search_pair_floors (void)
 {
@@ -426,6 +353,7 @@ check_search_pair_floors (void)
 
 	check (name >= 120);
 	check (where >= 80);
+	check (name + where > 100);
 }
 
 int
@@ -433,19 +361,16 @@ main (int argc, char *argv[])
 {
 	check_fills_the_width ();
 	check_wide ();
-	check_type_gives_first ();
-	check_then_everyone ();
-	check_no_first_giver ();
-	check_unbounded_is_capped ();
-	check_impossibly_narrow ();
+	check_grows_in_proportion ();
+	check_stops_at_max ();
+	check_type_gives_alone ();
+	check_shrinks_in_proportion ();
+	check_overflows ();
 	check_single_column ();
-	check_floor_beats_natural ();
+	check_widths_out_of_order ();
+	check_no_grower ();
 	check_location_takes_the_surplus ();
-	check_location_never_narrower ();
-	check_pair_gives_before_the_rest ();
-	check_dates_keep_their_width ();
-	check_cap_follows_the_pair ();
-	check_cap_stays_inside_the_pair ();
+	check_fit ();
 	check_search_pair_fits ();
 	check_search_pair_shrinks_in_proportion ();
 	check_search_pair_ratio_is_capped ();

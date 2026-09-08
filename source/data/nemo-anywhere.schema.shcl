@@ -121,6 +121,11 @@ field: icon-view.thumbnail-size
 	default: 64
 	desc: Thumbnail size in pixels
 
+field: list-view.column-fit-percent
+	type: int
+	default: 90
+	desc: Share of a column's values its width has to show before the row scrolls sideways rather than narrow further. Name counts every file; a type or an owner counts each distinct value once.
+
 field: list-view.column-max-widths
 	type: string-array
 	desc: Widest each column may get, in pixels. Set by dragging.

@@ -39,6 +39,29 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Bottom scrollbar:
+	- Severe visual bugs, possibly related:
+		- Doesn't appear when needed, e.g. when view is tiny.
+		- Sometimes appears when not needed, e.g. after resize.
+		- Sometimes strobes at a high Hz (~10-30 or so) when visible. Hard to reproduce.
+			- And when so, the vertical scrollbar, if present, also strobes but not as visibly.
+		- Appears while resizing, even when not needed.
+	- Improvement:
+		- Don't shrink filename column in list or search views, below a threshold defined below; instead, show horizontal scrollbar to be able to see rightmost columns.
+			- Min width: Wide enough for all but the 10% widest outliers in the list. (Make this a config file tunable.)
+				- Including adjustements each time a subfolder is expanded.
+			- Max width: Wide enough for all names, plus nice visual padding on the right.
+		- Apply the same logic to all the "Type" and other variable-width columns, except first organize the calculation list into unique types, each unique type only counts once.
+			- That's the default width if constrained. But if there's enough space for everything to fit, show full-width.
+			- Max width: Wide enough for all non-name variable-width columns, plus nice visual padding on the right.
+			- The difference with the other "type" columns vs other variable-width columns, is that it has a "min" width that's different than the default. If things start getting constrained, allow "type" columns to shrink - proportional to all "type" column default sizes, to a Min width of 2x the default "Ext" column width.
+		- Change to all quasi-fixed-width columns:
+			- Don't shrink below displayable width. Rely on horizontal scrollbar instead.
+		- These directives override ALL previous decisions, and multiple changes, about column widths.
+			- Update design.md accordingly.
+			- If any other backlog items define changes to column width behavior, mark them as "Canceled". (There appear to be none.)
+			- Remove "directives" to Claude and other AI tells from this specific issue (including this line). Make it read like a normal human-written requirement, for a human to implement. But don't change wording that already reads fine (to avoid the risk of subtly changing meaning).
+
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
 - 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)

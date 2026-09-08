@@ -142,6 +142,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "icon-view", "labels-beside-icons", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "icon-view", "text-ellipsis-limit", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_text_ellipsis_limit, NULL, "Lines of a name under an icon before it is cut short" },
 	{ "icon-view", "thumbnail-size", NEMO_CONFIG_INT, "64", NULL, NULL, "Thumbnail size in pixels" },
+	{ "list-view", "column-fit-percent", NEMO_CONFIG_INT, "90", NULL, NULL, "Share of a column's values its width has to show before the row scrolls sideways rather than narrow further. Name counts every file; a type or an owner counts each distinct value once." },
 	{ "list-view", "column-max-widths", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_column_max_widths, NULL, "Widest each column may get, in pixels. Set by dragging.", NEMO_CONFIG_KEY_STATE },
 	{ "list-view", "default-column-order", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_column_order, NULL, NULL },
 	{ "list-view", "default-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_visible_columns, NULL, NULL },
