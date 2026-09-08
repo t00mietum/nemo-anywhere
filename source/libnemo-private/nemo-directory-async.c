@@ -1679,6 +1679,13 @@ lacks_favorite_check (NemoFile *file)
 static gboolean
 lacks_filesystem_info (NemoFile *file)
 {
+	/* Same trap as lacks_mount: on Windows a link to a share reads as a directory,
+	   so this asks the share itself and waits out the network timeout - and the
+	   view swap is gated on the answer for every entry in the folder. */
+	if (nemo_file_is_on_a_share (file)) {
+		return FALSE;
+	}
+
 	return nemo_file_is_directory (file) && !file->details->filesystem_info_is_up_to_date;
 }
 
@@ -4536,11 +4543,56 @@ extension_info_start (NemoDirectory *directory,
 	}
 }
 
+/* Which fetch the work queue is parked on, and for how long. The calls are all
+   async, so timing the call itself shows nothing - the wait is in the answer.
+   Set NEMO_DEBUG_IO to find the one that is costing twenty seconds. */
+static gint debug_io = -1;
+
+static void
+note_parked_io (const char *what, NemoFile *file)
+{
+	static const char *last_what = NULL;
+	static NemoFile *last_file = NULL;
+	static gint64 since = 0;
+	gint64 now = g_get_monotonic_time ();
+
+	if (!debug_io || (what == last_what && file == last_file)) {
+		return;
+	}
+
+	if (last_what != NULL) {
+		char *name = last_file ? nemo_file_get_display_name (last_file) : NULL;
+
+		g_printerr ("io: %s on %s took %.1fs\n", last_what,
+			    name ? name : "?", (now - since) / 1000000.0);
+		g_free (name);
+	}
+
+	if (what != NULL) {
+		char *name = file ? nemo_file_get_display_name (file) : NULL;
+
+		g_printerr ("io: waiting on %s for %s\n", what, name ? name : "?");
+		g_free (name);
+	}
+
+	last_what = what;
+	last_file = file;
+	since = now;
+}
+
+#define NOTE_IO(what) \
+	G_STMT_START { if (debug_io && doing_io && parked == NULL) parked = (what); } G_STMT_END
+
 static void
 start_or_stop_io (NemoDirectory *directory)
 {
 	NemoFile *file;
 	gboolean doing_io;
+	const char *parked = NULL;
+
+	if (debug_io < 0) {
+		debug_io = g_getenv ("NEMO_DEBUG_IO") != NULL;
+	}
 
 	/* Start or stop reading files. */
 	file_list_start_or_stop (directory);
@@ -4564,9 +4616,12 @@ start_or_stop_io (NemoDirectory *directory)
 
 		/* Start getting attributes if possible */
 		file_info_start (directory, file, &doing_io);
+		NOTE_IO ("file info");
 		link_info_start (directory, file, &doing_io);
+		NOTE_IO ("link info");
 
 		if (doing_io) {
+			note_parked_io (parked, file);
 			return;
 		}
 
@@ -4579,14 +4634,22 @@ start_or_stop_io (NemoDirectory *directory)
 
 		/* Start getting attributes if possible */
 		mount_start (directory, file, &doing_io);
+		NOTE_IO ("mount");
 		directory_count_start (directory, file, &doing_io);
+		NOTE_IO ("directory count");
 		deep_count_start (directory, file, &doing_io);
+		NOTE_IO ("deep count");
 		mime_list_start (directory, file, &doing_io);
+		NOTE_IO ("mime list");
 		thumbnail_start (directory, file, &doing_io);
+		NOTE_IO ("thumbnail");
 		filesystem_info_start (directory, file, &doing_io);
+		NOTE_IO ("filesystem info");
         favorite_check_start (directory, file, &doing_io);
+		NOTE_IO ("favorite check");
 
 		if (doing_io) {
+			note_parked_io (parked, file);
 			return;
 		}
 
@@ -4599,13 +4662,19 @@ start_or_stop_io (NemoDirectory *directory)
 
 		/* Start getting attributes if possible */
 		extension_info_start (directory, file, &doing_io);
+		NOTE_IO ("extension info");
 		if (doing_io) {
+			note_parked_io (parked, file);
 			return;
 		}
 
 		nemo_directory_remove_file_from_work_queue (directory, file);
 	}
+
+	note_parked_io (NULL, NULL);
 }
+
+#undef NOTE_IO
 
 /* Call this when the monitor or call when ready list changes,
  * or when some I/O is completed.

@@ -543,6 +543,16 @@ test('Directory load clean test',
   args: []
 )
 
+test('Metadata ready test',
+  executable('test-nemo-metadata-ready-win32',
+    [ 'test-nemo-metadata-ready-win32.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: [],
+  timeout: 300
+)
+
 test('Config schema drift test',
   executable('test-nemo-config-schema',
     [ 'test-nemo-config-schema.c' ],

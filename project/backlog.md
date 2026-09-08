@@ -49,12 +49,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 
-- 🔘 When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed. (Even going back to 'C:\opt\0-0\users\collierjr\0_links' will then allow changing view.)
-	- Traced on paper, not yet confirmed on the box. A view swap only happens once the NEW view reports it has started loading, and a view will not report that until both of its metadata callbacks have fired. One of those asks the whole directory for INFO, MOUNT and FILESYSTEM_INFO across every file already known.
-	- That is why the first view gets through and the second does not. At startup the directory has no files yet, so the question is answered at once. By the time the view button is pressed the folder is full of links, and filesystem info is asked one file at a time - about twenty seconds each for a link to a share that is not answering.
-	- Fits the rest of the report: the answers are cached on each file, so leaving the folder and coming back makes the swap instant.
-	- To confirm on the box: time how long the second view sits before it appears, and check whether it is proportional to the number of links. The fix, if that is it, is not to make the view swap wait on per-file filesystem info - which is a change every platform feels, so it wants a decision rather than a quiet edit.
-
 - 🛠️ Windows: When CTRL+L to editable current path:
 	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
 	- Context menu key doesn't work on selected text.
@@ -215,6 +209,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed.
+	- Opened: 20260908-011500
+	- Closed: 20260908-042000
+	- Cause, measured on the box: a view swap waits for the new view to report it has started loading, and that waits on a question asked of every file already listed - its info, its mount and its filesystem info. At startup the folder is still empty, so the question is answered at once and the first view gets through. By the time the view button is pressed the folder is full of links, and a link to a share that is not answering costs about twenty seconds. A folder of them takes minutes.
+	- Fixed: a link to a share is no longer asked for filesystem info, the same way it was already left out of the mount question. Windows only; nothing on another platform changes, since a share there is a mount rather than a native path.
+	- Measured both ways on a folder holding one link to a share that is not there: twenty-one seconds without the fix, none with it. That is the regression check, and it needs an address on the local subnet handed to it, since a name that resolves nowhere fails at once and proves nothing.
+	- Explains the rest of the report too: the answer is kept on each file once it arrives, so leaving the folder and coming back makes the swap instant.
+	- Also added: setting `NEMO_DEBUG_IO` logs which question the file-loading queue is waiting on and for how long. The calls are asynchronous, so timing the call itself shows nothing - the wait is in the answer, and that has now had to be worked out from scratch three times.
 
 - ✅ Bottom scrollbar: missing when the view is tiny, still there after a resize when nothing overflows, flashing at every step of a resize, and now and then strobing along with the vertical one.
 	- Opened: 20260906-110200
