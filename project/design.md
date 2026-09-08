@@ -26,6 +26,7 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 	- [File operations](#file-operations)
 	- [Search](#search)
 	- [UI](#ui)
+	- [List view column widths](#list-view-column-widths)
 	- [Appearance and themes](#appearance-and-themes)
 	- [Platform integration](#platform-integration)
 - [Building](#building)
@@ -294,9 +295,7 @@ The window is a menu and toolbar, a sidebar, a path bar and a view, and the view
 
 - The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Anything that could be slow to answer, such as free space or mount state, is fetched off the main loop and folded in when it arrives.
 
-- The list view scrolls sideways before it crushes a column. Every column has three widths: the least it may be, the width that shows most of its values, and the width that shows all of them. A date or a size is shown whole or not at all, so those three are one number; Name and the columns with no natural length have a spread. Once every column shows most of its values the ones that can still grow do so together, and what is left over goes to Name. Below the width that shows most, only Type gives, and then the row is wider than the window and the view scrolls. This replaced a rule that shrank Name to make the row fit, which crushed names to nothing in a narrow window.
-
-- A width dragged into place is remembered, and for a column with no natural length it becomes that column's ceiling for good: the column still follows its contents below it but never grows past it again. Name never has a ceiling, and neither does Location while it is growing alongside Name. Search results size that pair differently - each takes what its contents need, and where both do not fit they give in proportion, neither ending more than twice the width of the other.
+- The list view scrolls sideways before it crushes a column, and remembers a width dragged by hand. The whole rule is under [List view column widths](#list-view-column-widths).
 
 - The column roster earns its defaults. Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Owner shows by default on Windows too, where the platform reports a file's real owner. Permissions source - whether a file's permissions come from its folder, from the file itself, or both - is offered on Windows and off by default.
 
@@ -317,6 +316,57 @@ The window is a menu and toolbar, a sidebar, a path bar and a view, and the view
 - Scaling is the app's own job, not something done to it. The window declares itself per-monitor DPI aware, so a scaled display gets it drawn at that scale rather than drawn small and stretched, and moving it to a monitor at another scale redraws rather than restretches. The toolkit scales in whole steps, which leaves 125% or 150% short, so text is sized against the monitor's true DPI on top of that. Type comes out right at any scale; the widgets around it are still on the whole step below, which is the open item. On Linux and BSD the desktop publishes its own scaling and the toolkit follows it.
 
 - A launch shows something at every stage. The window is put on screen at its remembered size and place as soon as it exists, before the first folder resolves, with its panes still empty. On Windows, where getting that far takes measurably longer, a small panel appears first - drawn with the platform's own toolkit, since it has to be up before GTK is - and leaves as soon as the real window has drawn.
+
+### List view column widths
+
+This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
+
+- Every column has three widths.
+	- The least it will ever be.
+	- The width that shows most of its values. This is where it stops when the row runs short.
+	- The width that shows all of them, plus one character of air on the right.
+	- For a column whose values have a longest form - a date, a size, permissions, Ext - the three are one number. A value like that says nothing cut short, so it is never cut.
+	- The columns with a spread between the three are Name and the ones with no natural length: Type, Detailed type, MIME type, Owner, Group, Location and SELinux context.
+	- A heading wider than everything under it raises all three, so a column's own label is always readable.
+
+- "Most of its values" means the share set by `list-view.column-fit-percent`, default 90.
+	- Name counts every file in the folder, since every name matters.
+	- The others count each distinct value once, so a type repeated down a folder counts once rather than fifty times.
+	- The share rounds up, so 90 percent of three values is all three.
+
+- Widening, from a narrow window to a wide one.
+	- Every column starts at the width that shows most of its values.
+	- The surplus is handed out in proportion to those widths, so a wide column takes the most - it has the most left to show.
+	- That repeats, because a column reaching the width that shows everything part way through leaves its share to the others.
+	- Whatever is still left over goes to Name. Outside search, Location takes it instead when it is on the row and has no hand-dragged width of its own.
+
+- Narrowing is the same read backwards, down to the width that shows most of each column's values.
+	- Below that only Type gives - Type, Detailed type and MIME type - down to twice the Ext column. That is Ext as measured when it is on the row, and three characters when it is not, which is about what an extension comes to.
+	- Name never goes below 100 pixels.
+	- Once those are spent the row is wider than the window and the view scrolls sideways. That is the intended end state: a Name column crushed to nothing tells you less than a scrollbar does. It replaced an older rule that shrank Name to make the row fit.
+
+- A width dragged by hand outranks all of the above for that column.
+	- A drag is a stream of width changes, so the decision is made 350 ms after the last one rather than on each.
+	- On a column with a spread it becomes a ceiling, kept in `list-view.column-max-widths` as `column:pixels`. The column still follows its contents below the ceiling, but never grows past it again however wide the window gets.
+	- Name never takes a ceiling.
+	- A column whose values have a longest is left alone. Its drag holds until the window or the folder changes, the way it always did.
+	- Dragging Location outside search is what ends its claim on the surplus and pins it.
+
+- Search results divide the row differently, because Location is carrying the answer there rather than decorating it.
+	- Every other column is at the width that shows all of its values.
+	- Name and Location take what they need out of what is left, and the row ends short rather than stretching to fill it.
+	- Where the two do not both fit, they give in proportion to what they asked for - except that neither ends up more than twice the width of the other, unless the narrower one did not want the extra. Neither goes below its own floor, so the pair can still overflow the row.
+	- Dragging either edge pins a split instead, as a percentage of the pair's room in `search.name-location-split`, clamped to between 5 and 95. Zero means fit both to their contents, which is the default. With a split set, the pair fills the row between them.
+	- The split is worked out from the drag's own number against the room the pair had, not from the live widths. GTK reflows the expanding column the moment the button is let go, so a live read answers for GTK rather than for the drag.
+
+- What gets measured, and when.
+	- Every row is measured as it arrives and as its details fill in, which is a handful of cells at a time rather than a walk of the folder.
+	- Rows a subfolder adds count while it is open, and are forgotten when it collapses.
+	- Everything is measured again when the zoom level changes the font or icon size, and when a column is switched on that was not there to be measured while it was hidden.
+	- Samples are thrown away on a folder change. The names in the last folder say nothing about this one.
+	- Cells are asked for their natural width. The obvious call answers with a cell's minimum, and a cell that can ellipsize has almost none, so measuring that way collapses every column to a few pixels.
+
+- The columns are laid out in the view's own size allocation, for the width the tree view is about to be given, not in the tree view's own. Laying them out from the tree view's allocation draws one frame at the old widths on every step of a resize, which reads as flicker. The difference between the two allocations is learned from the previous one, so the frame where a scrollbar appears or goes is the one case still caught late.
 
 ### Appearance and themes
 
