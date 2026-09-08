@@ -135,6 +135,7 @@ typedef struct {
 	GList *files;
 	gboolean try_trash;
 	gboolean user_cancel;
+	gboolean unattended;	/* no key, click or drop behind it */
 	NemoDeleteCallback done_callback;
 	gpointer done_callback_data;
 } DeleteJob;
@@ -1603,6 +1604,106 @@ job_aborted (CommonJob *job)
 }
 
 /* Since this happens on a thread we can't use the global prefs object */
+/* Everything that trashes or deletes passes through here once, so one line
+   is a full record of who asked: how many, where, and the input event GTK was
+   delivering at the time. No event at all means nobody was at the keyboard -
+   a timer, the bus, another process - and that job asks whatever the
+   preference says. Written after a copy of the app emptied a home directory
+   with nothing in any log to say why. */
+static char *
+describe_event (GdkEvent *event)
+{
+	char *name, *desc;
+
+	if (event == NULL) {
+		return g_strdup ("no input event");
+	}
+
+	switch (event->type) {
+	case GDK_KEY_PRESS:
+	case GDK_KEY_RELEASE:
+		name = gtk_accelerator_name (event->key.keyval,
+					     event->key.state & gtk_accelerator_get_default_mod_mask ());
+		desc = g_strdup_printf ("key %s", name);
+		g_free (name);
+		return desc;
+	case GDK_BUTTON_PRESS:
+	case GDK_2BUTTON_PRESS:
+	case GDK_3BUTTON_PRESS:
+	case GDK_BUTTON_RELEASE:
+		return g_strdup_printf ("button %u", event->button.button);
+	case GDK_DRAG_MOTION:
+	case GDK_DROP_START:
+	case GDK_SELECTION_NOTIFY:
+	case GDK_SELECTION_REQUEST:
+		return g_strdup ("drop");
+	default:
+		return g_strdup_printf ("event %d", (int) event->type);
+	}
+}
+
+static gboolean
+log_delete_job (DeleteJob *job)
+{
+	GdkEvent *event;
+	GFile *parent;
+	char *trigger, *where, *first;
+	const char *title;
+	guint count;
+	gboolean unattended;
+
+	event = gtk_get_current_event ();
+	unattended = event == NULL;
+	trigger = describe_event (event);
+	if (event != NULL) {
+		gdk_event_free (event);
+	}
+
+	count = g_list_length (job->files);
+	parent = g_file_get_parent (job->files->data);
+	where = parent != NULL ? g_file_get_uri (parent) : g_strdup ("-");
+	g_clear_object (&parent);
+	first = g_file_get_basename (job->files->data);
+	title = job->common.parent_window != NULL ? gtk_window_get_title (job->common.parent_window) : NULL;
+
+	g_message ("%s %u item%s in %s, first \"%s\" (%s, window \"%s\")",
+		   job->try_trash ? "trash" : "delete", count, count == 1 ? "" : "s",
+		   where, first != NULL ? first : "?", trigger, title != NULL ? title : "none");
+
+	g_free (trigger);
+	g_free (where);
+	g_free (first);
+
+	return unattended;
+}
+
+/* The two confirmation preferences are the person's to turn off. This is not:
+   a job nobody's key, click or drop asked for, or one big enough that a slip
+   takes a whole folder, asks regardless. */
+static gboolean
+must_ask_anyway (CommonJob *job, GList *files)
+{
+	gint many;
+
+	if (((DeleteJob *) job)->unattended) {
+		return TRUE;
+	}
+
+	many = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_CONFIRM_MANY_ITEMS);
+
+	return many > 0 && (gint) g_list_length (files) >= many;
+}
+
+static char *
+unattended_note (CommonJob *job, const char *secondary)
+{
+	if (((DeleteJob *) job)->unattended) {
+		return f (_("No key press, click or drop asked for this. It came from another program, another copy of the app, or a timer. %s"), secondary);
+	}
+
+	return f ("%s", secondary);
+}
+
 static gboolean
 should_confirm_move_to_trash (void)
 {
@@ -1622,7 +1723,7 @@ confirm_move_to_trash (CommonJob *job,
 	int response;
 
 	/* Just Say Yes if the preference says not to confirm. */
-	if (!should_confirm_move_to_trash ()) {
+	if (!should_confirm_move_to_trash () && !must_ask_anyway (job, files)) {
 		return TRUE;
 	}
 
@@ -1643,7 +1744,7 @@ confirm_move_to_trash (CommonJob *job,
 
 	response = run_warning (job,
 				prompt,
-				f (_("You can restore an item from the trash, if you later change your mind.")),
+				unattended_note (job, _("You can restore an item from the trash, if you later change your mind.")),
 				NULL,
 				FALSE,
 				GTK_STOCK_CANCEL, _("Move to _Trash"),
@@ -1734,7 +1835,7 @@ confirm_delete_directly (CommonJob *job,
 	int response;
 
 	/* Just Say Yes if the preference says not to confirm. */
-	if (!should_confirm_trash ()) {
+	if (!should_confirm_trash () && !must_ask_anyway (job, files)) {
 		return TRUE;
 	}
 
@@ -1758,7 +1859,7 @@ confirm_delete_directly (CommonJob *job,
 
 	response = run_warning (job,
 				prompt,
-				f (_("If you delete an item, it will be permanently lost.")),
+				unattended_note (job, _("If you delete an item, it will be permanently lost.")),
 				NULL,
 				FALSE,
 				GTK_STOCK_CANCEL, GTK_STOCK_DELETE,
@@ -2425,6 +2526,7 @@ trash_or_delete_internal (GList                  *files,
 	job->files = eel_g_object_list_copy (files);
 	job->try_trash = try_trash;
 	job->user_cancel = FALSE;
+	job->unattended = log_delete_job (job);
 	job->done_callback = done_callback;
 	job->done_callback_data = done_callback_data;
 

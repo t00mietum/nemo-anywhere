@@ -168,6 +168,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ A running copy on Linux moved everything under the home folder to the trash, with nobody asking it to. The mounts under it cannot be trashed, so the "delete immediately?" question came up for each of those, and they went for good.
+	- Opened: 20260906-110342
+	- Closed: 20260907-190000
+	- Cause: not found. The app wrote nothing about a trash or delete job, and the rollback that brought the home folder back took its own log and every other record under home with it. Every trash path in the code starts from a selection, a drop, an undo or a menu; none runs on its own.
+	- Fixed what can be. Every trash and delete job now logs its count, folder, first item, window and the key, click or drop that asked for it. A job with no input event behind it (another program, another copy, a timer) always asks first, whatever the preference says, and the question says where it came from. A job of `confirm-many-items` or more (20 by default, 0 turns it off) asks even with confirmation off.
+	- The confirmation dialogs keep their usual default button. The dialog itself is the pause.
+
 - ✅ Plugins are duplicated.
 	- Closed: 20260905-184500
 	- Cause: the same share folder reaches the data-dir list more than once. The prefix wrapper puts it on when a launcher already has, and on Windows GLib adds the exe's own share folder on top of the one in the environment. Every action file was then found once per copy.

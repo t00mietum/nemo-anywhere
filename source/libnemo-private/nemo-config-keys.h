@@ -160,6 +160,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "confirm-drag-move", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Ask before a drop moves files" },
 	{ "preferences", "confirm-move-to-trash", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "preferences", "confirm-trash", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Ask before deleting outright or emptying the Trash" },
+	{ "preferences", "confirm-many-items", NEMO_CONFIG_INT, "20", NULL, NULL, "Ask before trashing or deleting this many items at once, whatever the two above say (0 for never)" },
 	{ "preferences", "date-format", NEMO_CONFIG_ENUM, "iso", NULL, enum_DateFormat, NULL },
 	{ "preferences", "default-folder-viewer", NEMO_CONFIG_ENUM, "list-view", NULL, enum_FolderView, NULL },
 	{ "preferences", "default-sort-in-reverse-order", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
