@@ -7,469 +7,530 @@
 <!-- TOC ignore:true -->
 # nemo-anywhere design
 
-High-level design and decisions for a portable, de-Cinnamon Nemo. Companion to [backlog.md](backlog.md).
+What the project is for, and the decisions behind it. Companion to [backlog.md](backlog.md), which tracks the work itself.
 
 <!-- TOC ignore:true -->
 ## Table of contents
 
 <!-- TOC -->
 
-- [Overview](#overview)
-	- [What and why](#what-and-why)
-	- [Fork decisions](#fork-decisions)
-	- [High-level port strategy](#high-level-port-strategy)
-	- [Dependency landscape](#dependency-landscape)
-	- [Toolchain](#toolchain)
-	- [Building Linux reference](#building-linux-reference)
-	- [Building Windows cross](#building-windows-cross)
-	- [Open questions](#open-questions)
-- [New project](#new-project)
-- [Project structure](#project-structure)
-	- [Folder structure](#folder-structure)
-	- [Logical code structure](#logical-code-structure)
-	- [Data flow](#data-flow)
-	- [Execution flow/loops](#execution-flowloops)
-- [Decisions along the way](#decisions-along-the-way)
+- [What and why](#what-and-why)
+- [Goals](#goals)
+- [Status](#status)
+- [Fork decisions](#fork-decisions)
 - [Architecture](#architecture)
 	- [Software stack](#software-stack)
-	- [Configuration model](#configuration-model)
-	- [Saves and persistence](#saves-and-persistence)
+	- [Code layout](#code-layout)
+	- [Data flow](#data-flow)
+	- [Execution flow](#execution-flow)
+	- [Configuration and persistence](#configuration-and-persistence)
+	- [File operations](#file-operations)
+	- [Search](#search)
 	- [UI](#ui)
 	- [Appearance and themes](#appearance-and-themes)
-	- [Testing](#testing)
-- [Delivery CI/CD, branches, releases](#delivery-cicd-branches-releases)
+	- [Platform integration](#platform-integration)
+- [Building](#building)
+	- [Linux](#linux)
+	- [Windows](#windows)
+	- [Open questions](#open-questions)
+- [Testing](#testing)
+- [Delivery](#delivery)
+	- [Branches and the merge gate](#branches-and-the-merge-gate)
+	- [Versions and build numbers](#versions-and-build-numbers)
+	- [The pipeline](#the-pipeline)
+	- [Reproducible builds](#reproducible-builds)
+	- [Release artifacts and packaging](#release-artifacts-and-packaging)
+	- [Installing](#installing)
+	- [Dogfooding](#dogfooding)
 
 <!-- /TOC -->
 
-## Overview
+## What and why
 
-### What and why
+A hard fork of linuxmint/nemo at its 6.6.4 release, decoupled from Cinnamon and from Linux-desktop assumptions so it runs standalone anywhere. Independent and divergent: no upstream contribution, no downstream sync. GPL-2.0-only.
 
-A hard fork of linuxmint/nemo (based on 6.6.4) that decouples Nemo from Cinnamon and from Linux-desktop assumptions, so it runs standalone across platforms. Independent and divergent: no upstream contribution, no downstream sync. Started from a clean detached baseline at the fork point. License is GPL-2.0-only.
+Targets in order: Windows, then Linux on any desktop or none, then BSD and macOS. One codebase; per-platform builds are labels, not separate projects.
 
-Targets, in order: Windows (first), de-Cinnamon Linux (standalone on any desktop or none), then BSD and macOS. One codebase; per-platform builds are informal labels, not separate projects.
+Windows is first because it forces the cleanest separation. Nothing Linux-specific can be assumed there, so the couplings show up as build errors rather than as things that quietly still work. A de-Cinnamon Linux build falls out of the same work.
 
-### Fork decisions
+## Goals
 
-- Among the import decisions: start from a clean detached baseline at the fork point rather than dragging in upstream commit history, giving the fresh fork an uncluttered starting point. Lineage and attribution are carried by fork.md and the retained per-file copyright/license headers, not by git ancestry.
+What the project is trying to be, roughly in priority order. The rest of this document is how.
 
-- Base is the latest stable release tag (6.6.4), not master, to start from a known-good baseline instead of a moving unstable target.
+- Run on any desktop OS, from one codebase. Windows first, then Linux on any desktop or none, then BSD and macOS.
+	- "For Windows" and friends are labels on builds, not separate projects.
 
-- Name: nemo-anywhere, chosen to signal portability and the de-Cinnamon "belongs to no desktop" identity while keeping "nemo" for discoverability and honest lineage. Per-OS shorthand (e.g. "for Windows") is presentational only.
+- Belong to no desktop. Nothing in the program assumes Cinnamon, GNOME, or even Linux, and it never draws or owns the desktop. It can sit beside whatever already does, original Nemo included.
 
-	- "Nemo Anywhere" and OG "Nemo" should be able to run at the same time on the same machine, without conflict.
+- Keep what makes Nemo worth porting. Fast navigation, real progress on file operations, sane folder merging, proper bookmarks, a deep set of preferences, and an extension API that still works.
 
-- Scope of the first runnable milestone: browse/copy/move/trash/delete.
+- Be portable in the copy-it-and-run sense. On Windows that is one executable with the runtime inside it. On Linux it is a small folder using the GTK the distro already has.
+	- Nothing installed, nothing registered, no repository to add. Installers and distro packages exist for people who want them, but nothing depends on them.
 
-- Packaging/installer approach per platform. (Common package managers per-platform, including .deb, .rpm, .AppImage, and eventually Flatpak for Linux.)
+- Make it hard to lose a file by accident. This is where the fork is willing to be less convenient than its ancestors.
+	- A drag that moves files says what it is about to do, and waits.
+	- Trash and delete jobs each write a line saying what was taken and what asked for it.
+	- A job with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
 
-### High-level port strategy
+- Keep configuration in plain sight. One text file, readable and editable by hand, with no registry keys, no dconf, and no compiled schema to install. Hand-editing it behaves the same as changing the setting in the dialog.
 
-The unifying work is decoupling. The same de-Cinnamon, de-Linux-desktop separation benefits every target, including Linux itself. Windows is first because it forces the cleanest separation (nothing Linux-specific can be assumed).
+- Fit each platform natively instead of pretending to be its file manager. Drive letters, the Recycle Bin, shortcuts, UNC paths and file associations are all done the way that platform does them.
+	- Read the system's settings, don't rewrite them. File associations come out of the registry; the app's own overrides stay in the app's own config.
 
-Staged, lowest-risk-first:
+- Hide or gray out what a platform cannot do, rather than failing at it. A missing runtime service should cost a menu entry, not a crash.
 
-1. Establish the fork repo and baseline (done).
+- Look presentable on a bare system. Icon sets and window styles are inside the program, so a fresh copy has no missing art and nothing to download.
 
-1. Cleanly reorganize project file and folder structure, for a modern project, as if started from scratch (with light refactoring where necessary).
+- Start fast and stay small. A file manager gets launched dozens of times a day, and a slow one is noticed every time.
 
-1. Build upstream on Linux (meson) for a known-good reference to diff behavior against.
+- Ship builds that can be checked. Reproducible from the commit they were built at, published with checksums, and cut by the same pipeline that runs on a developer's own machine.
 
-1. Carve out the hard Cinnamon/Linux couplings behind clean boundaries (desktop management, xapp/cinnamon-desktop, gvfs, dbus) so they can be stubbed or swapped per platform.
+- Stay Nemo. Same lineage, same license (GPL-2.0-only), per-file attribution intact. Independent and divergent: nothing goes upstream and nothing is pulled back down.
 
-1. Decouple from gconf/dconf and the Windows registry. Settings and persistence move to the [SHCL](https://github.com/jim-collier/shcl) config engine (done).
+- Deliberately out of scope: drawing the desktop, autorun of any kind on any platform, and migrating settings from a pre-1.0 install.
 
-1. Stand up the first cross-platform toolchain (Windows) and get it to compile.
+## Status
 
-1. Get it to launch and browse the local filesystem.
+Beta, at `1.0.0-beta2`. It builds and runs on Linux and Windows, and browses, copies, moves, trashes, searches, compresses and thumbnails on both. The Cinnamon decoupling is finished: the build links neither xapp nor cinnamon-desktop, and there is no desktop-drawing binary.
 
-1. Iterate feature by feature per target, replacing platform integrations or removing them gracefully.
+- Linux x86_64 and Windows x86_64 are the two builds that exist. Linux arm64 needs an arm64 GTK3 environment that nothing here provides yet.
 
-A de-Cinnamon Linux build tends to fall out of the same decoupling, and is a good early proof that the separation is clean before tackling Windows-specific APIs.
+- BSD and macOS are not built. Neither is expected to need much beyond a toolchain, since the Windows work removed the Linux assumptions, but neither claim is tested.
 
-### Dependency landscape
+- Windows releases go out unsigned. The free signing program applied for was refused, so the hosted release workflow still builds and packs but its signing step is dormant.
 
-Nemo is C with GTK3, built with meson. The stack splits into portable and platform-bound layers.
+- Known rough edges: a fractional display scale is applied to text but not to widget sizes and spacing, and settings from a pre-1.0 install do not carry over.
 
-- Portable (GTK3 runs on Windows via MSYS2/MinGW or gvsbuild, and natively on Linux/BSD/macOS):
-	- GTK3, GLib / GObject / GIO, Pango, Cairo, gdk-pixbuf.
+## Fork decisions
 
-	- GIO already abstracts some platform work (GFileMonitor, GVolumeMonitor) with per-OS backends, though coverage varies.
+- Baseline is the 6.6.4 release tag, not master, so the starting point is known-good rather than a moving target. It was imported as a clean detached commit with no upstream history: lineage and attribution ride in [fork.md](../fork.md) and in the per-file copyright headers instead of in git ancestry.
 
-- Platform-bound (the real porting work):
-	- Cinnamon coupling - xapp, cinnamon-desktop, and Nemo drawing the Cinnamon desktop/icons. Removing this was the core "de-Cinnamon" work and benefits all targets. Done: desktop management removed, both libraries replaced with in-tree portable equivalents (see "Decisions along the way").
+- The name keeps "nemo" for discoverability and honest lineage, and adds "anywhere" for the portability and the belongs-to-no-desktop identity. Nemo Anywhere and the original Nemo can be installed and run on the same machine at once without conflicting, which is deliberate: separate config directory, separate settings file, app-private per-file keys.
 
-	- gvfs - mounts, network shares, trash, per-file metadata. No direct Windows/macOS equivalent; the largest gap. Decided approach: keep gvfs as an optional runtime dependency on Linux (it is desktop-agnostic, present on virtually every distro), and fill the gaps natively per platform - see the gvfs decision under "Decisions along the way".
+- Version numbers start at 1.0.0 and are the fork's own, unrelated to the 6.6.4 code baseline.
 
-	- dbus - IPC and single-instance. Present on Linux/BSD, limited elsewhere; needs a portable path or removal.
+- Desktop management is removed, not made optional. A file manager is not a desktop shell, and drawing the root desktop is where the deepest Cinnamon coupling lived: the `nemo-desktop` binary, the `org.Cinnamon` proxy, the per-monitor `x-nemo-desktop://` directory model. Cutting it outright was the cleanest first step and it benefits every target. Kept, despite the names: the `.desktop` launcher-file properties editor and the multi-monitor geometry helper, both ordinary file-manager features.
 
-	- POSIX file ops, permissions, inotify/kqueue, X11 - map to each platform or abstract away.
+- xapp and cinnamon-desktop are reimplemented rather than compiled out, so the standalone build keeps favorites, thumbnails, tray feedback and the icon chooser instead of quietly losing them.
+	- Favorites and the thumbnailer were adapted from their upstream implementations into `libnemo-private`, with provenance and licenses noted per file.
+	- The tray icon uses GTK's own status icon. It is deprecated upstream but is still the only portable tray mechanism. Window taskbar progress was dropped: it is a Mint-only window-manager protocol with no portable equivalent.
+	- The icon chooser is a file picker with an image preview. Browsing theme icons by name went with the old widget, which is an accepted simplification.
 
-	- `.desktop` launchers, polkit ("open as root"), "open in terminal" - per-platform equivalents (Windows: `.lnk`, UAC, terminal; macOS: `.app`, `open`) or removal.
-
-### Toolchain
-
-First target is Windows. Among the options - native MSYS2/MinGW-w64 on Windows, MSVC via gvsbuild, and cross-compiling from Linux - we chose to **cross-compile from the Linux host with mingw-w64 and smoke-test under wine**. It reuses the toolchain already on the box, needs no Windows hardware, and fits the same "containerized reference build" model as Linux. The GTK3 Windows stack still comes from MSYS2, but as prebuilt packages extracted into a cross sysroot rather than a native MSYS2 environment. Native-Windows validation (running the .exe on real Windows) is deferred to when the cross build first links and runs under wine.
-
-The Linux reference build lives in a stock Debian 13 container rather than on the dev host directly - we decided that a pinned, clean distro image is the better known-good baseline, and it sidesteps host library drift. Upstream 6.6.4 builds and runs there unmodified with distro packages only.
-
-### Building (Linux reference)
-
-Standard meson/ninja. Stock Debian 13 is the known-good baseline. The buildable project lives under `source/` (the repo root is kept clean), so meson is pointed there.
-
-The container the day-to-day build actually runs in is `cicd/linux/Dockerfile.dev` (image `nemo-build-deps`, container `nemo-build`). It is the authoritative dep list; the packages below are the same set spelled out for anyone building on their own machine.
-
-- Install the toolchain and dev libraries:
-	- `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`
-	- `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`
-	- `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`
-	- `libarchive-dev`
-	- `libx11-dev libxext-dev libxrender-dev`
-- Configure and build:
-	- `export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"` (see "Reproducible builds")
-	- `meson setup build source`
-	- `ninja -C build`
-- The binary lands at `build/src/nemo-anywhere`. There is no desktop-drawing binary - desktop management was removed (see "Decisions along the way").
-- The action layout editor is a separate PyGObject script rather than part of the binary, so at run time it wants `python3-gi`, `python3-gi-cairo` and `gir1.2-gtk-3.0`. Nothing else needs them, and without them only that one window is missing.
-
-### Building (Windows cross)
-
-Cross-compiled from Linux with mingw-w64; the GTK3 dependency stack is prebuilt MSYS2 packages unpacked into a sysroot. All of it lives in a dedicated `nemo-winbuild` container so neither the host nor the repo carries the Windows binaries.
-
-- `cicd/win/fetch-sysroot.bash` - resolves the transitive dependency closure of a few root packages (gtk3, json-glib, libarchive, libexif, libgsf) from the MSYS2 pacman database and unpacks each `.pkg.tar.zst` into `/opt/win-sysroot`. No pacman needed; the `.db` is just a tarball of `desc` files we parse ourselves.
-- `cicd/win/win64.cross.txt` - meson cross file: mingw-w64 binaries, `wine` as the exe wrapper, `PKG_CONFIG_SYSROOT_DIR` pointed at the sysroot (the `.pc` files keep `prefix=/mingw64`).
-- `cicd/win/Dockerfile` - builds `nemo-winbuild`: mingw toolchain + native glib codegen tools (run on the build host) + wine + the baked sysroot.
-- Configure/build (source mounted at `/src`), or `cicd/win/build-cross.bash` to run both with the build stamp set - see "Reproducible builds":
-	- `meson setup --cross-file /opt/win64.cross.txt -Dxmp=false /build-win /src/source`
-	- `ninja -C /build-win`
-- Deliberately off for Windows: XMP/exempi (not packaged for mingw - `-Dxmp=false`), and the Unix-only pieces (`gio-unix`, `x11`, SELinux, Tracker) which get `host_machine.system()` guards in meson plus `#ifdef` guards in the affected C files.
-
-### Open questions
-
-- How far to push a clean internal platform-abstraction boundary vs. per-target `#ifdef`s.
-
-## New project
-
-## Project structure
-
-### Folder structure
-
-Repo root is kept deliberately clean: docs and license files, plus a handful of top-level dirs.
-
-- `source/` - the buildable project (meson entry point and all C sources; point meson here).
-- `project/` - design and backlog.
-- `assets/` - fork-authored assets.
-- `utility/` - standalone helper scripts and actions.
-- `cicd/` - local build/release automation (the pipeline engine, git backup+publish, release helper, git hooks). See "Delivery".
-- `.github/` - repo metadata (ownership, funding).
-
-Upstream shipped everything at the root with decades of accumulated meta-files; the fork consolidated the build under `source/` and dropped the files that no longer serve a standalone, cross-platform project (old changelogs, distro packaging, upstream CI). Internal `source/` layout is the conventional GTK/meson structure, left intact.
-
-### Logical code structure
-
-Four layers, bottom to top, each depending only on the ones below it.
-
-- `eel/` - a small widget and utility library inherited from the fork's ancestry: string and GTK helpers, stock dialogs, the editable label and canvas used by the icon view. It sits below everything and knows nothing about files or settings, which is why the couple of desktop-integration helpers that live here read the desktop's own settings directly rather than asking the config store.
-- `libnemo-extension/` - the public plugin interface: the interfaces a third-party extension implements (menu provider, column provider, property page, info provider) and the small value types they exchange. It is a standalone shared library with its own headers, so it deliberately depends on GTK and nothing else of ours.
-- `libnemo-private/` - the model. Files and directories (`NemoFile`, `NemoDirectory`) with their asynchronous attribute loading, the file operations engine, search, thumbnails, favorites, the settings store, the per-file metadata store, and the platform backends for trash, network and shell integration. No window or view lives here.
-- `src/` - the application and its views: the GtkApplication, windows, tabs and slots, the icon/list/tree views, the sidebar and path bar, the properties and preferences dialogs.
-
-Platform-specific code is kept out of the shared files where it can be: `*-win32.c` modules for trash, network, shortcuts and shell actions, and a POSIX compatibility header that lets ordinary callers compile unchanged where the platform has no equivalent. Some large shared files still carry inline platform blocks; consolidating on one convention is an open item.
-
-### Data flow
-
-A location is a URI throughout, and everything hangs off two model objects.
-
-- `NemoDirectory` owns the list of files at one location and the machinery that loads them. Views ask for a set of attributes (names and sizes, mime types, deep counts, thumbnails); the directory works out what is missing, issues the asynchronous requests, and reports each answer as it lands.
-- `NemoFile` is one file. Attributes arrive in stages, so a file starts out with a name and fills in over time. A file emits `changed` whenever anything about it moves, and every view redraws from that one signal - which is also why the caches added for redraw speed all invalidate there.
-- Anything the filesystem does not store is layered on top: per-folder view state, custom icons, emblems and favorite markers come from the app's own metadata store and are merged into the file's attributes as they load. On Linux a gvfs metadata daemon may supply the same keys; ours takes precedence.
-- Settings flow the other way. A read goes through one settings store to one file; a change emits a per-key signal, and the widgets and views that care are bound to it. An external edit to the file produces exactly the same signals as a change made in the UI.
-
-### Execution flow/loops
-
-One process, one main loop, and a firm rule that nothing slow runs on it.
-
-- Startup registers the application, opens the settings store, and either creates a window or hands the location to an already-running instance over the session bus.
-- The main loop drives everything the user sees. Directory loading, file operations, search and thumbnailing all run off it - GIO asynchronous calls for anything that touches a filesystem, worker threads for thumbnail generation and for the file operations engine.
-- Work started off the main loop reports back on it. File operations own a progress object that the UI observes; thumbnails hand back a finished image; a completed directory load emits `done_loading`. Callbacks that outlive their object are the recurring hazard here, so long-running work holds a reference and cancels on dispose.
-- Debounce and coalesce, rather than write or redraw on every event: settings saves, metadata saves, window geometry, and sidebar rebuilds all batch.
-
-## Decisions along the way
-
-- Desktop management is removed, not made optional. Nemo Anywhere is a file manager, not a desktop shell - drawing/owning the root desktop is inherently a Linux/Cinnamon-session concern and pulls in the deepest coupling (the `nemo-desktop` binary, the `org.Cinnamon` proxy, the per-monitor `x-nemo-desktop://` directory model). Cutting it outright is the cleanest de-Cinnamon step and benefits every target. Kept: the `.desktop` launcher-file properties editor and the multi-monitor geometry helper, both of which are ordinary file-manager features despite their "desktop" names.
-
-- Archives are written by libarchive, with the 7z and rar commands used as optional extras rather than as the primary route. Among the options - shelling out to whatever archiver is installed, vendoring a compressor, or linking a library - it was decided to link libarchive, because it needs nothing installed on the user's machine, writes the tar, zip and 7z families natively, and reports real per-file progress through the ordinary job queue. What it cannot do on the write side is the reason the commands are still reached for: it writes no rar at all, and has no support for split volumes, solid blocks, storing duplicates as references, or encrypting a 7z. Where an installed `7z` or `rar` can honour one of those, it is used; where nothing can, the option is greyed out rather than hidden, so a dialog does not change shape between machines.
-
-	- Which writer gets a job follows from what was asked for, not from the format alone. Encryption and splitting are treated as requirements - a backend that cannot do them is not a candidate, because quietly writing a readable archive when one was asked to be locked is the worst possible outcome. Everything else (solid, duplicate references, storing links, a recovery record, locking) is a preference: honoured where a writer can, dropped where none can, rather than failing the job. A preference no writer for that format can honour is dropped before matching, so an option left on by default does not steer a plain tar away from the writer that suits it.
-
-	- What gets archived, and where it lands, follows the long-standing convention rather than anything we invented. One item - file or folder - is archived as itself and offered beside itself, so opening the archive shows the folder and the contents are one level in; that is what a person expects and what makes an extraction land in one place instead of scattering. Archiving only the contents is the other half of the same convention: select them all first, and the archive still takes the folder's name but is offered inside the folder, holding the contents at its root.
-
-	- A part of a folder gets no suggested name at all. Naming it after the folder would be wrong - it is not the folder - and there is no other name a person would agree with, so the field starts empty and the Compress button waits until it is filled in. Deciding this needs to know whether the selection is everything the view is showing, which is a count against the displayed files rather than anything on disk; a search result has no folder to be named after and never qualifies.
-
-	- Compressing a selection separately is that same convention applied to each item on its own, and it is deliberately one job rather than one job per item: several progress bars racing each other for the same folder would be unreadable, and cancelling would mean cancelling each of them. The archives that would be overwritten are gathered before anything starts and asked about once, since the count is the useful thing when there can be any number of them. Here the item's whole name is kept and the suffix goes on the end, where the name field would swap a suffix it recognizes - there is no field to correct in this mode, and swapping would write an archive over the very file being read.
-
-	- Unpacking reaches much further than writing does, so the two sides are not symmetrical. libarchive reads the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors, which is most of what anyone double-clicks, and it does so entry by entry - which is what makes per-file progress, cancelling and a collision prompt possible at all. A command is reached for only when libarchive will not open the file or stalls on its first header, and only while nothing has been written yet, so handing the archive on costs nothing. Both commands are then tried in turn rather than one being picked: being installed is no promise of being able to read the file, and an old build on the PATH can be years behind the format.
-
-	- A command has nowhere to hang the collision questions, so it unpacks into a temporary folder inside the destination and what it produced is placed afterwards, through the same code the entry-by-entry path uses. That keeps one answer to collisions for both backends, and it means a failed or cancelled command leaves nothing scattered. The folder is named with a leading dot, which hides it everywhere except Windows, where dot-files are not yet treated as hidden; GIO cannot set the DOS hidden bit, so it stays visible there until that is fixed.
-
-	- Collisions ask what copying asks, and the answers mean the same things: skip, duplicate, rename, replace, and applying that answer to everything after it. A folder arriving on a folder merges silently, because a shared top-level folder is how archives are normally built and prompting for it would be noise. The prompt names the archive the incoming file came from, which copying never needs to say and which matters here because several archives can be unpacked at once. A renamed folder carries its children with it: the answer is remembered against the path the archive used, so nothing downstream has to rewrite paths.
-
-	- Where an archive says an entry goes is not taken at its word. A stored path that is absolute, names a drive, or climbs out with `..` is reduced to something inside the folder the person picked, because an archive must not be able to write wherever it likes on the strength of being opened. Backslashes count as separators whatever the platform - that is what the tools that wrote them meant - and this is the one place they are, since a typed path treats `\` as an ordinary character on POSIX.
-
-	- Unpacking into a folder each is deliberately literal: a folder named after the archive, holding exactly what the archive holds, even when that is a folder of the same name again. It exists for the archive that would otherwise scatter, and guessing when to skip the wrapper would make it unpredictable - "Extract Here" is already the tool for an archive that carries its own folder.
-
-	- Following symlinked and junctioned folders is off by default and is ours, not the archiver's, because the file tree is walked through GIO before anything is handed to a writer. A link loop would otherwise pull in the whole disk; the walk remembers the directories it has been through by file id, so a loop terminates even when following is switched on.
-
-	- The command lines the 7z and rar programs are run with live in the settings file rather than in the code, so a person can point one at a different build, add a switch we never thought to offer, or work around a version that spells something its own way. There are four - create and unpack, for each of the two programs - and each is one line with `{{PLACEHOLDER}}` markers standing for the parts we fill in. Editing one is meant to be an ordinary thing to do, so clearing it puts the line we ship back rather than running nothing.
-
-		- Every switch the Compress dialog can turn on has a marker of its own - the level, the password, splitting, solid blocks, duplicate references, the recovery record, locking, how links are stored - so an edited line keeps the dialog working instead of freezing it at whatever was typed. Leave one out and the app says which control has gone quiet, rather than letting a checkbox sit there doing nothing.
-
-		- How much of the machine a compression may use is one setting under `performance`, a percentage of the cores found, rather than a number of threads written into each line - a percentage still means something on a machine with a different core count, and one answer covers the two programs and the built-in writer alike. It is the one marker that does not stand for a Compress dialog control, so leaving it out of an edited line is not remarked on: the program simply picks for itself. 50% is the default because a hyperthreaded core is not a whole core, and taking every logical processor slows the rest of the machine for no gain in the archive.
-
-		- A password is a value we hand the program, never part of the line, so it is not written to the settings file. It is still visible in the process list while the program runs, which is true of every archiver and has no fix short of not using one.
-
-		- The line is split into arguments before the markers are filled in, never after. That is what makes a file named with a space, a quote or a backslash stay one argument: nothing a user supplies is ever re-read as part of the command, so it cannot turn into a switch or a second file name.
-
-- Settings moved off GSettings entirely, onto SHCL, rather than keeping the GSettings API over a SHCL-backed store. Both were on the table: a storage backend would have been a fraction of the work and left every call site untouched, but it would have kept a compiled schema to install and ship on every platform. Among these options it was decided to take the full replacement, so that configuration is one plain file the user can open, with no build-time or install-time artifact behind it. The costs are real and were accepted: roughly three hundred call sites moved, and change notification, property binding and enum mapping are now ours to maintain. Notification and binding kept the shapes they had (a detailed `changed::key` signal, a `bind` with optional mappings), so the call sites read as they did before.
-
-	- Defaults stayed central, in one table, instead of being restated at each call site as SHCL's own guidance suggests. With a hundred and sixty-eight settings, many read from several places, a restated default is a bug waiting to happen - two call sites disagreeing about what a setting means when it is absent.
-	- The `compat.*` fallback schemas introduced for non-Cinnamon sessions are gone. What they stood in for is now simply our own settings, which a desktop may override where it publishes its own answer.
-	- Two of them turned out to be dead and were removed rather than carried across: the desktop background setting (nothing has read it since desktop management was removed) and the command-line lockdown setting (watched, but its value never read).
-
-- The remaining Cinnamon libraries (xapp, cinnamon-desktop) are reimplemented with portable equivalents rather than compiled out behind flags, so the standalone build keeps favorites, thumbnails, tray/progress feedback, and the icon chooser instead of silently losing them. This is now done - the build links neither library.
-
-	- Favorites and the thumbnailer were adapted from their upstream implementations into libnemo-private (provenance and licenses noted per file), with settings moved under our own schema so nothing is shared with a co-installed Mint stack.
-	- The tray icon uses GTK's built-in status icon (deprecated upstream but still the only portable tray mechanism). Window taskbar progress was dropped outright - it is a Mint-only window-manager protocol with no portable equivalent.
-	- The icon chooser is a plain file picker with an image preview; browsing theme icons by name went away with it, which is an accepted simplification.
-
-- gvfs: keep it on Linux, replace the gaps natively elsewhere. gvfs turned out to be desktop-agnostic (a freedesktop/GIO service present on virtually every Linux desktop, not a Cinnamon thing), so on Linux it stays as an optional runtime dependency - when present it provides network shares, trash, mtp/sftp and so on; when absent the UI self-hides those entries. The per-platform gaps are filled as follows:
-
-	- Per-file/per-folder metadata (view and sort state, custom icons, emblems, favorite markers) moves to an app-owned portable store on all platforms, replacing the gvfs metadata daemon entirely. One store, one behavior everywhere; nothing is lost on Linux since these keys are already app-private.
-	- Trash on Windows: deleting to the Recycle Bin already works natively through GLib. In-app trash browsing (view, restore, empty) gets a native Recycle Bin backend rather than being scoped out.
-	- Network on Windows: native networking rather than a gvfs port - UNC paths work as ordinary paths, and network browsing enumerates the Windows network neighborhood natively.
-	- Virtual locations (network, computer, trash) are shown only when the running platform actually supports them, extending the runtime scheme check the codebase already uses.
-
-- Installing is a script, not a package. The primary install path is a one-liner that fetches a release, checks it, and puts it where that platform expects - no repository to add, no dependency hunt, and no packaging format to maintain per distro. Distro packages can come later without changing this.
-
-	- Two standalone installers rather than one script with a helper: `install.bash` (bash 3.2, so stock macOS runs it) and `install.ps1` (PowerShell 7). Each covers every platform it can reach on its own - the PowerShell one installs on unix itself instead of handing off - so neither depends on the other being present. The duplication is deliberate: it buys a one-liner that works from whichever shell someone already has open, and both are small.
-	- The app installs as a whole folder plus the two things that make it reachable: a menu entry, and a name on the PATH (a symlink on unix, a PATH entry on Windows). A file manager gets launched both ways, so both are worth wiring.
-	- User install is the default and needs no privileges. A system-wide install is opt-in and is the only path that escalates, which it states in the plan first.
-	- Every run prints what it is about to do and waits for a yes. Downloads are checksum-verified before anything is unpacked, so a bad download can never replace a working install. Reinstalling replaces in place, and `--uninstall` removes exactly what was added.
-
-- D-Bus and single-instance: kept as-is, no per-platform gating. Probing showed that GLib autolaunches a per-user D-Bus session bus on Windows as well, shared across processes, so GApplication's single-instance behavior works everywhere - launching a second copy hands its arguments to the first rather than opening a rival process - and the two D-Bus services (the freedesktop file-manager interface and the internal file-operations one) get a real connection. The only thing that needed hardening was the bus-less case: on a headless or minimal system, or a locked-down Windows where autolaunch fails, there is no connection at all, and the file-operations service (which only ever serves other processes) must simply not set itself up rather than fail. A single-instance process-per-window mode, if wanted, is a separate future choice layered on top of this, not a change to it.
-
-- Path separators: `/` and `\` both work in typed locations on every platform, without reserving `\`. On Windows both are already native separators. On POSIX, `\` is a legal filename character (files created over SMB shares really do contain it), so it is not reserved and no escape syntax is introduced; instead, typed input is normalized by fallback - the literal path is tried first, and only if it does not resolve is a `\`->`/` retry attempted. Pasted Windows-style paths work, real backslash-filenames keep working, and copy-paste interop with the rest of the platform is preserved.
-
-- Desktop-environment settings schemas are optional at runtime. Upstream read several Cinnamon/GNOME settings schemas that only exist on those desktops, and a missing schema is a hard abort in GLib. The app bundles fallback copies with the same keys and neutral defaults, and prefers the real desktop schema whenever the session provides it - Cinnamon integration is preserved, and every other environment (including Windows) starts clean.
-
-- Windows drive letters are first-class roots: the sidebar lists each fixed drive with a disk-usage bar, replacing the single Unix filesystem root, which has no meaning on Windows. Removable, optical, and network drives stay on the normal devices path, since that path carries eject and unmount.
-
-- Per-type file icons on Windows are derived from the file's content type, because the platform's file layer reports one generic icon for nearly every file. Thumbnails keep the freedesktop thumbnailer mechanism on every platform; the Windows runtime ships the thumbnailer tools and image-loader cache it needs.
-
-- "Open in terminal" and "open elevated" map to native equivalents per platform. On Windows: the native console (Windows Terminal, then PowerShell, then cmd) opened at the folder, and an elevated relaunch through the normal UAC prompt, labeled "Open as Administrator". On Linux: the configured terminal and a pkexec relaunch, labeled "Open as Root".
-
-- Content search converts documents itself. Among shelling out to whatever converter happens to be installed, bundling scripts with their interpreters, or writing the converters in C on a library the app already links, it was decided to write them in C. The old helpers were a Python script, a shell script and a LibreOffice call - none of which exists on a stock Windows machine, and each a dependency the install could not promise. Word, Excel and PowerPoint in both their old binary and newer zip-of-xml forms, OpenDocument and EPUB are covered; the definition-file mechanism stays, so a helper for anything else can still be dropped in.
-- Search results can be grouped by the folder holding them. Among an ordinary tree of every folder between the search root and the match, a heading row per folder, and leaving results flat, it was decided on a heading row per folder holding a match, labeled with the path under the folder searched. A full tree would put rows on screen for folders with nothing in them, and reading that path off one row is what a person actually wants. The heading rows are built by the view rather than by the model's own subfolder machinery, so a folder nobody asked to open is never read, monitored or walked; the mode is a toggle beside the recurse one, flat by default, and switching either way redraws from the results already in hand rather than searching again.
-
-- File associations on Windows are read from the registry and never written to it. Windows keeps the per-user default under a hash a program is not meant to set, so "Set as default" used to fail outright. Among writing the registry the unsupported way, giving up on the button, or keeping the choice ourselves, it was decided to keep it in the settings file: one line per type, a command line with `%1` for the file, in the shape the registry itself uses so it reads the same to anyone who has looked in there. The map is consulted first; the registry answers for everything else, through the same query Explorer makes, so the open verb is what comes back and not a print one.
-	- On Windows the search index is used when asked. A switch in Preferences, off by default, answers a search from the Windows Search index for any folder it covers. Everything the index cannot do - a folder outside it, a network location, a regular expression or a case-sensitive match on contents - goes to the ordinary walk unchanged. It is off by default because the index only knows what it has been told to watch, and a search that quietly misses a folder would be worse than a slow one.
-
-- On Windows nemo never starts another program itself. The single-exe build carries its whole runtime inside it, and anything it starts inherits that view of the disk along with the rest of nemo's environment, which is not the machine the other program expects to be running on. So the desktop is asked to do the starting instead, and it was decided to route every launch that way rather than only the ones nemo works out for itself. The programs offered under "Open with" come from the toolkit, but they carry the same registry command line, so they go the same way. A store app is the one kind that has no command line, and it is left to the toolkit.
-
-- Dragging files out to another program on Windows is done by the app rather than the toolkit, for the same reason the clipboard is. The toolkit puts only its own target names into a drag, and nothing outside it reads those - the one format every Windows program does read has no name to register it under, so it cannot be added from outside. Among leaving the feature out, patching the toolkit, or owning the drag, it was decided to own it: a drag now carries what Explorer's own drags carry, and the app's own formats ride along beside them, so drops back into nemo behave exactly as before.
-	- This does mean putting the toolkit on the drag protocol that reaches other programs, which it ships switched off. That was checked before and after the change, in both views, and one switch turns the whole thing off and puts every drag back on the toolkit's own.
-	- A move out to another program removes the original, which is the half of a move the source owns when the other program only copied. It is skipped when that program reports having done the move itself, when the drop came back into nemo, and for any file that is already gone.
-	- Drops coming the other way copy or move as they should. A file dragged in from another program is unknown to nemo, so there was nothing to compare drives with and every such drop copied. Its filesystem is now looked up once per drag, which is what the same-drive rule needs to answer.
-	- Control copies and shift moves, following Windows. The toolkit reports the same suggested action either way for a drag from another program, so the keys are read directly.
-	- Files dragged in from a program that is not nemo arrive as a plain list of locations, without the per-item detail our own drags carry, and that list had a much simpler rule behind it - it just did whatever was suggested, which on Windows is always a copy. Both now reach the same answer, so a drag from another file manager behaves like one out of our own window.
-	- A copy running as administrator cannot be dropped on at all. Windows refuses to let an ordinary program hand anything to an elevated one, and there is no way to accept it from this side. Dragging out is unaffected.
-
-- Copying a link asks what should land at the far end. A link can be kept as a link or replaced by what it points at, and neither answer is right for every copy, so the question is put once per operation rather than guessed. It is asked whenever the source holds a link, on every platform, including where the destination can hold none of them - then every option but the copy is greyed out and the dialog says why. Being told what is about to happen is the point; a copy that quietly turns links into files, or files into links, is the thing being avoided.
-
-	- Windows is where this mattered most. A copy there always followed the link and left the contents behind, so a link could not be copied as a link at all. POSIX already kept symlinks by default; what is new there is being able to ask for the contents instead.
-
-	- Windows has two kinds of link where POSIX has one, and the dialog says so: a folder symlink and a junction both point at a folder, but only the symlink needs the privilege that Windows normally withholds. Each row starts on the kind it found, falls back to the nearest kind that still points at the same target, and falls back again to a copy - the same rule everywhere, narrowed only by what the destination can actually take. Anything it cannot take is greyed out rather than hidden, so the dialog does not change shape between machines. The junction column is the one exception, and it is absent where junctions do not exist.
-
-	- Which kind a Windows link is comes from the reparse tag, because nothing else distinguishes them - and the same read keeps cloud placeholders and store app aliases, which are reparse points too, from being mistaken for links.
-
-	- A link keeps its own spelling, so a relative one still points where it pointed. Asking for a junction is the exception: a junction can only name a full path, so a relative target is resolved against the folder the original link sat in.
-
-	- A link now counts as one item rather than a folder to walk into. That is what POSIX always did and Windows never did, and it is also what stops a copy following a link to somewhere large or unreachable.
-
-- Each window is its own process, by default. A crash then takes one window rather than all of them, and two versions can be open side by side, which is what trying a build next to the one in daily use needs. Every launch is a fresh process as well; nothing is handed to a copy already running.
-	- The copies still find each other. Each one queues on the one bus name, so a caller from outside always reaches the oldest, and the rest are read off the queue. That is how `--quit` and "Close All Windows" reach every copy, and how `--reset` knows one is running.
-	- What it costs: a tab cannot be dragged into a window that belongs to another process. Dragging a tab out onto the desktop opens that folder in a new process and closes the tab. On Windows a new window carries the packed program's start-up time rather than appearing at once.
-	- Those two are why it is a setting rather than fixed. Turning it off puts new windows back inside one process. Launches from outside stay separate either way.
-	- A selection has to be sayable on a command line for another process to show it, so `--select` was added: the folder around an item, with the item selected. "Show in folder" from other programs uses the same path.
-
-- Trashing and deleting are the two things a file manager cannot take back, so they are held to a higher bar than the confirmation preferences alone. After a copy of the app emptied a home folder with nothing anywhere to say why, it was decided that:
-	- Every trash and delete job writes one log line: how many items, which folder, the first item, the window, and the input event that asked for it - the key, the mouse button, or a drop. That line is the record when something goes wrong.
-	- A job with no input event behind it always asks first, whatever the preference says, and the question says where it came from. A key, a click or a drop is what a person does; a timer, another program or another copy of the app is not, and the app should not act on those silently.
-	- A job of `confirm-many-items` or more asks even with confirmation switched off. Twenty by default; zero turns it off. A slip that takes one file is a nuisance, one that takes a folder is a day.
-	- The dialogs keep the affirmative as their default button. Making Cancel the default was considered and turned down: the dialog itself is the pause, and a Cancel default is friction on every ordinary delete for people who chose to be asked.
+- The first runnable milestone was scoped to browse, copy, move, trash and delete. Everything else came after that worked.
 
 ## Architecture
 
 ### Software stack
 
-- **Language**: C, built with meson and ninja. No C++ and no additional language runtime.
-- **Toolkit**: GTK 3 with GLib/GObject/GIO. GTK 3 rather than 4 because the fork inherits a large GTK 3 codebase and GTK 3 still has the better Windows story; the deprecated pieces still in use (the status icon, a few stock dialogs) are isolated and marked.
-- **Filesystem access**: GIO everywhere, with native backends filling the gaps that have no portable answer - the Windows Recycle Bin, Windows network browsing, and Windows shell shortcuts.
-- **Other libraries**: json-glib for the metadata store, libarchive for writing archives, libexif/libgsf/exempi for file property extraction, and a single vendored header for the settings format. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
-- **Optional at runtime**: gvfs on Linux, for network shares, trash and remote mounts. Absent, the affected entries hide themselves rather than fail.
+- Language: C, built with meson and ninja. No C++ and no second language runtime.
 
-### Configuration model
+- Toolkit: GTK 3, with GLib, GObject and GIO. GTK 3 rather than 4 because the fork inherits a large GTK 3 codebase and GTK 3 still has the better Windows story. The deprecated pieces still in use (the status icon, a few stock dialogs) are isolated and marked.
 
-Settings are ours, in a file we own, in a format a person can read. There is no
-settings daemon, no compiled schema, and no per-platform store to keep in step.
+- Filesystem access: GIO everywhere, with native backends filling the gaps that have no portable answer - the Windows Recycle Bin, Windows network browsing, and Windows shell shortcuts.
 
-- One file, `settings.shcl`, in the same format everywhere, in whichever
-  directory the platform holds per-user configuration in: `~/.config` on Linux
-  and BSD, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS. A
-  folder left behind by an older build is moved to the new place on first run.
-- Bookmarks are the toolkit's own file on Linux and BSD, shared with every other GTK program there. On Windows nothing else reads that file and it sits in the local profile, so the list is kept beside the settings in the roaming one instead, copied across once from the old place.
-- The declared shape of every setting - type, default, allowed values,
-  description - lives in a table in the code, and is mirrored by a schema file
-  shipped with the app for validating a hand-edited config.
-- Values the desktop owns rather than us are read from the desktop where it
-  publishes them, and fall back to ours where it does not.
-- A few settings are deliberately file-only, with nothing in Preferences: what a rename starts out with selected is one of them. The default selects the whole name, extension included, on the grounds that a person pressing F2 usually means to replace the name outright and an extension typed back is cheaper than an extension silently kept. Anyone who wants the other behaviour has a line to change, but it does not earn a control.
-- Where a setting is a command line for some other program, the parts we fill in are written `{{LIKE_THIS}}`, in capitals between double braces, and that is the convention for any setting that grows one later. Braces because nothing expands them: the same line pasted into a command prompt or a shell to try it out comes back unchanged, where `%NAME%` would quietly vanish on Windows and `${NAME}` would on Linux. Only the markers a setting declares are replaced, so anything else in braces is passed on as itself and there is nothing to escape.
+- Other libraries: libarchive for reading and writing archives, libexif, libgsf and exempi for file property extraction, json-glib for the metadata store, and a single vendored header for the settings format. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
 
-The trade accepted here: reading and writing settings is now our code rather
-than a well-worn library's, and settings do not migrate from a pre-1.0 install
-because nothing remains that can read the old store.
+- Optional at runtime: gvfs on Linux, for network shares, trash and remote mounts. Where it is absent the affected entries hide themselves rather than fail.
 
-### Saves and persistence
+Longer term the toolkit itself is the constraint. GTK 3 is no longer developed, keeps the project in C, and is weaker on Windows and macOS than the alternatives. Moving off it is a separate project ([Captain Nemo](https://github.com/t00mietum/captain-nemo)), not something this one attempts.
 
-Three separate stores, each with its own lifetime.
+### Code layout
 
-- Application settings (everything in the Settings dialog, plus menu toggles like Show Hidden Files) live in one plain-text SHCL file, `settings.shcl`, in the user's config directory - the same file and the same format on every platform, in whichever directory that platform keeps configuration in. Neither the Linux desktop settings database nor the Windows registry is involved any more.
-	- The file is meant to be read and edited by hand. It holds only what was actually chosen: a value equal to its default is dropped, the way per-folder view state already worked, so the file stays short and a later change to a default still reaches the user.
-	- Because only changed values are kept, the file on its own would say nothing about what else there is. So everything not set is listed at the end, commented out, with the value used instead and a one-line note wherever the name does not already say it. Uncommenting a line is the same as changing the setting in the dialog, and setting one takes it off the list. Keys the app writes back itself - a window size, a sidebar width, the last state of a search toggle - are left off: setting one by hand only gets it overwritten.
-	- Edits made while the app is running are picked up straight away, so hand-editing behaves like changing the setting in the UI.
-	- Types, defaults and allowed values live in a table in the code, and a matching schema ships beside the app so `shcl check --schema` can validate a hand-edited file and catch typos.
-	- A handful of settings are the desktop's to decide rather than ours - which terminal to open, whether the session remembers recent files, 12h or 24h clocks. Where a desktop publishes them we read its answer; everywhere else our own value stands in. That is the only remaining use of the desktop settings database, it is read-only, and it never touches a schema of ours.
+The repo root holds docs and licenses and little else. The buildable project is wrapped under `source/` with its internal GTK/meson layout intact, so meson is pointed there.
 
-- Per-folder view state - view mode, zoom, sort column, column layout - is app-owned and portable, in a single file under the user's config directory. This replaced the Linux-only metadata service so the behaviour is identical everywhere.
-	- Only a real per-folder choice is stored. A value that merely matches the current default is left out, so the folder keeps following the default if it later changes. Upstream stored it either way, which quietly pinned every folder you had ever opened.
-	- Changing a default in Settings also applies to the folders already on screen. Folders you are not looking at keep their own view and zoom until you visit them.
+- `source/` - the meson entry point and all C sources.
 
-- Window size, position, and maximized state are shared by all windows and live with the application settings. They are written shortly after a move or resize settles, rather than only when a window closes, so an abnormal exit doesn't discard them.
-	- On a first run there is nothing saved yet, so the window opens at 1280x720 including its title bar and borders, with the side pane at about a fifth of the width.
+- `project/` - this document and the backlog.
 
-Settings are deliberately isolated from an upstream Nemo installed alongside: our own config file, separate config directory, and app-private per-file keys. A few genuinely shared per-file keys (custom icons, emblems, annotations) stay interoperable on purpose.
+- `assets/` - fork-authored artwork.
 
-The thumbnail cache is a fourth store, and not one of ours. It is the shared freedesktop cache: PNG files named by a hash of the file they were made from, under the user's cache directory. Every file manager and image viewer on a Linux desktop reads and writes the same folder, so a thumbnail made in one is already there in the next.
+- `vendor/` - third-party sources kept in tree, each with its own license and pinned origin.
 
-- Nothing ever removed one, so the folder only grew. It is swept now: once a day at most, on a worker thread a minute after startup, and never on the path that draws a window.
+- `utility/` - standalone helper scripts, actions and the cross-platform launcher.
 
-- Three rules, in that order. A thumbnail whose file is gone goes first, then anything not used for longer than the age allowed, then oldest-first until the rest fit in the size allowed. Both limits are on the Preview page of Settings, and either can be turned off.
+- `filesystem/` - a tree mirroring where files land on disk, so a drop-in theme folder can be copied straight across.
 
-- The defaults are 180 days and 512 MB, which is what a GNOME or Cinnamon desktop's own housekeeping already applies to the same folder. So on those desktops nothing changes. On Windows, and on a desktop with no housekeeping of its own, something is finally minding it.
+- `cicd/` - the local build, release and publish automation. See [Delivery](#delivery).
 
-- A private database was considered and dropped. It would have meant a new dependency in three build environments, and on Linux it would have cost the sharing that makes the cache worth having: our thumbnails invisible to everything else, and everything else's invisible to us. Growth was the actual complaint, and sweeping fixes that without giving anything up.
+- `.github/` - repo metadata. Distinct from `github/`, which is the working directory this file sits under.
 
-- Only our own failure records are swept. Another program's are its business.
+Upstream kept everything at the root with decades of accumulated meta-files. The fork consolidated the build under `source/` and dropped what no longer serves a standalone cross-platform project: old changelogs, distro packaging, upstream CI.
+
+Inside `source/` there are four layers, bottom to top, each depending only on what is below it.
+
+- `eel/` - a small widget and utility library inherited from the fork's ancestry: string and GTK helpers, stock dialogs, the editable label and the canvas the icon view draws on. It knows nothing about files or settings, which is why the couple of desktop-integration helpers living here read the desktop's own settings directly instead of asking the config store.
+
+- `libnemo-extension/` - the public plugin interface, and nothing else. The interfaces a third-party extension implements (menu provider, column provider, property page, info provider) and the small value types they exchange. It is a standalone shared library with its own headers, so it depends on GTK and on none of our other code.
+
+- `libnemo-private/` - the model. Files and directories with their asynchronous attribute loading, the file operations engine, search, thumbnails, favorites, the settings store, the per-file metadata store, and the platform backends for trash, network and shell integration. No window or view lives here.
+
+- `src/` - the application and its views. The GtkApplication, windows, tabs and slots, the icon, compact and list views, the sidebar and path bar, and the properties and preferences dialogs.
+
+Platform-specific code is kept out of the shared files where it can be: `*-win32.c` modules for trash, network, shortcuts, clipboard, drag-and-drop and shell actions, plus a POSIX compatibility header that lets ordinary callers compile unchanged where the platform has no equivalent. Some large shared files still carry inline platform blocks. Settling on one convention is an open item.
+
+### Data flow
+
+A location is a URI throughout, and everything hangs off two model objects.
+
+- `NemoDirectory` owns the list of files at one location and the machinery that loads them. Views ask for a set of attributes - names and sizes, mime types, deep counts, thumbnails - and the directory works out what is missing, issues the asynchronous requests, and reports each answer as it arrives.
+
+- `NemoFile` is one file. Attributes arrive in stages, so a file starts with a name and fills in over time. It emits `changed` whenever anything about it moves, and every view redraws from that one signal, which is also why the caches added for redraw speed all invalidate there.
+
+- Anything the filesystem does not store is layered on top. Per-folder view state, custom icons, emblems and favorite markers come from the app's own metadata store and are merged into the file's attributes as they load. On Linux a gvfs metadata daemon may supply the same keys; ours wins.
+
+- Settings flow the other way. A read goes through one store to one file, a change emits a per-key signal, and the widgets bound to that key follow. An external edit to the file produces exactly the same signals as a change made in the UI.
+
+### Execution flow
+
+One process per window by default, one main loop each, and a firm rule that nothing slow runs on it.
+
+- Startup registers the application, opens the settings store, and creates a window. It never hands the location to a copy already running; see [Platform integration](#platform-integration) for why.
+
+- Directory loading, file operations, search and thumbnailing all run off the main loop: GIO asynchronous calls for anything touching a filesystem, worker threads for thumbnail generation and for the file operations engine.
+
+- Work started off the main loop reports back on it. File operations own a progress object the UI observes, thumbnails hand back a finished image, a completed directory load emits `done_loading`. Callbacks outliving their object are the recurring hazard, so long-running work holds a reference and cancels on dispose.
+
+- Debounce and coalesce rather than write or redraw on every event. Settings saves, metadata saves, window geometry and sidebar rebuilds all batch.
+
+### Configuration and persistence
+
+Settings are ours, in a file we own, in a format a person can read. No settings daemon, no compiled schema, no per-platform store to keep in step.
+
+GSettings was replaced outright rather than kept as an API over a new backend. A backend would have been a fraction of the work and left every call site untouched, but it keeps a compiled schema to build, install and ship on every platform, which is the thing being got rid of. The full replacement moved about three hundred call sites, and change notification, property binding and enum mapping are ours to maintain now. Both kept the shape they had - a detailed `changed::key` signal, a `bind` with optional mappings - so the call sites read as they did before. The other accepted cost is that settings do not migrate from a pre-1.0 install, because nothing is left that can read the old store.
+
+Four stores, each with its own lifetime.
+
+Application settings live in `settings.shcl`, in whichever directory the platform keeps per-user configuration in: `~/.config` on Linux and BSD, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS. A folder left by an older build is moved on first run.
+
+- The file holds only what was actually chosen. A value equal to its default is dropped, so the file stays short and a later change to a default still reaches the user.
+
+- Because of that the file alone would say nothing about what else there is, so everything unset is listed at the end, commented out, with the value in use and a one-line note wherever the name does not already explain itself. Uncommenting a line is the same as changing the setting in the dialog. Keys the app writes back itself - window size, sidebar width, the last state of a search toggle - are left off that list, since setting one by hand only gets it overwritten.
+
+- Edits made while the app is running are picked up straight away, so hand-editing behaves like using the dialog.
+
+- Types, defaults and allowed values live in one table in the code, and a matching schema sits beside the app so `shcl check --schema` can catch a typo in a hand-edited file. Keeping defaults central is deliberately against the config library's own per-call-site advice: with 168 settings, many read from several places, two call sites disagreeing about what a setting means when absent is a silent bug.
+
+- A handful of settings are the desktop's to decide rather than ours: which terminal to open, whether the session remembers recent files, 12h or 24h clocks. Where a desktop publishes them we read its answer, and everywhere else our own value stands in. That is the only remaining use of the desktop settings database, it is read-only, and it never touches a schema of ours.
+
+- A few settings are file-only, with nothing in Preferences. What a rename starts out with selected is one: the default selects the whole name, extension included, since a person pressing F2 usually means to replace the name outright and a re-typed extension is cheaper than one silently kept. The other behavior is a line to change, but it does not earn a control.
+
+- Where a setting is a command line for another program, the parts we fill in are written `{{LIKE_THIS}}` - capitals between double braces. Braces because nothing expands them: the same line pasted into a shell or a command prompt to try it out comes back unchanged, where `%NAME%` would vanish on Windows and `${NAME}` would on Linux. Only the markers a setting declares are replaced, so anything else in braces passes through as itself and there is nothing to escape.
+
+Bookmarks are the toolkit's own file on Linux and BSD, shared with every other GTK program there. On Windows nothing else reads that file and it sits in the local profile, so the list is kept beside the settings in the roaming one instead.
+
+Per-folder view state - view mode, zoom, sort column, column layout - is app-owned and portable, in one file under the config directory. This replaced the Linux-only metadata service, so the behavior is now identical everywhere.
+
+- Only a real per-folder choice is stored. A value that merely matches the current default is left out, so the folder keeps following the default if it later changes. Upstream stored it either way, which quietly pinned every folder ever opened.
+
+- Changing a default in Settings also applies to folders already on screen. Folders not being looked at keep their own view and zoom until visited.
+
+- Window size, position and maximized state are shared by every window and live with the application settings. They are written shortly after a move or resize settles rather than at close, so an abnormal exit does not discard them. With nothing saved yet a window opens at 1280x720 including its frame, with the side pane at about a fifth of the width.
+
+The thumbnail cache is the fourth store and is not ours. It is the shared freedesktop cache: PNGs named by a hash of the file they were made from, under the user's cache directory, read and written by every file manager and image viewer on a Linux desktop, so a thumbnail made in one is already there in the next.
+
+- Nothing ever removed one, so the folder only grew. It is swept now, at most once a day, on a worker thread a minute after startup, never on the path that draws a window.
+
+- Three rules in order: a thumbnail whose file is gone, then anything unused for longer than the age allowed, then oldest-first until the rest fit the size allowed. Both limits are on the Preview page and either can be turned off. The defaults, 180 days and 512 MB, are what a GNOME or Cinnamon desktop already applies to the same folder, so on those desktops nothing changes and everywhere else something is finally minding it.
+
+- A private database was considered and dropped. It meant a new dependency in three build environments, and on Linux it would have cost the sharing that makes the cache worth having. Growth was the actual complaint, and sweeping fixes that without giving anything up.
+
+Settings are isolated from an upstream Nemo installed alongside: our own file, our own config directory, app-private per-file keys. A few genuinely shared per-file keys - custom icons, emblems, annotations - stay interoperable on purpose.
+
+### File operations
+
+Trashing and deleting are the two things a file manager cannot take back, so they are held to a higher bar than the confirmation preferences alone. This was settled after a copy of the app emptied a home folder with nothing anywhere to say why.
+
+- Every trash and delete job writes one log line: how many items, which folder, the first item, the window, and the input event behind it - the key, the mouse button or the drop. That line is the record when something goes wrong.
+
+- A job with no input event behind it always asks first, whatever the preference says, and the question says where it came from. A key, a click or a drop is what a person does. A timer, another program or another copy of the app is not, and the app should not act on those silently.
+
+- A job of `confirm-many-items` or more asks even with confirmation switched off. Twenty by default, and zero turns it off. A slip that takes one file is a nuisance; one that takes a folder is a day.
+
+- The dialogs keep the affirmative as the default button. Making Cancel the default was considered and turned down: the dialog is itself the pause, and a Cancel default is friction on every ordinary delete for people who chose to be asked.
+
+Copying a link asks what should be at the far end. A link can stay a link or be replaced by what it points at, and neither answer is right every time, so the question is put once per operation rather than guessed. It is asked whenever the source holds a link, on every platform, including where the destination can hold none - there every option but the copy is grayed out and the dialog says why. A copy that quietly turns links into files, or files into links, is the thing being avoided.
+
+- Windows is where this mattered most. A copy there always followed the link and left the contents behind, so a link could not be copied as a link at all. POSIX already kept symlinks by default; what is new there is being able to ask for the contents instead.
+
+- Windows has two kinds of link where POSIX has one, and the dialog says so. A folder symlink and a junction both point at a folder, but only the symlink needs a privilege Windows normally withholds. Each row starts on the kind it found and falls back to the nearest kind that still reaches the same target, then to a plain copy. Anything the destination cannot take is grayed out rather than hidden, so the dialog does not change shape between machines.
+
+- A link counts as one item rather than a folder to walk into. That is what POSIX always did and Windows never did, and it is what stops a copy following a link to somewhere large or unreachable.
+
+Archives are written by libarchive, with the `7z` and `rar` commands as optional extras rather than the primary route. Linking a library needs nothing installed on the user's machine, writes the tar, zip and 7z families natively, and reports real per-file progress through the ordinary job queue. What it cannot do on the write side is why the commands are still reached for: no rar at all, and no split volumes, solid blocks, duplicate references or 7z encryption. Where an installed command can honor one of those it is used, and where nothing can the option is grayed out rather than hidden.
+
+- Which writer gets a job follows from what was asked for, not from the format. Encryption and splitting are requirements - a backend that cannot do them is not a candidate, because quietly writing a readable archive when one was asked to be locked is the worst possible outcome. Everything else is a preference, honored where a writer can and dropped where none can, rather than failing the job.
+
+- Where the archive goes follows the long-standing convention rather than anything invented here. One item is archived as itself and offered beside itself, so opening the archive shows the folder and the contents are one level in. Selecting a folder's whole contents instead still takes the folder's name, but is offered inside the folder with the contents at its root. A partial selection gets no suggested name at all - it is not the folder, and there is no other name a person would agree with - so the field starts empty and Compress waits until it is filled in.
+
+- Compressing a selection separately is that convention applied per item, and deliberately one job rather than one per item: several progress bars racing for the same folder would be unreadable, and cancelling would mean cancelling each of them.
+
+- Unpacking reaches much further than writing, so the two sides are not symmetrical. libarchive reads the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors, which is most of what anyone double-clicks, and it reads them entry by entry - which is what makes per-file progress, cancelling and a collision prompt possible at all. A command is reached for only when libarchive will not open the file, and only while nothing has been written yet, so handing the archive on costs nothing.
+
+- Where an archive says an entry goes is not taken at its word. A stored path that is absolute, names a drive, or climbs out with `..` is reduced to something inside the folder the person picked. An archive must not be able to write wherever it likes on the strength of being opened.
+
+- Following symlinked and junctioned folders is off by default, and is ours rather than the archiver's, because the tree is walked through GIO before anything reaches a writer. A link loop would otherwise pull in the whole disk, so the walk remembers directories by file id and terminates even with following switched on.
+
+- The command lines the two programs run with are settings, not code, so a person can point one at a different build or add a switch nobody thought to offer. Every control the Compress dialog offers has a `{{MARKER}}` of its own, so an edited line keeps the dialog working; leave one out and the app says which control has gone quiet. Clearing a line puts the original back. A password is handed over as a value and never written into the line or the settings file, though it is still visible in the process list while the program runs, which is true of every archiver.
+
+- How much of the machine a compression may use is one setting, a percentage of the cores found rather than a thread count written into each line. A percentage still means something on a machine with a different core count, and one answer covers both programs and the built-in writer. The default is 50%, because a hyperthreaded core is not a whole core and taking every logical processor slows the rest of the machine for nothing.
+
+### Search
+
+- Content search converts documents itself, in C, on libraries the app already links. The old helpers were a Python script, a shell script and a LibreOffice call, none of which exists on a stock Windows machine and each a dependency the install could not promise. Word, Excel and PowerPoint in both their old binary and newer zip-of-xml forms, OpenDocument and EPUB are covered. The definition-file mechanism stays, so a helper for anything else can still be dropped in.
+
+- Results can be grouped under the folder holding them. It is a heading row per folder that actually has a match, labeled with the path under the folder searched, rather than a full tree of every folder in between - a tree puts rows on screen for folders with nothing in them, and reading that path off one row is what a person actually wants. The heading rows are built by the view rather than the model, so a folder nobody asked to open is never read, monitored or walked. Flat is still the default and switching redraws from the results in hand rather than searching again.
+
+- On Windows the search index is used when asked, through a switch that is off by default. It answers for any folder the index covers; a folder outside it, a network location, a regular expression or a case-sensitive content match goes to the ordinary walk unchanged. Off by default because the index only knows what it has been told to watch, and a search that quietly misses a folder is worse than a slow one.
 
 ### UI
 
-The window is a menu and toolbar, a sidebar, a path bar, and a view - and the view is interchangeable.
+The window is a menu and toolbar, a sidebar, a path bar and a view, and the view is interchangeable.
 
 - Three views share one interface: icon, compact and list, with an optional tree column in list view. Each reads its layout from per-folder state where the folder has any, and from the defaults where it does not.
-- A window holds tabs; each tab is a slot with its own location, history and view. Navigation, loading state and the busy cursor belong to the slot, which is why a slow location can only block its own tab.
-- The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Everything that could be slow to answer - free space, mount state - is fetched off the main loop and folded in when it arrives.
-- **The list view scrolls sideways before it crushes a column.** Every column has three widths: the least it may be, the width that shows most of its values, and the width that shows all of them. A date or a size is shown whole or not at all, so for those the three are one number. Name and the columns with no natural length (a type, an owner, a path) have a spread. Name counts every name in the folder and the others each distinct value once, and "most" means nine tenths of them, set by `column-fit-percent` under list-view. Widening, once every column shows most of its values the ones that can still grow do so together, each in proportion to its size, until each shows everything with a little air; what is left is Name's, or Location's when it is on the row and growing alongside. Narrowing is the same read backwards, down to the width that shows most. Below that only Type gives, down to twice the Ext column, and then the row is wider than the window and the view scrolls sideways. A small gap keeps the first and last columns off the window frame. Widths follow what is in the folder: every row is measured as it arrives, rows a subfolder adds count while it is open, and everything is measured again when the zoom level changes the font or a column is switched on that was not there to measure. The columns are laid out for the width the view is about to get, before the tree view draws at it, so a resize never shows a frame at the old widths. This replaced a rule that shrank Name to make the row fit, which crushed names to nothing in a narrow window.
-- **A width the user drags into place is remembered.** For a column with no natural length it becomes that column's ceiling for good, in settings: the column still follows its contents below it, but never grows past it again, however the window is resized. Name is the one column that never has a ceiling, and Location has none either while it is growing alongside Name - dragging Location is what ends that and pins it. Search results size the pair differently: Name and Location take only as much as their contents need and the row ends short, and where the two do not both fit they give in proportion to what they asked for, neither ending more than twice the width of the other. Dragging either one pins a split of the row instead, and that is kept for good. Type, left alone, shows every value whenever the row has room, and is the one column that gives below its fitted width when the row runs short.
-- **The column roster earns its defaults.** Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Location sits next along whenever it is switched on. Owner shows by default on Windows too, where the platform reports the file's real owner. Permissions source - whether a file's permissions are inherited from its folder, set on the file itself, or both - is offered on Windows, off by default.
-- Extensions can add context-menu items, list columns, property pages and file attributes; nothing in the shipped UI depends on one being present.
-- **Every label reads as a sentence, not as a headline.** Only the first word is capitalised; a name keeps its capital wherever it stands - the platforms, the toolkit, Trash and the other sidebar places, formats, acronyms - as does a sentence that names a menu item or tab, since the item is still called that. Mnemonics do not move, and shortcut text is untouched. The licence text and the name a new folder is given on disk are the two things quoted rather than styled. It is checked at lint time over every translatable string in the tree, so a label copied from upstream in Title Case is caught where it lands rather than noticed later.
-- **Properties is the platform's own on Windows.** Alt+Enter and Ctrl+I hand the selection to the shell property sheet, the same one Explorer shows, so a file's details read the way they do everywhere else on the machine and any tab a third-party program adds is there too. In the menus that item is named "Windows properties (Alt+Enter)" - the popup does not show shortcuts, so the hint rides in the label - and sits under our own window's item, which is named plainly "Properties" (Ctrl+Enter) and covers what the shell sheet has no room for: a custom icon, an emblem, an annotation, an extension page. Anything the shell cannot name - a virtual location, a selection spanning folders, an item that has gone away - falls back to our window rather than doing nothing. Linux, BSD and macOS use our window throughout, and the Windows item is not shown there.
-- Look and feel follows the platform: the desktop's theme and font on Linux, a bundled theme set with Segoe UI and the system light/dark preference on Windows. See Appearance and themes below.
-- **A settings window opens the size of its longest page.** The preferences dialog measures every page it holds and opens tall enough for whichever is longest and wide enough for whichever is widest, up to nine tenths of the screen, so no page starts out behind a scrollbar. The smallest size it will not go below is written for a 96dpi screen and scaled by whatever font size the display's scaling asks for, so it means the same thing at 150% as at 100%. A check compares the list of pages the sizing walks against the pages the dialog actually holds, since a page left off that list is a page the window is too short for.
-- **Settings that only exist on Windows sit on a page of their own.** The preferences dialog has a Windows page carrying the separator, the hidden-file switches, the search index and the theme controls; the page is not built into the other platforms' dialogs at all. Appearance went there whole, because a widget theme and a light or dark preference are the desktop's business everywhere except Windows. The keys still take effect if hand-edited on any platform - it is the page that is Windows-only, not the settings.
-- **Hidden means two things on Windows and one thing everywhere else.** Windows marks a file hidden with an attribute, and treats a leading dot as an ordinary character; the rest of the world reads the dot and nothing else. So the Windows page has a switch for each, and the View menu carries both items there. Turning hidden files on from the menu moves the pair together, so one keystroke shows everything that was out of sight; the two can still be set apart in preferences. Everywhere else there is one switch and one menu item, as there always was.
-- **The Windows-only settings live in a `windows` group in the file**, so a person reading `settings.shcl` sees them together rather than scattered through `preferences`, `search`, `terminal` and an `associations` group of its own. Appearance kept its own group, since those keys mean something on any platform.
 
-- **A shortcut is named the way the shell names it.** On Windows the `.lnk` is left off the name shown, which is what Explorer does; a switch on the Display page puts it back. Only the shown name loses it: the Ext column still says `lnk`, and a rename typed as the shown name puts the extension back, the same way a renamed `.desktop` file keeps its own. Without that, renaming a shortcut would turn it into an ordinary file.
-- **"Local only" means local on Windows too.** The preferences that trade speed for detail - item counts, thumbnails - default to doing the work only for local files. A share is native as far as the toolkit is concerned, so on Windows those defaults used to sail straight past one, and a folder holding a link to a host that was not answering paid twenty to fifty seconds per link with the whole folder waiting. A share, and a link pointing at one, now count as remote: the counts read "--" and the folder appears at once. Asking what a share is mounted under is skipped outright, since a share is not a mount there.
-- **Scaling is the app's own job, not something done to it.** The window declares itself per-monitor DPI aware, so a scaled display gets it drawn at that scale rather than drawn small and stretched as a picture, and moving it to a second monitor at another scale re-draws rather than re-stretches. The toolkit scales in whole steps, which leaves a display at 125% or 150% short, so text is sized against the monitor's true DPI on top of that - type comes out right at any scale, and the widgets around it are still on the whole step below. On Linux and BSD the desktop publishes its own scaling and the toolkit follows it, so there is nothing of ours in the way.
-- **A launch shows something at every stage.** The window is put on screen at its remembered size and place as soon as it exists, before the first folder resolves, with its panes still empty. On Windows, where getting that far takes measurably longer, a small panel appears first - drawn with the platform's own toolkit, since it has to be up before GTK is - listing what startup is doing and leaving as soon as the real window has drawn.
+- A window holds tabs. Each tab is a slot with its own location, history and view, and navigation, loading state and the busy cursor all belong to the slot, which is why a slow location can only block its own tab.
+
+- The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Anything that could be slow to answer, such as free space or mount state, is fetched off the main loop and folded in when it arrives.
+
+- The list view scrolls sideways before it crushes a column. Every column has three widths: the least it may be, the width that shows most of its values, and the width that shows all of them. A date or a size is shown whole or not at all, so those three are one number; Name and the columns with no natural length have a spread. Once every column shows most of its values the ones that can still grow do so together, and what is left over goes to Name. Below the width that shows most, only Type gives, and then the row is wider than the window and the view scrolls. This replaced a rule that shrank Name to make the row fit, which crushed names to nothing in a narrow window.
+
+- A width dragged into place is remembered, and for a column with no natural length it becomes that column's ceiling for good: the column still follows its contents below it but never grows past it again. Name never has a ceiling, and neither does Location while it is growing alongside Name. Search results size that pair differently - each takes what its contents need, and where both do not fit they give in proportion, neither ending more than twice the width of the other.
+
+- The column roster earns its defaults. Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Owner shows by default on Windows too, where the platform reports a file's real owner. Permissions source - whether a file's permissions come from its folder, from the file itself, or both - is offered on Windows and off by default.
+
+- Extensions can add context-menu items, list columns, property pages and file attributes. Nothing in the interface depends on one being present.
+
+- Every label reads as a sentence rather than a headline. Only the first word is capitalized, and a name keeps its capital wherever it stands: the platforms, the toolkit, Trash and the other sidebar places, formats, acronyms. Mnemonics do not move and shortcut text is untouched. It is checked at lint time over every translatable string in the tree, so a label copied from upstream in Title Case is caught where it is added.
+
+- Properties is the platform's own on Windows. Alt+Enter and Ctrl+I hand the selection to the shell property sheet, the same one Explorer shows, so a file's details read the way they do everywhere else on the machine and any tab a third-party program adds is there too. Our own window is still there under Ctrl+Enter, covering what the shell sheet has no room for - a custom icon, an emblem, an annotation, an extension page - and anything the shell cannot name falls back to it rather than doing nothing. The other platforms use our window throughout.
+
+- A settings window opens the size of its longest page. The preferences dialog measures every page it holds and opens tall and wide enough for the largest, up to nine tenths of the screen, so no page starts out behind a scrollbar. Its floor is written for a 96dpi screen and scaled by the display's font scaling, so it means the same thing at 150% as at 100%.
+
+- Settings that only exist on Windows sit on a page of their own, and in a `windows` group in the file rather than scattered through the others. The page carries the separator choice, the hidden-file switches, the search index and the theme controls, and it is not built into the other platforms' dialogs at all. The keys still take effect if hand-edited anywhere - it is the page that is Windows-only, not the settings.
+
+- Hidden means two things on Windows and one thing everywhere else. Windows marks a file hidden with an attribute and treats a leading dot as an ordinary character; the rest of the world reads the dot and nothing else. So Windows gets a switch and a View menu item for each, and turning hidden files on from the menu moves the pair together, so one keystroke shows everything that was out of sight. The two can still be set apart in preferences.
+
+- A shortcut's extension is off the listing and on in the rename box. `.lnk` and `.desktop` are both noise in a file list and both have to survive a rename, so the name on screen leaves them off while the rename box shows the whole name, and a rename that arrives without one gets it back. Without that, renaming a shortcut would turn it into an ordinary file. The Ext column still says what it is. One preference covers both, offered on every platform since `.desktop` launchers are a Linux thing.
+
+- Scaling is the app's own job, not something done to it. The window declares itself per-monitor DPI aware, so a scaled display gets it drawn at that scale rather than drawn small and stretched, and moving it to a monitor at another scale redraws rather than restretches. The toolkit scales in whole steps, which leaves 125% or 150% short, so text is sized against the monitor's true DPI on top of that. Type comes out right at any scale; the widgets around it are still on the whole step below, which is the open item. On Linux and BSD the desktop publishes its own scaling and the toolkit follows it.
+
+- A launch shows something at every stage. The window is put on screen at its remembered size and place as soon as it exists, before the first folder resolves, with its panes still empty. On Windows, where getting that far takes measurably longer, a small panel appears first - drawn with the platform's own toolkit, since it has to be up before GTK is - and leaves as soon as the real window has drawn.
 
 ### Appearance and themes
 
-Two settings decide how the app looks: a light/dark mode, and the widget and icon themes to draw with. Both live in `settings.shcl` under `appearance`, both apply while the app is running rather than at the next launch, and both are offered on the Windows page of the preferences dialog - elsewhere the desktop decides and there is nothing to ask.
+Two settings decide how the app looks: a light or dark mode, and the widget and icon themes to draw with. Both live under `appearance` in the settings file, both apply while the app is running, and both are offered on the Windows page of the preferences dialog. Elsewhere the desktop decides and there is nothing to ask.
 
-- **Mode is Light, Dark, or Follow the system.** Following means asking the platform: on Windows that is the `AppsUseLightTheme` personalisation value, watched for changes so the app turns with the rest of the desktop; anywhere the desktop has already told GTK, it means leaving that answer alone. An explicit Light or Dark overrides the platform on every target.
-- **Themes are offered by the mode they suit.** A theme states which backgrounds it was drawn for; one that says nothing is judged by its name, which is how the convention already works in practice - a trailing `-dark` marks the dark half of a pair, and a theme with a `-dark` sibling is the light half. Most colourful icon sets genuinely serve both, because the monochrome half of any theme is recoloured to the foreground by GTK - and where an upstream theme does draw for dark, it turns out to redraw two or three icons and no more, so a dark variant carries only those and inherits the rest from its light half.
-- **Picking one half of a pair picks the pair.** Choosing a theme and then changing mode swaps to its counterpart rather than leaving a dark theme on a light window. A widget theme that ships its own dark stylesheet needs no counterpart, since GTK swaps sheets on its own.
-- **Targets unlikely to have GTK themes installed carry their own set.** That is Windows and macOS; Linux and the BSDs use what the desktop already provides. Each bundled icon theme is trimmed to the icon names a file manager actually asks for - roughly 180 - which is what keeps a theme to a few hundred KB instead of tens of MB. Anything not shipped falls through the standard `Inherits` chain to Adwaita and then hicolor, so a gap is a mismatched glyph, never a missing one.
-- **The Windows XP and Windows 7 icon sets are our own artwork.** No cleanly-licensed set of either exists; what circulates is Microsoft's shell art extracted and repackaged, which this project will not ship. The two sets are drawn from a shared vocabulary of shapes and glyphs and carry the project's own license. Every other bundled theme is an upstream open-source theme, unmodified apart from the trim, keeping its own license file and a pinned source commit.
-- **Themes can be dropped in on any platform**, bundled set or not, by putting an ordinary GTK theme folder in `themes` or an icon theme in `icons` beside the settings file. Drop-ins are searched before the bundled set, so a same-named theme shadows it.
-- **The bundled set lives inside the binary rather than as files beside it.** It was a couple of thousand small files, and the Windows single-file build was spending nearly all of its startup unpacking them - the cost there is per file, not per byte. As one compiled-in resource it costs a few MB of binary and nothing at launch. The trade is that a bundled theme cannot be edited in place any more, which is what the drop-in folders are for; and one small icon theme still ships as files, because it is where the directory conventions the resource is matched against are defined.
-- **The two link overlays are the app's own art, not the theme's.** A shortcut and a symlink have to read differently at a glance, and most icon themes draw the same arrow-in-a-box for a symlink that Windows draws for a shortcut. Overriding one of them by name is not possible - an icon added by resource path is only searched after every installed theme - so both carry their own names and both ship with the app. A shortcut gets the arrow, a symlink or junction gets a chain link.
-- **A shortcut to a folder wears the theme's folder icon.** Everything else about a shortcut's icon comes from the shell, since only it can find a program's own artwork, but for a folder that answer is Microsoft's folder drawn among the theme's, which reads as a mistake. Whether the target is a folder comes from what the shortcut file itself records rather than from looking at the target, because a shortcut to a share that is not answering would otherwise stall the listing.
-- **A shortcut's extension is off the listing and on in the rename box.** `.lnk` and `.desktop` are both noise in a file list and both have to survive a rename, so the name on screen leaves them off while the rename box shows the whole name. A rename that arrives without one gets it back. One preference covers both, and it is offered everywhere rather than on Windows alone, since `.desktop` launchers are a Linux thing.
+- Mode is Light, Dark, or follow the system. Following means asking the platform - on Windows the `AppsUseLightTheme` personalization value, watched so the app turns with the rest of the desktop; anywhere the desktop has already told GTK, it means leaving that answer alone. An explicit Light or Dark overrides the platform everywhere.
 
-### Testing
+- Themes are offered by the mode they suit. A theme states which backgrounds it was drawn for, and one that says nothing is judged by its name, which is how the convention already works: a trailing `-dark` marks the dark half of a pair, and a theme with a `-dark` sibling is the light half. Most colorful icon sets serve both, because GTK recolors the monochrome half to the foreground anyway. Choosing a theme and then changing mode swaps to its counterpart rather than leaving a dark theme on a light window.
+
+- Targets unlikely to have GTK themes installed carry their own set: Windows and macOS. Linux and the BSDs use what the desktop provides. Each bundled icon theme is trimmed to the roughly 180 icon names a file manager actually asks for, which is what keeps one to a few hundred KB instead of tens of MB, and anything missing falls through the standard `Inherits` chain to Adwaita and then hicolor. A gap is a mismatched glyph, never a missing one.
+
+- The four Windows icon sets are the project's own artwork. No cleanly-licensed set of any Windows generation exists, and what circulates is Microsoft's shell art extracted and repackaged, which this project will not ship - and draws blue folders besides, which Windows has never had. Every other bundled theme is an upstream open-source theme, unmodified apart from the trim, keeping its own license file and a pinned source commit.
+
+- Themes can be dropped in on any platform by putting an ordinary GTK theme folder in `themes` or an icon theme in `icons` beside the settings file. Drop-ins are searched before the bundled set, so a same-named theme shadows it.
+
+- The bundled set lives inside the binary rather than as files beside it. It was a couple of thousand small files, and the Windows single-file build was spending nearly all of its startup unpacking them, since the cost there is per file rather than per byte. As one compiled-in resource it costs a few MB of binary and nothing at launch. The trade is that a bundled theme cannot be edited in place, which is what the drop-in folders are for.
+
+- The two link overlays are the app's own art rather than the theme's. A shortcut and a symlink have to read differently at a glance, and most icon themes draw the same arrow-in-a-box for a symlink that Windows draws for a shortcut. An icon added by resource path is only searched after every installed theme, so overriding one by name is not possible; both carry their own names and ship with the app. A shortcut gets the arrow, a symlink or junction a chain link.
+
+- A shortcut to a folder wears the theme's folder icon. Everything else about a shortcut's icon comes from the shell, since only it can find a program's own artwork, but for a folder that answer is Microsoft's folder drawn among the theme's, which reads as a mistake. Whether the target is a folder comes from what the shortcut file records rather than from looking at the target, since a shortcut to a share that is not answering would otherwise stall the listing.
+
+### Platform integration
+
+Each window is its own process by default, and every launch is a fresh one. A crash then takes one window rather than all of them, and two versions can be open side by side, which is what trying a build next to the one in daily use needs.
+
+- The copies still find each other. Each queues on the one bus name, so a caller from outside always reaches the oldest and the rest are read off the queue. That is how `--quit` and Close All Windows reach every copy, and how `--reset` knows one is running.
+
+- What it costs: a tab cannot be dragged into a window belonging to another process, and dragging a tab out opens that folder in a new process and closes the tab. On Windows a new window carries the packed program's startup time rather than appearing at once. Those two are why it is a setting - turning it off puts new windows back inside one process. Launches from outside stay separate either way.
+
+- A selection has to be sayable on a command line for another process to show it, so `--select` takes the folder around an item with the item selected. "Show in folder" from other programs goes through it.
+
+- D-Bus needed no per-platform gating. GLib autolaunches a per-user session bus on Windows as well, shared across processes, so the two D-Bus services - the freedesktop file-manager interface and the internal file-operations one - get a real connection everywhere. The only case needing work was having no bus at all, on a headless or locked-down machine: the file-operations service, which only ever serves other processes, must simply not set itself up rather than fail.
+
+Paths and platform behavior:
+
+- Both `/` and `\` work in typed locations on every platform, without reserving `\`. On Windows both are already native. On POSIX `\` is a legal filename character - files created over SMB shares really do contain it - so it is not reserved and no escape syntax is introduced. Typed input is normalized by fallback instead: the literal path is tried first, and only if it does not resolve is a `\` to `/` retry attempted. Pasted Windows paths work and real backslash filenames keep working.
+
+- Desktop settings schemas are optional at runtime. Upstream read several Cinnamon and GNOME schemas that only exist on those desktops, and a missing schema is a hard abort in GLib. The app now looks a schema up before opening it, prefers the real one wherever the session provides it, and uses its own value everywhere else. Cinnamon integration is preserved and every other environment starts clean.
+
+- Virtual locations - network, computer, trash - are shown only where the running platform actually supports them, extending the runtime scheme check the codebase already had.
+
+On Linux, gvfs stays an optional runtime dependency. It turned out to be desktop-agnostic rather than a Cinnamon thing, a freedesktop and GIO service present on virtually every desktop, so where it is there it provides network shares, trash, mtp and sftp, and where it is not the affected entries hide themselves. What it used to provide that is now ours everywhere is per-file metadata, which moved to the app's own store; see [Configuration and persistence](#configuration-and-persistence).
+
+On Windows the gaps are filled natively rather than by porting gvfs:
+
+- Deleting to the Recycle Bin, and browsing it in-app to view, restore and empty.
+
+- Network browsing enumerates the Windows network neighborhood. UNC paths are ordinary paths and need nothing special.
+
+- Fixed drives are first-class sidebar roots with a disk-usage bar each, replacing the single Unix filesystem root, which means nothing there. Removable, optical and network drives stay on the normal devices path, since that path carries eject and unmount.
+
+- Per-type file icons are derived from the file's content type, because the platform's file layer reports one generic icon for nearly every file.
+
+- "Local only" means local there too. The preferences that trade speed for detail - item counts, thumbnails - default to doing the work only for local files, and a share is native as far as the toolkit is concerned, so those defaults used to sail straight past one. A folder holding a link to a host that was not answering paid twenty to fifty seconds per link with the whole folder waiting. A share, and a link pointing at one, now count as remote.
+
+- File associations are read from the registry and never written to it. Windows keeps the per-user default under a hash a program is not meant to set, so "Set as default" used to fail outright. The choice is kept in the settings file instead: one line per type, a command line with `%1` for the file, in the shape the registry itself uses. The map is consulted first and the registry answers for everything else, through the same query Explorer makes, so the open verb comes back rather than a print one.
+
+- The app never starts another program itself. The single-exe build carries its whole runtime inside it, and anything it starts inherits that view of the disk along with the rest of the environment, which is not the machine the other program expects. So the desktop is asked to do the starting, for every launch rather than only the ones worked out here. The programs offered under "Open with" come from the toolkit but carry the same registry command line, so they go the same way. A store app has no command line and is left to the toolkit.
+
+- The clipboard and outbound drags are the app's own rather than the toolkit's. The toolkit only puts its own target names into a drag, and nothing outside it reads those; the one format every Windows program does read has no name to register it under, so it cannot be added from outside. A drag now carries what Explorer's own drags carry, with the app's own formats riding alongside, so drops back into our own window behave exactly as before. One switch turns the whole thing off and puts every drag back on the toolkit's. Control copies and shift moves, following Windows, read from the keyboard directly because the toolkit reports the same suggested action either way.
+
+- "Open in terminal" and "open elevated" map to native equivalents. On Windows that is the native console - Windows Terminal, then PowerShell, then cmd - opened at the folder, and an elevated relaunch through the ordinary UAC prompt, labeled "Open as Administrator". On Linux it is the configured terminal and a pkexec relaunch, labeled "Open as Root".
+
+- A copy running elevated cannot be dropped on at all. Windows refuses to let an ordinary program hand anything to an elevated one and there is no way to accept it from this side. Dragging out is unaffected.
+
+## Building
+
+Both reference builds happen in containers rather than on a development machine, so the dependency versions are pinned and host library drift cannot quietly change the baseline.
+
+### Linux
+
+Stock Debian 13 is the known-good baseline, in `cicd/linux/Dockerfile.dev` (image `nemo-build-deps`, container `nemo-build`). That file is the authoritative dependency list; the packages below are the same set spelled out for anyone building on their own machine.
+
+- Toolchain and development libraries: `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`, `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`, `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`, `libarchive-dev`, `libx11-dev libxext-dev libxrender-dev`.
+
+- Configure and build:
+	- `export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"`, so the build is reproducible. See [Reproducible builds](#reproducible-builds).
+	- `meson setup build source`
+	- `ninja -C build`
+
+- The binary is at `build/src/nemo-anywhere`. There is no second desktop-drawing binary.
+
+- The action layout editor is a separate PyGObject script rather than part of the program, so at run time it wants `python3-gi`, `python3-gi-cairo` and `gir1.2-gtk-3.0`. Nothing else needs them, and without them only that one window is missing.
+
+Release builds do not use this container. They are built against an older glibc, for reasons under [Release artifacts and packaging](#release-artifacts-and-packaging).
+
+### Windows
+
+The Windows build is native, not cross-compiled: MSYS2 with the mingw64 GTK3 toolchain, which is what both the Windows development box and the hosted release workflow use.
+
+- `pacman -S --needed mingw-w64-x86_64-{gcc,meson,ninja,pkgconf,gtk3,json-glib,libarchive,libexif,libgsf,cppcheck,gettext} intltool git`, then `meson setup -Dxmp=false build source` and `ninja -C build`.
+
+- Enigma Virtual Box is needed only for the single-exe artifact. Without it everything still builds, tests and stages, and only the packing step skips.
+
+A cross-compile lane also exists, for checking a Windows build from the Linux box without Windows hardware. It is a developer convenience rather than part of the pipeline, since only Windows can pack the single exe.
+
+- `cicd/win/fetch-sysroot.bash` resolves the dependency closure of a few root packages from the MSYS2 pacman database and unpacks each one into a sysroot. No pacman is needed, since the package database is a tarball of description files.
+
+- `cicd/win/Dockerfile` builds the `nemo-winbuild` container: the mingw toolchain, the native GLib code generators that have to run on the build host, wine, and the baked sysroot. `cicd/win/win64.cross.txt` is the meson cross file, with wine as the exe wrapper.
+
+Deliberately off for Windows either way: XMP and exempi, which are not packaged for mingw, and the Unix-only pieces (`gio-unix`, `x11`, SELinux, Tracker), which are guarded in meson by `host_machine.system()` and in the affected C files by `#ifdef`.
+
+### Open questions
+
+- How far to push a clean internal platform-abstraction boundary, against per-target `#ifdef`s in the shared files. Both conventions are in the tree today.
+
+- Whether a fractional display scale should drive widget sizing and spacing through a stylesheet of the app's own, since the toolkit will only scale in whole steps.
+
+## Testing
 
 Tests are ordinary executables run by meson, and the bar for adding one is a defect that could come back.
 
 - Each regression test is written against a specific defect and is checked by backing the fix out and watching the test fail. A test that passes either way is not evidence.
+
 - Coverage is concentrated where the risk is: the settings parser and its bindings, the metadata store, favorites, search patterns, drag-and-drop parsing, extension objects, symlink handling, and the Windows trash and shortcut backends.
-- The suite runs headless (a virtual display where GTK needs one) and forms part of the pre-push gate along with the build, a lint pass and a launch smoke test. A test that cannot run on the current platform reports a skip, never a pass.
-- Interactive behaviour that no assertion can reach - the visible free-space bar, icon redraw, keyboard shortcuts - is verified by hand against a build kept on the desktop for daily use.
 
-## Delivery (CI/CD, branches, releases)
+- The suite runs headless, on a virtual display where GTK needs one, and forms part of the pre-push gate along with the build, the lints and a launch smoke test. A test that cannot run on the current platform reports a skip, never a pass.
 
-Guiding constraint: GitHub is dumb git hosting plus optional release storage, and as few third-party tools as possible; the whole pipeline runs locally (`cicd/cicd.bash`). The one deliberate exception is a release-only GitHub Actions workflow (`.github/workflows/release-win.yml`) that builds, packs and publishes the Windows release exe. It exists because the code signing service chosen at the time would only sign artifacts produced by a verifiable public build; that application was refused and signing is deferred, so what the workflow earns its keep for now is being that reproducible public build, with the signing step left dormant. Everything else stays local. This is the same delivery model proven on a sibling project, brought over as high-level concepts and actions - the branch flow, the merge gate, the release cut, the git backup+publish - not the language tooling. That sibling is a Rust/cargo project; nemo-anywhere is C/GTK built with meson/ninja in the `nemo-build` container, so each stage is wired to its meson/container equivalent (or left disabled until it exists).
+- Anything needing a real desktop - clicking a menu, driving a drag - runs in a throwaway Windows Sandbox built from the host's own image, which has its own desktop and keeps no state. A window can also be photographed without disturbing anything, since it renders off-screen even when covered.
 
-- Branch flow: feature branches merge `--no-ff` into `dev` (the integration target). `main` is release-only: merging dev into main cuts a release. Nothing is ever committed directly on main. Feature-branch pushes are not gated.
-- Merge gate: `cicd/cicd.bash --gate` runs as the `pre-push` hook for pushes to main or dev - the local stand-in for a hosted CI workflow. For nemo-anywhere today the gate is format-check (none yet) + lints (a check-only C pass over the changed files, and a whole-tree check that every interface label is sentence case) + tests, and "tests" is a container build followed by a headless `--version` smoke launch. Install the hook per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
-- Version-bump guard: the same pre-push hook blocks a push to main unless `source/meson.build` is a strict version increase over what's on main, and (once one exists) the README `Release-<ver>` badge matches. Skips the first main push and branch deletes.
-- Version line: nemo-anywhere numbers its own releases from 1.0.0, independent of the inherited upstream code baseline (6.6.4). The project version in `source/meson.build` was reset to `1.0.0-beta1` for the first release; since 6.6.4 was never tagged or released, that reset is a clean one-time step, and the strict-increase guard governs 1.x onward.
-- Build number: minutes elapsed since the start of 2000, written in Crockford base32 (no i, l, o or u, so nothing reads as a digit by mistake) and lower cased. Five characters today, six from 2033. It sits beside the version everywhere the version is shown - `--version`, `--about`, Help > About, the Windows splash and the release notes - so a bug report names not just which release but which build of it.
-	- Worked out at configure time from `SOURCE_DATE_EPOCH`, the same stamp everything else reproducible reads, so two builds of one commit carry the same number. Falling back to the clock when nothing sets it, which is what a build outside the release lanes wants anyway.
-	- It lives in a generated header of its own rather than in `config.h`. The number moves on every reconfigure, and a change in `config.h` rebuilds the whole tree instead of the handful of files that show it.
+- Interactive behavior that no assertion reaches is verified by hand against a build kept on the desktop for daily use.
 
-- Pipeline stages (the enduring shape; a stage self-skips when unconfigured): remote sync -> format -> debug build -> tests+lints -> profiler -> release build (native + cross) -> packages -> dogfood -> git backup+publish. Ready now: remote sync, debug build, tests, lints, profiler, packages, backup+publish. Still disabled in `cicd/config.bash`: the format stage (no in-place C formatter, on purpose) and the engine's own release-build collector, because the per-platform release lanes produce the artifacts instead.
-	- Remote sync runs first for a reason: the publish stage pulls at the end, so without it a change merged remotely during a run would be pushed having never been built or tested. It fast-forwards when the branch is only behind, wrapping any dirty tree in a stash, and stops the run outright when the branch has diverged. Skipped in gate mode, since a pre-push hook must not rewrite the tree underneath the push that called it.
-	- No stage is allowed all the cores. Build parallelism is capped at half of them, so a full run leaves the machine usable.
-- Dogfooding: each platform's pipeline publishes one build to a shared drop folder for that platform and writes nothing else there - the whole relocatable prefix on Linux, the packed single exe on Windows. There is no dated copy and no name on PATH at that end.
-	- The launcher (`utility/n8runfm.ps1`, one script for all three platforms) owns the local side. It copies the drop into a pool of date-stamped versions and points a symlink at the newest, so the fixed name is the only thing anything else has to know.
-	- The pool is GFS-rotated on every launch: the newest of each finished hour, day, week, month and year, plus the most recent few, plus the first build ever held. On top of that a budget - at most ten versions, at least five, and between the two only as many as fit in 1 GB. Nothing a running process lives inside is removed, so going back to an older build is a matter of running it rather than rebuilding it.
-	- A build already held is settled on its bytes, not its date. The sync layer restamps what it carries, so a date test on its own re-fetched the same build every run.
-	- `runfm` is a small wrapper per platform, in the place each one looks for commands, so the launcher can be typed at a shell or named in a `.desktop` file without anyone knowing it is a PowerShell script. It also tells the launcher where it lives, which is what lets the generated menu entry point back at it.
-- Profiling: `cicd/utility/profile-run.bash` browses a generated folder tree on a private headless display while sampling every thread, then renders a flamegraph into `cicd/artifacts/profiling` (GFS-rotated), and `cicd/utility/flame-report.py` prints the hot spots into the run log.
-	- It samples by attaching a debugger rather than using perf. perf needs a privileged sysctl on this machine, and a profiler that cannot run without root is a profiler nobody runs. The cost is that samples are wall-clock rather than CPU time, so a blocked thread reads as work; the report keeps waiting in its own bucket and gives every other figure as a share of busy time as well as of total.
-	- It profiles the debug build. The release binaries are stripped, and a flamegraph with no function names says nothing.
-- Reproducible builds: nothing a build produces takes its timestamp from the clock. Every lane sets `SOURCE_DATE_EPOCH` to the date of the commit being built, and everything that stamps a time reads it - so the same commit builds to the same bytes on any box, on any day, and a released artifact can be checked against a rebuild of its tag.
-	- The Windows exe was the one that actually differed run to run: the linker writes a timestamp into the PE header, and left alone it writes the clock. Two clean builds of one commit used to differ in exactly those four bytes.
-	- What reads the stamp on its own: the linker, `dpkg-deb`, and `rpmbuild` (the last only once the spec asks it to). What does not, and is handled by hand: `zip`, which has no such notion, so the staged files get the stamp set on disk and are fed to it in sorted order. `tar` is given the stamp and a sorted entry order explicitly.
-	- `cicd/utility/include/source-date.bash` is the single place that answers what the stamp is, and every lane that can also be run on its own calls it rather than working it out again. `docker exec` does not carry the host environment into a container, so each lane hands it over explicitly.
-	- A tree with uncommitted changes still gets its `HEAD` commit's date - the alternative is the clock, which is worse - but the release lanes warn, because nothing built from it can be reproduced.
-	- Left out on purpose: the wall clock still names log files and dated dogfood copies, which is what it is for. And a signed exe can never be byte-identical anyway, since the countersignature carries the real time of signing.
-- Packaging: built from what the release lanes already produced, never rebuilt. `cicd/linux/package.bash` turns the Linux tarball into a `.deb` and an `.rpm`, both installing the same relocatable prefix under `/opt` plus a launcher, a menu entry and icons in the shared theme. `cicd/win/pack-zip.bash` flattens the cross-build into the Windows zip layout. BSD, macOS, AppImage and Flatpak are deferred for want of a toolchain here.
-	- The `.deb`'s dependency versions are read off the built binaries inside the Ubuntu release container, not on the development box, so the package claims the same floor the binary was actually built against. `rpmbuild` derives its own requirements from the ELF, so the `.rpm` needs no such help.
-- Releases: `cicd/utility/release.bash` cuts from a clean main - tag `v<version>` (version read from `source/meson.build` alone) and optional push + GitHub Release upload. Tag+push work today; artifact attach is gated until the release-build stage produces host-side artifacts. The README release badge reads the current release off GitHub, so nothing has to be bumped by hand for it; a project that used a hand-written badge instead would have that checked against the version.
-	- Release notes are the hand-written changelog section for the version, never a generated commit list: `cicd/utility/changelog-notes.bash <version>` prints it, and both the local release helper and the Windows release workflow publish with it. A version with no changelog section falls back to generated notes rather than an empty body, so a release is never published blank.
-	- A version carrying a pre-release part (`1.0.0-beta2`) is published as a prerelease from both sides. That matters to the installers: their `stable` channel resolves to the latest non-prerelease, so a beta is only reachable with `--release dev`.
-- Backup+publish: `cicd/utility/n8git_backup-and-publish` rar-backs the project tree into `../versions/` (GFS-rotated) and then syncs/commits/pushes the current branch. It is the pipeline's last stage and can be run on its own.
-	- What the archive keeps: source, project docs, the pipeline itself, the repo's own assets, and anything under `cicd/artifacts/release` - release builds and the packages cut from them. What it drops: anything a command regenerates on demand, chiefly the staged Windows runtime snapshot (~67MB of library copies, rebuilt with one `--restage`), tool logs, and crash dumps. The decision was that a version backup should hold what would be painful to lose, not what a rebuild reproduces; the practical trigger was the snapshot alone taking each archive from about 1.6MB to 36MB.
-- Install: `install.bash` (Linux, BSD, WSL, macOS) and `install.ps1` (all of those plus Windows) at the repo root, run as one-liners straight from a shell. They read the releases page, so they depend on a fixed naming contract for release assets - the packaging stage has to produce exactly these names:
-	- `nemo-anywhere-<version>-<os>-<arch>.tar.gz` for unix, `.zip` for Windows, with `<os>` one of `linux`/`windows` and `<arch>` one of `x86_64`/`arm64`.
-	- `nemo-anywhere-<version>-sha256sums.txt` alongside them, in `sha256sum` format. This is what the installers verify against, and `release.bash` already writes and checks a file of that name.
-	- Each archive holds one top-level folder. On unix its entry point is `bin/nemo-anywhere`, the program itself; on Windows `nemo-anywhere.exe` sits at the folder root beside its DLLs, so the normal Windows library search finds them with no environment wiring at all.
-- Windows single-exe: alongside the zip, the pipeline packs the whole runtime (dlls, schemas, icons, themes) into one self-contained `nemo-anywhere.exe` with Enigma Virtual Box - an in-memory virtual file system, nothing extracted at run time. We decided this is the flagship Windows artifact: no library folder, no launcher, just an exe to copy anywhere.
-	- The pack source is the same flat prefix layout the zip contract uses (exe + dlls at the root, `lib/` `share/` `etc/` beside them); GLib-stack libraries resolve their data relative to their own dll, so that tree also runs unpacked with a bare double-click.
-	- Known trade-off: virtualizer-packed exes are occasionally false-flagged by antivirus; the plain zip stays available as the fallback artifact.
-	- The packer is a prerequisite of the Windows build box, not of the build itself: without it the pipeline still lints, builds, tests and stages, and only the pack and dogfood stages warn-skip. The dogfood launcher then keeps serving whatever exe it last held, which reads as a build that silently stopped moving - so a box meant for day-to-day Windows work wants it installed.
-- Linux release artifact: `cicd/linux/release.bash` builds it, and deliberately not in the day-to-day build container. A binary's glibc floor is whatever it was built against, so a release built on Debian 13 would refuse to start on anything older than 2025. The release box is therefore Ubuntu 22.04 (`cicd/linux/Dockerfile`, container `nemo-build-jammy`): glibc 2.35 and GTK 3.24.33 as the floor, which reaches Ubuntu 22.04, Debian 12, Mint 21 and Fedora 36 onward. Newer runtimes stay compatible; older ones cannot be.
-	- Thin prefix, not a bundle: the GTK3 runtime comes from the distro rather than riding along. It keeps the download at a couple of MB, and on Linux a bundled GTK is the thing that goes stale and mismatches the desktop's theme, portals and input methods - the opposite of the Windows situation, where nothing is installed to begin with. That difference in the two platforms' artifacts is intentional.
-	- What makes it relocatable: the program works out where it is (through the symlink the installer puts on PATH) and points `XDG_DATA_DIRS` and `PATH` at the folder it sits in, on startup, before anything reads them. The extension library is found through an `$ORIGIN` rpath. Everything the app looks up through the XDG data dirs - actions, search helpers, icons, mime info - then resolves wherever the folder was installed.
-	- There used to be a shell wrapper in `bin/` doing that, with the real binary hidden in `libexec/`. Two files where one would do, so it went.
-	- What the staging step leaves out of the prefix: mime, polkit, man pages and the gtksourceview syntax files. None of them are read anywhere but a system data dir, and both packages install the prefix under `/opt`. The install rules still produce them, so a distro building `--prefix=/usr` is unaffected.
-	- The D-Bus activation file is written at startup instead of shipped, into `$XDG_DATA_HOME/dbus-1/services`. It has to name an absolute path, and a portable copy does not have one until it runs.
-	- Icons: everything the app draws with is compiled in, so the prefix keeps only the app icon at its eight sizes, which packaging and the launcher's menu entry need as real files. The rest of the installed icon tree was a second copy for a system theme.
-	- The actions folder, the search helpers and the settings schema stay as files. Those are the drop-in folders a user adds to, and two of them have an "Open folder" button in Preferences pointing at them.
-- Build matrix: Linux x86_64 today (container). Windows (MSYS2/MinGW-w64) is the first cross target and is Phase 2; ARM and others follow. macOS/BSD deferred.
+## Delivery
+
+The guiding constraint is that the git host is dumb hosting plus release storage, with as few third-party tools as possible. The whole pipeline runs locally, from `cicd/cicd.bash` on Linux and `cicd/cicd-win.ps1` on Windows.
+
+The one deliberate exception is a release-only workflow, `.github/workflows/release-win.yml`, which builds, packs and publishes the Windows exe on a release tag. It exists because the code signing service chosen at the time would only sign artifacts from a verifiable public build. That application was refused and signing is deferred, so what the workflow earns its keep for now is being that public build, with the signing step left dormant behind a token gate.
+
+### Branches and the merge gate
+
+- Feature branches merge `--no-ff` into `dev`, the integration target. `main` is release-only, and merging dev into main is what cuts a release. Nothing is committed directly on either.
+
+- The merge gate is `cicd.bash --gate` running as the `pre-push` hook, for pushes to main or dev only. It is the local stand-in for a hosted CI workflow: lints, then a container build, then the test suite, then a headless launch smoke test. Install it per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
+
+- The same hook blocks a push to main unless `source/meson.build` is a strict version increase over what is already there.
+
+### Versions and build numbers
+
+- `source/meson.build` is the only place the version is written. Everything else reads it.
+
+- The fork numbers its own releases from 1.0.0, independent of the 6.6.4 code baseline. Since 6.6.4 was never tagged or released here, that reset was a clean one-time step.
+
+- Every build also carries a build number: minutes elapsed since the start of 2000, in lower-cased Crockford base32, which drops i, l, o and u so nothing reads as a digit by mistake. Five characters today, six from 2033. It sits beside the version in `--version`, `--about`, Help > About, the Windows splash screen and the release notes, so a bug report names not just which release but which build of it.
+	- It is worked out at configure time from `SOURCE_DATE_EPOCH`, so two builds of one commit carry the same number, falling back to the clock when nothing sets it.
+	- It lives in a generated header of its own rather than in `config.h`, because the number moves on every reconfigure and a change in `config.h` rebuilds the whole tree.
+
+### The pipeline
+
+Stages, in order, each self-skipping when unconfigured: remote sync, format, debug build, tests and lints, profiler, release build, packages, dogfood, backup and publish. Disabled on purpose today are the format stage, since there is no in-place C formatter worth running, and the engine's own release collector, because the per-platform release lanes write those artifacts themselves.
+
+- Remote sync runs first for a reason. The publish stage pulls at the end, so without it a change merged remotely mid-run would be pushed having never been built or tested. It fast-forwards when the branch is only behind and stops the run outright when it has diverged. It is skipped in gate mode, since a pre-push hook must not rewrite the tree underneath the push that called it.
+
+- No stage is allowed all the cores. Build parallelism is capped at half of them, so a full run leaves the machine usable.
+
+- The publish stage refuses a dirty tree, checked once at preflight and again before it runs. It commits everything it finds, and nothing there can tell work in progress from a finished change.
+
+- Profiling browses a generated folder tree on a private headless display while sampling every thread, then renders a flamegraph and prints the hot spots into the run log. It samples by attaching a debugger rather than using perf, because perf needs a privileged sysctl here and a profiler that cannot run without root is a profiler nobody runs. The cost is wall-clock samples, so a blocked thread reads as work; the report keeps waiting in its own bucket and gives every figure as a share of busy time as well as of total. It profiles the debug build, since the release binaries are stripped and a flamegraph with no function names says nothing.
+
+- The last stage archives the project tree into a rotated set of backups and then commits and pushes the current branch. The archive keeps what would be painful to lose - source, docs, the pipeline, assets, release builds and their packages - and drops what a command regenerates, chiefly the staged Windows runtime snapshot, which by itself took each archive from about 1.6 MB to 36 MB.
+
+### Reproducible builds
+
+Nothing a build produces takes its timestamp from the clock. Every lane sets `SOURCE_DATE_EPOCH` to the commit date of what is being built, so the same commit builds to the same bytes on any box on any day and a released artifact can be checked against a rebuild of its tag.
+
+- The Windows exe was the one that actually differed run to run. The linker writes a timestamp into the PE header, and left alone it writes the clock: two clean builds of one commit used to differ in exactly those four bytes.
+
+- The linker, `dpkg-deb` and `rpmbuild` read the stamp themselves. `zip` has no such notion, so its input is stamped on disk and fed in sorted order, and `tar` is given the stamp and a sorted order explicitly.
+
+- One script answers what the stamp is, and every lane calls it rather than working it out again. `docker exec` does not carry the host environment into a container, so each lane hands it over explicitly.
+
+- A tree with uncommitted changes still gets its `HEAD` commit's date, since the alternative is the clock, but the release lanes warn, because nothing built from it can be reproduced.
+
+- Left out on purpose: the wall clock still names log files and dated dogfood copies, which is what it is for. A signed exe can never be byte-identical anyway, since the countersignature carries the real time of signing.
+
+### Release artifacts and packaging
+
+The two platforms get deliberately different artifacts, because what a user already has installed is different.
+
+Linux is a thin relocatable prefix of a couple of MB that uses the distro's own GTK3. A bundled GTK on Linux is the thing that goes stale and mismatches the desktop's theme, portals and input methods, and it would multiply the download for no gain.
+
+- It is built in an Ubuntu 22.04 container, never the day-to-day Debian 13 one. A binary's glibc floor is whatever it was built against, so a release built on Debian 13 would refuse to start on anything older than 2025. The floor is therefore glibc 2.35 and GTK 3.24.33, which reaches Ubuntu 22.04, Debian 12, Mint 21 and Fedora 36 onward.
+
+- What makes it relocatable: the program works out where it is and points `XDG_DATA_DIRS` and `PATH` at the folder it sits in, at startup, before anything reads them. The extension library is found through an `$ORIGIN` rpath. Everything looked up through the XDG data dirs - actions, search helpers, icons, mime info - then resolves wherever the folder was installed. There used to be a shell wrapper in `bin/` doing that with the real binary hidden in `libexec/`; two files where one would do, so it went.
+
+- The D-Bus activation file is written at startup rather than installed, into the user's own service directory. It has to name an absolute path, and a portable copy does not have one until it runs.
+
+- Staging leaves out what only a system install would read: mime data, polkit, man pages and the editor syntax files. Both packages install the prefix under `/opt`, where none of it is read, and the install rules still produce all of it, so a distro building `--prefix=/usr` is unaffected. Icons are compiled in except the app icon at its eight sizes, which packaging and the menu entry need as real files. Actions, search helpers and the settings schema stay as files, since those are the drop-in folders a user edits and Preferences has buttons that open them.
+
+Windows is one self-contained `nemo-anywhere.exe` with the whole runtime packed inside it by Enigma Virtual Box, as an in-memory virtual filesystem with nothing extracted at run time. No library folder, no launcher, nothing installed or registered: an exe to copy anywhere.
+
+- The pack source is the same flat layout the zip uses - exe and dlls at the root, `lib/`, `share/` and `etc/` beside them - and GLib-stack libraries resolve their data relative to their own dll, so that tree also runs unpacked with a bare double-click.
+
+- Packed exes are occasionally false-flagged by antivirus, so the plain zip stays available as the fallback artifact. It is also the fallback for the release being unsigned.
+
+Packaging builds from what the release lanes already produced and never rebuilds. The Linux tarball becomes a `.deb` and an `.rpm`, both installing the same relocatable prefix under `/opt` plus a launcher, a menu entry and icons in the shared theme. The `.deb`'s dependency versions are read off the built binaries inside the release container rather than on a development box, so the package claims the floor the binary was actually built against; `rpmbuild` derives its own from the ELF. BSD, macOS, AppImage and Flatpak wait on a toolchain.
+
+Cutting a release tags `v<version>` from a clean main and uploads the artifacts. Release notes are the hand-written changelog section for that version, never a generated commit list, falling back to generated notes only so a release is never published blank. A version carrying a pre-release part is published as a prerelease, which matters to the installers: their stable channel resolves to the latest non-prerelease, so a beta is only reachable with `--release dev`.
+
+### Installing
+
+`install.bash` and `install.ps1` sit at the repo root and run as one-liners straight from a shell. They are two standalone installers rather than one script with a helper: the bash one targets bash 3.2 so stock macOS runs it, the PowerShell one covers unix itself instead of handing off. The duplication is deliberate, and buys a one-liner that works from whichever shell someone already has open.
+
+- The app installs as a whole folder plus the two things that make it reachable: a menu entry and a name on PATH. A file manager gets launched both ways.
+
+- A user install is the default and needs no privileges. A system-wide install is opt-in and is the only path that escalates, which it states in the plan first.
+
+- Every run prints what it is about to do and waits for a yes. Downloads are checksum-verified before anything is unpacked, so a bad download can never replace a working install. Reinstalling replaces in place, and `--uninstall` removes exactly what was added.
+
+- Because they read the releases page, the packaging stage has to produce exactly these names: `nemo-anywhere-<version>-<os>-<arch>.tar.gz` for unix and `.zip` for Windows, with `<os>` one of `linux` or `windows` and `<arch>` one of `x86_64` or `arm64`, plus `nemo-anywhere-<version>-sha256sums.txt` beside them in `sha256sum` format. Each archive holds one top-level folder, whose entry point is `bin/nemo-anywhere` on unix and `nemo-anywhere.exe` at the root on Windows.
+
+### Dogfooding
+
+Each platform's pipeline publishes one build to a shared drop folder for that platform and writes nothing else there: the whole relocatable prefix on Linux, the packed exe on Windows.
+
+- The launcher owns the local side. It copies the drop into a pool of date-stamped versions and points a symlink at the newest, so the fixed name is the only thing anything else has to know. One script serves all three platforms, with a small wrapper per platform in the place that platform looks for commands, so it can be typed at a shell or named in a `.desktop` file.
+
+- The pool is rotated on every launch: the newest of each finished hour, day, week, month and year, the most recent few, and the first build ever held. On top of that a budget of at most ten versions, at least five, and only as many between the two as fit in 1 GB. Nothing a running process lives inside is removed, so going back to an older build is a matter of running it rather than rebuilding it.
+
+- A build already held is settled on its bytes, not its date. The sync layer restamps what it carries, so a date test on its own re-fetched the same build every run.
