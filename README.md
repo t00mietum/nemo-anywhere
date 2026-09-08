@@ -125,7 +125,7 @@ Everything that makes Nemo worth porting:
 
 - A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
 
-- A large delete, or one nobody clearly asked for, prompts whatever the settings say. A delete with no click or keystroke behind it counts as nobody asking.
+- A large delete, or one nobody clearly asked for, still prompts even with confirmation turned off. A delete with no click or keystroke behind it counts as nobody asking.
 
 - Trash and delete write down what they did: how many items, which folder, the first name in the batch, and what set it off.
 

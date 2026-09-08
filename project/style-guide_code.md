@@ -57,7 +57,7 @@ So the rules are written down here instead.
 
 - Alignment runs to the nearest tab stop with tabs, then the rest of the way with spaces. The continuation lines in the sample below are two tabs and five spaces, not twenty-one spaces.
 
-- Most C files carry the Emacs mode line that says so: `/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */`. The files under `libnemo-extension/`, `search-helpers/` and `test/` do not, and do not need one.
+- About half the files carry an Emacs mode line saying the same thing: `/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */`. It came with the inherited code and is optional. Keep it on a file that has one; a new file does not need it.
 
 - Function definitions put the return type on its own line, the name at column zero, and the opening brace on its own line. Parameters that wrap are aligned under the first one.
 
@@ -101,7 +101,7 @@ move_proportionally (const NemoColumnLayoutItem *items,
 
 - Header guards are `#ifndef NEMO_THING_H`, not `#pragma once`.
 
-- A file under `src/` or `libnemo-private/` opens with the mode line, a one-line description, then the copyright and the GPL-2.0-only notice. Copy the block from a neighboring first-party file rather than retyping it. Tests carry no header block.
+- A file under `src/` or `libnemo-private/` opens with a one-line description, then the copyright and the GPL-2.0-only notice. Two shapes are in use and both are fine: the inherited one, an indented block after the description, and the newer first-party one, a star-continuation comment. `nemo-column-layout.c` and `nemo-launch-win32.c` are the two. Copy from whichever neighbor you are working next to rather than retyping. Tests and the extension headers carry no block.
 
 - A file that keeps an upstream copyright keeps it. Add a line, do not replace one.
 
@@ -153,7 +153,7 @@ Tests live in `source/test/`. A POSIX-only test is registered under `if not is_w
 
 A test that reads real user configuration is a test that fails on somebody else's machine. Point `HOME`, `APPDATA` and `XDG_CONFIG_HOME` at a throwaway directory first.
 
-The suite needs a display. `Xvfb :95 -screen 0 1280x900x24 &` then `DISPLAY=:95 meson test`. Without one, a third of it fails in ways that read like real assertion failures.
+The suite needs a display. `Xvfb :95 -screen 0 1280x900x24 &` then `DISPLAY=:95 meson test`. Without one, a good part of it fails on the missing display in ways that read like real assertion failures.
 
 ## Other languages in the tree
 
@@ -161,4 +161,4 @@ The suite needs a display. `Xvfb :95 -screen 0 1280x900x24 &` then `DISPLAY=:95 
 
 - PowerShell is tabs, `Set-StrictMode -Version Latest`, and no BOM on anything carrying a shebang.
 
-- Python is tabs in the build and lint helpers under `cicd/`. The one shipped Python program, the action layout editor, is inherited and stays on four spaces.
+- Python is tabs in helpers written for this project. The inherited Python is four spaces and stays that way: the action layout editor, the meson install helpers, the sample action file.
