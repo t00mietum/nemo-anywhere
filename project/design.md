@@ -301,6 +301,12 @@ One process, one main loop, and a firm rule that nothing slow runs on it.
 	- Those two are why it is a setting rather than fixed. Turning it off puts new windows back inside one process. Launches from outside stay separate either way.
 	- A selection has to be sayable on a command line for another process to show it, so `--select` was added: the folder around an item, with the item selected. "Show in folder" from other programs uses the same path.
 
+- Trashing and deleting are the two things a file manager cannot take back, so they are held to a higher bar than the confirmation preferences alone. After a copy of the app emptied a home folder with nothing anywhere to say why, it was decided that:
+	- Every trash and delete job writes one log line: how many items, which folder, the first item, the window, and the input event that asked for it - the key, the mouse button, or a drop. That line is the record when something goes wrong.
+	- A job with no input event behind it always asks first, whatever the preference says, and the question says where it came from. A key, a click or a drop is what a person does; a timer, another program or another copy of the app is not, and the app should not act on those silently.
+	- A job of `confirm-many-items` or more asks even with confirmation switched off. Twenty by default; zero turns it off. A slip that takes one file is a nuisance, one that takes a folder is a day.
+	- The dialogs keep the affirmative as their default button. Making Cancel the default was considered and turned down: the dialog itself is the pause, and a Cancel default is friction on every ordinary delete for people who chose to be asked.
+
 ## Architecture
 
 ### Software stack

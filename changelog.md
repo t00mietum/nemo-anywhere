@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Every move to the trash and every delete is written to the log with how many items, which folder, and the key, click or drop that asked for it. One that nothing asked for - another program, another copy of the app, a timer - always asks first, and says so. So does one of twenty items or more (`confirm-many-items` in the settings file), even with confirmation turned off.
 - Each new window is its own process, so a crash in one leaves the others running, and two versions can be open side by side. A launch from the command line is always a fresh process too, never handed to a copy already running. `--quit` still takes every copy down. Off by a setting under Behavior, which puts new windows back inside one process.
 - `--select` opens the folder around each item given, with the item selected. Programs that ask for "show in folder" go through it.
 - Search results can be grouped under the folder that holds them instead of shown as one flat list, with a toggle next to the one for recursing into subfolders. Grouped results drop the Location column and switching either way happens without running the search again.

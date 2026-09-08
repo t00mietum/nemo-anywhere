@@ -202,6 +202,11 @@ field: preferences.confirm-trash
 	default: true
 	desc: Ask before deleting outright or emptying the Trash
 
+field: preferences.confirm-many-items
+	type: int
+	default: 20
+	desc: Ask before trashing or deleting this many items at once, whatever the two above say (0 for never)
+
 field: preferences.date-format
 	type: string
 	allowed: locale, iso, informal
