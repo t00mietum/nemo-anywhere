@@ -144,7 +144,7 @@ deb_depends(){
 			libargs=""
 			for ld in lib/*/; do [ -d "$ld" ] && libargs="$libargs -l$PWD/$ld"; done
 			dpkg-shlibdeps -O --ignore-missing-info $libargs \
-				-Tdebian/pkg.substvars bin/* libexec/* 2>/dev/null
+				-Tdebian/pkg.substvars bin/* 2>/dev/null
 		' < "$tarball" | sed -n 's/^shlibs:Depends=//p' | head -1)" || line=""
 	fi
 

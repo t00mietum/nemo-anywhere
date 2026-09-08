@@ -44,6 +44,7 @@
 #include <gio/gio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 
 #ifdef G_OS_WIN32
@@ -1005,21 +1006,8 @@ nemo_get_locale_dir (void)
 	return dir;
 }
 
-const char *
-nemo_get_libexec_dir (void)
-{
-	static const char *dir;
-
-	if (g_once_init_enter (&dir)) {
-		g_once_init_leave (&dir, runtime_dir_for ("libexec", LIBEXECDIR));
-	}
-	return dir;
-}
-
-/* Where our sibling programs are. The packaged Linux build runs the real binary
- * out of libexec behind a bin/ wrapper, so this is not simply the exe's own
- * directory. "" means we could not work it out and the caller should just let
- * PATH answer. */
+/* Where our sibling programs are - the document converters search uses. "" means
+ * we could not work it out and the caller should just let PATH answer. */
 const char *
 nemo_get_bin_dir (void)
 {
@@ -1029,6 +1017,94 @@ nemo_get_bin_dir (void)
 		g_once_init_leave (&dir, runtime_dir_for ("bin", ""));
 	}
 	return dir;
+}
+
+/* Put dir at the front of a colon-separated environment list, unless it is
+ * already on it. fallback stands in for a list that is not set at all. */
+static void
+prepend_env_dir (const char *var, const char *dir, const char *fallback)
+{
+	const char *current = g_getenv (var);
+	gboolean present = FALSE;
+	char *joined;
+
+	if (current == NULL || *current == '\0') {
+		current = fallback;
+	}
+
+	if (current != NULL) {
+		char **parts = g_strsplit (current, G_SEARCHPATH_SEPARATOR_S, -1);
+		int i;
+
+		for (i = 0; parts[i] != NULL && !present; i++) {
+			present = strcmp (parts[i], dir) == 0;
+		}
+		g_strfreev (parts);
+	}
+
+	if (present) {
+		return;
+	}
+
+	joined = (current != NULL && *current != '\0')
+		? g_strconcat (dir, G_SEARCHPATH_SEPARATOR_S, current, NULL)
+		: g_strdup (dir);
+	g_setenv (var, joined, TRUE);
+	g_free (joined);
+}
+
+/* A relocatable prefix used to be entered through a shell wrapper that set this
+ * up, which meant two files where one would do. The program does it for itself
+ * now. Everything scanned per data dir - actions, search helpers, icons, mime -
+ * comes off XDG_DATA_DIRS, and GLib caches that list the first time anything
+ * asks for it, so this has to run before anything else does.
+ *
+ * Nothing to do on Windows: the layout is flat and GLib there already reads the
+ * share dir beside the exe. */
+void
+nemo_setup_runtime_environment (void)
+{
+#ifndef G_OS_WIN32
+	char *exe;
+	char *bindir;
+	char *base;
+	char *prefix;
+	char *share;
+
+	exe = nemo_get_exe_path ();
+	if (exe == NULL) {
+		return;
+	}
+
+	bindir = g_path_get_dirname (exe);
+	g_free (exe);
+
+	base = g_path_get_basename (bindir);
+	prefix = strcmp (base, "bin") == 0 ? g_path_get_dirname (bindir) : g_strdup (bindir);
+	g_free (base);
+
+	share = g_build_filename (prefix, "share", NULL);
+
+	/* An uninstalled build tree has no share dir beside the binary. Leave the
+	 * session's own environment alone there. */
+	if (g_file_test (share, G_FILE_TEST_IS_DIR)) {
+		char *schemas = g_build_filename (share, "glib-2.0", "schemas", NULL);
+
+		prepend_env_dir ("XDG_DATA_DIRS", share, "/usr/local/share:/usr/share");
+		prepend_env_dir ("PATH", bindir, NULL);
+
+		/* Settings are not on GSettings any more, so there is normally no
+		 * schema here - but an action file may still name someone else's. */
+		if (g_file_test (schemas, G_FILE_TEST_IS_DIR)) {
+			prepend_env_dir ("GSETTINGS_SCHEMA_DIR", schemas, NULL);
+		}
+		g_free (schemas);
+	}
+
+	g_free (share);
+	g_free (prefix);
+	g_free (bindir);
+#endif
 }
 
 /* g_get_system_data_dirs with the repeats taken out. The prefix wrapper, the

@@ -406,6 +406,17 @@ test('New process argv test',
 )
 
 if not is_windows
+  test('Runtime environment test',
+    executable('test-nemo-runtime-env',
+      [ 'test-nemo-runtime-env.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+endif
+
+if not is_windows
   test('Extensions list flag test',
     executable('test-nemo-extensions-list',
       [ 'test-nemo-extensions-list.c' ],

@@ -10,7 +10,7 @@
 ##		  copy never blocks the next one, and the symlink is the only fixed name.
 ##		- On Windows a build is one packed self-contained exe. Everywhere else it is a
 ##		  relocatable prefix tree, so a version is a directory and the symlink points
-##		  at the wrapper in its bin/, which sorts out the runtime environment itself.
+##		  at the binary in its bin/, which sorts out its own runtime environment.
 ##		- The pool is GFS-rotated on every run: the newest of each completed hour, day,
 ##		  week, month and year, plus the most recent few, plus the very first build,
 ##		  which is kept forever. On top of that a hard budget - at most 10 versions, at
@@ -47,12 +47,10 @@ $ExeName = "${ProgramName}${ExeExt}"
 
 ## What a build looks like. Windows packs the whole GTK runtime into one exe; every
 ## other platform ships the relocatable prefix, so a version is a directory and
-## $PayloadMainBin is the wrapper inside it that the symlink and the launch point at.
-## $PayloadIdBin is the real binary, which is what a build is identified by - the
-## wrapper is generated boilerplate and is byte-identical between builds.
+## $PayloadMainBin is the binary inside it that the symlink and the launch point at.
+## That same file is what a build is identified by.
 $PayloadIsFile  = $IsWindows
 $PayloadMainBin = if ($IsWindows) { "" } else { "bin/${ProgramName}" }
-$PayloadIdBin   = if ($IsWindows) { "" } else { "libexec/${ProgramName}" }
 
 ## Where a build arrives from: the synced dogfood dir for this platform, which is
 ## what the pipeline's dogfood stage publishes to. One entry each for now, but the
@@ -342,12 +340,12 @@ function fPickSource {
 
 
 ## The one file that says which build a payload is: the payload itself on Windows,
-## the real binary inside the prefix everywhere else. Its mtime is the build stamp
-## and its bytes settle whether two copies are the same build. Returns a FileInfo,
-## or $null when the payload is incomplete.
+## the binary inside the prefix everywhere else. Its mtime is the build stamp and
+## its bytes settle whether two copies are the same build. Returns a FileInfo, or
+## $null when the payload is incomplete.
 function fIdFile {
 	param([Parameter(Mandatory)][string]$PayloadPath)
-	$path = if ($PayloadIdBin) { Join-Path $PayloadPath $PayloadIdBin } else { $PayloadPath }
+	$path = if ($PayloadMainBin) { Join-Path $PayloadPath $PayloadMainBin } else { $PayloadPath }
 	return (Get-Item -LiteralPath $path -ErrorAction SilentlyContinue)
 }
 
@@ -774,9 +772,9 @@ function fUpdateLink {
 }
 
 
-## The thing to run inside a version: the payload itself on Windows, the prefix's
-## own wrapper everywhere else - it resolves its own location through the symlink and
-## sets up the runtime environment, so nothing here has to.
+## The thing to run inside a version: the payload itself on Windows, the binary in
+## the prefix's bin/ everywhere else - it resolves its own location through the
+## symlink and sets up the runtime environment, so nothing here has to.
 function fMainBin {
 	param([Parameter(Mandatory)][string]$PayloadPath)
 	if ($PayloadMainBin) { return (Join-Path $PayloadPath $PayloadMainBin) }

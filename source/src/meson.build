@@ -142,5 +142,6 @@ nemo = executable('nemo-anywhere',
   dependencies: nemo_deps,
   # GUI subsystem so Windows doesn't spawn a console window (no-op elsewhere)
   win_subsystem: 'windows',
-  install: true
+  install: true,
+  install_rpath: is_windows ? '' : nemoRpath,
 )
