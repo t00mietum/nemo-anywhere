@@ -193,6 +193,40 @@ test_thumbnailer_reload (void)
 	g_object_unref (factory);
 }
 
+/* gdk-pixbuf sniffs image types through GIO here, so an untyped loader needs the
+ * shared mime database. Hiding that away with the box's own thumbnailers made
+ * every image in this test fail to load, which read as a thumbnailer bug. */
+static void
+link_mime_database (const char *tmp)
+{
+	const char *dirs = g_getenv ("XDG_DATA_DIRS");
+	char *link = g_build_filename (tmp, "mime", NULL);
+	char **list;
+	int i;
+
+	if (dirs == NULL || *dirs == '\0')
+		dirs = "/usr/local/share:/usr/share";
+
+	list = g_strsplit (dirs, G_SEARCHPATH_SEPARATOR_S, -1);
+	for (i = 0; list[i] != NULL; i++) {
+		char *mime = g_build_filename (list[i], "mime", NULL);
+		GFile *at = g_file_new_for_path (link);
+		gboolean linked;
+
+		linked = g_file_test (mime, G_FILE_TEST_IS_DIR) &&
+			 g_file_make_symbolic_link (at, mime, NULL, NULL);
+
+		g_object_unref (at);
+		g_free (mime);
+
+		if (linked)
+			break;
+	}
+
+	g_strfreev (list);
+	g_free (link);
+}
+
 static gboolean
 want (const char *name, int argc, char *argv[])
 {
@@ -226,6 +260,7 @@ main (int argc, char *argv[])
 	/* Set before any glib call that would cache the real ones. */
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
 	g_setenv ("XDG_DATA_HOME", tmp, TRUE);
+	link_mime_database (tmp);
 	g_setenv ("XDG_DATA_DIRS", tmp, TRUE);
 	g_setenv ("XDG_CACHE_HOME", tmp, TRUE);
 	g_setenv ("HOME", tmp, TRUE);

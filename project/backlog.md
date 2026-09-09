@@ -70,6 +70,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- Not reproduced on the Linux host either, with the current build staged out of the container and run headlessly against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
 	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
+	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
@@ -84,12 +85,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
 	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
 
-- 🔘 Run the test suite in the pipeline.
+- ✅ Run the test suite in the pipeline.
 	- Opened: 20260909-112701
-	- Stage 3 is a headless launch and a `--version` check, on both platforms. The 52-test suite runs only when someone asks for it by hand, so a broken check can reach main unnoticed - and two bug closures already rest on checks no gate executes.
-	- Not a one-line change. Three tests fail for reasons outside the code (a search engine timeout, a directory async timeout, a thumbnail factory failure), so wiring the suite in as it stands would make the gate red on every push. Each of the three needs a decision: fix, quarantine, or drop.
-	- The Windows lane needs its own answer - its stage 3 does not mention the suite at all.
-	- The `NEEDS:` note in the pipeline config still says there is no test suite yet, which stopped being true a while ago.
+	- Closed: 20260909-145927
+	- The Linux gate now runs the whole suite before the launch smoke, and both together take about half a minute. A broken check can no longer reach main unnoticed.
+	- The three tests that had been written off as environment failures were all real, and all three are fixed. The suite is green end to end for the first time.
+		- The thumbnail test hid the shared mime database along with the box's own thumbnailers, and image loading needs it - so every image in the test failed to load and the long-thin-image check read as a thumbnailer defect. The test keeps its isolation and reaches the database again.
+		- The other two were inherited demo programs, not tests. Neither asserted anything and neither could ever exit, so both simply ran until the runner killed them. One searched the whole filesystem because it named no folder to search.
+	- Replaced by real checks. Filename search covers recursion on and off and a pattern that matches nothing, which still has to come back or the view sits on a spinner. Directory monitoring covers the initial listing, a file that appears afterwards, and a forced reload finishing rather than just starting.
+	- The Windows lane is filed separately below.
+
+- 🔘 Run the test suite in the Windows pipeline.
+	- Opened: 20260909-145927
+	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the previous item was left open rather than guessed at.
+	- Blocked on there being nowhere to run it: neither Windows box holds a checkout at all, so nothing can be built or tested there as things stand.
+	- The cross build is not a stand-in. Run against the emulator the same suite gives six failures and a timeout, and the keyboard and parts of the shell do not behave there, so a green run would prove nothing and a red one would say nothing either.
 
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615

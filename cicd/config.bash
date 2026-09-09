@@ -86,13 +86,11 @@ DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" "
 	else meson setup /build /src/source; fi && ninja -C /build -j ${CICD_MAX_JOBS:-2}
 ")
 
-## Stage 3: regression tests - PARTIAL. There is no real test suite yet, so "tests"
-## is a headless launch + --version smoke check inside the container (proves the
-## build links and starts). Runs on the container's Xvfb via xvfb-run. Same wrapper,
-## so a down/absent daemon skips-with-warning instead of aborting the gate.
-## NEEDS: an actual regression suite (behavioral/unit) once there's portable code to
-## assert on; swap this smoke check for it, or run both.
-TEST_CMD=(bash "${DOCKER_RUN}" "smoke test" 'xvfb-run -a /build/src/nemo-anywhere --version')
+## Stage 3: regression tests - READY. The meson suite, then a headless launch and
+## --version so the whole program is proven to start as well. Both run inside the
+## container under its own Xvfb; see linux/run-tests.bash. Same wrapper, so a
+## down/absent daemon skips-with-warning instead of aborting the gate.
+TEST_CMD=(bash "${DOCKER_RUN}" "tests" 'bash /src/cicd/linux/run-tests.bash')
 
 ## Stage 3 (after tests): lints - READY. Check-only cppcheck over the CHANGED C
 ## files only (cicd/utility/lint-c.bash); never reformats, never lints the whole
