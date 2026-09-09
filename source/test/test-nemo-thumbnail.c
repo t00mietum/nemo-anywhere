@@ -210,27 +210,25 @@ link_mime_database (const char *tmp)
 	gboolean linked = FALSE;
 	int i;
 
-	/* The standard places lead, and whatever is on the search path follows.
-	   An export directory from a bundled app can carry a partial database of
-	   its own, and taking that in preference to the real one is how this
-	   went wrong the first time. */
 	search = g_strjoin (G_SEARCHPATH_SEPARATOR_S,
-			    "/usr/local/share", "/usr/share",
-			    dirs != NULL ? dirs : "", NULL);
+			    dirs != NULL ? dirs : "",
+			    "/usr/local/share", "/usr/share", NULL);
 	list = g_strsplit (search, G_SEARCHPATH_SEPARATOR_S, -1);
 
 	for (i = 0; list[i] != NULL && !linked; i++) {
-		char *cache, *from;
+		char *probe, *from;
 		GFile *at;
 
 		if (list[i][0] == '\0') {
 			continue;
 		}
 
-		/* An empty mime/ left behind by some other install is not a
-		   database; the cache is what is actually read. */
-		cache = g_build_filename (list[i], "mime", "mime.cache", NULL);
-		if (g_file_test (cache, G_FILE_TEST_EXISTS)) {
+		/* Ask for the one type this test needs rather than for the
+		   database as a whole. Half a database is a real thing to find -
+		   installing anything from source leaves one under
+		   /usr/local/share - and it satisfies every weaker test. */
+		probe = g_build_filename (list[i], "mime", "image", "png.xml", NULL);
+		if (g_file_test (probe, G_FILE_TEST_EXISTS)) {
 			from = g_build_filename (list[i], "mime", NULL);
 			at = g_file_new_for_path (link);
 			g_clear_error (&error);
@@ -238,7 +236,7 @@ link_mime_database (const char *tmp)
 			g_object_unref (at);
 			g_free (from);
 		}
-		g_free (cache);
+		g_free (probe);
 	}
 
 	if (!linked) {

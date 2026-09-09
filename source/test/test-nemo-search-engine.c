@@ -102,8 +102,8 @@ search (const char *location, const char *pattern, gboolean recurse)
 		nemo_search_engine_stop (engine);
 	}
 
-	/* The walk is on its own thread and stop only asks it to give up, so the
-	   handlers have to go before the frame they point at does. */
+	/* Belt and braces. The unref below takes the handlers with it, but the
+	   walk is on its own thread and the frame these point at is going. */
 	g_signal_handlers_disconnect_by_data (engine, &run);
 
 	g_main_loop_unref (run.loop);
@@ -143,7 +143,7 @@ remove_file (const char *dir, const char *name)
 int
 main (int argc, char *argv[])
 {
-	char *scratch, *dir, *sub, *uri, *settings;
+	char *scratch, *dir, *sub, *uri;
 	GList *names;
 
 	scratch = g_dir_make_tmp ("nemo-search-engine-home-XXXXXX", NULL);
@@ -187,14 +187,6 @@ main (int argc, char *argv[])
 	remove_file (sub, "needle-deep.txt");
 	g_rmdir (sub);
 	g_rmdir (dir);
-
-	/* Only non-default values are ever written, so the settings file is here
-	   or it is not. */
-	settings = g_build_filename (scratch, "nemo-anywhere", NULL);
-	remove_file (settings, "settings.shcl");
-	g_rmdir (settings);
-	g_rmdir (scratch);
-	g_free (settings);
 
 	g_free (uri);
 	g_free (sub);

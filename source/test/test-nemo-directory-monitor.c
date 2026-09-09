@@ -105,14 +105,22 @@ main (int argc, char **argv)
 {
 	static int client;
 	NemoDirectory *directory;
-	char *tmp, *uri;
+	char *scratch, *tmp, *uri;
 	GList *files;
+
+	/* Every test that could reach a preference points these at a throwaway
+	   directory first. */
+	scratch = g_dir_make_tmp ("nemo-dirmonitor-home-XXXXXX", NULL);
+	g_setenv ("HOME", scratch, TRUE);
+	g_setenv ("APPDATA", scratch, TRUE);
+	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
 
 	gtk_init_check (&argc, &argv);
 
 	tmp = g_dir_make_tmp ("nemo-dirmonitor-XXXXXX", NULL);
 	if (tmp == NULL) {
 		g_printerr ("FAIL could not make a temp dir\n");
+		g_free (scratch);
 		return EXIT_FAILURE;
 	}
 
@@ -158,6 +166,7 @@ main (int argc, char **argv)
 	remove_file (tmp, "late.txt");
 	g_rmdir (tmp);
 	g_free (tmp);
+	g_free (scratch);
 
 	if (failures == 0) {
 		g_print ("nemo-directory-monitor: all checks passed\n");

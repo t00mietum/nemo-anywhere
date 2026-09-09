@@ -376,7 +376,7 @@ main (int argc, char *argv[])
 	if (!gtk_init_check (&argc, &argv)) {
 		g_print ("SKIP: no display\n");
 		g_free (tmp);
-		return 0;
+		return 77;
 	}
 
 	nemo_global_preferences_init ();

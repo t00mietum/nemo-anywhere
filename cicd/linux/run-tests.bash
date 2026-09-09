@@ -5,7 +5,9 @@
 ##	  be run on the host.
 ##	- Builds first, since the gate has no build stage of its own. What gets built
 ##	  is the working tree, not the commit being pushed, so an unfinished edit
-##	  sitting there stops the gate here.
+##	  sitting there stops the gate here. Building the pushed sha in a detached
+##	  worktree instead would be correct and would also be a cold build every time,
+##	  which is why it is not done.
 ##	- NEMO_TEST_JOBS caps both the build and the number of tests at once, so a run
 ##	  leaves the box usable. BUILD_DIR overrides the build directory.
 ##	- Syntax: run-tests.bash          (no arguments)
@@ -27,7 +29,7 @@ jobs="${NEMO_TEST_JOBS:-2}"
 ## Arithmetic comparison here would evaluate whatever it was handed, and 0 means
 ## "no limit" to both tools below - the opposite of the point.
 case "${jobs}" in
-	''|*[!0-9]*|0) jobs=2 ;;
+	''|*[!0-9]*|0*) jobs=2 ;;
 esac
 
 ## A container recreated from the image has no build directory yet.
