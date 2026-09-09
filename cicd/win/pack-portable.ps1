@@ -225,10 +225,13 @@ function fMain {
 
 	## Smoke with a bare PATH: if anything leaks outside the virtual FS, it fails here.
 	$saved = $env:PATH
+	$savedDialog = $env:NEMO_NO_CRASH_DIALOG
 	try {
 		$env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+		## A crash here would otherwise stop the run behind a modal box.
+		$env:NEMO_NO_CRASH_DIALOG = "1"
 		$out = (& $outExe --version 2>&1 | Out-String).Trim()
-	} finally { $env:PATH = $saved }
+	} finally { $env:PATH = $saved; $env:NEMO_NO_CRASH_DIALOG = $savedDialog }
 	if ($LASTEXITCODE -ne 0) { fDie "packed exe smoke failed (exit $LASTEXITCODE): $out" }
 
 	$size = "{0:N1} MB" -f ((Get-Item -LiteralPath $outExe).Length / 1MB)

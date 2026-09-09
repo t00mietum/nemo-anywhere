@@ -69,6 +69,15 @@ static wchar_t report_dir_w[CRASH_PATH_MAX];
 static wchar_t report_path_w[CRASH_PATH_MAX];
 #endif
 
+/* An empty value reads as unset, the way the rest of the tree treats one. */
+static gboolean
+is_empty_env (const char *name)
+{
+	const char *value = g_getenv (name);
+
+	return value == NULL || *value == '\0';
+}
+
 static gboolean
 build_paths (void)
 {
@@ -153,7 +162,12 @@ compare_written (gconstpointer a, gconstpointer b)
 	const Report *ra = *(const Report * const *) a;
 	const Report *rb = *(const Report * const *) b;
 
-	return ra->written < rb->written ? -1 : ra->written > rb->written;
+	if (ra->written != rb->written)
+		return ra->written < rb->written ? -1 : 1;
+
+	/* Second resolution, so ties are ordinary. Without a tie-break the newest
+	   moves between launches and the announcement repeats. */
+	return g_strcmp0 (ra->name, rb->name);
 }
 
 /* Two jobs at startup: say that an earlier run left a report, since that run
@@ -294,13 +308,8 @@ has_fault_address (int sig)
 }
 
 static void
-write_report (int fd, int sig, const siginfo_t *info, void *const *frames, int n_frames)
+write_header (int fd, int sig, const siginfo_t *info)
 {
-#if !HAVE_BACKTRACE
-	(void) frames;
-	(void) n_frames;
-#endif
-
 	write_str (fd, "nemo-anywhere " NEMO_VERSION_STRING "\n");
 	write_str (fd, "started ");
 	write_str (fd, started_stamp);
@@ -317,15 +326,7 @@ write_report (int fd, int sig, const siginfo_t *info, void *const *frames, int n
 
 	write_str (fd, "\npid ");
 	write_num (fd, (gsize) getpid (), 10);
-	write_str (fd, "\n\nstack (addr2line -e <module> <the offset in parentheses>):\n");
-
-#if HAVE_BACKTRACE
-	if (n_frames > 0) {
-		backtrace_symbols_fd (frames, n_frames, fd);
-		return;
-	}
-#endif
-	write_str (fd, "  not available in this build\n");
+	write_str (fd, "\n\nstack (addr2line -e <module> <the bare +0x in parentheses>):\n");
 }
 
 static volatile gint handling = 0;
@@ -339,6 +340,7 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 	int fd;
 
 	(void) context;
+	(void) frames;
 
 	/* One report per process. A second thread faulting waits rather than
 	   truncating the first one's report, but not forever: the thread writing
@@ -350,26 +352,42 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 		_exit (128 + sig);
 	}
 
-#if HAVE_BACKTRACE
-	n_frames = backtrace (frames, CRASH_MAX_FRAMES);
-#endif
-
 	/* mkdir is a bare syscall wrapper, so it is safe here. It and the open
 	   are both allowed to fail: stderr still gets the report. */
 	mkdir (report_parent, DEFAULT_NEMO_DIRECTORY_MODE);
 	mkdir (report_dir, 0700);
 	fd = open (report_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
 
-	write_report (fd, sig, info, frames, n_frames);
+	/* Everything known for certain goes out before the stack is collected.
+	   Walking it is the part that can fault again, and a report that says
+	   only what killed the program still beats no report. */
+	write_header (fd, sig, info);
 
 	if (fd >= 0) {
-		close (fd);
 		write_str (STDERR_FILENO, "\nnemo-anywhere crashed. Report written to ");
 		write_str (STDERR_FILENO, report_path);
 		write_str (STDERR_FILENO, "\n");
 	}
 
-	write_report (STDERR_FILENO, sig, info, frames, n_frames);
+	write_header (STDERR_FILENO, sig, info);
+
+#if HAVE_BACKTRACE
+	n_frames = backtrace (frames, CRASH_MAX_FRAMES);
+#endif
+
+#if HAVE_BACKTRACE
+	if (n_frames > 0) {
+		backtrace_symbols_fd (frames, n_frames, fd);
+		backtrace_symbols_fd (frames, n_frames, STDERR_FILENO);
+	} else
+#endif
+	{
+		write_str (fd, "  not available in this build\n");
+		write_str (STDERR_FILENO, "  not available in this build\n");
+	}
+
+	if (fd >= 0)
+		close (fd);
 
 	/* Hand the signal back, so a core file and an attached debugger still get
 	   one. The signal is blocked on the way in here, so it has to be unblocked
@@ -434,13 +452,16 @@ static void
 emit_str (const char *s)
 {
 	static const char cut[] = "  (report truncated)\n";
+	static gboolean full = FALSE;
 	gsize len = strlen (s);
 
+	if (full)
+		return;
+
 	if (report_len + len + sizeof cut >= sizeof report_text) {
-		if (report_len + sizeof cut < sizeof report_text) {
-			memcpy (report_text + report_len, cut, sizeof cut - 1);
-			report_len += sizeof cut - 1;
-		}
+		full = TRUE;
+		memcpy (report_text + report_len, cut, sizeof cut - 1);
+		report_len += sizeof cut - 1;
 		return;
 	}
 
@@ -604,7 +625,9 @@ emit_stack (const CONTEXT *context)
 			if (!readable ((const void *) (UINT_PTR) walk.Rsp, sizeof (DWORD64)))
 				break;
 
-			RtlVirtualUnwind (UNW_FLAG_NHANDLER, image_base, pc, function,
+			/* The same address the lookup used, or the unwinder decides
+			   whether it is in an epilogue by reading the wrong function. */
+			RtlVirtualUnwind (UNW_FLAG_NHANDLER, image_base, probe, function,
 					  &walk, &handler_data, &establisher, NULL);
 		}
 
@@ -620,32 +643,57 @@ emit_stack (const CONTEXT *context)
 {
 	(void) context;
 
-	emit_str ("  not available in this build\n");
+	emit_str ("stack:\n  not available in this build\n");
 }
 
 #endif
 
 static volatile gint handling = 0;
-static volatile LONG reporting_thread = 0;
+static volatile DWORD reporting_thread = 0;
 static gboolean quiet = FALSE;
+
+static void
+flush_report (HANDLE file)
+{
+	write_handle (file, report_text, report_len);
+	write_handle (GetStdHandle (STD_ERROR_HANDLE), report_text, report_len);
+	report_len = 0;
+}
 
 static void
 report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 {
 	const EXCEPTION_RECORD *record = info->ExceptionRecord;
-	HANDLE h;
+	HANDLE file;
 
 	if (!g_atomic_int_compare_and_exchange (&handling, 0, 1)) {
 		/* Either this thread faulted again inside the filter, in which case
 		   there is nothing left to try, or another thread is writing the
 		   report and is worth a short wait but not an unbounded one. */
-		if ((DWORD) reporting_thread != GetCurrentThreadId ())
+		if (reporting_thread != GetCurrentThreadId ())
 			Sleep (5000);
 
 		TerminateProcess (GetCurrentProcess (), record->ExceptionCode);
 	}
 
-	reporting_thread = (LONG) GetCurrentThreadId ();
+	reporting_thread = GetCurrentThreadId ();
+
+	CreateDirectoryW (report_parent_w, NULL);
+	CreateDirectoryW (report_dir_w, NULL);
+
+	file = CreateFileW (report_path_w, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+			    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	/* Nothing reads stderr in a windowed build, but a console one and every
+	   test do. */
+	if (file != INVALID_HANDLE_VALUE) {
+		static const char wrote[] = "\nnemo-anywhere crashed. Report written to ";
+		HANDLE err = GetStdHandle (STD_ERROR_HANDLE);
+
+		write_handle (err, wrote, sizeof wrote - 1);
+		write_handle (err, report_path, strlen (report_path));
+		write_handle (err, "\n", 1);
+	}
 
 	emit_str ("nemo-anywhere " NEMO_VERSION_STRING "\n");
 	emit_str ("started ");
@@ -665,30 +713,16 @@ report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 	emit_num (GetCurrentProcessId (), 10, 0);
 	emit_str ("\n\n");
 
+	/* Everything known for certain goes out before the stack is walked.
+	   Walking it is the part that can fault again, and a report that says
+	   only what killed the program still beats no report. */
+	flush_report (file);
+
 	emit_stack (info->ContextRecord);
+	flush_report (file);
 
-	CreateDirectoryW (report_parent_w, NULL);
-	CreateDirectoryW (report_dir_w, NULL);
-
-	h = CreateFileW (report_path_w, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-			 CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	write_handle (h, report_text, report_len);
-
-	/* Nothing reads stderr in a windowed build, but a console one and every
-	   test do. */
-	if (h != INVALID_HANDLE_VALUE) {
-		static const char wrote[] = "\nnemo-anywhere crashed. Report written to ";
-
-		CloseHandle (h);
-
-		write_handle (GetStdHandle (STD_ERROR_HANDLE), wrote, sizeof wrote - 1);
-		write_handle (GetStdHandle (STD_ERROR_HANDLE), report_path,
-			      strlen (report_path));
-		write_handle (GetStdHandle (STD_ERROR_HANDLE), "\n", 1);
-	}
-
-	write_handle (GetStdHandle (STD_ERROR_HANDLE), report_text, report_len);
+	if (file != INVALID_HANDLE_VALUE)
+		CloseHandle (file);
 
 	/* Last, and only once the report is safely on disk: this runs a modal
 	   loop, which dispatches messages back into the code that just died, so
@@ -697,10 +731,17 @@ report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 	if (!quiet) {
 		static wchar_t message[CRASH_PATH_MAX + 128];
 
-		_snwprintf (message, G_N_ELEMENTS (message) - 1,
-			    L"Nemo Anywhere stopped unexpectedly.\n\n"
-			    L"A report was written to:\n%ls",
-			    report_path_w);
+		if (file != INVALID_HANDLE_VALUE) {
+			_snwprintf (message, G_N_ELEMENTS (message) - 1,
+				    L"Nemo Anywhere stopped unexpectedly.\n\n"
+				    L"A report was written to:\n%ls",
+				    report_path_w);
+		} else {
+			_snwprintf (message, G_N_ELEMENTS (message) - 1,
+				    L"Nemo Anywhere stopped unexpectedly.\n\n"
+				    L"No report could be written to:\n%ls",
+				    report_path_w);
+		}
 		message[G_N_ELEMENTS (message) - 1] = L'\0';
 
 		MessageBoxW (NULL, message, L"Nemo Anywhere",
@@ -749,7 +790,7 @@ install_win32 (void)
 {
 	ULONG guarantee = 64 * 1024;
 
-	quiet = g_getenv ("NEMO_NO_CRASH_DIALOG") != NULL;
+	quiet = !is_empty_env ("NEMO_NO_CRASH_DIALOG");
 
 	/* Keeps enough stack in reserve for the filter to run after a stack
 	   overflow, which is the one crash that otherwise reports nothing. Per
@@ -770,7 +811,7 @@ nemo_crash_handler_install (void)
 	if (installed)
 		return;
 
-	if (g_getenv ("NEMO_NO_CRASH_HANDLER") != NULL)
+	if (!is_empty_env ("NEMO_NO_CRASH_HANDLER"))
 		return;
 
 	if (!build_paths ())

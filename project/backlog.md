@@ -73,6 +73,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Sharpen the crash reporter.
+	- Opened: 20260909-171500
+	- Filed off a review of the reporter as it went in. None of these stop it doing its job today.
+	- A second crash in the same second from a reused process id loses the second report on Linux and overwrites the first on Windows.
+	- The check before the Windows unwind step reads eight bytes, not the frame the unwinder will read, so a badly shredded stack still costs the stack half of the report.
+	- A stack that unwinds to itself fills the report with sixty-four identical lines, which reads the same as genuine deep recursion.
+	- On Linux a jump to a null pointer recovers only two frames, because the backtrace call cannot start from an address with no code at it. The handler is already handed the register state that would recover the caller and throws it away.
+	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
+	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
+
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615
 	- Nothing in the tree is fuzzed today. The settings file, the action files and the `.desktop` and `.lnk` readers all parse text that arrives from outside the program.
