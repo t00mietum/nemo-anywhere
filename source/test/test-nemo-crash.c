@@ -7,6 +7,10 @@
 #include <string.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#ifndef G_OS_WIN32
+#include <sys/resource.h>
+#include <sys/wait.h>
+#endif
 
 #include <libnemo-private/nemo-crash.h>
 
@@ -21,6 +25,7 @@ static int failures = 0;
 	} while (0)
 
 static volatile int *null_pointer = NULL;
+static void (*volatile null_function) (void) = NULL;
 
 /* The child half. Prints where the report will go, then dies on purpose. */
 static int
@@ -28,23 +33,51 @@ run_child (const char *how)
 {
 	const char *path;
 
+#ifndef G_OS_WIN32
+	/* Three deliberate crashes per run would otherwise drop three cores in
+	   the build directory. */
+	struct rlimit no_core = { 0, 0 };
+
+	setrlimit (RLIMIT_CORE, &no_core);
+#endif
+
 	nemo_crash_handler_install ();
 
 	path = nemo_crash_report_path ();
 	g_print ("%s\n", path != NULL ? path : "none");
 	fflush (stdout);
 
-	if (strcmp (how, "off") == 0) {
-		return 0;
-	}
-
 	if (strcmp (how, "abort") == 0) {
 		abort ();
+	}
+
+	/* A call through a pointer that is no longer there: the shape a freed
+	   object takes, and the one an unwinder is most likely to give up on. */
+	if (strcmp (how, "nullcall") == 0) {
+		null_function ();
 	}
 
 	*null_pointer = 1;
 
 	return 0;
+}
+
+/* The point of the handler is that it hands the signal back, so the process
+   still dies the way it would have without one. Reporting and then exiting
+   normally would pass a plain "did not exit zero" check. */
+static void
+check_died_of (int status, int expect_signal, unsigned long expect_code)
+{
+#ifdef G_OS_WIN32
+	(void) expect_signal;
+	check ((unsigned long) status == expect_code);
+#else
+	(void) expect_code;
+	check (WIFSIGNALED (status));
+	if (WIFSIGNALED (status)) {
+		check (WTERMSIG (status) == expect_signal);
+	}
+#endif
 }
 
 typedef struct {
@@ -125,7 +158,6 @@ check_report (const char *path, const char *expect_cause)
 	check (strstr (text, expect_cause) != NULL);
 	check (strstr (text, "\npid ") != NULL);
 
-#if HAVE_BACKTRACE || defined (G_OS_WIN32)
 	lines = g_strsplit (text, "\n", -1);
 
 	/* Anything past the header carrying an address is a frame. Which frames
@@ -136,13 +168,9 @@ check_report (const char *path, const char *expect_cause)
 		}
 	}
 
-	check (saw_frame);
-#else
-	(void) lines;
-	(void) i;
-	check (strstr (text, "not available in this build") != NULL);
-	saw_frame = TRUE;
-#endif
+	/* A build with no unwinder says so instead, and that is the whole
+	   contract there. */
+	check (saw_frame || strstr (text, "not available in this build") != NULL);
 }
 
 static guint
@@ -175,7 +203,8 @@ remove_tree (const char *path)
 		while ((entry = g_dir_read_name (handle)) != NULL) {
 			g_autofree char *child = g_build_filename (path, entry, NULL);
 
-			if (g_file_test (child, G_FILE_TEST_IS_DIR)) {
+			if (g_file_test (child, G_FILE_TEST_IS_DIR) &&
+			    !g_file_test (child, G_FILE_TEST_IS_SYMLINK)) {
 				remove_tree (child);
 			} else {
 				g_unlink (child);
@@ -209,7 +238,7 @@ main (int argc, char *argv[])
 	   everywhere else. */
 	result = run_crashing_child (argv[0], config_root, "fault", TRUE);
 	if (result.spawned) {
-		check (result.status != 0);
+		check_died_of (result.status, SIGSEGV, 0xc0000005UL);
 		check (result.report_path[0] != '\0');
 		check (strcmp (result.report_path, "none") != 0);
 
@@ -239,7 +268,7 @@ main (int argc, char *argv[])
 	/* An assertion failure, which never reaches a fault handler on Windows. */
 	result = run_crashing_child (argv[0], config_root, "abort", TRUE);
 	if (result.spawned) {
-		check (result.status != 0);
+		check_died_of (result.status, SIGABRT, 0x40000015UL);
 		check (result.report_path[0] != '\0');
 		check (strcmp (result.report_path, "none") != 0);
 
@@ -249,6 +278,24 @@ main (int argc, char *argv[])
 				      "aborted");
 #else
 				      "SIGABRT");
+#endif
+		}
+	}
+	child_result_clear (&result);
+
+	/* A jump to nowhere. The stack has to be recovered from the return
+	   address, since there is no function at the address that faulted. */
+	result = run_crashing_child (argv[0], config_root, "nullcall", TRUE);
+	if (result.spawned) {
+		check_died_of (result.status, SIGSEGV, 0xc0000005UL);
+		check (result.report_path[0] != '\0');
+
+		if (result.report_path[0] != '\0') {
+			check_report (result.report_path,
+#ifdef G_OS_WIN32
+				      "access violation");
+#else
+				      "SIGSEGV");
 #endif
 		}
 	}

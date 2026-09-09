@@ -50,7 +50,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
-	- Done: a crash now writes a report next to the settings file, under `crash/`. It carries the version, what killed it, and the stack. The same text goes to stderr, which is what a launcher log keeps, and on Windows a message box says where the file is, since a windowed build has no stderr. The next start says a report was left behind, and the oldest are dropped so the folder cannot grow forever.
+	- Done: a crash now writes a report next to the settings file, under `crash/`. It carries the version, what killed it, and the stack. The same text goes to stderr, which is what a launcher log keeps, and on Windows a message box says where the file is, since a windowed build has no stderr. The next start notes a report was left behind, and the oldest are dropped so the folder cannot grow forever.
 	- Left: an actual crash to read. Nothing is known about the cause yet.
 
 - 🛠️ Windows: When CTRL+L to editable current path:

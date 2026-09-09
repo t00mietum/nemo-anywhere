@@ -40,7 +40,9 @@
 #else
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -129,10 +131,29 @@ build_paths (void)
 	return TRUE;
 }
 
-static int
-compare_names (gconstpointer a, gconstpointer b)
+typedef struct {
+	char *name;
+	gint64 written;
+} Report;
+
+static void
+report_free (gpointer data)
 {
-	return g_strcmp0 (*(const char * const *) a, *(const char * const *) b);
+	Report *report = data;
+
+	g_free (report->name);
+	g_free (report);
+}
+
+/* By when it was written, not by the name: the name carries when the run
+   started, and a window open for a week can crash after one opened an hour ago. */
+static int
+compare_written (gconstpointer a, gconstpointer b)
+{
+	const Report *ra = *(const Report * const *) a;
+	const Report *rb = *(const Report * const *) b;
+
+	return ra->written < rb->written ? -1 : ra->written > rb->written;
 }
 
 /* Two jobs at startup: say that an earlier run left a report, since that run
@@ -140,9 +161,12 @@ compare_names (gconstpointer a, gconstpointer b)
 static void
 sweep_old_reports (void)
 {
-	g_autoptr (GPtrArray) names = g_ptr_array_new_with_free_func (g_free);
+	g_autoptr (GPtrArray) reports = g_ptr_array_new_with_free_func (report_free);
 	g_autoptr (GDir) dir = NULL;
+	g_autofree char *marker = NULL;
+	g_autofree char *seen = NULL;
 	const char *entry;
+	const char *newest;
 	guint i;
 
 	dir = g_dir_open (report_dir, 0, NULL);
@@ -150,37 +174,45 @@ sweep_old_reports (void)
 		return;
 
 	while ((entry = g_dir_read_name (dir)) != NULL) {
-		if (g_str_has_prefix (entry, "crash-") && g_str_has_suffix (entry, ".txt"))
-			g_ptr_array_add (names, g_strdup (entry));
+		g_autofree char *path = NULL;
+		GStatBuf info;
+		Report *report;
+
+		if (!g_str_has_prefix (entry, "crash-") || !g_str_has_suffix (entry, ".txt"))
+			continue;
+
+		path = g_build_filename (report_dir, entry, NULL);
+		if (g_stat (path, &info) != 0)
+			continue;
+
+		report = g_new0 (Report, 1);
+		report->name = g_strdup (entry);
+		report->written = (gint64) info.st_mtime;
+		g_ptr_array_add (reports, report);
 	}
 
-	if (names->len == 0)
+	if (reports->len == 0)
 		return;
 
-	/* The stamp leads the name, so plain sorting is oldest first. */
-	g_ptr_array_sort (names, compare_names);
+	g_ptr_array_sort (reports, compare_written);
 
-	/* Said once per report, not once per launch: the newest name seen is kept
-	   beside them. */
-	{
-		const char *newest = g_ptr_array_index (names, names->len - 1);
-		g_autofree char *marker = g_build_filename (report_dir, "last-seen", NULL);
-		g_autofree char *seen = NULL;
+	/* Said once per report rather than once per launch, which matters when
+	   every window is its own process. */
+	newest = ((const Report *) g_ptr_array_index (reports, reports->len - 1))->name;
+	marker = g_build_filename (report_dir, "last-seen", NULL);
 
-		if (!g_file_get_contents (marker, &seen, NULL, NULL))
-			seen = NULL;
+	if (!g_file_get_contents (marker, &seen, NULL, NULL))
+		seen = NULL;
 
-		if (g_strcmp0 (seen, newest) != 0) {
-			g_message ("An earlier run stopped unexpectedly. Its report is in %s",
-				   report_dir);
-			g_file_set_contents (marker, newest, -1, NULL);
-		}
+	if (g_strcmp0 (seen, newest) != 0) {
+		g_message ("An earlier run stopped unexpectedly. Its report is in %s",
+			   report_dir);
+		g_file_set_contents (marker, newest, -1, NULL);
 	}
 
-	for (i = 0; names->len - i > CRASH_KEEP_REPORTS; i++) {
-		g_autofree char *old = g_build_filename (report_dir,
-							 g_ptr_array_index (names, i),
-							 NULL);
+	for (i = 0; reports->len - i > CRASH_KEEP_REPORTS; i++) {
+		const Report *report = g_ptr_array_index (reports, i);
+		g_autofree char *old = g_build_filename (report_dir, report->name, NULL);
 
 		g_unlink (old);
 	}
@@ -285,7 +317,7 @@ write_report (int fd, int sig, const siginfo_t *info, void *const *frames, int n
 
 	write_str (fd, "\npid ");
 	write_num (fd, (gsize) getpid (), 10);
-	write_str (fd, "\n\nstack (addr2line -e <module> <the offset in brackets>):\n");
+	write_str (fd, "\n\nstack (addr2line -e <module> <the offset in parentheses>):\n");
 
 #if HAVE_BACKTRACE
 	if (n_frames > 0) {
@@ -308,11 +340,14 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 
 	(void) context;
 
-	/* One report per process. A second thread faulting waits to be taken down
-	   with the rest rather than truncating the first thread's report. */
+	/* One report per process. A second thread faulting waits rather than
+	   truncating the first one's report, but not forever: the thread writing
+	   it can be stuck behind a lock the crash left held. */
 	if (!g_atomic_int_compare_and_exchange (&handling, 0, 1)) {
-		for (;;)
-			pause ();
+		struct timespec wait = { 5, 0 };
+
+		nanosleep (&wait, NULL);
+		_exit (128 + sig);
 	}
 
 #if HAVE_BACKTRACE
@@ -323,7 +358,7 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 	   are both allowed to fail: stderr still gets the report. */
 	mkdir (report_parent, DEFAULT_NEMO_DIRECTORY_MODE);
 	mkdir (report_dir, 0700);
-	fd = open (report_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	fd = open (report_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
 
 	write_report (fd, sig, info, frames, n_frames);
 
@@ -342,7 +377,7 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 	signal (sig, SIG_DFL);
 	sigemptyset (&unblock);
 	sigaddset (&unblock, sig);
-	sigprocmask (SIG_UNBLOCK, &unblock, NULL);
+	pthread_sigmask (SIG_UNBLOCK, &unblock, NULL);
 	raise (sig);
 
 	_exit (128 + sig);
@@ -398,10 +433,16 @@ static gsize report_len = 0;
 static void
 emit_str (const char *s)
 {
+	static const char cut[] = "  (report truncated)\n";
 	gsize len = strlen (s);
 
-	if (report_len + len >= sizeof report_text)
+	if (report_len + len + sizeof cut >= sizeof report_text) {
+		if (report_len + sizeof cut < sizeof report_text) {
+			memcpy (report_text + report_len, cut, sizeof cut - 1);
+			report_len += sizeof cut - 1;
+		}
 		return;
+	}
 
 	memcpy (report_text + report_len, s, len);
 	report_len += len;
@@ -452,6 +493,26 @@ exception_name (DWORD code)
 	}
 }
 
+/* A crashed process can hand over anything, and a read that faults in here
+   loses the whole report, so every address off the stack is checked first. */
+static gboolean
+readable (const void *p, gsize len)
+{
+	MEMORY_BASIC_INFORMATION mbi;
+	const char *start = p;
+
+	if (p == NULL)
+		return FALSE;
+
+	if (VirtualQuery (p, &mbi, sizeof mbi) != sizeof mbi)
+		return FALSE;
+
+	if (mbi.State != MEM_COMMIT || (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD)) != 0)
+		return FALSE;
+
+	return (const char *) mbi.BaseAddress + mbi.RegionSize >= start + len;
+}
+
 /* Where the module wanted to be loaded. Frames are reported at that address
    rather than the one they ran at, so the number in the report is the one
    addr2line takes. A mingw build carries no PDB, so this is all a frame can
@@ -461,23 +522,16 @@ preferred_base (DWORD64 loaded_base)
 {
 	const IMAGE_DOS_HEADER *dos = (const IMAGE_DOS_HEADER *) (UINT_PTR) loaded_base;
 	const IMAGE_NT_HEADERS *nt;
-	MEMORY_BASIC_INFORMATION mbi;
 
-	if (loaded_base == 0)
-		return 0;
-
-	/* The unwinder handed this over as a mapped image, but a corrupt process
-	   can hand over anything, and a read that faults in here loses the report. */
-	if (VirtualQuery (dos, &mbi, sizeof mbi) != sizeof mbi ||
-	    mbi.State != MEM_COMMIT)
+	if (!readable (dos, sizeof *dos) || dos->e_magic != IMAGE_DOS_SIGNATURE)
 		return loaded_base;
 
-	if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+	if (dos->e_lfanew <= 0 || dos->e_lfanew > 0x10000)
 		return loaded_base;
 
 	nt = (const IMAGE_NT_HEADERS *) ((const char *) dos + dos->e_lfanew);
 
-	if (nt->Signature != IMAGE_NT_SIGNATURE)
+	if (!readable (nt, sizeof *nt) || nt->Signature != IMAGE_NT_SIGNATURE)
 		return loaded_base;
 
 	return nt->OptionalHeader.ImageBase;
@@ -500,17 +554,24 @@ emit_stack (const CONTEXT *context)
 
 	emit_str ("stack (addr2line -e <module> <address>):\n");
 
-	for (depth = 0; depth < CRASH_MAX_FRAMES && walk.Rip != 0; depth++) {
+	for (depth = 0; depth < CRASH_MAX_FRAMES; depth++) {
 		PRUNTIME_FUNCTION function;
 		DWORD64 image_base = 0;
 		DWORD64 pc = walk.Rip;
+		DWORD64 probe;
 		char module[MAX_PATH];
 
-		function = RtlLookupFunctionEntry (pc, &image_base, &history);
+		/* Past the first frame the address is a RETURN address, and for a
+		   call that never comes back it belongs to the next function along.
+		   One byte back is inside the call itself. */
+		probe = depth == 0 ? pc : pc - 1;
+
+		function = RtlLookupFunctionEntry (probe, &image_base, &history);
 
 		emit_str ("  0x");
-		emit_num (image_base != 0 ? preferred_base (image_base) + (pc - image_base) : pc,
-			  16, 16);
+		emit_num (image_base != 0
+			  ? preferred_base (image_base) + (probe - image_base)
+			  : probe, 16, 16);
 
 		if (image_base != 0 &&
 		    GetModuleFileNameA ((HMODULE) (UINT_PTR) image_base, module,
@@ -520,22 +581,35 @@ emit_stack (const CONTEXT *context)
 			emit_str ("  ");
 			emit_str (leaf != NULL ? leaf + 1 : module);
 			emit_str ("+0x");
-			emit_num (pc - image_base, 16, 0);
+			emit_num (probe - image_base, 16, 0);
 		}
 
 		emit_str ("\n");
 
 		if (function == NULL) {
-			/* A leaf: nothing to unwind, the return address is on top. */
-			walk.Rip = *(DWORD64 *) walk.Rsp;
+			/* A leaf, or a jump to an address with no code behind it at
+			   all - the commonest shape of a call through a freed object.
+			   Either way the return address is on top of the stack. */
+			if (!readable ((const void *) (UINT_PTR) walk.Rsp, sizeof (DWORD64)))
+				break;
+
+			walk.Rip = *(DWORD64 *) (UINT_PTR) walk.Rsp;
 			walk.Rsp += 8;
 		} else {
 			PVOID handler_data;
 			DWORD64 establisher;
 
+			/* The unwinder reads saved registers off the frame, so a
+			   shredded stack pointer has to stop the walk here. */
+			if (!readable ((const void *) (UINT_PTR) walk.Rsp, sizeof (DWORD64)))
+				break;
+
 			RtlVirtualUnwind (UNW_FLAG_NHANDLER, image_base, pc, function,
 					  &walk, &handler_data, &establisher, NULL);
 		}
+
+		if (walk.Rip == 0)
+			break;
 	}
 }
 
@@ -546,25 +620,32 @@ emit_stack (const CONTEXT *context)
 {
 	(void) context;
 
-	emit_str ("stack: not available on this architecture\n");
+	emit_str ("  not available in this build\n");
 }
 
 #endif
 
 static volatile gint handling = 0;
+static volatile LONG reporting_thread = 0;
 static gboolean quiet = FALSE;
 
 static void
-report_and_die (EXCEPTION_POINTERS *info)
+report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 {
 	const EXCEPTION_RECORD *record = info->ExceptionRecord;
 	HANDLE h;
 
 	if (!g_atomic_int_compare_and_exchange (&handling, 0, 1)) {
-		/* Another thread is writing the report. Wait to be taken down with
-		   it rather than cutting it short. */
-		Sleep (INFINITE);
+		/* Either this thread faulted again inside the filter, in which case
+		   there is nothing left to try, or another thread is writing the
+		   report and is worth a short wait but not an unbounded one. */
+		if ((DWORD) reporting_thread != GetCurrentThreadId ())
+			Sleep (5000);
+
+		TerminateProcess (GetCurrentProcess (), record->ExceptionCode);
 	}
+
+	reporting_thread = (LONG) GetCurrentThreadId ();
 
 	emit_str ("nemo-anywhere " NEMO_VERSION_STRING "\n");
 	emit_str ("started ");
@@ -575,7 +656,7 @@ report_and_die (EXCEPTION_POINTERS *info)
 	emit_num (record->ExceptionCode, 16, 8);
 	emit_str (")");
 
-	if (record->ExceptionAddress != NULL) {
+	if (has_address) {
 		emit_str (" at 0x");
 		emit_num ((guint64) (UINT_PTR) record->ExceptionAddress, 16, 0);
 	}
@@ -635,7 +716,7 @@ report_and_die (EXCEPTION_POINTERS *info)
 static LONG WINAPI
 crash_exception_filter (EXCEPTION_POINTERS *info)
 {
-	report_and_die (info);
+	report_and_die (info, TRUE);
 
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -659,7 +740,8 @@ crash_abort_handler (int sig)
 	info.ExceptionRecord = &record;
 	info.ContextRecord = &context;
 
-	report_and_die (&info);
+	/* An abort has no faulting address to report. */
+	report_and_die (&info, FALSE);
 }
 
 static void
@@ -670,7 +752,8 @@ install_win32 (void)
 	quiet = g_getenv ("NEMO_NO_CRASH_DIALOG") != NULL;
 
 	/* Keeps enough stack in reserve for the filter to run after a stack
-	   overflow, which is the one crash that otherwise reports nothing. */
+	   overflow, which is the one crash that otherwise reports nothing. Per
+	   thread, and only this one, the same way the alternate stack is on POSIX. */
 	SetThreadStackGuarantee (&guarantee);
 
 	/* Whatever was there before is replaced on purpose: a packer's own filter

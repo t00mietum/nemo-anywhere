@@ -267,10 +267,13 @@ function fSmoke {
 	param([Parameter(Mandatory)][string]$Exe, [Parameter(Mandatory)][string]$RuntimeBin)
 	$out = ""
 	$saved = $env:PATH
+	$savedDialog = $env:NEMO_NO_CRASH_DIALOG
 	try {
 		$env:PATH = "$RuntimeBin;$env:SystemRoot\System32;$env:SystemRoot"
+		## A crash here would otherwise stop the run behind a modal box.
+		$env:NEMO_NO_CRASH_DIALOG = "1"
 		$out = (& $Exe --version 2>&1 | Out-String).Trim()
-	} finally { $env:PATH = $saved }
+	} finally { $env:PATH = $saved; $env:NEMO_NO_CRASH_DIALOG = $savedDialog }
 	if ($LASTEXITCODE -ne 0) { fDie "smoke failed (exit $LASTEXITCODE): $Exe --version`n$out" }
 	fEcho "OK: smoke: $out"
 }
