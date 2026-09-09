@@ -1,7 +1,7 @@
 /* nemo-shortcut-win32.h - create Windows .lnk shell shortcuts (the analog of
  * POSIX symlinks / .desktop launchers). Empty on non-Windows.
  *
- * Copyright © 2026 Bubbles
+ * Copyright (c) 2026 Bubbles
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License version 2, as published by the

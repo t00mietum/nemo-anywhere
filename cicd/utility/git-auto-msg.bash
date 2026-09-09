@@ -12,7 +12,7 @@
 ##		  shape a person types in a hurry - the area that moved, or nothing useful
 ##		  at all. No timestamps, no describing the run that made it.
 
-##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
+##	Copyright (c) 2026 Bubbles
 ##	Licensed under The MIT License (MIT). Full text at:
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT

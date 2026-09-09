@@ -3,7 +3,7 @@
 ##	- Purpose: Install the tracked git hooks into this clone's .git/hooks. Run once
 ##	  per clone (hooks live outside version control). Idempotent.
 
-##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
+##	Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)
 ##	Licensed under The MIT License (MIT). Full text at:
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT

@@ -12,7 +12,7 @@
 ##	  Whole strings that the rule reads wrong are listed in KEEP, each with why.
 ##	- Exit 1 on any finding, so it gates. Syntax: lint-ui-case.py <source-root>
 
-##	Copyright © 2026 t00mietum
+##	Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)
 ##	Licensed under the GNU General Public License, version 2 only.
 ##	SPDX-License-Identifier: GPL-2.0-only
 

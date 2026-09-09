@@ -355,7 +355,7 @@ action_about_nemo_callback (GtkAction *action,
 	gtk_show_about_dialog (GTK_WINDOW (user_data),
 			       "program-name", _("Nemo Anywhere"),
 			       "version", NEMO_VERSION_STRING,
-			       "copyright", "\xc2\xa9 2026 t00mietum\n"
+			       "copyright", "\xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)\n"
 					    "Upstream copyrights held by the Nemo authors",
 			       "website", "https://github.com/t00mietum/nemo-anywhere",
 			       "comments", _("Nemo Anywhere lets you organize "
