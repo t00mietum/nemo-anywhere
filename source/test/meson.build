@@ -172,6 +172,15 @@ test('Extension column test',
 # The recycle-bin monitor is polled, so the same-count case has to sit through
 # a few turns of it - well past the 30s meson allows by default. On a machine
 # with a full bin the whole run has been seen to take four and a half minutes.
+test('Crash reporter test',
+  executable('test-nemo-crash',
+    [ 'test-nemo-crash.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, win_shell ],
+  ),
+  args: []
+)
+
 test('Trash win32 test',
   executable('test-nemo-trash-win32',
     [ 'test-nemo-trash-win32.c' ],

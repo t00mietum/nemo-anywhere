@@ -22,6 +22,7 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 	- [Code layout](#code-layout)
 	- [Data flow](#data-flow)
 	- [Execution flow](#execution-flow)
+	- [When it crashes](#when-it-crashes)
 	- [Configuration and persistence](#configuration-and-persistence)
 	- [File operations](#file-operations)
 	- [Search](#search)
@@ -194,6 +195,18 @@ One process per window by default, one main loop each, and a firm rule that noth
 - Work started off the main loop reports back on it. File operations own a progress object the UI observes, thumbnails hand back a finished image, a completed directory load emits `done_loading`. Callbacks outliving their object are the recurring hazard, so long-running work holds a reference and cancels on dispose.
 
 - Debounce and coalesce rather than write or redraw on every event. Settings saves, metadata saves, window geometry and sidebar rebuilds all batch.
+
+### When it crashes
+
+A crash leaves a report. Without one there is nothing to work from: a windowed program on Windows has no stderr, so it used to disappear off the screen and that was the whole story.
+
+- The report goes to `crash/`, beside the settings file, named for the time and the process. It gives the version and build, what killed the program and where, and the stack at the time.
+
+- Windows gets a minidump beside the report and a dialog saying where both are. Everywhere else the same text also goes to stderr, which is where a launcher log keeps it.
+
+- Frames are addresses, not names. The Windows build carries no debug database and the released Linux build is stripped, so the report gives each frame as the address it was linked at plus the module and offset, which `addr2line` resolves against the matching unstripped build.
+
+- It is written by a signal handler, so it allocates nothing and takes no locks - the program is already broken by then. The signal is handed back afterwards, so a core file or an attached debugger still gets one. `NEMO_NO_CRASH_HANDLER` turns the whole thing off.
 
 ### Configuration and persistence
 

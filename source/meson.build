@@ -44,6 +44,7 @@ buildConf.set_quoted('NEMO_VERSION_STRING',
 configure_file(output: 'nemo-build-number.h', configuration: buildConf)
 
 check_headers = [
+  'execinfo.h',
   'malloc.h',
   'sys/mount.h',
   'sys/param.h',
@@ -118,7 +119,7 @@ if is_windows
   # advapi32 for the registry (system light/dark theme follow), version for a
   # program's own description in the Open With menu, wbemuuid for starting a
   # program through the management service
-  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lwbemuuid', '-lmpr', '-ladvapi32', '-lversion'])
+  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lwbemuuid', '-lmpr', '-ladvapi32', '-lversion', '-ldbghelp'])
 else
   gio_unix = dependency('gio-unix-2.0',              version: glib_version)
   x11      = dependency('x11')
