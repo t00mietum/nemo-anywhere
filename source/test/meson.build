@@ -131,6 +131,15 @@ test('Treeview hit test',
   args: []
 )
 
+test('Entry context menu test',
+  executable('test-nemo-entry-menu',
+    [ 'test-nemo-entry-menu.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Search content test',
   executable('test-nemo-search-content',
     [ 'test-nemo-search-content.c' ],
