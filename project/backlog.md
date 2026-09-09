@@ -53,12 +53,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: a crash now writes a report next to the settings file, under `crash/`. It carries the version, what killed it, and the stack. The same text goes to stderr, which is what a launcher log keeps, and on Windows a message box says where the file is, since a windowed build has no stderr. The next start notes a report was left behind, and the oldest are dropped so the folder cannot grow forever.
 	- Left: an actual crash to read. Nothing is known about the cause yet.
 
-- 🛠️ Windows: When CTRL+L to editable current path:
-	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
-	- Context menu key doesn't work on selected text.
+- ✅ Windows: When CTRL+L to the editable current path, CTRL+C doesn't copy the path to the clipboard (right-clicking the selected text and picking Copy does), and the context menu key does nothing on selected text.
+	- Opened: 20260903-130431
+	- Closed: 20260909-104658
 	- Fixed 20260905, the copy half: an entry's own cut and copy only advertised the text, the way the toolkit always has, which is the same write that went missing for "Copy path" and file copy. The selected text is now written out as well, for every entry and text box. The regression check goes red with the fix backed out.
-	- The key does open a context menu in the location entry with the caret in it, so the plain case is not broken.
-	- Left: the reported case is the key over selected text, which is still unconfirmed either way.
+	- The key half works on Windows: with the caret in the entry, with a word selected, and with the whole path selected. The menu that comes up is usable rather than merely present - Select All picked out of it selects the path.
+	- No cause was found for the key half, because it does not reproduce. The menu itself belongs to the toolkit; the only code of ours on the way to it is the entry's key handler, which passes the key through untouched.
+	- A regression check presses the menu key with the caret, with a word selected, and with the whole path selected, and fails if no menu arrives inside five seconds or if the menu that arrives has not noticed the selection. It goes red on the reported shape - the key swallowed only while something is selected. It needs a keymap that carries a menu key, and reports itself skipped where there is none.
 
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
@@ -82,6 +83,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- On Linux a jump to a null pointer recovers only two frames, because the backtrace call cannot start from an address with no code at it. The handler is already handed the register state that would recover the caller and throws it away.
 	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
 	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
+
+- 🔘 Run the test suite in the pipeline.
+	- Opened: 20260909-112701
+	- Stage 3 is a headless launch and a `--version` check, on both platforms. The 52-test suite runs only when someone asks for it by hand, so a broken check can reach main unnoticed - and two bug closures already rest on checks no gate executes.
+	- Not a one-line change. Three tests fail for reasons outside the code (a search engine timeout, a directory async timeout, a thumbnail factory failure), so wiring the suite in as it stands would make the gate red on every push. Each of the three needs a decision: fix, quarantine, or drop.
+	- The Windows lane needs its own answer - its stage 3 does not mention the suite at all.
+	- The `NEEDS:` note in the pipeline config still says there is no test suite yet, which stopped being true a while ago.
 
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615
