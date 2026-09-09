@@ -506,7 +506,7 @@ Tests are ordinary executables run by meson, and the bar for adding one is a def
 
 - Coverage is concentrated where the risk is: the settings parser and its bindings, the metadata store, favorites, search patterns, drag-and-drop parsing, extension objects, symlink handling, and the Windows trash and shortcut backends.
 
-- The suite runs headless, on a virtual display where GTK needs one, and forms part of the pre-push gate along with the build, the lints and a launch smoke test. A test that cannot run on the current platform reports a skip, never a pass.
+- The suite runs headless, on a virtual display where GTK needs one, and forms part of the Linux pre-push gate along with the build, the lints and a launch smoke test. A test that cannot run on the current platform reports a skip, never a pass.
 
 - Anything needing a real desktop - clicking a menu, driving a drag - runs in a throwaway Windows Sandbox built from the host's own image, which has its own desktop and keeps no state. A window can also be photographed without disturbing anything, since it renders off-screen even when covered.
 
@@ -523,6 +523,8 @@ The one deliberate exception is a release-only workflow, `.github/workflows/rele
 - Feature branches merge `--no-ff` into `dev`, the integration target. `main` is release-only, and merging dev into main is what cuts a release. Nothing is committed directly on either.
 
 - The merge gate is `cicd.bash --gate` running as the `pre-push` hook, for pushes to main or dev only. It is the local stand-in for a hosted CI workflow: lints, then a container build, then the test suite, then a headless launch smoke test. Install it per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
+
+- The Windows gate runs the same lints, build and smoke test, but not the suite yet.
 
 - The same hook blocks a push to main unless `source/meson.build` is a strict version increase over what is already there.
 

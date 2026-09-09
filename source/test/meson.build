@@ -5,16 +5,18 @@ test('Search Engine test',
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private ],
   ),
-  args: []
+  args: [],
+  timeout: 180        # three searches, each with its own 30s ceiling
 )
 
-test('Directory Async test',
-  executable('test-nemo-directory-async',
-    [ 'test-nemo-directory-async.c' ],
+test('Directory monitor test',
+  executable('test-nemo-directory-monitor',
+    [ 'test-nemo-directory-monitor.c' ],
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private ],
   ),
-  args: []
+  args: [],
+  timeout: 120
 )
 
 test('Drag drop confirm test',

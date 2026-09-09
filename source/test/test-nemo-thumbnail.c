@@ -193,6 +193,64 @@ test_thumbnailer_reload (void)
 	g_object_unref (factory);
 }
 
+/* gdk-pixbuf sniffs image types through GIO here, so an untyped loader needs the
+ * shared mime database. Hiding that away along with the box's own thumbnailers
+ * made the one image this test reads back fail to load, which read as a
+ * thumbnailer defect. Windows has no such database and does not want one.
+ */
+#ifndef G_OS_WIN32
+static void
+link_mime_database (const char *tmp)
+{
+	const char *dirs = g_getenv ("XDG_DATA_DIRS");
+	char *link = g_build_filename (tmp, "mime", NULL);
+	GError *error = NULL;
+	char *search;
+	char **list;
+	gboolean linked = FALSE;
+	int i;
+
+	search = g_strjoin (G_SEARCHPATH_SEPARATOR_S,
+			    dirs != NULL ? dirs : "",
+			    "/usr/local/share", "/usr/share", NULL);
+	list = g_strsplit (search, G_SEARCHPATH_SEPARATOR_S, -1);
+
+	for (i = 0; list[i] != NULL && !linked; i++) {
+		char *probe, *from;
+		GFile *at;
+
+		if (list[i][0] == '\0') {
+			continue;
+		}
+
+		/* Ask for the one type this test needs rather than for the
+		   database as a whole. Half a database is a real thing to find -
+		   installing anything from source leaves one under
+		   /usr/local/share - and it satisfies every weaker test. */
+		probe = g_build_filename (list[i], "mime", "image", "png.xml", NULL);
+		if (g_file_test (probe, G_FILE_TEST_EXISTS)) {
+			from = g_build_filename (list[i], "mime", NULL);
+			at = g_file_new_for_path (link);
+			g_clear_error (&error);
+			linked = g_file_make_symbolic_link (at, from, NULL, &error);
+			g_object_unref (at);
+			g_free (from);
+		}
+		g_free (probe);
+	}
+
+	if (!linked) {
+		g_printerr ("no shared mime database reached (%s); images will not load\n",
+			    error != NULL ? error->message : "none found");
+	}
+
+	g_clear_error (&error);
+	g_strfreev (list);
+	g_free (search);
+	g_free (link);
+}
+#endif
+
 static gboolean
 want (const char *name, int argc, char *argv[])
 {
@@ -226,6 +284,9 @@ main (int argc, char *argv[])
 	/* Set before any glib call that would cache the real ones. */
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
 	g_setenv ("XDG_DATA_HOME", tmp, TRUE);
+#ifndef G_OS_WIN32
+	link_mime_database (tmp);
+#endif
 	g_setenv ("XDG_DATA_DIRS", tmp, TRUE);
 	g_setenv ("XDG_CACHE_HOME", tmp, TRUE);
 	g_setenv ("HOME", tmp, TRUE);

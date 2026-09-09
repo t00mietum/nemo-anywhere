@@ -87,7 +87,7 @@ main (int argc, char **argv)
 
 	if (dead == NULL) {
 		g_print ("nemo-metadata-ready-win32: skipped, NEMO_PROBE_DEAD_SHARE not set\n");
-		return EXIT_SUCCESS;
+		return 77;
 	}
 
 	tmp = g_dir_make_tmp ("nemo-mdready-XXXXXX", NULL);
@@ -161,7 +161,9 @@ main (int argc, char **argv)
 int
 main (void)
 {
-	return EXIT_SUCCESS;
+	g_print ("win32 only; skipping\n");
+
+	return 77;
 }
 
 #endif

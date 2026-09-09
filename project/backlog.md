@@ -70,6 +70,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- Not reproduced on the Linux host either, with the current build staged out of the container and run headlessly against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
 	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
+	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
@@ -84,12 +85,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
 	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
 
-- 🔘 Run the test suite in the pipeline.
+- ✅ Run the test suite in the Linux pipeline.
 	- Opened: 20260909-112701
-	- Stage 3 is a headless launch and a `--version` check, on both platforms. The 52-test suite runs only when someone asks for it by hand, so a broken check can reach main unnoticed - and two bug closures already rest on checks no gate executes.
-	- Not a one-line change. Three tests fail for reasons outside the code (a search engine timeout, a directory async timeout, a thumbnail factory failure), so wiring the suite in as it stands would make the gate red on every push. Each of the three needs a decision: fix, quarantine, or drop.
-	- The Windows lane needs its own answer - its stage 3 does not mention the suite at all.
-	- The `NEEDS:` note in the pipeline config still says there is no test suite yet, which stopped being true a while ago.
+	- Closed: 20260909-145927
+	- The Linux gate now builds, runs the whole suite, then the launch smoke. Half a minute with nothing to rebuild, longer when there is. A broken check can no longer reach main unnoticed.
+	- The gate had no build step at all, so it had been checking whatever was last left lying around. It builds first now, held to the same job limit as the rest of the pipeline, and so is the suite.
+	- What it builds is the working tree, not the commit being pushed, so an unfinished edit sitting in the tree will stop a push. Building the pushed commit in a detached worktree would be more correct, and would be a cold build every time; a warm build directory is what keeps the gate at half a minute.
+	- The three tests written off as environment failures were all real. One was fixed and two were replaced.
+		- The thumbnail test hid the shared mime database along with the box's own thumbnailers, and reading an image back needs it - so the long-thin-image check failed and read as a thumbnailer defect. The test keeps its isolation and reaches the database again.
+		- The other two were inherited demo programs rather than tests. Neither asserted anything and neither could ever exit, so both ran until the runner killed them. One searched the whole filesystem, because it named no folder to search.
+	- What replaced them. Filename search covers recursion on and off, and a pattern that matches nothing, which still has to come back or the view sits on a spinner. Directory monitoring covers the first listing, a file that appears afterwards, and a forced reload finishing rather than merely starting.
+	- Three Windows-only tests had been reporting a pass on Linux while doing nothing at all. They report themselves skipped now, which is why the count reads 49 passed and 3 skipped rather than 52 passed.
+	- Left: searching through a search folder has no test. The demo that was removed drove one, but it asserted nothing, so no coverage was lost - only the reminder that the path exists.
+	- Left: eighteen Windows-only tests are left out of the Linux build entirely, three are built and report a skip, and eight carry a stub for the other platform of which five are never compiled. Three shapes for one idea. Worth settling on one.
+	- The Windows lane is filed separately below.
+
+- 🔘 Run the test suite in the Windows pipeline.
+	- Opened: 20260909-145927
+	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the previous item was left open rather than guessed at.
+	- Blocked on there being nowhere to run it: neither Windows box holds a checkout at all, so nothing can be built or tested there as things stand.
+	- The cross build is not a stand-in. Run against the emulator the same suite gives six failures and a timeout, and the keyboard and parts of the shell do not behave there, so a green run would prove nothing and a red one would say nothing either.
+
+- 🔘 Tests leave their scratch directories behind.
+	- Opened: 20260909-160500
+	- Every test that reads a preference points the home directory at a throwaway one, and the toolkit then writes its own cache in there. Nothing removes it, so one directory per test per run piles up - the build container is holding hundreds. Harmless until the suite started running on every push, which is what turned a slow drip into a steady one.
+	- Wants one shared cleanup the tests can call, not a recursive delete copied into each of them.
 
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615

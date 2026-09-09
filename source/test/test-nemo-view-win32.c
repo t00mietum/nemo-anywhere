@@ -122,7 +122,9 @@ main (int argc, char *argv[])
 int
 main (int argc, char *argv[])
 {
-	return EXIT_SUCCESS;
+	g_print ("win32 only; skipping\n");
+
+	return 77;
 }
 
 #endif

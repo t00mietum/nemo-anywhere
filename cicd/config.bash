@@ -15,11 +15,11 @@
 ##		  -> dogfood -> publish) is the enduring shape carried over from the source
 ##		  pipeline. What differs here is the toolchain: nemo-anywhere is C/GTK built
 ##		  with meson/ninja inside the `nemo-build` container, not a Rust/cargo tree.
-##		- Stages nemo-anywhere can do TODAY are wired live: debug build, smoke test,
-##		  git backup+publish. The rest are present but DISABLED - each keeps the
-##		  original cargo-era line commented out verbatim plus a "NEEDS:" note on what
-##		  a meson/C equivalent would take. Nothing below has been ported; unready
-##		  stages self-skip.
+##		- Stages nemo-anywhere can do TODAY are wired live: debug build, the test
+##		  suite and launch smoke, lints, release, packaging, dogfood and git
+##		  backup+publish. What is still DISABLED keeps the original cargo-era line
+##		  commented out verbatim plus a "NEEDS:" note on what a meson/C equivalent
+##		  would take; those stages self-skip.
 ##	History: At bottom of script.
 
 ##	Copyright © 2026 t00mietum (ID: f⍒Ê🝅ĜᛎỹqFẅ▿⍢Ŷ‡ʬẼᛏ🜣)
@@ -86,13 +86,13 @@ DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" "
 	else meson setup /build /src/source; fi && ninja -C /build -j ${CICD_MAX_JOBS:-2}
 ")
 
-## Stage 3: regression tests - PARTIAL. There is no real test suite yet, so "tests"
-## is a headless launch + --version smoke check inside the container (proves the
-## build links and starts). Runs on the container's Xvfb via xvfb-run. Same wrapper,
-## so a down/absent daemon skips-with-warning instead of aborting the gate.
-## NEEDS: an actual regression suite (behavioral/unit) once there's portable code to
-## assert on; swap this smoke check for it, or run both.
-TEST_CMD=(bash "${DOCKER_RUN}" "smoke test" 'xvfb-run -a /build/src/nemo-anywhere --version')
+## Stage 3: regression tests - READY. The meson suite, then a headless launch and
+## --version. Both run inside the container under its own Xvfb; see
+## linux/run-tests.bash, which also does the build, since gate mode has no build
+## stage of its own and would otherwise test whatever was last left in /build.
+## -j is passed through for the same reason it is above. Same wrapper, so a
+## down/absent daemon skips-with-warning instead of aborting the gate.
+TEST_CMD=(bash "${DOCKER_RUN}" "tests" "NEMO_TEST_JOBS=${CICD_MAX_JOBS:-2} bash /src/cicd/linux/run-tests.bash")
 
 ## Stage 3 (after tests): lints - READY. Check-only cppcheck over the CHANGED C
 ## files only (cicd/utility/lint-c.bash); never reformats, never lints the whole

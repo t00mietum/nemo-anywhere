@@ -279,9 +279,11 @@ remote_sync(){
 trap 'rc=$?; printf "\n[ CICD ABORTED (exit %s) at line %s: %s ]\n" "$rc" "$LINENO" "$BASH_COMMAND" >&2; exit $rc' ERR
 
 ## Gate mode: the local merge gate (what a bare-bones hosted CI would run).
-## format-check + lints + tests, fail-fast, nothing mutated, no artifacts/log-tee/
-## publish. Wired as the pre-push hook for main/dev, so nothing reaches an
-## integration branch unverified even outside a full run.
+## format-check + lints + tests, fail-fast, no artifacts/log-tee/publish. Wired as
+## the pre-push hook for main/dev, so nothing reaches an integration branch
+## unverified even outside a full run. The test stage builds first, since there is
+## no build stage here - so what is compiled is the working tree rather than the
+## sha being pushed. Source tree untouched, build directory written to.
 if ((gate)); then
 	fSection "Gate 1/3  Format check"
 	if declare -p FMT_CHECK_CMD &>/dev/null && ((${#FMT_CHECK_CMD[@]})); then
