@@ -33,6 +33,7 @@ files_added (NemoDirectory *directory, GList *files, gpointer data)
 	for (l = files; l != NULL; l = l->next) {
 		char *name = nemo_file_get_name (l->data);
 
+		check (name != NULL);
 		if (name != NULL) {
 			added = g_list_prepend (added, name);
 		}
@@ -51,7 +52,6 @@ seen (const char *name)
 	return g_list_find_custom (added, name, (GCompareFunc) g_strcmp0) != NULL;
 }
 
-/* Spins the main context until the count of loads reaches want, or gives up. */
 static gboolean
 wait_for_load (int want)
 {

@@ -194,38 +194,59 @@ test_thumbnailer_reload (void)
 }
 
 /* gdk-pixbuf sniffs image types through GIO here, so an untyped loader needs the
- * shared mime database. Hiding that away with the box's own thumbnailers made
- * every image in this test fail to load, which read as a thumbnailer bug. */
+ * shared mime database. Hiding that away along with the box's own thumbnailers
+ * made the one image this test reads back fail to load, which read as a
+ * thumbnailer defect. Windows has no such database and does not want one.
+ */
+#ifndef G_OS_WIN32
 static void
 link_mime_database (const char *tmp)
 {
 	const char *dirs = g_getenv ("XDG_DATA_DIRS");
 	char *link = g_build_filename (tmp, "mime", NULL);
+	char *search;
 	char **list;
+	gboolean linked = FALSE;
 	int i;
 
-	if (dirs == NULL || *dirs == '\0')
-		dirs = "/usr/local/share:/usr/share";
+	/* The standard pair goes on the end every time, not only when the
+	   variable is unset - an inherited value with no database in it is the
+	   case that silently broke image loading. */
+	search = g_strjoin (G_SEARCHPATH_SEPARATOR_S,
+			    dirs != NULL ? dirs : "",
+			    "/usr/local/share", "/usr/share", NULL);
+	list = g_strsplit (search, G_SEARCHPATH_SEPARATOR_S, -1);
 
-	list = g_strsplit (dirs, G_SEARCHPATH_SEPARATOR_S, -1);
-	for (i = 0; list[i] != NULL; i++) {
-		char *mime = g_build_filename (list[i], "mime", NULL);
-		GFile *at = g_file_new_for_path (link);
-		gboolean linked;
+	for (i = 0; list[i] != NULL && !linked; i++) {
+		char *cache, *from;
+		GFile *at;
 
-		linked = g_file_test (mime, G_FILE_TEST_IS_DIR) &&
-			 g_file_make_symbolic_link (at, mime, NULL, NULL);
+		if (list[i][0] == '\0') {
+			continue;
+		}
 
-		g_object_unref (at);
-		g_free (mime);
+		/* An empty mime/ left behind by some other install is not a
+		   database; the cache is what GIO actually reads. */
+		cache = g_build_filename (list[i], "mime", "mime.cache", NULL);
+		if (g_file_test (cache, G_FILE_TEST_EXISTS)) {
+			from = g_build_filename (list[i], "mime", NULL);
+			at = g_file_new_for_path (link);
+			linked = g_file_make_symbolic_link (at, from, NULL, NULL);
+			g_object_unref (at);
+			g_free (from);
+		}
+		g_free (cache);
+	}
 
-		if (linked)
-			break;
+	if (!linked) {
+		g_printerr ("no shared mime database found; images will not load\n");
 	}
 
 	g_strfreev (list);
+	g_free (search);
 	g_free (link);
 }
+#endif
 
 static gboolean
 want (const char *name, int argc, char *argv[])
@@ -260,7 +281,9 @@ main (int argc, char *argv[])
 	/* Set before any glib call that would cache the real ones. */
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
 	g_setenv ("XDG_DATA_HOME", tmp, TRUE);
+#ifndef G_OS_WIN32
 	link_mime_database (tmp);
+#endif
 	g_setenv ("XDG_DATA_DIRS", tmp, TRUE);
 	g_setenv ("XDG_CACHE_HOME", tmp, TRUE);
 	g_setenv ("HOME", tmp, TRUE);

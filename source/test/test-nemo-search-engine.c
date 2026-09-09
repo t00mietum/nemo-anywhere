@@ -65,7 +65,6 @@ give_up (gpointer data)
 	return TRUE;
 }
 
-/* Runs one search to the end and hands back the basenames it found. */
 static GList *
 search (const char *location, const char *pattern, gboolean recurse)
 {
@@ -124,10 +123,19 @@ write_file (const char *dir, const char *name)
 	g_free (path);
 }
 
+static void
+remove_file (const char *dir, const char *name)
+{
+	char *path = g_build_filename (dir, name, NULL);
+
+	g_unlink (path);
+	g_free (path);
+}
+
 int
 main (int argc, char *argv[])
 {
-	char *scratch, *dir, *sub, *uri;
+	char *scratch, *dir, *sub, *uri, *settings;
 	GList *names;
 
 	scratch = g_dir_make_tmp ("nemo-search-engine-home-XXXXXX", NULL);
@@ -165,6 +173,20 @@ main (int argc, char *argv[])
 	names = search (uri, "no-such-file-anywhere", TRUE);
 	check (names == NULL);
 	g_list_free_full (names, g_free);
+
+	remove_file (dir, "needle-top.txt");
+	remove_file (dir, "haystack.txt");
+	remove_file (sub, "needle-deep.txt");
+	g_rmdir (sub);
+	g_rmdir (dir);
+
+	/* Only non-default values are ever written, so the settings file is here
+	   or it is not. */
+	settings = g_build_filename (scratch, "nemo-anywhere", NULL);
+	remove_file (settings, "settings.shcl");
+	g_rmdir (settings);
+	g_rmdir (scratch);
+	g_free (settings);
 
 	g_free (uri);
 	g_free (sub);
