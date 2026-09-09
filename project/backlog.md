@@ -88,14 +88,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Run the test suite in the Linux pipeline.
 	- Opened: 20260909-112701
 	- Closed: 20260909-145927
-	- The Linux gate now builds, runs the whole suite, then the launch smoke, in about half a minute. A broken check can no longer reach main unnoticed.
-	- The gate had no build step at all, so it had been checking whatever was last left lying around. It builds first now, and the build and the suite are both held to the same job limit the rest of the pipeline uses.
+	- The Linux gate now builds, runs the whole suite, then the launch smoke. Half a minute with nothing to rebuild, longer when there is. A broken check can no longer reach main unnoticed.
+	- The gate had no build step at all, so it had been checking whatever was last left lying around. It builds first now, held to the same job limit as the rest of the pipeline, and so is the suite.
+	- What it builds is the working tree, not the commit being pushed, so an unfinished edit sitting in the tree will stop a push. That is new, and it is the price of the suite meaning anything: tests have to match the source they were built from.
 	- The three tests written off as environment failures were all real. One was fixed and two were replaced.
 		- The thumbnail test hid the shared mime database along with the box's own thumbnailers, and reading an image back needs it - so the long-thin-image check failed and read as a thumbnailer defect. The test keeps its isolation and reaches the database again.
 		- The other two were inherited demo programs rather than tests. Neither asserted anything and neither could ever exit, so both ran until the runner killed them. One searched the whole filesystem, because it named no folder to search.
 	- What replaced them. Filename search covers recursion on and off, and a pattern that matches nothing, which still has to come back or the view sits on a spinner. Directory monitoring covers the first listing, a file that appears afterwards, and a forced reload finishing rather than merely starting.
 	- Three Windows-only tests had been reporting a pass on Linux while doing nothing at all. They report themselves skipped now, which is why the count reads 49 passed and 3 skipped rather than 52 passed.
 	- Left: searching through a search folder has no test. The demo that was removed drove one, but it asserted nothing, so no coverage was lost - only the reminder that the path exists.
+	- Left: eighteen Windows-only tests are left out of the Linux build entirely, three are built and report a skip, and eight carry a stub for the other platform of which five are never compiled. Three shapes for one idea. Worth settling on one.
 	- The Windows lane is filed separately below.
 
 - 🔘 Run the test suite in the Windows pipeline.

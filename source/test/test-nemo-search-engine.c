@@ -1,6 +1,10 @@
 /* Filename search through the front door - nemo_search_engine_new(), whichever
  * backend that picks. Content search is covered separately.
  *
+ * On Windows that front door can be the search index rather than a walk, and an
+ * index does not see a file created a moment ago, so these checks want another
+ * look before the Windows suite is switched on.
+ *
  * The engine walks the tree itself where there is no index, so a query with no
  * location starts at the filesystem root and takes as long as the box is big.
  * Every search here is pointed at a throwaway directory.
@@ -97,6 +101,10 @@ search (const char *location, const char *pattern, gboolean recurse)
 		failures++;
 		nemo_search_engine_stop (engine);
 	}
+
+	/* The walk is on its own thread and stop only asks it to give up, so the
+	   handlers have to go before the frame they point at does. */
+	g_signal_handlers_disconnect_by_data (engine, &run);
 
 	g_main_loop_unref (run.loop);
 	g_object_unref (engine);

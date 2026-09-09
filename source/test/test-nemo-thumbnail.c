@@ -204,17 +204,19 @@ link_mime_database (const char *tmp)
 {
 	const char *dirs = g_getenv ("XDG_DATA_DIRS");
 	char *link = g_build_filename (tmp, "mime", NULL);
+	GError *error = NULL;
 	char *search;
 	char **list;
 	gboolean linked = FALSE;
 	int i;
 
-	/* The standard pair goes on the end every time, not only when the
-	   variable is unset - an inherited value with no database in it is the
-	   case that silently broke image loading. */
+	/* The standard places lead, and whatever is on the search path follows.
+	   An export directory from a bundled app can carry a partial database of
+	   its own, and taking that in preference to the real one is how this
+	   went wrong the first time. */
 	search = g_strjoin (G_SEARCHPATH_SEPARATOR_S,
-			    dirs != NULL ? dirs : "",
-			    "/usr/local/share", "/usr/share", NULL);
+			    "/usr/local/share", "/usr/share",
+			    dirs != NULL ? dirs : "", NULL);
 	list = g_strsplit (search, G_SEARCHPATH_SEPARATOR_S, -1);
 
 	for (i = 0; list[i] != NULL && !linked; i++) {
@@ -226,12 +228,13 @@ link_mime_database (const char *tmp)
 		}
 
 		/* An empty mime/ left behind by some other install is not a
-		   database; the cache is what GIO actually reads. */
+		   database; the cache is what is actually read. */
 		cache = g_build_filename (list[i], "mime", "mime.cache", NULL);
 		if (g_file_test (cache, G_FILE_TEST_EXISTS)) {
 			from = g_build_filename (list[i], "mime", NULL);
 			at = g_file_new_for_path (link);
-			linked = g_file_make_symbolic_link (at, from, NULL, NULL);
+			g_clear_error (&error);
+			linked = g_file_make_symbolic_link (at, from, NULL, &error);
 			g_object_unref (at);
 			g_free (from);
 		}
@@ -239,9 +242,11 @@ link_mime_database (const char *tmp)
 	}
 
 	if (!linked) {
-		g_printerr ("no shared mime database found; images will not load\n");
+		g_printerr ("no shared mime database reached (%s); images will not load\n",
+			    error != NULL ? error->message : "none found");
 	}
 
+	g_clear_error (&error);
 	g_strfreev (list);
 	g_free (search);
 	g_free (link);

@@ -3,10 +3,11 @@
 ##	- Purpose: Run the regression suite and the launch smoke inside the reference
 ##	  build container. Handed to docker-run.bash by cicd's test stage; not meant to
 ##	  be run on the host.
-##	- The gate has no build stage of its own, so the build here is what keeps the
-##	  suite from running against a stale binary.
-##	- NEMO_TEST_JOBS caps both the rebuild and the number of tests at once, so a
-##	  run leaves the box usable. BUILD_DIR overrides the build directory.
+##	- Builds first, since the gate has no build stage of its own. What gets built
+##	  is the working tree, not the commit being pushed, so an unfinished edit
+##	  sitting there stops the gate here.
+##	- NEMO_TEST_JOBS caps both the build and the number of tests at once, so a run
+##	  leaves the box usable. BUILD_DIR overrides the build directory.
 ##	- Syntax: run-tests.bash          (no arguments)
 
 ##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
@@ -23,9 +24,23 @@ esac
 build="${BUILD_DIR:-/build}"
 jobs="${NEMO_TEST_JOBS:-2}"
 
-## Left alone, both ninja and meson take every core, and something else is usually
-## running on this box.
-ninja -C "${build}" -j "${jobs}"
+## Arithmetic comparison here would evaluate whatever it was handed, and 0 means
+## "no limit" to both tools below - the opposite of the point.
+case "${jobs}" in
+	''|*[!0-9]*|0) jobs=2 ;;
+esac
+
+## A container recreated from the image has no build directory yet.
+if [[ -f "${build}/build.ninja" ]]; then
+	meson setup --reconfigure "${build}" /src/source
+else
+	meson setup "${build}" /src/source
+fi
+
+if ! ninja -C "${build}" -j "${jobs}"; then
+	echo "[ the build here is the working tree, unfinished edits included ]" >&2
+	exit 1
+fi
 
 ## About a third of the suite fails on "cannot open display" with no server, and
 ## several of those read like real assertion failures. The bus is disabled so a

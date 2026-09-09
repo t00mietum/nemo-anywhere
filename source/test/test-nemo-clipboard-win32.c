@@ -205,7 +205,7 @@ main (int argc, char *argv[])
 
 	if (!gtk_init_check (&argc, &argv)) {
 		g_print ("SKIP: no display\n");
-		return EXIT_SUCCESS;
+		return 77;
 	}
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
