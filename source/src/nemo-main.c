@@ -40,6 +40,7 @@
 #include <libnemo-private/nemo-debug.h>
 #include <libnemo-private/nemo-metadata-store.h>
 #include <libnemo-private/nemo-config.h>
+#include <libnemo-private/nemo-crash.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-dnd-win32.h>
 #endif
@@ -109,6 +110,10 @@ main (int argc, char *argv[])
 
 	/* Before anything reads a data dir, because GLib caches the list. */
 	nemo_setup_runtime_environment ();
+
+	/* Early enough to catch a crash in startup itself. Needs the runtime
+	   environment first: the report goes beside the settings file. */
+	nemo_crash_handler_install ();
 
 	/* This will be done by gtk+ later, but for now, force it to GNOME */
 #ifdef G_OS_UNIX

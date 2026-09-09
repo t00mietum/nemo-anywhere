@@ -57,6 +57,21 @@ endforeach
 
 conf.set10('HAVE_MALLOPT', cc.has_function('mallopt', prefix: '#include <malloc.h>'))
 
+# The crash report's backtrace. In glibc it comes with libc; the BSDs keep it in
+# a separate libexecinfo, and a musl build has neither. Testing the header alone
+# would find it on FreeBSD and then fail to link.
+execinfo = []
+have_backtrace = cc.has_function('backtrace', prefix: '#include <execinfo.h>')
+if not have_backtrace
+  libexecinfo = cc.find_library('execinfo', required: false)
+  if libexecinfo.found() and cc.has_function('backtrace',
+      prefix: '#include <execinfo.h>', dependencies: libexecinfo)
+    have_backtrace = true
+    execinfo = libexecinfo
+  endif
+endif
+conf.set10('HAVE_BACKTRACE', have_backtrace)
+
 
 if not get_option('deprecated_warnings')
   add_global_arguments([

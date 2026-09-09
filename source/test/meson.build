@@ -182,6 +182,16 @@ test('Trash win32 test',
   timeout: 600
 )
 
+test('Crash reporter test',
+  executable('test-nemo-crash',
+    [ 'test-nemo-crash.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: [],
+  timeout: 120
+)
+
 test('Shortcut win32 test',
   executable('test-nemo-shortcut-win32',
     [ 'test-nemo-shortcut-win32.c' ],

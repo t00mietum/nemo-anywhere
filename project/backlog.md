@@ -47,7 +47,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The enable/disable checkboxes went with it. They read a GSettings key that no longer exists, and they duplicated Preferences > Actions, which already does the job. A switched-off action still shows greyed out here, read out of the config file.
 	- Not part of the Windows build: a /bin/sh launcher and a PyGObject script. The button that starts it is hidden there.
 
-- 🔘 Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
+- 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
+	- Opened: 20260903-130431
+	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
+	- Done: a crash now writes a report next to the settings file, under `crash/`. It carries the version, what killed it, and the stack. The same text goes to stderr, which is what a launcher log keeps, and on Windows a message box says where the file is, since a windowed build has no stderr. The next start notes a report was left behind, and the oldest are dropped so the folder cannot grow forever.
+	- Left: an actual crash to read. Nothing is known about the cause yet.
 
 - 🛠️ Windows: When CTRL+L to editable current path:
 	- CTRL+C doesn't work to copy path to clipboard. (Right-click on selected text and then "Copy" does though.)
@@ -68,6 +72,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
+
+- 🔘 Sharpen the crash reporter.
+	- Opened: 20260909-171500
+	- Filed off a review of the reporter as it went in. None of these stop it doing its job today.
+	- A second crash in the same second from a reused process id loses the second report on Linux and overwrites the first on Windows.
+	- The check before the Windows unwind step reads eight bytes, not the frame the unwinder will read, so a badly shredded stack still costs the stack half of the report.
+	- A stack that unwinds to itself fills the report with sixty-four identical lines, which reads the same as genuine deep recursion.
+	- On Linux a jump to a null pointer recovers only two frames, because the backtrace call cannot start from an address with no code at it. The handler is already handed the register state that would recover the caller and throws it away.
+	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
+	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
 
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615

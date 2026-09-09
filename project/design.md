@@ -22,6 +22,7 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 	- [Code layout](#code-layout)
 	- [Data flow](#data-flow)
 	- [Execution flow](#execution-flow)
+	- [When it crashes](#when-it-crashes)
 	- [Configuration and persistence](#configuration-and-persistence)
 	- [File operations](#file-operations)
 	- [Search](#search)
@@ -194,6 +195,26 @@ One process per window by default, one main loop each, and a firm rule that noth
 - Work started off the main loop reports back on it. File operations own a progress object the UI observes, thumbnails hand back a finished image, a completed directory load emits `done_loading`. Callbacks outliving their object are the recurring hazard, so long-running work holds a reference and cancels on dispose.
 
 - Debounce and coalesce rather than write or redraw on every event. Settings saves, metadata saves, window geometry and sidebar rebuilds all batch.
+
+### When it crashes
+
+A crash leaves a report. Without one there is nothing to work from: a windowed program on Windows has no stderr, so it used to disappear off the screen and that was the whole story.
+
+- The report goes to `crash/`, beside the settings file. It gives the version and build, what killed the program and where, and the stack. The name carries when the run started, since working out the current time is not something the code can safely do at that point; the file's own timestamp is when it died.
+
+- The same text goes to stderr, which is where a launcher log keeps it. Windows gets a message box as well, because a windowed build has no stderr for anyone to read.
+
+- Frames are addresses, not names. The Windows build carries no debug database and the released Linux build is stripped, so a frame is only worth anything alongside the build it came from. Windows reports each frame at the address it was linked at, which is what `addr2line` takes directly. Linux writes the module, an offset in parentheses, and the address it happened to run at in brackets; the bare `+0x...` in parentheses is the one to hand over, and where a symbol name stands beside it instead the frame is already named.
+
+- On the way out the signal is handed back, so a core file is still written and an attached debugger still stops. The frame it stops on is the reporter rather than the fault, one step further out than it would have been.
+
+- The handler stays off the allocator, since a crash inside it is one of the cases to survive, but it cannot avoid locks altogether: reading a symbol takes the loader's on Linux, and naming a module takes it on Windows. What it does avoid is the worst of them - the Windows side walks the stack with the operating system's own unwinder rather than the symbol library, whose first act is to enumerate every loaded module.
+
+- What is known for certain is written before the stack is collected, since walking a broken stack can fault again. A crash on a worker thread that runs out of stack is the one case that still reports nothing: the reserve that lets the handler run at all belongs to the thread that installed it.
+
+- Reports do not pile up. The oldest are dropped at startup, and the first run after a crash notes in the log that one was left behind. On Windows that log line goes nowhere in a windowed build, which is what the message box at the time of the crash is for.
+
+- `NEMO_NO_CRASH_HANDLER` installs nothing, and `NEMO_NO_CRASH_DIALOG` keeps the report while dropping the message box, for anything running unattended.
 
 ### Configuration and persistence
 
