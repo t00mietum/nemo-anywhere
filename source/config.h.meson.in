@@ -38,8 +38,8 @@
 #mesondefine LOCALEDIR
 #mesondefine LOCALE_DIR
 
-// Define to 1 if you have the <execinfo.h> header file.
-#mesondefine HAVE_EXECINFO_H
+// Define to 1 if backtrace() from <execinfo.h> links.
+#mesondefine HAVE_BACKTRACE
 
 // Define to 1 if you have the <malloc.h> header file.
 #mesondefine HAVE_MALLOC_H

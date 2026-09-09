@@ -34,6 +34,8 @@ cp "$SYSROOT"/mingw64/share/glib-2.0/schemas/gschema.dtd "$SCHEMAS/" 2>/dev/null
 glib-compile-schemas "$SCHEMAS"
 
 export WINEDEBUG=-all
+## A crash would otherwise put a modal box on a display nobody is watching.
+export NEMO_NO_CRASH_DIALOG=1
 export DISPLAY="$DISP"
 export WINEPATH="Z:\\opt\\win-sysroot\\mingw64\\bin"
 export GSETTINGS_SCHEMA_DIR="Z:\\tmp\\nemo-schemas"

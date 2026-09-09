@@ -125,25 +125,75 @@ check_report (const char *path, const char *expect_cause)
 	check (strstr (text, expect_cause) != NULL);
 	check (strstr (text, "\npid ") != NULL);
 
+#if HAVE_BACKTRACE || defined (G_OS_WIN32)
 	lines = g_strsplit (text, "\n", -1);
 
 	/* Anything past the header carrying an address is a frame. Which frames
 	   show up depends on the build, so only their presence is checked. */
-	for (i = 4; lines[i] != NULL; i++) {
+	for (i = 5; lines[i] != NULL; i++) {
 		if (strstr (lines[i], "0x") != NULL) {
 			saw_frame = TRUE;
 		}
 	}
 
 	check (saw_frame);
+#else
+	(void) lines;
+	(void) i;
+	check (strstr (text, "not available in this build") != NULL);
+	saw_frame = TRUE;
+#endif
+}
+
+static guint
+count_reports (const char *dir)
+{
+	g_autoptr (GDir) handle = g_dir_open (dir, 0, NULL);
+	const char *entry;
+	guint n = 0;
+
+	if (handle == NULL) {
+		return 0;
+	}
+
+	while ((entry = g_dir_read_name (handle)) != NULL) {
+		if (g_str_has_prefix (entry, "crash-")) {
+			n++;
+		}
+	}
+
+	return n;
+}
+
+static void
+remove_tree (const char *path)
+{
+	g_autoptr (GDir) handle = g_dir_open (path, 0, NULL);
+	const char *entry;
+
+	if (handle != NULL) {
+		while ((entry = g_dir_read_name (handle)) != NULL) {
+			g_autofree char *child = g_build_filename (path, entry, NULL);
+
+			if (g_file_test (child, G_FILE_TEST_IS_DIR)) {
+				remove_tree (child);
+			} else {
+				g_unlink (child);
+			}
+		}
+	}
+
+	g_rmdir (path);
 }
 
 int
 main (int argc, char *argv[])
 {
 	g_autofree char *config_root = NULL;
+	g_autofree char *crash_dir = NULL;
 	g_autoptr (GError) error = NULL;
 	ChildResult result;
+	guint before = 0;
 
 	if (argc == 2) {
 		return run_child (argv[1]);
@@ -177,12 +227,21 @@ main (int argc, char *argv[])
 		check (strstr (result.stderr_text, "nemo-anywhere v") != NULL);
 		check (strstr (result.stderr_text, result.report_path) != NULL);
 	}
+
+	/* Learned from the child rather than rebuilt here, so the test cannot
+	   disagree with the code about where reports go. */
+	if (result.report_path != NULL && result.report_path[0] != '\0') {
+		crash_dir = g_path_get_dirname (result.report_path);
+	}
+
 	child_result_clear (&result);
 
 	/* An assertion failure, which never reaches a fault handler on Windows. */
 	result = run_crashing_child (argv[0], config_root, "abort", TRUE);
 	if (result.spawned) {
 		check (result.status != 0);
+		check (result.report_path[0] != '\0');
+		check (strcmp (result.report_path, "none") != 0);
 
 		if (result.report_path[0] != '\0') {
 			check_report (result.report_path,
@@ -195,13 +254,19 @@ main (int argc, char *argv[])
 	}
 	child_result_clear (&result);
 
-	/* Switched off, nothing is installed and there is nowhere to write. */
-	result = run_crashing_child (argv[0], config_root, "off", FALSE);
+	/* Switched off, a real crash leaves nothing behind. */
+	before = crash_dir != NULL ? count_reports (crash_dir) : 0;
+	check (before > 0);
+
+	result = run_crashing_child (argv[0], config_root, "fault", FALSE);
 	if (result.spawned) {
-		check (result.status == 0);
+		check (result.status != 0);
 		check (strcmp (result.report_path, "none") == 0);
+		check (crash_dir != NULL && count_reports (crash_dir) == before);
 	}
 	child_result_clear (&result);
+
+	remove_tree (config_root);
 
 	if (failures == 0) {
 		g_print ("crash reporter: all checks passed\n");

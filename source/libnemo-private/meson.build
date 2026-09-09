@@ -100,7 +100,8 @@ nemo_private_sources = [
 ]
 
 nemo_private_deps = [
-  archive, eel, gail, gio_unix, glib, gmodule, gtk, json, math, nemo_extension, win_shell, x11
+  archive, eel, execinfo, gail, gio_unix, glib, gmodule, gtk, json, math,
+  nemo_extension, win_shell, x11
 ]
 
 if libexif_enabled

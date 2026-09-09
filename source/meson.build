@@ -44,7 +44,6 @@ buildConf.set_quoted('NEMO_VERSION_STRING',
 configure_file(output: 'nemo-build-number.h', configuration: buildConf)
 
 check_headers = [
-  'execinfo.h',
   'malloc.h',
   'sys/mount.h',
   'sys/param.h',
@@ -57,6 +56,21 @@ foreach h : check_headers
 endforeach
 
 conf.set10('HAVE_MALLOPT', cc.has_function('mallopt', prefix: '#include <malloc.h>'))
+
+# The crash report's backtrace. In glibc it comes with libc; the BSDs keep it in
+# a separate libexecinfo, and a musl build has neither. Testing the header alone
+# would find it on FreeBSD and then fail to link.
+execinfo = []
+have_backtrace = cc.has_function('backtrace', prefix: '#include <execinfo.h>')
+if not have_backtrace
+  libexecinfo = cc.find_library('execinfo', required: false)
+  if libexecinfo.found() and cc.has_function('backtrace',
+      prefix: '#include <execinfo.h>', dependencies: libexecinfo)
+    have_backtrace = true
+    execinfo = libexecinfo
+  endif
+endif
+conf.set10('HAVE_BACKTRACE', have_backtrace)
 
 
 if not get_option('deprecated_warnings')
@@ -119,7 +133,7 @@ if is_windows
   # advapi32 for the registry (system light/dark theme follow), version for a
   # program's own description in the Open With menu, wbemuuid for starting a
   # program through the management service
-  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lwbemuuid', '-lmpr', '-ladvapi32', '-lversion', '-ldbghelp'])
+  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lwbemuuid', '-lmpr', '-ladvapi32', '-lversion'])
 else
   gio_unix = dependency('gio-unix-2.0',              version: glib_version)
   x11      = dependency('x11')

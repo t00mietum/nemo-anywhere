@@ -25,11 +25,11 @@
 
 #include <nemo-build-number.h>
 
+#include <glib/gstdio.h>
 #include <string.h>
 
 #ifdef G_OS_WIN32
 #include <windows.h>
-#include <dbghelp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <wchar.h>
@@ -44,7 +44,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#if HAVE_EXECINFO_H
+#if HAVE_BACKTRACE
 #include <execinfo.h>
 #endif
 #endif
@@ -52,30 +52,30 @@
 #define CRASH_PATH_MAX 1024
 #define CRASH_MAX_FRAMES 64
 
+/* Old reports are the user's to read, not ours to hoard. */
+#define CRASH_KEEP_REPORTS 20
+
 static char report_parent[CRASH_PATH_MAX];
 static char report_dir[CRASH_PATH_MAX];
 static char report_path[CRASH_PATH_MAX];
+static char started_stamp[32];
 static gboolean installed = FALSE;
 
 #ifdef G_OS_WIN32
 static wchar_t report_parent_w[CRASH_PATH_MAX];
 static wchar_t report_dir_w[CRASH_PATH_MAX];
 static wchar_t report_path_w[CRASH_PATH_MAX];
-static wchar_t dump_path_w[CRASH_PATH_MAX];
 #endif
-
-/* Everything below the divider runs after the program is already broken, so it
-   allocates nothing and calls nothing that takes a lock. */
 
 static gboolean
 build_paths (void)
 {
 	g_autofree char *parent = NULL;
 	g_autofree char *dir = NULL;
-	g_autofree char *stamp = NULL;
 	g_autofree char *name = NULL;
 	g_autofree char *path = NULL;
 	GDateTime *now = NULL;
+	g_autofree char *stamp = NULL;
 	guint pid;
 
 #ifdef G_OS_WIN32
@@ -86,7 +86,7 @@ build_paths (void)
 
 	/* Deliberately not nemo_get_user_directory: that creates the config dir
 	   and migrates an older one, and a run that only prints its version has
-	   no business doing either. The directory is made when there is
+	   no business doing either. The directory is made when there is finally
 	   something to put in it. */
 	parent = g_build_filename (nemo_get_user_config_root (), NEMO_APP_SLUG, NULL);
 	dir = g_build_filename (parent, "crash", NULL);
@@ -95,12 +95,15 @@ build_paths (void)
 	stamp = g_date_time_format (now, "%Y%m%d-%H%M%S");
 	g_date_time_unref (now);
 
+	/* The name carries when the run STARTED, because a signal handler cannot
+	   safely work out what time it is. The file's own timestamp is the crash. */
 	name = g_strdup_printf ("crash-%s-%u.txt", stamp, pid);
 	path = g_build_filename (dir, name, NULL);
 
-	if (strlen (path) + 5 >= CRASH_PATH_MAX)
+	if (strlen (path) >= CRASH_PATH_MAX)
 		return FALSE;
 
+	g_strlcpy (started_stamp, stamp, sizeof started_stamp);
 	g_strlcpy (report_parent, parent, sizeof report_parent);
 	g_strlcpy (report_dir, dir, sizeof report_dir);
 	g_strlcpy (report_path, path, sizeof report_path);
@@ -110,26 +113,81 @@ build_paths (void)
 		g_autofree gunichar2 *wparent = g_utf8_to_utf16 (parent, -1, NULL, NULL, NULL);
 		g_autofree gunichar2 *wdir = g_utf8_to_utf16 (dir, -1, NULL, NULL, NULL);
 		g_autofree gunichar2 *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-		g_autofree char *dump = NULL;
-		g_autofree gunichar2 *wdump = NULL;
 
-		dump = g_strconcat (path, ".dmp", NULL);
-		wdump = g_utf8_to_utf16 (dump, -1, NULL, NULL, NULL);
-
-		if (wparent == NULL || wdir == NULL || wpath == NULL || wdump == NULL)
+		if (wparent == NULL || wdir == NULL || wpath == NULL)
 			return FALSE;
 
-		wcsncpy (report_parent_w, (const wchar_t *) wparent, CRASH_PATH_MAX - 1);
-		wcsncpy (report_dir_w, (const wchar_t *) wdir, CRASH_PATH_MAX - 1);
-		wcsncpy (report_path_w, (const wchar_t *) wpath, CRASH_PATH_MAX - 1);
-		wcsncpy (dump_path_w, (const wchar_t *) wdump, CRASH_PATH_MAX - 1);
+		if (wcslen ((const wchar_t *) wpath) >= CRASH_PATH_MAX)
+			return FALSE;
+
+		wcscpy (report_parent_w, (const wchar_t *) wparent);
+		wcscpy (report_dir_w, (const wchar_t *) wdir);
+		wcscpy (report_path_w, (const wchar_t *) wpath);
 	}
 #endif
 
 	return TRUE;
 }
 
-/* ------------------------------------------------------------------ */
+static int
+compare_names (gconstpointer a, gconstpointer b)
+{
+	return g_strcmp0 (*(const char * const *) a, *(const char * const *) b);
+}
+
+/* Two jobs at startup: say that an earlier run left a report, since that run
+   had no chance to, and drop the oldest so the folder cannot grow forever. */
+static void
+sweep_old_reports (void)
+{
+	g_autoptr (GPtrArray) names = g_ptr_array_new_with_free_func (g_free);
+	g_autoptr (GDir) dir = NULL;
+	const char *entry;
+	guint i;
+
+	dir = g_dir_open (report_dir, 0, NULL);
+	if (dir == NULL)
+		return;
+
+	while ((entry = g_dir_read_name (dir)) != NULL) {
+		if (g_str_has_prefix (entry, "crash-") && g_str_has_suffix (entry, ".txt"))
+			g_ptr_array_add (names, g_strdup (entry));
+	}
+
+	if (names->len == 0)
+		return;
+
+	/* The stamp leads the name, so plain sorting is oldest first. */
+	g_ptr_array_sort (names, compare_names);
+
+	/* Said once per report, not once per launch: the newest name seen is kept
+	   beside them. */
+	{
+		const char *newest = g_ptr_array_index (names, names->len - 1);
+		g_autofree char *marker = g_build_filename (report_dir, "last-seen", NULL);
+		g_autofree char *seen = NULL;
+
+		if (!g_file_get_contents (marker, &seen, NULL, NULL))
+			seen = NULL;
+
+		if (g_strcmp0 (seen, newest) != 0) {
+			g_message ("An earlier run stopped unexpectedly. Its report is in %s",
+				   report_dir);
+			g_file_set_contents (marker, newest, -1, NULL);
+		}
+	}
+
+	for (i = 0; names->len - i > CRASH_KEEP_REPORTS; i++) {
+		g_autofree char *old = g_build_filename (report_dir,
+							 g_ptr_array_index (names, i),
+							 NULL);
+
+		g_unlink (old);
+	}
+}
+
+/* Past here the program is already broken. Nothing below allocates, and on
+   POSIX nothing below is outside what a signal handler may call. */
 
 #ifndef G_OS_WIN32
 
@@ -194,60 +252,80 @@ signal_name (int sig)
 	}
 }
 
-static void
-write_report (int fd, int sig, const void *fault_addr, void *const *frames, int n_frames)
+/* si_addr only means an address for the faults. For an abort it carries
+   whoever sent the signal, which reads as a plausible code address and is not
+   one. */
+static gboolean
+has_fault_address (int sig)
 {
-#if !HAVE_EXECINFO_H
+	return sig == SIGSEGV || sig == SIGBUS || sig == SIGILL || sig == SIGFPE;
+}
+
+static void
+write_report (int fd, int sig, const siginfo_t *info, void *const *frames, int n_frames)
+{
+#if !HAVE_BACKTRACE
 	(void) frames;
 	(void) n_frames;
 #endif
 
 	write_str (fd, "nemo-anywhere " NEMO_VERSION_STRING "\n");
-	write_str (fd, "died on ");
+	write_str (fd, "started ");
+	write_str (fd, started_stamp);
+	write_str (fd, "\ndied on ");
 	write_str (fd, signal_name (sig));
 	write_str (fd, " (");
 	write_num (fd, (gsize) sig, 10);
-	write_str (fd, ") at 0x");
-	write_num (fd, (gsize) fault_addr, 16);
+	write_str (fd, ")");
+
+	if (info != NULL && has_fault_address (sig)) {
+		write_str (fd, " at 0x");
+		write_num (fd, (gsize) info->si_addr, 16);
+	}
+
 	write_str (fd, "\npid ");
 	write_num (fd, (gsize) getpid (), 10);
-	write_str (fd, "\n\n");
+	write_str (fd, "\n\nstack (addr2line -e <module> <the offset in brackets>):\n");
 
-#if HAVE_EXECINFO_H
-	if (n_frames > 0)
+#if HAVE_BACKTRACE
+	if (n_frames > 0) {
 		backtrace_symbols_fd (frames, n_frames, fd);
-	else
+		return;
+	}
 #endif
-		write_str (fd, "no backtrace available\n");
+	write_str (fd, "  not available in this build\n");
 }
 
-static volatile sig_atomic_t handling = 0;
+static volatile gint handling = 0;
 
 static void
 crash_signal_handler (int sig, siginfo_t *info, void *context)
 {
 	void *frames[CRASH_MAX_FRAMES];
 	int n_frames = 0;
+	sigset_t unblock;
 	int fd;
 
 	(void) context;
 
-	/* A fault inside the handler must not loop back in here. */
-	if (handling)
-		_exit (128 + sig);
-	handling = 1;
+	/* One report per process. A second thread faulting waits to be taken down
+	   with the rest rather than truncating the first thread's report. */
+	if (!g_atomic_int_compare_and_exchange (&handling, 0, 1)) {
+		for (;;)
+			pause ();
+	}
 
-#if HAVE_EXECINFO_H
+#if HAVE_BACKTRACE
 	n_frames = backtrace (frames, CRASH_MAX_FRAMES);
 #endif
 
-	/* mkdir is a bare syscall wrapper, so it is safe here. It and the open are
-	   both allowed to fail: stderr still gets the report. */
+	/* mkdir is a bare syscall wrapper, so it is safe here. It and the open
+	   are both allowed to fail: stderr still gets the report. */
 	mkdir (report_parent, DEFAULT_NEMO_DIRECTORY_MODE);
 	mkdir (report_dir, 0700);
 	fd = open (report_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
-	write_report (fd, sig, info != NULL ? info->si_addr : NULL, frames, n_frames);
+	write_report (fd, sig, info, frames, n_frames);
 
 	if (fd >= 0) {
 		close (fd);
@@ -256,12 +334,17 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 		write_str (STDERR_FILENO, "\n");
 	}
 
-	write_report (STDERR_FILENO, sig, info != NULL ? info->si_addr : NULL,
-		      frames, n_frames);
+	write_report (STDERR_FILENO, sig, info, frames, n_frames);
 
-	/* Hand the signal back so a core file, or a debugger, still gets one. */
+	/* Hand the signal back, so a core file and an attached debugger still get
+	   one. The signal is blocked on the way in here, so it has to be unblocked
+	   or the raise below only marks it pending and the _exit wins. */
 	signal (sig, SIG_DFL);
+	sigemptyset (&unblock);
+	sigaddset (&unblock, sig);
+	sigprocmask (SIG_UNBLOCK, &unblock, NULL);
 	raise (sig);
+
 	_exit (128 + sig);
 }
 
@@ -269,12 +352,13 @@ static void
 install_posix (void)
 {
 	static const int signals[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT };
+	/* Only the thread that registers it gets an alternate stack, so a stack
+	   overflow is caught on the main thread and not on a worker. */
 	static char alt_stack[64 * 1024];
-	struct sigaction sa;
 	stack_t ss;
 	gsize i;
 
-#if HAVE_EXECINFO_H
+#if HAVE_BACKTRACE
 	{
 		/* The first backtrace loads the unwinder, which is not something to
 		   do from inside a handler. */
@@ -289,53 +373,42 @@ install_posix (void)
 	ss.ss_flags = 0;
 	sigaltstack (&ss, NULL);
 
-	memset (&sa, 0, sizeof sa);
-	sa.sa_sigaction = crash_signal_handler;
-	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
-	sigemptyset (&sa.sa_mask);
+	for (i = 0; i < G_N_ELEMENTS (signals); i++) {
+		struct sigaction sa;
 
-	for (i = 0; i < G_N_ELEMENTS (signals); i++)
+		memset (&sa, 0, sizeof sa);
+		sa.sa_sigaction = crash_signal_handler;
+		sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+
+		/* Everything else fatal stays blocked while the report is written,
+		   or a second one arriving cuts it in half. */
+		sigfillset (&sa.sa_mask);
+
 		sigaction (signals[i], &sa, NULL);
+	}
 }
 
 #else /* G_OS_WIN32 */
 
-static HANDLE
-open_report_file (const wchar_t *path)
-{
-	CreateDirectoryW (report_parent_w, NULL);
-	CreateDirectoryW (report_dir_w, NULL);
-
-	return CreateFileW (path, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-			    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-}
+/* The report is built once and written twice, so the unwind is not paid for
+   again on the way to stderr. */
+static char report_text[16 * 1024];
+static gsize report_len = 0;
 
 static void
-write_str (HANDLE h, const char *s)
+emit_str (const char *s)
 {
-	DWORD written = 0;
+	gsize len = strlen (s);
 
-	if (h == NULL || h == INVALID_HANDLE_VALUE)
+	if (report_len + len >= sizeof report_text)
 		return;
 
-	WriteFile (h, s, (DWORD) strlen (s), &written, NULL);
+	memcpy (report_text + report_len, s, len);
+	report_len += len;
 }
 
 static void
-write_wide (HANDLE h, const wchar_t *s)
-{
-	char narrow[CRASH_PATH_MAX * 2];
-
-	if (h == NULL || h == INVALID_HANDLE_VALUE)
-		return;
-
-	if (WideCharToMultiByte (CP_UTF8, 0, s, -1, narrow, (int) sizeof narrow,
-				 NULL, NULL) > 0)
-		write_str (h, narrow);
-}
-
-static void
-write_num (HANDLE h, guint64 value, int base, int pad)
+emit_num (guint64 value, int base, int pad)
 {
 	static const char digits[] = "0123456789abcdef";
 	char buf[24];
@@ -349,7 +422,18 @@ write_num (HANDLE h, guint64 value, int base, int pad)
 		pad--;
 	} while ((value > 0 || pad > 0) && i > 0);
 
-	write_str (h, buf + i);
+	emit_str (buf + i);
+}
+
+static void
+write_handle (HANDLE h, const char *s, gsize len)
+{
+	DWORD written = 0;
+
+	if (h == NULL || h == INVALID_HANDLE_VALUE)
+		return;
+
+	WriteFile (h, s, (DWORD) len, &written, NULL);
 }
 
 static const char *
@@ -370,137 +454,104 @@ exception_name (DWORD code)
 
 /* Where the module wanted to be loaded. Frames are reported at that address
    rather than the one they ran at, so the number in the report is the one
-   addr2line takes. A mingw build carries no PDB, so this is the only way a
-   frame means anything on another machine. */
+   addr2line takes. A mingw build carries no PDB, so this is all a frame can
+   be made to mean on another machine. */
 static DWORD64
 preferred_base (DWORD64 loaded_base)
 {
 	const IMAGE_DOS_HEADER *dos = (const IMAGE_DOS_HEADER *) (UINT_PTR) loaded_base;
 	const IMAGE_NT_HEADERS *nt;
+	MEMORY_BASIC_INFORMATION mbi;
 
-	if (loaded_base == 0 || IsBadReadPtr (dos, sizeof *dos) ||
-	    dos->e_magic != IMAGE_DOS_SIGNATURE)
+	if (loaded_base == 0)
+		return 0;
+
+	/* The unwinder handed this over as a mapped image, but a corrupt process
+	   can hand over anything, and a read that faults in here loses the report. */
+	if (VirtualQuery (dos, &mbi, sizeof mbi) != sizeof mbi ||
+	    mbi.State != MEM_COMMIT)
+		return loaded_base;
+
+	if (dos->e_magic != IMAGE_DOS_SIGNATURE)
 		return loaded_base;
 
 	nt = (const IMAGE_NT_HEADERS *) ((const char *) dos + dos->e_lfanew);
 
-	if (IsBadReadPtr (nt, sizeof *nt) || nt->Signature != IMAGE_NT_SIGNATURE)
+	if (nt->Signature != IMAGE_NT_SIGNATURE)
 		return loaded_base;
 
 	return nt->OptionalHeader.ImageBase;
 }
 
+#if defined (__x86_64__) || defined (_M_X64)
+
+/* The OS unwinder, rather than dbghelp: StackWalk64 needs SymInitialize, which
+   enumerates every loaded module under the loader lock. A crash under that lock
+   is exactly the case this has to survive. */
 static void
-write_stack (HANDLE h, const CONTEXT *context)
+emit_stack (const CONTEXT *context)
 {
-	HANDLE process = GetCurrentProcess ();
-	CONTEXT walk = *context;
-	STACKFRAME64 frame;
-	DWORD machine;
+	static CONTEXT walk;
+	static UNWIND_HISTORY_TABLE history;
 	int depth;
 
-	memset (&frame, 0, sizeof frame);
+	walk = *context;
+	memset (&history, 0, sizeof history);
 
-#if defined (__x86_64__) || defined (_M_X64)
-	machine = IMAGE_FILE_MACHINE_AMD64;
-	frame.AddrPC.Offset = walk.Rip;
-	frame.AddrFrame.Offset = walk.Rbp;
-	frame.AddrStack.Offset = walk.Rsp;
-#elif defined (__aarch64__) && defined (IMAGE_FILE_MACHINE_ARM64)
-	machine = IMAGE_FILE_MACHINE_ARM64;
-	frame.AddrPC.Offset = walk.Pc;
-	frame.AddrFrame.Offset = walk.Fp;
-	frame.AddrStack.Offset = walk.Sp;
-#else
-	machine = IMAGE_FILE_MACHINE_I386;
-	frame.AddrPC.Offset = walk.Eip;
-	frame.AddrFrame.Offset = walk.Ebp;
-	frame.AddrStack.Offset = walk.Esp;
-#endif
-	frame.AddrPC.Mode = AddrModeFlat;
-	frame.AddrFrame.Mode = AddrModeFlat;
-	frame.AddrStack.Mode = AddrModeFlat;
+	emit_str ("stack (addr2line -e <module> <address>):\n");
 
-	SymSetOptions (SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
-	SymInitialize (process, NULL, TRUE);
-
-	write_str (h, "stack (addr2line -e <module> <address>):\n");
-
-	for (depth = 0; depth < CRASH_MAX_FRAMES; depth++) {
-		DWORD64 base;
-		DWORD64 offset;
+	for (depth = 0; depth < CRASH_MAX_FRAMES && walk.Rip != 0; depth++) {
+		PRUNTIME_FUNCTION function;
+		DWORD64 image_base = 0;
+		DWORD64 pc = walk.Rip;
 		char module[MAX_PATH];
 
-		if (!StackWalk64 (machine, process, GetCurrentThread (), &frame, &walk,
-				  NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
-			break;
+		function = RtlLookupFunctionEntry (pc, &image_base, &history);
 
-		if (frame.AddrPC.Offset == 0)
-			break;
+		emit_str ("  0x");
+		emit_num (image_base != 0 ? preferred_base (image_base) + (pc - image_base) : pc,
+			  16, 16);
 
-		base = SymGetModuleBase64 (process, frame.AddrPC.Offset);
-		offset = base != 0 ? frame.AddrPC.Offset - base : 0;
-
-		write_str (h, "  0x");
-		write_num (h, preferred_base (base) + offset, 16, 16);
-
-		if (base != 0 &&
-		    GetModuleFileNameA ((HMODULE) (UINT_PTR) base, module, sizeof module) > 0) {
+		if (image_base != 0 &&
+		    GetModuleFileNameA ((HMODULE) (UINT_PTR) image_base, module,
+					sizeof module) > 0) {
 			const char *leaf = strrchr (module, '\\');
 
-			write_str (h, "  ");
-			write_str (h, leaf != NULL ? leaf + 1 : module);
-			write_str (h, "+0x");
-			write_num (h, offset, 16, 0);
+			emit_str ("  ");
+			emit_str (leaf != NULL ? leaf + 1 : module);
+			emit_str ("+0x");
+			emit_num (pc - image_base, 16, 0);
 		}
 
-		write_str (h, "\n");
+		emit_str ("\n");
+
+		if (function == NULL) {
+			/* A leaf: nothing to unwind, the return address is on top. */
+			walk.Rip = *(DWORD64 *) walk.Rsp;
+			walk.Rsp += 8;
+		} else {
+			PVOID handler_data;
+			DWORD64 establisher;
+
+			RtlVirtualUnwind (UNW_FLAG_NHANDLER, image_base, pc, function,
+					  &walk, &handler_data, &establisher, NULL);
+		}
 	}
-
-	SymCleanup (process);
 }
+
+#else
 
 static void
-write_dump (EXCEPTION_POINTERS *info)
+emit_stack (const CONTEXT *context)
 {
-	MINIDUMP_EXCEPTION_INFORMATION mei;
-	HANDLE h;
+	(void) context;
 
-	h = CreateFileW (dump_path_w, GENERIC_WRITE, 0, NULL,
-			 CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	if (h == INVALID_HANDLE_VALUE)
-		return;
-
-	mei.ThreadId = GetCurrentThreadId ();
-	mei.ExceptionPointers = info;
-	mei.ClientPointers = FALSE;
-
-	MiniDumpWriteDump (GetCurrentProcess (), GetCurrentProcessId (), h,
-			   MiniDumpNormal | MiniDumpWithThreadInfo, &mei, NULL, NULL);
-
-	CloseHandle (h);
+	emit_str ("stack: not available on this architecture\n");
 }
 
-/* Reports go to the file and to stderr, so this runs twice. */
-static void
-write_body (HANDLE h, const EXCEPTION_RECORD *record, const CONTEXT *context)
-{
-	write_str (h, "nemo-anywhere " NEMO_VERSION_STRING "\n");
-	write_str (h, "died on ");
-	write_str (h, exception_name (record->ExceptionCode));
-	write_str (h, " (0x");
-	write_num (h, record->ExceptionCode, 16, 8);
-	write_str (h, ") at 0x");
-	write_num (h, (guint64) (UINT_PTR) record->ExceptionAddress, 16, 0);
-	write_str (h, "\npid ");
-	write_num (h, GetCurrentProcessId (), 10, 0);
-	write_str (h, "\n\n");
+#endif
 
-	write_stack (h, context);
-}
-
-static volatile LONG handling = 0;
+static volatile gint handling = 0;
 static gboolean quiet = FALSE;
 
 static void
@@ -509,32 +560,61 @@ report_and_die (EXCEPTION_POINTERS *info)
 	const EXCEPTION_RECORD *record = info->ExceptionRecord;
 	HANDLE h;
 
-	if (InterlockedExchange (&handling, 1) != 0)
-		TerminateProcess (GetCurrentProcess (), 3);
-
-	h = open_report_file (report_path_w);
-
-	write_body (h, record, info->ContextRecord);
-
-	if (h != INVALID_HANDLE_VALUE) {
-		CloseHandle (h);
-
-		/* Nothing reads stderr in a windowed build, but a console one and
-		   every test do. */
-		write_str (GetStdHandle (STD_ERROR_HANDLE),
-			   "\nnemo-anywhere crashed. Report written to ");
-		write_wide (GetStdHandle (STD_ERROR_HANDLE), report_path_w);
-		write_str (GetStdHandle (STD_ERROR_HANDLE), "\n");
+	if (!g_atomic_int_compare_and_exchange (&handling, 0, 1)) {
+		/* Another thread is writing the report. Wait to be taken down with
+		   it rather than cutting it short. */
+		Sleep (INFINITE);
 	}
 
-	write_body (GetStdHandle (STD_ERROR_HANDLE), record, info->ContextRecord);
+	emit_str ("nemo-anywhere " NEMO_VERSION_STRING "\n");
+	emit_str ("started ");
+	emit_str (started_stamp);
+	emit_str ("\ndied on ");
+	emit_str (exception_name (record->ExceptionCode));
+	emit_str (" (0x");
+	emit_num (record->ExceptionCode, 16, 8);
+	emit_str (")");
 
-	write_dump (info);
+	if (record->ExceptionAddress != NULL) {
+		emit_str (" at 0x");
+		emit_num ((guint64) (UINT_PTR) record->ExceptionAddress, 16, 0);
+	}
 
-	/* Nothing is watching stderr in a windowed build, so say it in the one
-	   place the user will see. */
+	emit_str ("\npid ");
+	emit_num (GetCurrentProcessId (), 10, 0);
+	emit_str ("\n\n");
+
+	emit_stack (info->ContextRecord);
+
+	CreateDirectoryW (report_parent_w, NULL);
+	CreateDirectoryW (report_dir_w, NULL);
+
+	h = CreateFileW (report_path_w, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+			 CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	write_handle (h, report_text, report_len);
+
+	/* Nothing reads stderr in a windowed build, but a console one and every
+	   test do. */
+	if (h != INVALID_HANDLE_VALUE) {
+		static const char wrote[] = "\nnemo-anywhere crashed. Report written to ";
+
+		CloseHandle (h);
+
+		write_handle (GetStdHandle (STD_ERROR_HANDLE), wrote, sizeof wrote - 1);
+		write_handle (GetStdHandle (STD_ERROR_HANDLE), report_path,
+			      strlen (report_path));
+		write_handle (GetStdHandle (STD_ERROR_HANDLE), "\n", 1);
+	}
+
+	write_handle (GetStdHandle (STD_ERROR_HANDLE), report_text, report_len);
+
+	/* Last, and only once the report is safely on disk: this runs a modal
+	   loop, which dispatches messages back into the code that just died, so
+	   it is allowed to fail. Not translated, because loading a catalog in a
+	   broken process is one more thing that can go wrong. */
 	if (!quiet) {
-		wchar_t message[CRASH_PATH_MAX + 128];
+		static wchar_t message[CRASH_PATH_MAX + 128];
 
 		_snwprintf (message, G_N_ELEMENTS (message) - 1,
 			    L"Nemo Anywhere stopped unexpectedly.\n\n"
@@ -546,7 +626,10 @@ report_and_die (EXCEPTION_POINTERS *info)
 			     MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
 	}
 
-	TerminateProcess (GetCurrentProcess (), 3);
+	/* Exit with the cause, so a launcher or a smoke script still sees which
+	   one it was. The cost is that Windows Error Reporting never buckets it,
+	   which is a trade for the report and the dialog above. */
+	TerminateProcess (GetCurrentProcess (), record->ExceptionCode);
 }
 
 static LONG WINAPI
@@ -562,9 +645,9 @@ crash_exception_filter (EXCEPTION_POINTERS *info)
 static void
 crash_abort_handler (int sig)
 {
-	EXCEPTION_RECORD record;
-	EXCEPTION_POINTERS info;
-	CONTEXT context;
+	static EXCEPTION_RECORD record;
+	static EXCEPTION_POINTERS info;
+	static CONTEXT context;
 
 	(void) sig;
 
@@ -572,7 +655,6 @@ crash_abort_handler (int sig)
 
 	memset (&record, 0, sizeof record);
 	record.ExceptionCode = STATUS_FATAL_APP_EXIT;
-	record.ExceptionAddress = (PVOID) (UINT_PTR) crash_abort_handler;
 
 	info.ExceptionRecord = &record;
 	info.ContextRecord = &context;
@@ -583,8 +665,16 @@ crash_abort_handler (int sig)
 static void
 install_win32 (void)
 {
+	ULONG guarantee = 64 * 1024;
+
 	quiet = g_getenv ("NEMO_NO_CRASH_DIALOG") != NULL;
 
+	/* Keeps enough stack in reserve for the filter to run after a stack
+	   overflow, which is the one crash that otherwise reports nothing. */
+	SetThreadStackGuarantee (&guarantee);
+
+	/* Whatever was there before is replaced on purpose: a packer's own filter
+	   would take the crash and leave no report of ours. */
 	SetUnhandledExceptionFilter (crash_exception_filter);
 	signal (SIGABRT, crash_abort_handler);
 }
@@ -604,6 +694,8 @@ nemo_crash_handler_install (void)
 		return;
 
 	installed = TRUE;
+
+	sweep_old_reports ();
 
 #ifdef G_OS_WIN32
 	install_win32 ();

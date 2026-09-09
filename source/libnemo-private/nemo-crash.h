@@ -25,14 +25,17 @@
 
 G_BEGIN_DECLS
 
-/* Install once, as early in main as possible. NEMO_NO_CRASH_HANDLER in the
-   environment turns it off, which is what a debugger or a sampling profiler
-   wants. NEMO_NO_CRASH_DIALOG keeps the report but drops the message box a
-   windowed build puts up, for anything running unattended. */
+/* Install once, as early in main as possible. Also says whether an earlier run
+   left a report behind, and drops the oldest so the folder cannot grow forever.
+
+   NEMO_NO_CRASH_HANDLER installs nothing at all. NEMO_NO_CRASH_DIALOG keeps the
+   report but drops the message box a windowed build puts up, for anything
+   running unattended. */
 void nemo_crash_handler_install (void);
 
-/* Where a report would be written. Valid after the install call, NULL before
-   it and when the handler is switched off. */
+/* Where this run would write a report. The name is settled at install time and
+   nothing is created until there is a crash, so the path is an intention, not a
+   file that exists. NULL when no handler was installed. */
 const char *nemo_crash_report_path (void);
 
 G_END_DECLS

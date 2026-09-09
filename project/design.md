@@ -200,13 +200,19 @@ One process per window by default, one main loop each, and a firm rule that noth
 
 A crash leaves a report. Without one there is nothing to work from: a windowed program on Windows has no stderr, so it used to disappear off the screen and that was the whole story.
 
-- The report goes to `crash/`, beside the settings file, named for the time and the process. It gives the version and build, what killed the program and where, and the stack at the time.
+- The report goes to `crash/`, beside the settings file. It gives the version and build, what killed the program and where, and the stack. The name carries when the run started, since working out the current time is not something the code can safely do at that point; the file's own timestamp is when it died.
 
-- Windows gets a minidump beside the report and a dialog saying where both are. Everywhere else the same text also goes to stderr, which is where a launcher log keeps it.
+- The same text goes to stderr, which is where a launcher log keeps it. Windows gets a message box as well, because a windowed build has no stderr for anyone to read.
 
-- Frames are addresses, not names. The Windows build carries no debug database and the released Linux build is stripped, so the report gives each frame as the address it was linked at plus the module and offset, which `addr2line` resolves against the matching unstripped build.
+- Frames are addresses, not names. The Windows build carries no debug database and the released Linux build is stripped, so a frame is only worth anything alongside the build it came from. Windows reports each frame at the address it was linked at, which is what `addr2line` takes directly. Linux reports the module, the offset within it in brackets, and the address it ran at; the offset is the one to hand over.
 
-- It is written by a signal handler, so it allocates nothing and takes no locks - the program is already broken by then. The signal is handed back afterwards, so a core file or an attached debugger still gets one. `NEMO_NO_CRASH_HANDLER` turns the whole thing off.
+- On the way out the program is finished off the way it would have been anyway, so a core file or an attached debugger still gets what it expects.
+
+- The handler avoids the allocator and everything that takes a lock, because a crash inside either is one of the cases it has to survive. The Windows side cannot make that promise as cleanly: it walks the stack with the operating system's own unwinder rather than the symbol library, whose first act is to enumerate every loaded module under the loader lock.
+
+- Reports do not pile up. The oldest are dropped at startup, and the first run after a crash says one was left behind.
+
+- `NEMO_NO_CRASH_HANDLER` installs nothing, and `NEMO_NO_CRASH_DIALOG` keeps the report while dropping the message box, for anything running unattended.
 
 ### Configuration and persistence
 
