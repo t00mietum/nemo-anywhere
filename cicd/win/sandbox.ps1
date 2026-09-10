@@ -1,4 +1,4 @@
-##	Purpose:
+﻿##	Purpose:
 ##		- Drive a throwaway Windows Sandbox for GUI testing and demo work,
 ##		  without touching the live desktop session. The sandbox is built from
 ##		  the host's own Windows image (no second license), keeps no state,
