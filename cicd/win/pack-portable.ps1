@@ -1,4 +1,4 @@
-##	Purpose:
+﻿##	Purpose:
 ##		- Pack the staged native Windows runtime bundle (cicd/artifacts/win-run)
 ##		  into ONE self-contained exe via Enigma Virtual Box: every dll, schema,
 ##		  icon, and theme rides inside the exe in an in-memory virtual file

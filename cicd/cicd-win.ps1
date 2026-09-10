@@ -1,4 +1,4 @@
-##	Purpose:
+﻿##	Purpose:
 ##		- Windows-native CI/CD pipeline for Nemo Anywhere. A PowerShell companion to
 ##		  the Linux cicd.bash - it does the same shape of work, but builds the app
 ##		  NATIVELY on Windows with MSYS2/MinGW-w64 (meson + ninja) rather than in a

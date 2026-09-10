@@ -1,4 +1,4 @@
-##	Purpose:
+﻿##	Purpose:
 ##		- Runs inside Windows Sandbox as the logon command, straight off the
 ##		  mapped share. Copies the packed exe to local disk (the mapped folder
 ##		  is slow to execute from), then loops: pick up share\jobs\*.ps1

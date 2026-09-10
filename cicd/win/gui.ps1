@@ -1,4 +1,4 @@
-##	Purpose:
+﻿##	Purpose:
 ##		- Small GUI driver for the running app: screenshot, window rects,
 ##		  raise, click, key, type. Finds the app's window by enumerating the
 ##		  pid's visible windows and taking the largest (MainWindowHandle often
