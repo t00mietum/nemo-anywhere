@@ -2,7 +2,7 @@
 
 /* nemo-crash.c - write a report when the program dies unexpectedly.
 
-   Copyright © 2026 t00mietum.
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as

@@ -2,7 +2,7 @@
 
 /* nemo-command-template.h - a command line a user can edit.
 
-   Copyright (C) 2026 t00mietum.
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as

@@ -3,7 +3,7 @@
  * asks here what a link should become, and the answer comes from a dialog when
  * there is more than one sensible one.
  *
- * Copyright © 2026 Bubbles
+ * Copyright (c) 2026 Bubbles
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License version 2, as published by the

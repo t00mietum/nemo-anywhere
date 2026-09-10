@@ -2,7 +2,7 @@
 
 /* nemo-dir-enum.c - directory enumeration that survives a long path on Windows.
 
-   Copyright © 2026 t00mietum.
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as

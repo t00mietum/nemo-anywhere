@@ -15,7 +15,7 @@
 ##	  service processes no longer pile up as zombies - no docker restart needed here.
 ##	- Syntax: run-windows-build-via-wine.bash [--restage] [URI]
 
-##	Copyright © 2026 Bubbles (ID: XଌฅრX۳ᛟԃლፀƅꓩหδლც)
+##	Copyright (c) 2026 Bubbles
 ##	Licensed under The MIT License (MIT). Full text at:
 ##		https://mit-license.org/
 ##	SPDX-License-Identifier: MIT
