@@ -71,6 +71,7 @@ What the project is trying to be, roughly in priority order:
 - Make it hard to lose a file by accident. This is where the fork is willing to be less convenient than its ancestors, e.g.:
 	- A drag that moves files says what it is about to do, and waits. (Because accidental mouse drag-an-drops - especially large ones across filesystems - are the bane of GUI file managers.)
 	- Trash and delete jobs each write a line saying what was taken and what asked for it.
+	- Home, the folders above it and mounted drives are never deleted, and no one job may take most of a home folder.
 	- A copy/move/delete with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
 	- A copy/move/delete over a size threshold, asks first no matter what the preferences say.
 
@@ -262,15 +263,23 @@ Settings are isolated from an upstream Nemo installed alongside: our own file, o
 
 ### File operations
 
-Trashing and deleting are the two things a file manager cannot take back, so they are held to a higher bar than the confirmation preferences alone. This was settled after a copy of the app emptied a home folder with nothing anywhere to say why.
+Trashing and deleting are the two things a file manager cannot take back, so they are held to a higher bar than the confirmation preferences alone. This was settled after a copy of the app emptied a home folder with nothing anywhere to say why, and tightened when it happened a second time.
 
-- Every trash and delete job writes one log line: how many items, which folder, the first item, the window, and the input event behind it - the key, the mouse button or the drop. That line is the record when something goes wrong.
+- Every trash and delete job writes one log line: how many items, which folder, the first item, the window, whether a trash or delete command asked for it, and the key or button behind it. On Linux the line also goes to the system journal. The usual place for it is a log file under the home folder, which is the first thing lost.
 
-- A job with no input event behind it always asks first, whatever the preference says, and the question says where it came from. A key, a click or a drop is what a person does. A timer, another program or another copy of the app is not, and the app should not act on those silently.
+- Home, any folder above it, and the top of a mounted drive or share are never trashed or removed, whatever asked. A delete that reaches a mount inside a folder stops there instead of emptying the drive. This is checked where each file is actually removed rather than at the dialog, so a path that never shows a dialog is held to it too.
+
+- A job that would take most of what sits directly in home is refused outright, not asked about. Nobody clears a home folder from a file manager on purpose, and a question is one Enter away from yes.
+
+- Only the trash and delete commands in a window count as a person asking. Anything else, such as undo, a drop or another program, always asks first whatever the preference says, and the question says so. This used to be inferred from whether an input event was in flight, which any unrelated key or click could satisfy.
 
 - A job of `confirm-many-items` or more asks even with confirmation switched off. Twenty by default, and zero turns it off. A slip that takes one file is a nuisance; one that takes a folder is a day.
 
-- The dialogs keep the affirmative as the default button. Making Cancel the default was considered and turned down: the dialog is itself the pause, and a Cancel default is friction on every ordinary delete for people who chose to be asked.
+- Every question that can remove files starts on Cancel. This reverses the earlier call to keep the affirmative as the default. The dialog was meant to be the pause, but a stray Enter goes straight through a pause.
+
+- A trash or delete key that arrives within a second of a window appearing or taking focus is ignored. A window that opens while someone is typing somewhere else gets the rest of that typing.
+
+- Removing a folder tree never follows a link to another folder. The link is removed as a link.
 
 Copying a link asks what should be at the far end. A link can stay a link or be replaced by what it points at, and neither answer is right every time, so the question is put once per operation rather than guessed. It is asked whenever the source holds a link, on every platform, including where the destination can hold none - there every option but the copy is grayed out and the dialog says why. A copy that quietly turns links into files, or files into links, is the thing being avoided.
 

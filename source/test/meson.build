@@ -103,11 +103,20 @@ test('User input parse test',
   args: []
 )
 
-# symlink(2) and the guard-page mmap below are POSIX; neither test cross-builds.
+# symlink(2) and the guard-page mmap below are POSIX; none of these cross-build.
 if not is_windows
   test('Symlink recurse premise test',
     executable('test-nemo-symlink-recurse',
       [ 'test-nemo-symlink-recurse.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: []
+  )
+
+  test('Delete guard test',
+    executable('test-nemo-delete-guard',
+      [ 'test-nemo-delete-guard.c' ],
       include_directories: [ rootInclude, ],
       dependencies: [ gtk, nemo_private ],
     ),

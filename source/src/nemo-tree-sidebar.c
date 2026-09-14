@@ -1084,9 +1084,9 @@ fm_tree_view_trash_cb (GtkAction *action,
 	list = g_list_prepend (NULL,
 			       nemo_file_get_location (view->details->popup_file));
 	
-	nemo_file_operations_trash_or_delete (list, 
-						  fm_tree_view_get_containing_window (view),
-						  NULL, NULL);
+	nemo_file_operations_trash_or_delete_by_user (list, 
+							  fm_tree_view_get_containing_window (view),
+							  NULL, NULL);
 	g_list_free_full (list, g_object_unref);
 }
 
@@ -1103,7 +1103,7 @@ fm_tree_view_delete_cb (GtkAction *action,
 	location_list = g_list_prepend (NULL,
 					nemo_file_get_location (view->details->popup_file));
 	
-	nemo_file_operations_delete (location_list, fm_tree_view_get_containing_window (view), NULL, NULL);
+	nemo_file_operations_delete_by_user (location_list, fm_tree_view_get_containing_window (view), NULL, NULL);
 	g_list_free_full (location_list, g_object_unref);
 }
 

@@ -39,6 +39,26 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- ✅ A home folder was deleted again, with no dialog, soon after a copy of the app was opened by accident. The guards added after the first time were not enough.
+	- Opened: n/a
+	- Closed: 20260914-121200
+	- Nothing in the window was used but About. What removed the files is not known. The app's own log, which could have said, was in the home folder that went.
+	- Home, any folder above it, and a folder where a drive or share is mounted are never removed now, however the job came about. A delete that reaches a mount on its way through a folder stops there.
+	- One job can no longer take most of what sits directly in home. That is refused outright rather than asked about.
+	- Every question that can remove files starts on Cancel.
+	- A delete key within a second of a window coming up or taking focus is ignored, since that is typing meant for another window.
+	- Each trash or delete line also goes to the system journal, which a rollback of home leaves alone.
+
+- ✅ Extracting could delete what a link inside the archive pointed at.
+	- Opened: n/a
+	- Closed: 20260914-121200
+	- Clearing the folder it extracts into, or a file being replaced, followed a link to a folder and emptied the folder at the other end. It asked nothing and logged nothing, so an archive holding a link to home could have taken home. A link is removed as a link now.
+
+- ✅ The unattended-delete guard reads GTK's current event, so a delete started from inside an unrelated event handler is recorded as one a person asked for.
+	- Opened: 20260914-102940
+	- Closed: 20260914-121200
+	- The caller says so now. Only the trash and delete commands in a window count as asked for, and undo, drops and anything else always ask. The event is kept for the log.
+
 - ✅ The action layout editor does not run.
 	- Opened: 20260908-000856
 	- Reachable from Preferences > Actions, which spawns it, but it dies at startup: its paths were baked in at configure time and point at an install prefix a portable copy never has.

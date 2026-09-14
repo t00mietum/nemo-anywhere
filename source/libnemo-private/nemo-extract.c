@@ -36,6 +36,7 @@
 #include "nemo-archive.h"
 #include "nemo-archive-commands.h"
 #include "nemo-command-template.h"
+#include "nemo-delete-guard.h"
 #include "nemo-dir-enum.h"
 #include "nemo-extract-conflict-dialog.h"
 #include "nemo-file-changes-queue.h"
@@ -601,37 +602,6 @@ ask_password (ExtractJob *job)
  * Placing things on disk
  */
 
-static gboolean
-delete_recursively (GFile        *file,
-		    GCancellable *cancellable)
-{
-	GFileEnumerator *children;
-
-	children = nemo_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
-					      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-					      cancellable, NULL);
-	if (children != NULL) {
-		for (;;) {
-			GFileInfo *info = g_file_enumerator_next_file (children, cancellable, NULL);
-			GFile *child;
-
-			if (info == NULL) {
-				break;
-			}
-
-			child = g_file_get_child (file, g_file_info_get_name (info));
-			delete_recursively (child, cancellable);
-			g_object_unref (child);
-			g_object_unref (info);
-		}
-
-		g_file_enumerator_close (children, cancellable, NULL);
-		g_object_unref (children);
-	}
-
-	return g_file_delete (file, cancellable, NULL);
-}
-
 /* Picks the file an entry should be written to, asking about anything already
    there. Returns NULL when the entry is to be skipped, or when the job was
    cancelled - job_aborted tells the two apart. */
@@ -696,7 +666,7 @@ resolve_target (ExtractJob *job,
 		}
 
 		if (response == CONFLICT_RESPONSE_REPLACE) {
-			delete_recursively (target, job->cancellable);
+			nemo_delete_guard_remove_tree (target, job->cancellable);
 			g_free (candidate);
 			g_free (data.new_name);
 			return target;
@@ -1516,7 +1486,7 @@ extract_with_command (ExtractJob         *job,
 		nemo_progress_info_set_status (job->progress, _("Moving the unpacked files into place"));
 		place_staged_tree (job, staging, "");
 	}
-	delete_recursively (staging, NULL);
+	nemo_delete_guard_remove_tree (staging, NULL);
 
 	g_strfreev (argv);
 	g_object_unref (staging);

@@ -101,6 +101,17 @@ void nemo_file_operations_trash_or_delete (GList                  *files,
 					       NemoDeleteCallback  done_callback,
 					       gpointer                done_callback_data);
 
+/* The same two, for a trash or delete a person asked for with a command in a
+   window. Anything else counts as unasked and always confirms. */
+void nemo_file_operations_delete_by_user          (GList                  *files,
+						   GtkWindow              *parent_window,
+						   NemoDeleteCallback  done_callback,
+						   gpointer                done_callback_data);
+void nemo_file_operations_trash_or_delete_by_user (GList                  *files,
+						   GtkWindow              *parent_window,
+						   NemoDeleteCallback  done_callback,
+						   gpointer                done_callback_data);
+
 void nemo_file_set_permissions_recursive (const char                     *directory,
 					      guint32                         file_permissions,
 					      guint32                         file_mask,

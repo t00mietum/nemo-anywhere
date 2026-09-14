@@ -75,6 +75,7 @@
 #include <libnemo-private/nemo-clipboard-monitor.h>
 #include <libnemo-private/nemo-search-directory.h>
 #include <libnemo-private/nemo-directory.h>
+#include <libnemo-private/nemo-delete-guard.h>
 #include <libnemo-private/nemo-dnd.h>
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-file-changes-queue.h>
@@ -1457,6 +1458,11 @@ trash_or_delete_selected_files (NemoView *view)
 {
         GList *selection;
 
+	if (nemo_delete_guard_key_too_soon (GTK_WIDGET (view))) {
+		gtk_widget_error_bell (GTK_WIDGET (view));
+		return;
+	}
+
 	/* This might be rapidly called multiple times for the same selection
 	 * when using keybindings. So we remember if the current selection
 	 * was already removed (but the view doesn't know about it yet).
@@ -1505,6 +1511,11 @@ delete_selected_files (NemoView *view)
 	GList *node;
 	GList *locations;
 
+	if (nemo_delete_guard_key_too_soon (GTK_WIDGET (view))) {
+		gtk_widget_error_bell (GTK_WIDGET (view));
+		return;
+	}
+
 	selection = nemo_view_get_selection_for_file_transfer (view);
 	if (selection == NULL) {
 		return;
@@ -1517,7 +1528,7 @@ delete_selected_files (NemoView *view)
 	}
 	locations = g_list_reverse (locations);
 
-	nemo_file_operations_delete (locations, nemo_view_get_containing_window (view), NULL, NULL);
+	nemo_file_operations_delete_by_user (locations, nemo_view_get_containing_window (view), NULL, NULL);
 
 	g_list_free_full (locations, g_object_unref);
         nemo_file_list_free (selection);
@@ -4585,10 +4596,10 @@ trash_or_delete_files (GtkWindow *parent_window,
 
 	locations = g_list_reverse (locations);
 
-	nemo_file_operations_trash_or_delete (locations,
-						  parent_window,
-						  (NemoDeleteCallback) trash_or_delete_done_cb,
-						  view);
+	nemo_file_operations_trash_or_delete_by_user (locations,
+							  parent_window,
+							  (NemoDeleteCallback) trash_or_delete_done_cb,
+							  view);
 	g_list_free_full (locations, g_object_unref);
 }
 
@@ -8873,8 +8884,8 @@ action_location_delete_callback (GtkAction *action,
 	location = nemo_file_get_location (file);
 
 	files = g_list_append (NULL, location);
-	nemo_file_operations_delete (files, nemo_view_get_containing_window (view),
-					 NULL, NULL);
+	nemo_file_operations_delete_by_user (files, nemo_view_get_containing_window (view),
+						 NULL, NULL);
 
 	g_list_free_full (files, g_object_unref);
 }

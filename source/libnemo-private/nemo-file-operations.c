@@ -74,6 +74,7 @@
 #include "nemo-link-copy.h"
 #include "nemo-link-win32.h"
 #include "nemo-trash-win32.h"
+#include "nemo-delete-guard.h"
 
 /* TODO: TESTING!!! */
 
@@ -135,7 +136,7 @@ typedef struct {
 	GList *files;
 	gboolean try_trash;
 	gboolean user_cancel;
-	gboolean unattended;	/* no key, click or drop behind it */
+	gboolean unattended;	/* no trash or delete command behind it */
 	NemoDeleteCallback done_callback;
 	gpointer done_callback_data;
 } DeleteJob;
@@ -1042,6 +1043,10 @@ file_delete_wrapper (GFile        *file,
 
     ret = FALSE;
 
+    if (!nemo_delete_guard_check (file, error)) {
+        return FALSE;
+    }
+
     uri = g_file_get_uri (file);
 
     if (g_file_is_native (file) && !eel_uri_is_favorite (uri)) {
@@ -1291,6 +1296,23 @@ typedef struct {
 } RunSimpleDialogData;
 
 static gboolean
+removes_files (const char **button_titles)
+{
+	const char **title;
+
+	for (title = button_titles; *title != NULL; title++) {
+		if (strcmp (*title, GTK_STOCK_DELETE) == 0 ||
+		    strcmp (*title, DELETE_ALL) == 0 ||
+		    strcmp (*title, _("Move to _Trash")) == 0 ||
+		    strcmp (*title, _("Empty _Trash")) == 0) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+static gboolean
 do_run_simple_dialog (gpointer _data)
 {
 	RunSimpleDialogData *data = _data;
@@ -1322,7 +1344,9 @@ do_run_simple_dialog (gpointer _data)
 		gtk_dialog_add_button (GTK_DIALOG (dialog), button_title, response_id);
 	}
 	if (response_id > 1) {
-		if (button_title == _("Empty _Trash")) {
+		/* A stray Enter must never be what removes files. Cancel is the
+		   first button on every question that can. */
+		if (removes_files (data->button_titles)) {
 			gtk_dialog_set_default_response (GTK_DIALOG (dialog), 0);
 		} else {
 			gtk_dialog_set_default_response (GTK_DIALOG (dialog), response_id - 1);
@@ -1642,7 +1666,7 @@ describe_event (GdkEvent *event)
 	}
 }
 
-static gboolean
+static void
 log_delete_job (DeleteJob *job)
 {
 	GdkEvent *event;
@@ -1650,10 +1674,8 @@ log_delete_job (DeleteJob *job)
 	char *trigger, *where, *first;
 	const char *title;
 	guint count;
-	gboolean unattended;
 
 	event = gtk_get_current_event ();
-	unattended = event == NULL;
 	trigger = describe_event (event);
 	if (event != NULL) {
 		gdk_event_free (event);
@@ -1666,39 +1688,30 @@ log_delete_job (DeleteJob *job)
 	first = g_file_get_basename (job->files->data);
 	title = job->common.parent_window != NULL ? gtk_window_get_title (job->common.parent_window) : NULL;
 
-	g_message ("%s %u item%s in %s, first \"%s\" (%s, window \"%s\")",
-		   job->try_trash ? "trash" : "delete", count, count == 1 ? "" : "s",
-		   where, first != NULL ? first : "?", trigger, title != NULL ? title : "none");
+	nemo_delete_guard_log ("%s %u item%s in %s, first \"%s\" (%s, %s, window \"%s\")",
+			       job->try_trash ? "trash" : "delete", count, count == 1 ? "" : "s",
+			       where, first != NULL ? first : "?",
+			       job->unattended ? "no delete command" : "delete command",
+			       trigger, title != NULL ? title : "none");
 
 	g_free (trigger);
 	g_free (where);
 	g_free (first);
-
-	return unattended;
 }
 
-/* The two confirmation preferences are the person's to turn off. This is not:
-   a job nobody's key, click or drop asked for, or one big enough that a slip
-   takes a whole folder, asks regardless. */
 static gboolean
 must_ask_anyway (CommonJob *job, GList *files)
 {
-	gint many;
-
-	if (((DeleteJob *) job)->unattended) {
-		return TRUE;
-	}
-
-	many = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_CONFIRM_MANY_ITEMS);
-
-	return many > 0 && (gint) g_list_length (files) >= many;
+	return nemo_delete_guard_must_ask (!((DeleteJob *) job)->unattended,
+					   g_list_length (files),
+					   nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_CONFIRM_MANY_ITEMS));
 }
 
 static char *
 unattended_note (CommonJob *job, const char *secondary)
 {
 	if (((DeleteJob *) job)->unattended) {
-		return f (_("No key press, click or drop asked for this. It came from another program, another copy of the app, or a timer. %s"), secondary);
+		return f (_("This did not come from a trash or delete command. It may have come from undo, a drop, another program or a timer. %s"), secondary);
 	}
 
 	return f ("%s", secondary);
@@ -2259,6 +2272,10 @@ report_trash_progress (CommonJob *job,
 static gboolean
 trash_one_file (GFile *file, GCancellable *cancellable, GError **error)
 {
+	if (!nemo_delete_guard_check (file, error)) {
+		return FALSE;
+	}
+
 #ifdef G_OS_WIN32
 	return nemo_trash_win32_recycle (file, error);
 #else
@@ -2419,6 +2436,41 @@ delete_job_done (gpointer user_data)
 	return FALSE;
 }
 
+/* Settled before anything is asked or touched, however the job came about. */
+static gboolean
+refuse_job (DeleteJob *job)
+{
+	const char *kind = job->try_trash ? "trash" : "delete";
+	GList *l;
+
+	for (l = job->files; l != NULL; l = l->next) {
+		if (nemo_delete_guard_is_protected (l->data)) {
+			char *name = g_file_get_parse_name (l->data);
+
+			nemo_delete_guard_log ("refused a %s job holding %s", kind, name);
+			run_error ((CommonJob *) job,
+				   f (_("Nothing was removed.")),
+				   f (_("\"%s\" is the home folder, a folder above it, or where a drive is mounted. It is never removed."), name),
+				   NULL, FALSE, GTK_STOCK_OK, NULL);
+			g_free (name);
+
+			return TRUE;
+		}
+	}
+
+	if (nemo_delete_guard_sweeps_home (job->files)) {
+		nemo_delete_guard_log ("refused a %s job taking most of the home folder", kind);
+		run_error ((CommonJob *) job,
+			   f (_("Nothing was removed.")),
+			   f (_("That was most of the home folder at once, which is never done. Remove the items a few at a time.")),
+			   NULL, FALSE, GTK_STOCK_OK, NULL);
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 static gboolean
 delete_job (GIOSchedulerJob *io_job,
 	    GCancellable *cancellable,
@@ -2446,6 +2498,12 @@ delete_job (GIOSchedulerJob *io_job,
 	must_confirm_delete_in_trash = FALSE;
 	must_confirm_delete = FALSE;
 	files_skipped = 0;
+
+	if (refuse_job (job)) {
+		job->user_cancel = TRUE;
+		g_clear_object (&common->undo_info);
+		goto out;
+	}
 
 	for (l = job->files; l != NULL; l = l->next) {
 		file = l->data;
@@ -2493,6 +2551,7 @@ delete_job (GIOSchedulerJob *io_job,
 		}
 	}
 
+ out:
 	g_list_free (to_trash_files);
 	g_list_free (to_delete_files);
 
@@ -2515,6 +2574,7 @@ static void
 trash_or_delete_internal (GList                  *files,
 			  GtkWindow              *parent_window,
 			  gboolean                try_trash,
+			  gboolean                by_user,
 			  NemoDeleteCallback  done_callback,
 			  gpointer                done_callback_data)
 {
@@ -2526,7 +2586,8 @@ trash_or_delete_internal (GList                  *files,
 	job->files = eel_g_object_list_copy (files);
 	job->try_trash = try_trash;
 	job->user_cancel = FALSE;
-	job->unattended = log_delete_job (job);
+	job->unattended = !by_user;
+	log_delete_job (job);
 	job->done_callback = done_callback;
 	job->done_callback_data = done_callback_data;
 
@@ -2547,6 +2608,30 @@ trash_or_delete_internal (GList                  *files,
 }
 
 void
+nemo_file_operations_trash_or_delete_by_user (GList              *files,
+					      GtkWindow          *parent_window,
+					      NemoDeleteCallback  done_callback,
+					      gpointer            done_callback_data)
+{
+	g_return_if_fail (files != NULL);
+
+	trash_or_delete_internal (files, parent_window, TRUE, TRUE,
+				  done_callback, done_callback_data);
+}
+
+void
+nemo_file_operations_delete_by_user (GList              *files,
+				     GtkWindow          *parent_window,
+				     NemoDeleteCallback  done_callback,
+				     gpointer            done_callback_data)
+{
+	g_return_if_fail (files != NULL);
+
+	trash_or_delete_internal (files, parent_window, FALSE, TRUE,
+				  done_callback, done_callback_data);
+}
+
+void
 nemo_file_operations_trash_or_delete (GList                  *files,
 					  GtkWindow              *parent_window,
 					  NemoDeleteCallback  done_callback,
@@ -2555,7 +2640,7 @@ nemo_file_operations_trash_or_delete (GList                  *files,
 	g_return_if_fail (files != NULL);
 
 	trash_or_delete_internal (files, parent_window,
-				  TRUE,
+				  TRUE, FALSE,
 				  done_callback,  done_callback_data);
 }
 
@@ -2566,7 +2651,7 @@ nemo_file_operations_delete (GList                  *files,
 				 gpointer                done_callback_data)
 {
 	trash_or_delete_internal (files, parent_window,
-				  FALSE,
+				  FALSE, FALSE,
 				  done_callback,  done_callback_data);
 }
 
