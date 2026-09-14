@@ -656,9 +656,9 @@ trash_or_delete_files (GtkWindow *parent_window,
 
 	locations = g_list_reverse (locations);
 
-	nemo_file_operations_trash_or_delete (locations,
-						  parent_window,
-						  NULL, NULL);
+	nemo_file_operations_trash_or_delete_by_user (locations,
+							  parent_window,
+							  NULL, NULL);
 	g_list_free_full (locations, g_object_unref);
 }
 

@@ -65,6 +65,7 @@
 #endif
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file-attributes.h>
+#include <libnemo-private/nemo-delete-guard.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-clipboard.h>
@@ -2125,6 +2126,8 @@ nemo_window_init (NemoWindow *window)
 
 	/* Set initial window title */
 	gtk_window_set_title (GTK_WINDOW (window), _("Nemo Anywhere"));
+
+	nemo_delete_guard_watch_window (GTK_WINDOW (window));
 
     g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS,
