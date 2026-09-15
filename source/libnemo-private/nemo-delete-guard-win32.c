@@ -30,11 +30,12 @@
 
 #include <windows.h>
 
-/* A folder's volume and file id are the same under every spelling of it, the
-   way device and inode are on POSIX. */
+/* A folder's volume and file index are the same under every spelling of it,
+   the way device and inode are on POSIX. ReFS can repeat a 64-bit index, which
+   could only refuse a delete, never allow one. */
 typedef struct {
-	ULONGLONG volume;
-	BYTE id[16];
+	DWORD volume;
+	ULONGLONG index;
 } Node;
 
 /* Jobs run on worker threads, hence the lock. */
@@ -69,27 +70,18 @@ static gboolean
 node_of (const char *path, Node *node)
 {
 	HANDLE handle;
-	FILE_ID_INFO id_info;
 	BY_HANDLE_FILE_INFORMATION info;
-	gboolean found = FALSE;
+	gboolean found;
 
 	handle = open_for_id (path);
 	if (handle == INVALID_HANDLE_VALUE) {
 		return FALSE;
 	}
 
-	memset (node, 0, sizeof *node);
-	if (GetFileInformationByHandleEx (handle, FileIdInfo, &id_info, sizeof id_info)) {
-		node->volume = id_info.VolumeSerialNumber;
-		memcpy (node->id, id_info.FileId.Identifier, sizeof node->id);
-		found = TRUE;
-	} else if (GetFileInformationByHandle (handle, &info)) {
-		/* FAT has no 128-bit id. One volume always takes the same branch. */
-		ULONGLONG index = ((ULONGLONG) info.nFileIndexHigh << 32) | info.nFileIndexLow;
-
+	found = GetFileInformationByHandle (handle, &info);
+	if (found) {
 		node->volume = info.dwVolumeSerialNumber;
-		memcpy (node->id, &index, sizeof index);
-		found = TRUE;
+		node->index = ((ULONGLONG) info.nFileIndexHigh << 32) | info.nFileIndexLow;
 	}
 
 	CloseHandle (handle);
@@ -100,7 +92,7 @@ node_of (const char *path, Node *node)
 static gboolean
 same_node (const Node *a, const Node *b)
 {
-	return a->volume == b->volume && memcmp (a->id, b->id, sizeof a->id) == 0;
+	return a->volume == b->volume && a->index == b->index;
 }
 
 /* Where a path really is once every junction and link on the way is followed.
