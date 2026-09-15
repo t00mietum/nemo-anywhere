@@ -9,7 +9,7 @@
 ##		   0. remote sync   (fetch; fast-forward if safely behind; abort if diverged)
 ##		   1. lint          (check-only cppcheck over the changed C files)
 ##		   2. debug build   (meson setup -Dxmp=false + ninja, MSYS2 mingw64)
-##		   3. tests         (native --version smoke of the built exe)
+##		   3. tests         (meson test suite, then a --version smoke of the built exe)
 ##		   4. stage         (self-contained runtime bundle - the packer's input)
 ##		   5. packages      (portable single-exe via Enigma Virtual Box; NSIS later)
 ##		   6. dogfood       (drop the single exe into the synced app dir)
@@ -36,11 +36,12 @@
 ##		  Options:
 ##		   -Yes            run unattended (no confirm / message prompt)
 ##		   -Quiet          quiet + unattended (implies -Yes); publish runs quiet too
-##		   -Quick          skip the slow stages (reserved; none enabled yet)
+##		   -Quick          skip the slow stages (reserved: none run here yet, so the
+##		                   build, tests, pack and dogfood all still run)
 ##		   -Gate           merge gate only: lint + build + smoke, then exit (no stage/publish)
 ##		   -NoSync         skip the remote sync check (stage 0)
 ##		   -NoFmt          skip the lint stage
-##		   -NoBuild        skip the build + smoke + stage stages
+##		   -NoBuild        skip the build + tests + stage stages
 ##		   -NoDogfood      skip installing the staged bundle into the dogfood folder
 ##		   -NoPack         skip the portable single-exe pack stage
 ##		   -NoSign         skip Authenticode signing (also auto-skips if unconfigured)
@@ -276,6 +277,15 @@ function fSmoke {
 	} finally { $env:PATH = $saved; $env:NEMO_NO_CRASH_DIALOG = $savedDialog }
 	if ($LASTEXITCODE -ne 0) { fDie "smoke failed (exit $LASTEXITCODE): $Exe --version`n$out" }
 	fEcho "OK: smoke: $out"
+}
+
+## The meson suite against the debug build. The mingw64 shell has the GTK DLLs on
+## PATH. A crash would otherwise stop the run behind a modal box.
+function fTests {
+	$jobs = [Math]::Max(1, [Environment]::ProcessorCount / 2 -as [int])
+	fMingw "NEMO_NO_CRASH_DIALOG=1 meson test -C $BuildRel --no-rebuild --num-processes $jobs --print-errorlogs"
+	if ($script:MingwRc -ne 0) { fDie "test suite failed (exit $($script:MingwRc))" }
+	fEcho "OK: test suite"
 }
 
 ## Path to the freshly built exe for the in-place smoke. The extension lib is folded
@@ -586,7 +596,7 @@ function fMain {
 	fEcho_Clean "Remote sync .: $(if ($NoSync) { '(skipped)' } else { 'fetch + fast-forward check' })"
 	fEcho_Clean "Lint ........: $(if ($NoFmt) { '(skipped)' } else { 'cppcheck, check-only, changed C files' })"
 	fEcho_Clean "Build .......: $(if ($NoBuild) { '(skipped)' } else { 'meson + ninja, native mingw64' })"
-	fEcho_Clean "Tests .......: $(if ($NoBuild) { '(skipped)' } else { 'native --version smoke' })"
+	fEcho_Clean "Tests .......: $(if ($NoBuild) { '(skipped)' } else { 'meson test suite + --version smoke' })"
 	fEcho_Clean "Packages ....: $(if ($NoPack -or $NoBuild) { '(skipped)' } else { 'portable single-exe (Enigma Virtual Box)' })"
 	fEcho_Clean "Signing .....: $(if ($NoSign) { '(skipped)' } elseif (fSignConfigured) { 'Authenticode (configured)' } else { '(none configured)' })"
 	fEcho_Clean "Dogfood .....: $(if ($NoDogfood -or $NoBuild -or $NoPack) { '(skipped)' } else { $DogfoodExe })"
@@ -637,6 +647,7 @@ function fMain {
 		fSection "2  Debug build"
 		fBuild
 		fSection "3  Tests"
+		fTests
 		fSmoke -Exe (fPrepInPlaceSmoke) -RuntimeBin $MingwBin
 		fSection "4  Stage"
 		fStage
@@ -673,6 +684,7 @@ try {
 
 
 ##	History:
+##		- 2026-09-15: Stage 3 runs the meson suite ahead of the --version smoke.
 ##		- 2026-08-04: Optional Authenticode signing of the packed exe (stage 5, after
 ##		  pack), configured entirely by env (NEMO_SIGN_*); no-op/warn when unconfigured
 ##		  or signtool is absent, so unsigned dev builds still ship. -NoSign to skip.

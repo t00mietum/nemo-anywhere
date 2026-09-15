@@ -138,8 +138,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 	- Opened: 20260908-111526
 
-- 🔘 Real-Windows validation: the two paths still not exercised there.
+- 🔘 Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
+	- The Windows pipeline runs the full test suite before its smoke test now, but that has never run on a Windows box. The same suite had six failures and a timeout under wine.
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 

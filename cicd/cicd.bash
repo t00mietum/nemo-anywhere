@@ -52,7 +52,9 @@
 ##	                       refuses one by default)
 ##	   --shots             refresh README screenshots (off by default)
 ##	   --demo              re-record the demo video (off by default)
-##	   --quick             skip the slow stages (cross-builds + packages + profiling)
+##	   --quick             skip the slow stages: cross builds, packages, profiler,
+##	                       harness, screenshots, demo. The native build, the full
+##	                       test suite and dogfood still run.
 ##	   --gate              merge gate only: format-check + lints + tests, then exit
 ##	                       (fast local stand-in for hosted CI; the pre-push hook runs it)
 ## - Reuse: copy the cicd/ directory into another project and edit config.bash.
@@ -280,8 +282,8 @@ trap 'rc=$?; printf "\n[ CICD ABORTED (exit %s) at line %s: %s ]\n" "$rc" "$LINE
 
 ## Gate mode: the local merge gate (what a bare-bones hosted CI would run).
 ## format-check + lints + tests, fail-fast, no artifacts/log-tee/publish. Wired as
-## the pre-push hook for main/dev, so nothing reaches an integration branch
-## unverified even outside a full run. The test stage builds first, since there is
+## the pre-push hook for main, so nothing reaches the release branch unverified
+## even outside a full run. The test stage builds first, since there is
 ## no build stage here - so what is compiled is the working tree rather than the
 ## sha being pushed. Source tree untouched, build directory written to.
 if ((gate)); then

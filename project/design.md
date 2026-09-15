@@ -533,7 +533,9 @@ The one deliberate exception is a release-only workflow, `.github/workflows/rele
 
 - The merge gate is `cicd.bash --gate` running as the `pre-push` hook, for pushes to main only. A push to dev is not gated, since each chunk is built and tested before it is merged there. It is the local stand-in for a hosted CI workflow: lints, then a container build, then the test suite, then a headless launch smoke test. Install it per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
 
-- The Windows gate runs the same lints, build and smoke test, but not the suite yet.
+- The Windows gate runs the same lints, build and smoke test, but not the suite yet. A full Windows run does run the suite.
+
+- `--quick` skips the slow stages: the cross build, packages, the profiler, screenshots and the demo. The native build, the full suite and dogfood still run. On Windows `-Quick` changes nothing yet, since none of those run there.
 
 - The same hook blocks a push to main unless `source/meson.build` is a strict version increase over what is already there.
 
