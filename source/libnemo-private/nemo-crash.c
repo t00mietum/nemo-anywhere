@@ -18,6 +18,11 @@
    along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+/* For the register names in a signal context. */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <config.h>
 
 #include "nemo-crash.h"
@@ -48,6 +53,10 @@
 #include <unistd.h>
 #if HAVE_BACKTRACE
 #include <execinfo.h>
+#if defined (__linux__) && defined (__x86_64__)
+#include <ucontext.h>
+#define CRASH_STEP_BAD_JUMP 1
+#endif
 #endif
 #endif
 
@@ -63,10 +72,15 @@ static char report_path[CRASH_PATH_MAX];
 static char started_stamp[32];
 static gboolean installed = FALSE;
 
+/* The name the report really went under, which differs from report_path when
+   another run already has that one. */
+static char written_path[CRASH_PATH_MAX];
+
 #ifdef G_OS_WIN32
 static wchar_t report_parent_w[CRASH_PATH_MAX];
 static wchar_t report_dir_w[CRASH_PATH_MAX];
 static wchar_t report_path_w[CRASH_PATH_MAX];
+static wchar_t written_path_w[CRASH_PATH_MAX];
 #endif
 
 /* An empty value reads as unset, the way the rest of the tree treats one. */
@@ -111,13 +125,15 @@ build_paths (void)
 	name = g_strdup_printf ("crash-%s-%u.txt", stamp, pid);
 	path = g_build_filename (dir, name, NULL);
 
-	if (strlen (path) >= CRASH_PATH_MAX)
+	/* Room for the "-2" a clashing name gets. */
+	if (strlen (path) + 2 >= CRASH_PATH_MAX)
 		return FALSE;
 
 	g_strlcpy (started_stamp, stamp, sizeof started_stamp);
 	g_strlcpy (report_parent, parent, sizeof report_parent);
 	g_strlcpy (report_dir, dir, sizeof report_dir);
 	g_strlcpy (report_path, path, sizeof report_path);
+	g_strlcpy (written_path, path, sizeof written_path);
 
 #ifdef G_OS_WIN32
 	{
@@ -128,12 +144,13 @@ build_paths (void)
 		if (wparent == NULL || wdir == NULL || wpath == NULL)
 			return FALSE;
 
-		if (wcslen ((const wchar_t *) wpath) >= CRASH_PATH_MAX)
+		if (wcslen ((const wchar_t *) wpath) + 2 >= CRASH_PATH_MAX)
 			return FALSE;
 
 		wcscpy (report_parent_w, (const wchar_t *) wparent);
 		wcscpy (report_dir_w, (const wchar_t *) wdir);
 		wcscpy (report_path_w, (const wchar_t *) wpath);
+		wcscpy (written_path_w, (const wchar_t *) wpath);
 	}
 #endif
 
@@ -235,7 +252,35 @@ sweep_old_reports (void)
 /* Past here the program is already broken. Nothing below allocates, and on
    POSIX nothing below is outside what a signal handler may call. */
 
+/* Two runs that start in the same second can be handed the same process id.
+   The second one's report goes under "-2" and so on, rather than being lost. */
+static void
+number_written_path (gsize stem, char n)
+{
+	written_path[stem] = '-';
+	written_path[stem + 1] = n;
+	memcpy (written_path + stem + 2, ".txt", sizeof ".txt");
+}
+
 #ifndef G_OS_WIN32
+
+static int
+open_report (void)
+{
+	gsize stem = strlen (report_path) - strlen (".txt");
+	char n;
+
+	memcpy (written_path, report_path, strlen (report_path) + 1);
+
+	for (n = '2'; ; n++) {
+		int fd = open (written_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+
+		if (fd >= 0 || errno != EEXIST || n > '9')
+			return fd;
+
+		number_written_path (stem, n);
+	}
+}
 
 static void
 write_all (int fd, const char *s, size_t len)
@@ -298,12 +343,15 @@ signal_name (int sig)
 	}
 }
 
-/* si_addr only means an address for the faults. For an abort it carries
-   whoever sent the signal, which reads as a plausible code address and is not
-   one. */
+/* A fault the kernel raised, as opposed to the same signal sent by something.
+   Only the first has an address in si_addr; a sent one carries whoever sent
+   it there, which reads as a plausible code address and is not one. */
 static gboolean
-has_fault_address (int sig)
+is_real_fault (int sig, const siginfo_t *info)
 {
+	if (info == NULL || info->si_code <= 0)
+		return FALSE;
+
 	return sig == SIGSEGV || sig == SIGBUS || sig == SIGILL || sig == SIGFPE;
 }
 
@@ -319,7 +367,7 @@ write_header (int fd, int sig, const siginfo_t *info)
 	write_num (fd, (gsize) sig, 10);
 	write_str (fd, ")");
 
-	if (info != NULL && has_fault_address (sig)) {
+	if (is_real_fault (sig, info)) {
 		write_str (fd, " at 0x");
 		write_num (fd, (gsize) info->si_addr, 16);
 	}
@@ -328,6 +376,38 @@ write_header (int fd, int sig, const siginfo_t *info)
 	write_num (fd, (gsize) getpid (), 10);
 	write_str (fd, "\n\nstack (addr2line -e <module> <the bare +0x in parentheses>):\n");
 }
+
+#ifdef CRASH_STEP_BAD_JUMP
+
+/* A call through a null or freed pointer faults on arrival, at an address with
+   no unwind data, so the unwinder stops there after two frames. The caller's
+   return address is still on top of the stack, and the unwinder reads the
+   interrupted registers back out of this very context. Pointing them at the
+   caller for the length of the walk recovers the rest. */
+static gboolean
+step_past_bad_jump (int sig, const siginfo_t *info, ucontext_t *uc, greg_t saved[2])
+{
+	greg_t *regs = uc->uc_mcontext.gregs;
+
+	if (sig != SIGSEGV || !is_real_fault (sig, info))
+		return FALSE;
+
+	if ((greg_t) (gsize) info->si_addr != regs[REG_RIP])
+		return FALSE;
+
+	saved[0] = regs[REG_RIP];
+	saved[1] = regs[REG_RSP];
+
+	/* One byte back, inside the call. A signal frame's address is looked up
+	   as it stands, not as a return address, and a call that is the last
+	   thing in its function returns into the next one. */
+	regs[REG_RIP] = *(greg_t *) (gsize) regs[REG_RSP] - 1;
+	regs[REG_RSP] += 8;
+
+	return TRUE;
+}
+
+#endif
 
 static volatile gint handling = 0;
 
@@ -338,6 +418,10 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 	int n_frames = 0;
 	sigset_t unblock;
 	int fd;
+#ifdef CRASH_STEP_BAD_JUMP
+	greg_t saved[2];
+	gboolean stepped;
+#endif
 
 	(void) context;
 	(void) frames;
@@ -356,7 +440,7 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 	   are both allowed to fail: stderr still gets the report. */
 	mkdir (report_parent, DEFAULT_NEMO_DIRECTORY_MODE);
 	mkdir (report_dir, 0700);
-	fd = open (report_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
+	fd = open_report ();
 
 	/* Everything known for certain goes out before the stack is collected.
 	   Walking it is the part that can fault again, and a report that says
@@ -365,17 +449,27 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 
 	if (fd >= 0) {
 		write_str (STDERR_FILENO, "\nnemo-anywhere crashed. Report written to ");
-		write_str (STDERR_FILENO, report_path);
+		write_str (STDERR_FILENO, written_path);
 		write_str (STDERR_FILENO, "\n");
 	}
 
 	write_header (STDERR_FILENO, sig, info);
 
 #if HAVE_BACKTRACE
-	n_frames = backtrace (frames, CRASH_MAX_FRAMES);
+#ifdef CRASH_STEP_BAD_JUMP
+	stepped = step_past_bad_jump (sig, info, context, saved);
 #endif
 
-#if HAVE_BACKTRACE
+	n_frames = backtrace (frames, CRASH_MAX_FRAMES);
+
+#ifdef CRASH_STEP_BAD_JUMP
+	/* Put back before anything can return into it. */
+	if (stepped) {
+		((ucontext_t *) context)->uc_mcontext.gregs[REG_RIP] = saved[0];
+		((ucontext_t *) context)->uc_mcontext.gregs[REG_RSP] = saved[1];
+	}
+#endif
+
 	if (n_frames > 0) {
 		backtrace_symbols_fd (frames, n_frames, fd);
 		backtrace_symbols_fd (frames, n_frames, STDERR_FILENO);
@@ -389,10 +483,17 @@ crash_signal_handler (int sig, siginfo_t *info, void *context)
 	if (fd >= 0)
 		close (fd);
 
-	/* Hand the signal back, so a core file and an attached debugger still get
-	   one. The signal is blocked on the way in here, so it has to be unblocked
-	   or the raise below only marks it pending and the _exit wins. */
 	signal (sig, SIG_DFL);
+
+	/* A real fault happens again the moment this returns, now with no
+	   handler, so a core file and a debugger stop on the fault itself rather
+	   than in here. */
+	if (is_real_fault (sig, info))
+		return;
+
+	/* A sent signal has nothing to repeat it, so it is raised again. It is
+	   blocked on the way in here, so it has to be unblocked or the raise only
+	   marks it pending and the _exit wins. */
 	sigemptyset (&unblock);
 	sigaddset (&unblock, sig);
 	pthread_sigmask (SIG_UNBLOCK, &unblock, NULL);
@@ -442,6 +543,30 @@ install_posix (void)
 }
 
 #else /* G_OS_WIN32 */
+
+static HANDLE
+create_report (void)
+{
+	gsize stem = strlen (report_path) - strlen (".txt");
+	gsize stem_w = wcslen (report_path_w) - wcslen (L".txt");
+	char n;
+
+	memcpy (written_path, report_path, strlen (report_path) + 1);
+	wcscpy (written_path_w, report_path_w);
+
+	for (n = '2'; ; n++) {
+		HANDLE file = CreateFileW (written_path_w, GENERIC_WRITE, FILE_SHARE_READ,
+					   NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (file != INVALID_HANDLE_VALUE || GetLastError () != ERROR_FILE_EXISTS || n > '9')
+			return file;
+
+		number_written_path (stem, n);
+		written_path_w[stem_w] = L'-';
+		written_path_w[stem_w + 1] = (wchar_t) n;
+		wcscpy (written_path_w + stem_w + 2, L".txt");
+	}
+}
 
 /* The report is built once and written twice, so the unwind is not paid for
    again on the way to stderr. */
@@ -496,6 +621,14 @@ write_handle (HANDLE h, const char *s, gsize len)
 		return;
 
 	WriteFile (h, s, (DWORD) len, &written, NULL);
+}
+
+static void
+flush_report (HANDLE file)
+{
+	write_handle (file, report_text, report_len);
+	write_handle (GetStdHandle (STD_ERROR_HANDLE), report_text, report_len);
+	report_len = 0;
 }
 
 static const char *
@@ -560,11 +693,162 @@ preferred_base (DWORD64 loaded_base)
 
 #if defined (__x86_64__) || defined (_M_X64)
 
+enum {
+	UWOP_PUSH_NONVOL = 0,
+	UWOP_ALLOC_LARGE = 1,
+	UWOP_ALLOC_SMALL = 2,
+	UWOP_SET_FPREG = 3,
+	UWOP_SAVE_NONVOL = 4,
+	UWOP_SAVE_NONVOL_FAR = 5,
+	UWOP_SAVE_XMM128 = 8,
+	UWOP_SAVE_XMM128_FAR = 9,
+	UWOP_PUSH_MACHFRAME = 10,
+};
+
+static gboolean
+stack_readable (DWORD64 address, gsize len)
+{
+	return readable ((const void *) (UINT_PTR) address, len);
+}
+
+static DWORD64
+context_register (const CONTEXT *context, guint reg)
+{
+	static const gsize offsets[16] = {
+		G_STRUCT_OFFSET (CONTEXT, Rax), G_STRUCT_OFFSET (CONTEXT, Rcx),
+		G_STRUCT_OFFSET (CONTEXT, Rdx), G_STRUCT_OFFSET (CONTEXT, Rbx),
+		G_STRUCT_OFFSET (CONTEXT, Rsp), G_STRUCT_OFFSET (CONTEXT, Rbp),
+		G_STRUCT_OFFSET (CONTEXT, Rsi), G_STRUCT_OFFSET (CONTEXT, Rdi),
+		G_STRUCT_OFFSET (CONTEXT, R8),  G_STRUCT_OFFSET (CONTEXT, R9),
+		G_STRUCT_OFFSET (CONTEXT, R10), G_STRUCT_OFFSET (CONTEXT, R11),
+		G_STRUCT_OFFSET (CONTEXT, R12), G_STRUCT_OFFSET (CONTEXT, R13),
+		G_STRUCT_OFFSET (CONTEXT, R14), G_STRUCT_OFFSET (CONTEXT, R15),
+	};
+
+	return G_STRUCT_MEMBER (DWORD64, context, offsets[reg & 15]);
+}
+
+static guint
+unwind_code_slots (guint op, guint op_info)
+{
+	switch (op) {
+	case UWOP_ALLOC_LARGE:
+		return op_info == 0 ? 2 : 3;
+	case UWOP_SAVE_NONVOL:
+	case 6:
+	case UWOP_SAVE_XMM128:
+		return 2;
+	case UWOP_SAVE_NONVOL_FAR:
+	case 7:
+	case UWOP_SAVE_XMM128_FAR:
+		return 3;
+	default:
+		return 1;
+	}
+}
+
+/* RtlVirtualUnwind reads saved registers and the return address off the
+   frame with no checks of its own, and one wild read loses the rest of the
+   report. So the unwind codes are followed here first, reading nothing, and
+   each address the unwinder is about to read is checked. */
+static gboolean
+frame_readable (const CONTEXT *context, DWORD64 image_base, DWORD64 pc,
+		PRUNTIME_FUNCTION function)
+{
+	DWORD64 rsp = context->Rsp;
+	DWORD64 offset = pc - (image_base + function->BeginAddress);
+	int chain;
+
+	for (chain = 0; chain < 32; chain++) {
+		const BYTE *info = (const BYTE *) (UINT_PTR) (image_base + function->UnwindData);
+		const BYTE *code;
+		gboolean chained;
+		guint n_codes;
+		guint slots;
+		guint i;
+
+		if (!readable (info, 4))
+			return FALSE;
+
+		chained = ((info[0] >> 3) & UNW_FLAG_CHAININFO) != 0;
+		n_codes = info[2];
+		slots = (n_codes + 1) & ~1u;
+		code = info + 4;
+
+		if (!readable (info, 4 + 2 * (gsize) slots + (chained ? sizeof *function : 0)))
+			return FALSE;
+
+		for (i = 0; i < n_codes; ) {
+			guint op = code[2 * i + 1] & 0x0f;
+			guint op_info = code[2 * i + 1] >> 4;
+			guint word = i + 1 < n_codes ? code[2 * i + 2] | (code[2 * i + 3] << 8) : 0;
+			guint32 large = i + 2 < n_codes
+				? word | ((guint32) (code[2 * i + 4] | (code[2 * i + 5] << 8)) << 16)
+				: 0;
+			guint step = unwind_code_slots (op, op_info);
+
+			/* Still in the prolog, only what it has done so far is undone. */
+			if (offset < info[1] && code[2 * i] > offset) {
+				i += step;
+				continue;
+			}
+
+			switch (op) {
+			case UWOP_PUSH_NONVOL:
+				if (!stack_readable (rsp, 8))
+					return FALSE;
+				rsp += 8;
+				break;
+			case UWOP_ALLOC_LARGE:
+				rsp += op_info == 0 ? 8 * (DWORD64) word : large;
+				break;
+			case UWOP_ALLOC_SMALL:
+				rsp += 8 * (DWORD64) op_info + 8;
+				break;
+			case UWOP_SET_FPREG:
+				rsp = context_register (context, info[3] & 0x0f) - 16 * (DWORD64) (info[3] >> 4);
+				break;
+			case UWOP_SAVE_NONVOL:
+				if (!stack_readable (rsp + 8 * (DWORD64) word, 8))
+					return FALSE;
+				break;
+			case UWOP_SAVE_NONVOL_FAR:
+				if (!stack_readable (rsp + large,8))
+					return FALSE;
+				break;
+			case UWOP_SAVE_XMM128:
+				if (!stack_readable (rsp + 16 * (DWORD64) word, 16))
+					return FALSE;
+				break;
+			case UWOP_SAVE_XMM128_FAR:
+				if (!stack_readable (rsp + large,16))
+					return FALSE;
+				break;
+			case UWOP_PUSH_MACHFRAME:
+				/* The whole interrupted frame, return address included. */
+				return stack_readable (rsp + (op_info != 0 ? 8 : 0), 40);
+			default:
+				break;
+			}
+
+			i += step;
+		}
+
+		if (!chained)
+			break;
+
+		function = (PRUNTIME_FUNCTION) (code + 2 * slots);
+		offset = G_MAXUINT64;
+	}
+
+	return stack_readable (rsp, 8);
+}
+
 /* The OS unwinder, rather than dbghelp: StackWalk64 needs SymInitialize, which
    enumerates every loaded module under the loader lock. A crash under that lock
    is exactly the case this has to survive. */
 static void
-emit_stack (const CONTEXT *context)
+emit_stack (const CONTEXT *context, HANDLE file)
 {
 	static CONTEXT walk;
 	static UNWIND_HISTORY_TABLE history;
@@ -607,28 +891,42 @@ emit_stack (const CONTEXT *context)
 
 		emit_str ("\n");
 
+		/* A frame at a time, so a walk that faults anyway keeps what it had. */
+		flush_report (file);
+
 		if (function == NULL) {
 			/* A leaf, or a jump to an address with no code behind it at
 			   all - the commonest shape of a call through a freed object.
 			   Either way the return address is on top of the stack. */
-			if (!readable ((const void *) (UINT_PTR) walk.Rsp, sizeof (DWORD64)))
+			if (!stack_readable (walk.Rsp, 8)) {
+				emit_str ("  (the stack cannot be read past here)\n");
 				break;
+			}
 
 			walk.Rip = *(DWORD64 *) (UINT_PTR) walk.Rsp;
 			walk.Rsp += 8;
 		} else {
 			PVOID handler_data;
 			DWORD64 establisher;
+			DWORD64 before = walk.Rsp;
 
-			/* The unwinder reads saved registers off the frame, so a
-			   shredded stack pointer has to stop the walk here. */
-			if (!readable ((const void *) (UINT_PTR) walk.Rsp, sizeof (DWORD64)))
+			if (!frame_readable (&walk, image_base, probe, function)) {
+				emit_str ("  (the stack cannot be read past here)\n");
 				break;
+			}
 
 			/* The same address the lookup used, or the unwinder decides
 			   whether it is in an epilogue by reading the wrong function. */
 			RtlVirtualUnwind (UNW_FLAG_NHANDLER, image_base, probe, function,
 					  &walk, &handler_data, &establisher, NULL);
+
+			/* Every frame pops at least its return address. One that does
+			   not has unwind data leading back to itself, and would repeat
+			   to the end of the report. */
+			if (walk.Rsp <= before) {
+				emit_str ("  (the stack unwinds back into itself here)\n");
+				break;
+			}
 		}
 
 		if (walk.Rip == 0)
@@ -639,9 +937,10 @@ emit_stack (const CONTEXT *context)
 #else
 
 static void
-emit_stack (const CONTEXT *context)
+emit_stack (const CONTEXT *context, HANDLE file)
 {
 	(void) context;
+	(void) file;
 
 	emit_str ("stack:\n  not available in this build\n");
 }
@@ -651,14 +950,6 @@ emit_stack (const CONTEXT *context)
 static volatile gint handling = 0;
 static volatile DWORD reporting_thread = 0;
 static gboolean quiet = FALSE;
-
-static void
-flush_report (HANDLE file)
-{
-	write_handle (file, report_text, report_len);
-	write_handle (GetStdHandle (STD_ERROR_HANDLE), report_text, report_len);
-	report_len = 0;
-}
 
 static void
 report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
@@ -681,8 +972,7 @@ report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 	CreateDirectoryW (report_parent_w, NULL);
 	CreateDirectoryW (report_dir_w, NULL);
 
-	file = CreateFileW (report_path_w, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-			    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	file = create_report ();
 
 	/* Nothing reads stderr in a windowed build, but a console one and every
 	   test do. */
@@ -691,7 +981,7 @@ report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 		HANDLE err = GetStdHandle (STD_ERROR_HANDLE);
 
 		write_handle (err, wrote, sizeof wrote - 1);
-		write_handle (err, report_path, strlen (report_path));
+		write_handle (err, written_path, strlen (written_path));
 		write_handle (err, "\n", 1);
 	}
 
@@ -718,7 +1008,7 @@ report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 	   only what killed the program still beats no report. */
 	flush_report (file);
 
-	emit_stack (info->ContextRecord);
+	emit_stack (info->ContextRecord, file);
 	flush_report (file);
 
 	if (file != INVALID_HANDLE_VALUE)
@@ -735,12 +1025,12 @@ report_and_die (EXCEPTION_POINTERS *info, gboolean has_address)
 			_snwprintf (message, G_N_ELEMENTS (message) - 1,
 				    L"Nemo Anywhere stopped unexpectedly.\n\n"
 				    L"A report was written to:\n%ls",
-				    report_path_w);
+				    written_path_w);
 		} else {
 			_snwprintf (message, G_N_ELEMENTS (message) - 1,
 				    L"Nemo Anywhere stopped unexpectedly.\n\n"
 				    L"No report could be written to:\n%ls",
-				    report_path_w);
+				    written_path_w);
 		}
 		message[G_N_ELEMENTS (message) - 1] = L'\0';
 
