@@ -115,6 +115,7 @@ if tracker_enabled
 endif
 
 if is_windows
+  nemo_private_sources += 'nemo-delete-guard-win32.c'
   nemo_private_sources += 'nemo-search-engine-win32.c'
   nemo_private_sources += 'nemo-associations-win32.c'
   nemo_private_sources += 'nemo-launch-win32.c'

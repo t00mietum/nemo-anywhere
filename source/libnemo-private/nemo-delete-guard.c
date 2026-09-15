@@ -31,13 +31,36 @@
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 
+#include "nemo-delete-guard-win32.h"
 #include "nemo-dir-enum.h"
+#include "nemo-link-win32.h"
 
 /* Fewer than this taken from home is never a sweep, whatever the share. */
 #define SWEEP_MIN_ITEMS 5
 
 #define SETTLE_USEC G_USEC_PER_SEC
 #define FOCUSED_AT_KEY "nemo-delete-guard-focused-at"
+
+/* GLib calls a junction a folder even when told not to follow links, so on
+   Windows the directory entry is asked too. */
+static gboolean
+is_real_folder (GFile *file, GCancellable *cancellable)
+{
+	gboolean real;
+
+	real = g_file_query_file_type (file, G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable) == G_FILE_TYPE_DIRECTORY;
+
+#ifdef G_OS_WIN32
+	if (real) {
+		char *path = g_file_get_path (file);
+
+		real = path == NULL || nemo_win32_link_kind (path) == NEMO_LINK_NONE;
+		g_free (path);
+	}
+#endif
+
+	return real;
+}
 
 #ifndef G_OS_WIN32
 
@@ -184,33 +207,7 @@ dir_is_home (GFile *dir)
 
 #else /* G_OS_WIN32 */
 
-/* No inode numbers to go by, so it is the path, folded the way the file system
-   compares names. A volume mounted inside a folder is not caught. */
-static gboolean
-path_is_home (const char *path, gboolean or_above)
-{
-	char *canon, *mine, *home;
-	gsize len;
-	gboolean found;
-
-	canon = g_canonicalize_filename (path, NULL);
-	mine = g_utf8_casefold (canon, -1);
-	g_free (canon);
-
-	canon = g_canonicalize_filename (g_get_home_dir (), NULL);
-	home = g_utf8_casefold (canon, -1);
-	g_free (canon);
-
-	len = strlen (mine);
-	found = strcmp (mine, home) == 0 ||
-		(or_above && strncmp (home, mine, len) == 0 && G_IS_DIR_SEPARATOR (home[len]));
-
-	g_free (mine);
-	g_free (home);
-
-	return found;
-}
-
+/* A volume mounted inside a folder is not caught. */
 gboolean
 nemo_delete_guard_is_protected (GFile *file)
 {
@@ -218,7 +215,7 @@ nemo_delete_guard_is_protected (GFile *file)
 	const char *rest;
 	gboolean protected;
 
-	if (g_file_query_file_type (file, G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL) != G_FILE_TYPE_DIRECTORY) {
+	if (!is_real_folder (file, NULL)) {
 		return FALSE;
 	}
 
@@ -229,7 +226,7 @@ nemo_delete_guard_is_protected (GFile *file)
 
 	canon = g_canonicalize_filename (path, NULL);
 	rest = g_path_skip_root (canon);
-	protected = rest == NULL || *rest == '\0' || path_is_home (canon, TRUE);
+	protected = rest == NULL || *rest == '\0' || nemo_delete_guard_win32_is_home (canon, TRUE);
 
 	g_free (canon);
 	g_free (path);
@@ -244,7 +241,7 @@ dir_is_home (GFile *dir)
 	gboolean home;
 
 	path = g_file_get_path (dir);
-	home = path != NULL && path_is_home (path, FALSE);
+	home = path != NULL && nemo_delete_guard_win32_is_home (path, FALSE);
 	g_free (path);
 
 	return home;
@@ -283,7 +280,7 @@ nemo_delete_guard_remove_tree (GFile *file, GCancellable *cancellable)
 
 	/* NOFOLLOW on the enumerate covers the children only. Opening a link to a
 	   folder still lists what it points at, so only a real folder is walked. */
-	if (g_file_query_file_type (file, G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable) == G_FILE_TYPE_DIRECTORY) {
+	if (is_real_folder (file, cancellable)) {
 		children = nemo_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
 						    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 						    cancellable, NULL);
