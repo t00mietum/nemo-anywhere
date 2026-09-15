@@ -159,7 +159,9 @@ run_child (const char *how)
 		g_autofree char *dir = g_path_get_dirname (path);
 
 		g_mkdir_with_parents (dir, 0700);
-		g_file_set_contents (path, "placeholder", -1, NULL);
+		if (!g_file_set_contents (path, "placeholder", -1, NULL)) {
+			return 2;
+		}
 	}
 
 #ifndef G_OS_WIN32

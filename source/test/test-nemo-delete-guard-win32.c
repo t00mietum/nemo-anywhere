@@ -31,7 +31,7 @@ make_file (const char *dir, const char *name)
 {
 	char *path = g_build_filename (dir, name, NULL);
 
-	g_file_set_contents (path, "x", -1, NULL);
+	check (g_file_set_contents (path, "x", -1, NULL));
 	return path;
 }
 

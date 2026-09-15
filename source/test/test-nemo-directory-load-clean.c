@@ -97,7 +97,7 @@ main (int argc, char **argv)
 	}
 	for (i = 0; i < 8; i++) {
 		char *path = g_strdup_printf ("%s/file-%d.txt", tmp, i);
-		g_file_set_contents (path, "x\n", 2, NULL);
+		check (g_file_set_contents (path, "x\n", 2, NULL));
 		g_free (path);
 	}
 
