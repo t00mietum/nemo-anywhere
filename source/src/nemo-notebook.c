@@ -36,6 +36,7 @@
 
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <eel/eel-gtk-extensions.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
@@ -336,6 +337,7 @@ nemo_notebook_init (NemoNotebook *notebook)
 	gtk_notebook_set_scrollable (GTK_NOTEBOOK (notebook), TRUE);
 	gtk_notebook_set_show_border (GTK_NOTEBOOK (notebook), FALSE);
 	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (notebook), FALSE);
+	eel_gtk_notebook_keep_focus_off_tabs (GTK_NOTEBOOK (notebook));
 
 	g_signal_connect (notebook, "size-allocate",
 			  G_CALLBACK (notebook_size_allocate_cb), NULL);
