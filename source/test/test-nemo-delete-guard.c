@@ -12,6 +12,8 @@
 
 #include "libnemo-private/nemo-delete-guard.h"
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -127,7 +129,7 @@ main (int argc, char *argv[])
 	GList *list;
 	gint64 now;
 
-	root = g_dir_make_tmp ("nemo-guard-XXXXXX", NULL);
+	root = test_scratch_dir ("nemo-guard-XXXXXX", NULL);
 	home = make_dir (root, "home");
 	g_setenv ("HOME", home, TRUE);
 

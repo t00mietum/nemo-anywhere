@@ -151,9 +151,11 @@ cppcheck is scoped to the files a change touched, but it lints the whole of each
 
 New behavior arrives with a test. A fix arrives with a test that fails without the fix, and showing that it fails is part of the work.
 
-Tests live in `source/test/`. A POSIX-only test is registered under `if not is_windows` in `source/test/meson.build`, or it breaks the Windows cross build.
+Tests live in `source/test/`. A POSIX-only test is registered under `if not is_windows` in `source/test/meson.build`, or it breaks the Windows cross build. A Windows-only test is registered under `if is_windows`, and its source carries no stub for other platforms.
 
-A test that reads real user configuration is a test that fails on somebody else's machine. Point `HOME`, `APPDATA` and `XDG_CONFIG_HOME` at a throwaway directory first.
+Scratch directories come from `test_scratch_dir` in `test-scratch.h`, not `g_dir_make_tmp`. It takes the same arguments, and the directory is removed when the test exits.
+
+A test that reads real user configuration is a test that fails on somebody else's machine. Point `HOME`, `APPDATA` and `XDG_CONFIG_HOME` at a scratch directory first.
 
 The suite needs a display. `Xvfb :95 -screen 0 1280x900x24 &` then `DISPLAY=:95 meson test`. Without one, a good part of it fails on the missing display in ways that read like real assertion failures.
 

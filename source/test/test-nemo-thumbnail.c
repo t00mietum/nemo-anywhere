@@ -16,6 +16,8 @@
 #include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-desktop-thumbnail.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -279,7 +281,7 @@ main (int argc, char *argv[])
 			g_usleep (G_USEC_PER_SEC);
 	}
 
-	tmp = g_dir_make_tmp ("nemo-thumbnail-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-thumbnail-test-XXXXXX", NULL);
 
 	/* Set before any glib call that would cache the real ones. */
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);

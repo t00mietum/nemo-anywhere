@@ -16,6 +16,8 @@
 #include <libnemo-private/nemo-search-engine-advanced.h>
 #include <libnemo-private/nemo-query.h>
 
+#include "test-scratch.h"
+
 static int failures;
 static char *tmpdir;
 static gboolean search_done;
@@ -545,7 +547,7 @@ int
 main (int argc, char *argv[])
 {
 	GError *error = NULL;
-	char *scratch = g_dir_make_tmp ("nemo-helpers-home-XXXXXX", NULL);
+	char *scratch = test_scratch_dir ("nemo-helpers-home-XXXXXX", NULL);
 
 	/* Preferences and the user's helper folder both come off these. */
 	g_setenv ("HOME", scratch, TRUE);
@@ -558,7 +560,7 @@ main (int argc, char *argv[])
 	nemo_global_preferences_init ();
 	gsf_init ();
 
-	tmpdir = g_dir_make_tmp ("nemo-helpers-XXXXXX", &error);
+	tmpdir = test_scratch_dir ("nemo-helpers-XXXXXX", &error);
 	if (tmpdir == NULL) {
 		g_error ("no temp dir: %s", error->message);
 	}

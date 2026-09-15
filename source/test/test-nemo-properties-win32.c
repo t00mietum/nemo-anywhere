@@ -10,11 +10,11 @@
 #include <gio/gio.h>
 #include <glib/gstdio.h>
 
-#ifdef G_OS_WIN32
-
 #include <libnemo-private/nemo-file.h>
 
 #include "nemo-properties-win32.h"
+
+#include "test-scratch.h"
 
 static int failures = 0;
 
@@ -69,7 +69,7 @@ main (int argc, char *argv[])
 	const char *pair[2];
 	GList *files;
 
-	root = g_dir_make_tmp ("nemo-props-XXXXXX", NULL);
+	root = test_scratch_dir ("nemo-props-XXXXXX", NULL);
 	g_assert (root != NULL);
 
 	nest = g_build_filename (root, "nest", NULL);
@@ -149,15 +149,3 @@ main (int argc, char *argv[])
 
 	return EXIT_SUCCESS;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

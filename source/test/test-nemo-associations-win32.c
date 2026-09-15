@@ -9,6 +9,8 @@
 #include <libnemo-private/nemo-associations-win32.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
+#include "test-scratch.h"
+
 static int failures;
 
 static void
@@ -201,7 +203,7 @@ test_names (void)
 int
 main (int argc, char *argv[])
 {
-	char *scratch = g_dir_make_tmp ("nemo-assoc-home-XXXXXX", NULL);
+	char *scratch = test_scratch_dir ("nemo-assoc-home-XXXXXX", NULL);
 
 	g_setenv ("HOME", scratch, TRUE);
 	g_setenv ("APPDATA", scratch, TRUE);

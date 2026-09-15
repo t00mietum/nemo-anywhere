@@ -84,25 +84,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Linux reports one now, and a check covers it.
 	- Left: a run on a real Windows box. Stack overflow cannot be driven anywhere else, and the other Windows changes have not run there either.
 
-- 🔘 Run the test suite in the Windows pipeline.
+- 🛠️ Run the test suite in the Windows pipeline.
 	- Opened: 20260909-145927
 	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the Linux pipeline item was left open rather than guessed at.
 	- Blocked on there being nowhere to run it: neither Windows box holds a checkout at all, so nothing can be built or tested there as things stand.
 	- The cross build is not a stand-in. Run against the emulator the same suite gives six failures and a timeout, and the keyboard and parts of the shell do not behave there, so a green run would prove nothing and a red one would say nothing either.
-
-- 🔘 Searching through a search folder has no test.
-	- Opened: 20260909-152800
-	- Note: the demo that was removed drove one, but it asserted nothing, so no coverage was lost. Split from "Run the test suite in the Linux pipeline".
-
-- 🔘 Pick one way to leave Windows-only tests out of the Linux build.
-	- Opened: 20260909-154342
-	- Today eighteen are left out of the build entirely, three are built and report a skip, and eight carry a stub for the other platform, of which five are never compiled.
-	- Note: split from "Run the test suite in the Linux pipeline".
-
-- 🔘 Tests leave their scratch directories behind.
-	- Opened: 20260909-160500
-	- Every test that reads a preference points the home directory at a throwaway one, and the toolkit then writes its own cache in there. Nothing removes it, so one directory per test per run piles up - the build container is holding hundreds. Harmless until the suite started running on every push, which is what turned a slow drip into a steady one.
-	- Wants one shared cleanup the tests can call, not a recursive delete copied into each of them.
+	- The full Windows pipeline runs the suite before its smoke test now. Left: a first run on a Windows box, and the gate itself still runs only the smoke.
 
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615
@@ -1196,6 +1183,27 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Searching through a search folder has no test.
+	- Opened: 20260909-152800
+	- Closed: 20260915-150724
+	- Note: the demo that was removed drove one, but it asserted nothing, so no coverage was lost. Split from "Run the test suite in the Linux pipeline".
+	- A new check runs a search through a search folder the way a window does. It covers the hits, a reload that starts the list over, and hidden files following the preference.
+
+- ✅ Pick one way to leave Windows-only tests out of the Linux build.
+	- Opened: 20260909-154342
+	- Closed: 20260915-150724
+	- Today eighteen are left out of the build entirely, three are built and report a skip, and eight carry a stub for the other platform, of which five are never compiled.
+	- Note: split from "Run the test suite in the Linux pipeline".
+	- A Windows-only test is left out of the build on other platforms, and carries no stub. The three built-and-skipped ones are left out now, and the stubs are gone. The Linux suite reads 53 passed and none skipped.
+
+- ✅ Tests leave their scratch directories behind.
+	- Opened: 20260909-160500
+	- Closed: 20260915-150724
+	- Every test that reads a preference points the home directory at a throwaway one, and the toolkit then writes its own cache in there. Nothing removes it, so one directory per test per run piles up - the build container is holding hundreds. Harmless until the suite started running on every push, which is what turned a slow drip into a steady one.
+	- Wants one shared cleanup the tests can call, not a recursive delete copied into each of them.
+	- Every test makes its scratch directories through one helper, which removes them when the test exits. It only removes a directory it made, and never follows a link out of one.
+	- The Linux test run gets a temp directory of its own and fails if a test leaves anything in it.
 
 - ✅ Don't run CICD trigger on commit to dev.
 	- Opened: 20260914-182719

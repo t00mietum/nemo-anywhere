@@ -15,6 +15,8 @@
 #include <glib/gstdio.h>
 #include <stdlib.h>
 
+#include "test-scratch.h"
+
 #define COPY_TIMEOUT_SECONDS 20
 
 static int failures;
@@ -75,7 +77,7 @@ main (int argc, char *argv[])
 
 	how = (argc > 1) ? argv[1] : "keep";
 
-	tmp = g_dir_make_tmp ("nemo-link-job-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-link-job-XXXXXX", NULL);
 	src_dir = g_build_filename (tmp, "from", NULL);
 	dst_dir = g_build_filename (tmp, "to", NULL);
 	g_mkdir_with_parents (src_dir, 0700);

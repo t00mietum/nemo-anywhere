@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "test-scratch.h"
+
 #define EXTRACT_TIMEOUT_SECONDS 30
 
 static int failures;
@@ -239,7 +241,7 @@ main (int argc, char *argv[])
 
 	test_init (&argc, &argv);
 
-	tmp = g_dir_make_tmp ("nemo-extract-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-extract-test-XXXXXX", NULL);
 	archive_path = g_build_filename (tmp, "photos.zip", NULL);
 
 	write_test_zip (archive_path);

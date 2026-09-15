@@ -23,6 +23,8 @@
 
 #include <libnemo-private/nemo-dnd-win32.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -140,7 +142,7 @@ main (int argc, char *argv[])
 	IDataObject *data;
 	char **paths;
 
-	dir = g_dir_make_tmp ("nemo-dnd-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-dnd-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	one = g_build_filename (dir, "one.txt", NULL);

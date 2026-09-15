@@ -1,6 +1,6 @@
 /* Exercises Windows .lnk shortcut creation (nemo_shortcut_win32_create): make a
  * shortcut to a real file, then load it back through the shell IShellLinkW to
- * confirm the stored target round-trips. Windows-only; Linux compiles it out. */
+ * confirm the stored target round-trips. Windows-only. */
 
 #include <config.h>
 
@@ -9,8 +9,6 @@
 #include <gio/gio.h>
 #include <glib/gstdio.h>
 
-#ifdef G_OS_WIN32
-
 #include <libnemo-private/nemo-shortcut-win32.h>
 #include <libnemo-private/nemo-link-win32.h>
 
@@ -18,6 +16,8 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <objidl.h>
+
+#include "test-scratch.h"
 
 static int failures = 0;
 
@@ -213,7 +213,7 @@ main (int argc, char *argv[])
 	GError *error = NULL;
 	gboolean ok;
 
-	dir = g_dir_make_tmp ("nemo-lnk-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-lnk-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	target = g_build_filename (dir, "target.txt", NULL);
@@ -485,15 +485,3 @@ main (int argc, char *argv[])
 	}
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

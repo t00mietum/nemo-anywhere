@@ -7,6 +7,8 @@
 #include <glib/gstdio.h>
 #include <stdlib.h>
 
+#include "test-scratch.h"
+
 /* Sources and destination are built here rather than taken from the command
  * line: with no arguments this used to print a usage line and fail, and with
  * arguments it asserted nothing - the copy could do anything at all and the
@@ -67,7 +69,7 @@ main (int argc, char* argv[])
 
 	test_init (&argc, &argv);
 
-	tmp = g_dir_make_tmp ("nemo-copy-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-copy-test-XXXXXX", NULL);
 	src_dir = g_build_filename (tmp, "from", NULL);
 	dst_dir = g_build_filename (tmp, "to", NULL);
 	g_mkdir_with_parents (src_dir, 0700);

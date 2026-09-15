@@ -18,6 +18,8 @@
 #include <libnemo-private/nemo-favorite-vfs-file-enumerator.h>
 #include <libnemo-private/nemo-desktop-thumbnail.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -440,7 +442,7 @@ main (int argc, char *argv[])
 	char *tmp;
 	NemoFavorites *favorites;
 
-	tmp = g_dir_make_tmp ("nemo-favorites-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-favorites-test-XXXXXX", NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
 	g_setenv ("HOME", tmp, TRUE);
 

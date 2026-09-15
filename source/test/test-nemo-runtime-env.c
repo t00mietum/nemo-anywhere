@@ -13,6 +13,8 @@
 
 #include <string.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -98,7 +100,7 @@ main (int argc, char *argv[])
 		return report ();
 	}
 
-	tmp = g_dir_make_tmp ("nemo-runtime-env-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-runtime-env-XXXXXX", NULL);
 	g_assert_nonnull (tmp);
 
 	bin = g_build_filename (tmp, "bin", NULL);

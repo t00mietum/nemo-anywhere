@@ -2,15 +2,13 @@
  * and "Open in Terminal". Both build a command line that the target process
  * re-splits under MSVCRT rules, and neither can be driven unattended - one puts
  * up a UAC prompt, the other opens a console - so the quoting is checked here
- * instead. Windows-only; the Linux build compiles it out. */
+ * instead. Windows-only. */
 
 #include <config.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
-
-#ifdef G_OS_WIN32
 
 #include <src/nemo-view-win32.h>
 
@@ -116,15 +114,3 @@ main (int argc, char *argv[])
 	}
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

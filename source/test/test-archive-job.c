@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "test-scratch.h"
+
 #define ARCHIVE_TIMEOUT_SECONDS 30
 
 static int failures;
@@ -307,7 +309,7 @@ main (int argc, char *argv[])
 
 	test_init (&argc, &argv);
 
-	tmp = g_dir_make_tmp ("nemo-archive-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-archive-test-XXXXXX", NULL);
 	source_dir = g_build_filename (tmp, "items", NULL);
 	sub_dir = g_build_filename (source_dir, "sub", NULL);
 	one_dir = g_build_filename (tmp, "one", NULL);

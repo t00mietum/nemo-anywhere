@@ -15,6 +15,8 @@
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -140,7 +142,7 @@ main (int argc, char *argv[])
 	char *scratch_config;
 	char *path;
 
-	dir = g_dir_make_tmp ("nemo-linkname-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-linkname-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	/* A test that reads the real config fails on somebody else's machine. */

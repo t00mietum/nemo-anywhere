@@ -12,6 +12,8 @@
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -110,14 +112,14 @@ main (int argc, char **argv)
 
 	/* Every test that could reach a preference points these at a throwaway
 	   directory first. */
-	scratch = g_dir_make_tmp ("nemo-dirmonitor-home-XXXXXX", NULL);
+	scratch = test_scratch_dir ("nemo-dirmonitor-home-XXXXXX", NULL);
 	g_setenv ("HOME", scratch, TRUE);
 	g_setenv ("APPDATA", scratch, TRUE);
 	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
 
 	gtk_init_check (&argc, &argv);
 
-	tmp = g_dir_make_tmp ("nemo-dirmonitor-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-dirmonitor-XXXXXX", NULL);
 	if (tmp == NULL) {
 		g_printerr ("FAIL could not make a temp dir\n");
 		g_free (scratch);

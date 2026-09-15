@@ -9,6 +9,8 @@
 #include <libnemo-private/nemo-shell-icon-win32.h>
 #include <libnemo-private/nemo-shortcut-win32.h>
 
+#include "test-scratch.h"
+
 static int failures;
 
 static void
@@ -66,7 +68,7 @@ main (int argc, char *argv[])
 
 	gtk_init_check (&argc, &argv);
 
-	dir = g_dir_make_tmp ("nemo-shell-icon-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-shell-icon-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	folder = g_build_filename (dir, "a folder", NULL);

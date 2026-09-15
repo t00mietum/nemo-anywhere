@@ -12,6 +12,8 @@
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 static int logged = 0;
 
@@ -83,7 +85,7 @@ main (int argc, char **argv)
 
 	gtk_init_check (&argc, &argv);
 
-	tmp = g_dir_make_tmp ("nemo-dirload-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-dirload-XXXXXX", NULL);
 	if (tmp == NULL) {
 		g_printerr ("FAIL could not make a temp dir\n");
 		return EXIT_FAILURE;
