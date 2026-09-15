@@ -64,7 +64,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🛠️ The standard .desktop launcher should be titled "Nemo Anywhere", not "File Manager".
 	- Opened: 20260914-173549
 	- The launchers this project installs already say Nemo Anywhere. The man page still named the Cinnamon file manager, and now names this one.
-	- The "File Manager" menu entry on the XFCE box is the desktop's own launcher for whatever file manager is preferred, which is set to the dogfood launcher. It is not a file this project ships.
+	- The "File Manager" menu entry on the XFCE box is the desktop's own launcher for whatever file manager is preferred, which is set to the dogfood launcher. It is not a file from this project.
 	- Left: whether to hide or shadow that desktop entry, or leave it.
 
 - 🔘 Make the crash reporter better.
