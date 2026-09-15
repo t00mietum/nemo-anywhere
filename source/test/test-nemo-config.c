@@ -453,6 +453,12 @@ main (int argc, char *argv[])
 
 	gtk_init (&argc, &argv);
 
+	/* GDK itself logs criticals with no monitor, and those would be fatal. */
+	if (gdk_display_get_n_monitors (gdk_display_get_default ()) == 0) {
+		g_print ("SKIP: no monitor\n");
+		return 77;
+	}
+
 	/* Several checks below assert that a misuse is refused. Without this a
 	   critical is just printed and the test carries on reporting a pass. */
 	g_log_set_always_fatal (G_LOG_LEVEL_CRITICAL);

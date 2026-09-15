@@ -159,7 +159,9 @@ run_child (const char *how)
 		g_autofree char *dir = g_path_get_dirname (path);
 
 		g_mkdir_with_parents (dir, 0700);
-		g_file_set_contents (path, "placeholder", -1, NULL);
+		if (!g_file_set_contents (path, "placeholder", -1, NULL)) {
+			return 2;
+		}
 	}
 
 #ifndef G_OS_WIN32
@@ -230,7 +232,6 @@ run_crashing_child (const char *self, const char *config_root, const char *how,
 	g_auto (GStrv) envp = NULL;
 	g_autofree char *output = NULL;
 	char *argv[3];
-	char *newline;
 
 	envp = g_get_environ ();
 	envp = g_environ_setenv (envp, "XDG_CONFIG_HOME", config_root, TRUE);
@@ -257,11 +258,9 @@ run_crashing_child (const char *self, const char *config_root, const char *how,
 		return result;
 	}
 
+	/* A Windows child's stdout is text mode, so the line ends in \r\n. */
 	result.report_path = g_strdup (output != NULL ? output : "");
-	newline = strchr (result.report_path, '\n');
-	if (newline != NULL) {
-		*newline = '\0';
-	}
+	result.report_path[strcspn (result.report_path, "\r\n")] = '\0';
 
 	return result;
 }

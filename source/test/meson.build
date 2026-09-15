@@ -161,6 +161,17 @@ test('Search invalid regex test',
   args: []
 )
 
+if is_windows
+  test('Delete guard win32 test',
+    executable('test-nemo-delete-guard-win32',
+      [ 'test-nemo-delete-guard-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
+    ),
+    args: []
+  )
+endif
+
 test('Treeview hit test',
   executable('test-eel-treeview-hit',
     [ 'test-eel-treeview-hit.c' ],
