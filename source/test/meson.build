@@ -142,6 +142,15 @@ test('Treeview hit test',
   args: []
 )
 
+test('Focus guard test',
+  executable('test-eel-focus-guard',
+    [ 'test-eel-focus-guard.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Entry context menu test',
   executable('test-nemo-entry-menu',
     [ 'test-nemo-entry-menu.c' ],

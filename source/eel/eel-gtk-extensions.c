@@ -522,3 +522,76 @@ eel_gtk_get_treeview_row_text_is_under_pointer (GtkTreeView *tree_view)
     // be accurate, so the user knows.
     return TRUE;
 }
+
+static void
+refuse_focus_cb (GtkWidget  *widget,
+                 GParamSpec *pspec,
+                 gpointer    user_data)
+{
+    if (gtk_widget_get_can_focus (widget)) {
+        gtk_widget_set_can_focus (widget, FALSE);
+    }
+}
+
+// GTK turns a column header's can-focus back on whenever the column's title or
+// sort arrow changes, so turning it off once does not stick.
+void
+eel_gtk_widget_refuse_focus (GtkWidget *widget)
+{
+    gtk_widget_set_can_focus (widget, FALSE);
+
+    if (g_signal_handler_find (widget, G_SIGNAL_MATCH_FUNC, 0, 0, NULL, refuse_focus_cb, NULL) == 0) {
+        g_signal_connect (widget, "notify::can-focus", G_CALLBACK (refuse_focus_cb), NULL);
+    }
+}
+
+static GtkWidget *
+current_page (GtkNotebook *notebook)
+{
+    return gtk_notebook_get_nth_page (notebook, gtk_notebook_get_current_page (notebook));
+}
+
+static gboolean
+notebook_focus_cb (GtkWidget        *notebook,
+                   GtkDirectionType  direction,
+                   gpointer          user_data)
+{
+    GtkWidget *page = current_page (GTK_NOTEBOOK (notebook));
+
+    // The notebook's own handler would stop on the tabs on the way in or out.
+    g_signal_stop_emission_by_name (notebook, "focus");
+
+    return page != NULL && gtk_widget_child_focus (page, direction);
+}
+
+static void
+notebook_grab_focus_cb (GtkWidget *notebook,
+                        gpointer   user_data)
+{
+    GtkWidget *page = current_page (GTK_NOTEBOOK (notebook));
+    GtkWidget *toplevel, *focus = NULL;
+
+    g_signal_stop_emission_by_name (notebook, "grab-focus");
+
+    if (page == NULL) {
+        return;
+    }
+
+    toplevel = gtk_widget_get_toplevel (notebook);
+    if (GTK_IS_WINDOW (toplevel)) {
+        focus = gtk_window_get_focus (GTK_WINDOW (toplevel));
+    }
+
+    if (focus == NULL || !gtk_widget_is_ancestor (focus, page)) {
+        gtk_widget_child_focus (page, GTK_DIR_TAB_FORWARD);
+    }
+}
+
+// Keyboard focus passes through to the page, and a click on a tab puts it there
+// too. Action widgets are not handled, since nothing here uses them.
+void
+eel_gtk_notebook_keep_focus_off_tabs (GtkNotebook *notebook)
+{
+    g_signal_connect (notebook, "focus", G_CALLBACK (notebook_focus_cb), NULL);
+    g_signal_connect (notebook, "grab-focus", G_CALLBACK (notebook_grab_focus_cb), NULL);
+}

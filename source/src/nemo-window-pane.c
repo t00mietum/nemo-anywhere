@@ -215,6 +215,19 @@ navigation_bar_cancel_callback (GtkWidget *widget,
 				NemoWindowPane *pane)
 {
 	GtkAction *location;
+	GtkWidget *focus;
+
+	/* Hand the focus back before the entry goes. The stack holding it would
+	   pass the focus to the first path button, and the entry's focus-out would
+	   forget where to return it. */
+	focus = gtk_window_get_focus (GTK_WINDOW (pane->window));
+	if (focus != NULL && gtk_widget_is_ancestor (focus, pane->location_bar)) {
+		if (pane->last_focus_widget != NULL) {
+			restore_focus_widget (pane);
+		} else {
+			nemo_window_pane_grab_focus (pane);
+		}
+	}
 
     location = gtk_action_group_get_action (pane->action_group,
                           NEMO_ACTION_TOGGLE_LOCATION);

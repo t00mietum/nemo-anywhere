@@ -43,10 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 "Focus" can never be on a column, nor a tab.
-	- Opened: 20260914-173549
-	- If focus would have fallen to a column or tab (e.g. as a result of editable path turning into breadcrumb), move it to the main file/folder interface instead.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -225,6 +221,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ "Focus" can never be on a column, nor a tab.
+	- Opened: 20260914-173549
+	- Closed: 20260915-131006
+	- If focus would have fallen to a column or tab (e.g. as a result of editable path turning into breadcrumb), move it to the main file/folder interface instead.
+	- Clicking a column heading left the keyboard on the heading, and clicking a tab left it on the tab. Closing the path entry left it on a path button. The arrow keys then did nothing to the file list.
+	- Headings and tabs never take the keyboard now. A click on either puts it in the file list, and so does closing the path entry.
+	- Tab and Shift+Tab go through the tab strip without stopping on it.
 
 - ✅ A home folder was deleted again, with no dialog, soon after a copy of the app was opened by accident. The guards added after the first time were not enough.
 	- Opened: 20260914-110000

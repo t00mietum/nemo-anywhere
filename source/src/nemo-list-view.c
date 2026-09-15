@@ -2371,6 +2371,10 @@ column_header_clicked (GtkWidget *column_button,
     GtkWidget *menu;
     GtkWidget *menu_item;
 
+	/* The header never takes the focus, so a click that left it in the path
+	   entry or the sidebar would sort one list and type into another. */
+	nemo_view_grab_focus (NEMO_VIEW (list_view));
+
 	if (event->button != GDK_BUTTON_SECONDARY) {
 		return FALSE;
 	}
@@ -3882,6 +3886,7 @@ create_and_set_up_tree_view (NemoListView *view)
                               "button-press-event",
                               G_CALLBACK (column_header_clicked),
                               view);
+            eel_gtk_widget_refuse_focus (gtk_tree_view_column_get_button (view->details->file_name_column));
 
 			gtk_tree_view_set_search_column (view->details->tree_view, column_num);
 
@@ -3983,6 +3988,7 @@ create_and_set_up_tree_view (NemoListView *view)
                               "button-press-event",
                               G_CALLBACK (column_header_clicked),
                               view);
+            eel_gtk_widget_refuse_focus (gtk_tree_view_column_get_button (column));
 
 			gtk_tree_view_column_set_resizable (column, TRUE);
             gtk_tree_view_column_set_reorderable (column, TRUE);
