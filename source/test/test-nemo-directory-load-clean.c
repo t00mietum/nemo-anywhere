@@ -83,7 +83,12 @@ main (int argc, char **argv)
 	guint timeout;
 	int i;
 
-	gtk_init_check (&argc, &argv);
+	/* With no monitor GDK logs criticals of its own, which this would count. */
+	if (gtk_init_check (&argc, &argv) &&
+	    gdk_display_get_n_monitors (gdk_display_get_default ()) == 0) {
+		g_print ("SKIP: no monitor\n");
+		return 77;
+	}
 
 	tmp = test_scratch_dir ("nemo-dirload-XXXXXX", NULL);
 	if (tmp == NULL) {

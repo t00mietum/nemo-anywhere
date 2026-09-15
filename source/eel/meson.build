@@ -44,5 +44,5 @@ test('Eel test',
     include_directories: [ rootInclude, ],
     install: false
   ),
-  args: ['--g-fatal-warnings', '--sm-disable']
+  args: ['--sm-disable']
 )

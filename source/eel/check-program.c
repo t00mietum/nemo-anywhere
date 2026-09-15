@@ -42,6 +42,15 @@ main (int argc, char *argv[])
 
 	gtk_init (&argc, &argv);
 
+	/* With no monitor, as over ssh or in a disconnected session on Windows,
+	   GDK warns from inside gtk_init. So warnings turn fatal only here, not
+	   through --g-fatal-warnings. */
+	if (gdk_display_get_n_monitors (gdk_display_get_default ()) == 0) {
+		g_print ("SKIP: no monitor\n");
+		return 77;
+	}
+	g_log_set_always_fatal (G_LOG_FATAL_MASK | G_LOG_LEVEL_WARNING | G_LOG_LEVEL_CRITICAL);
+
 	/* Run the checks for eel twice. */
 
 	eel_run_lib_self_checks ();

@@ -213,6 +213,12 @@ main (int argc, char *argv[])
 		return 77;
 	}
 
+	/* Over ssh on Windows a menu has nowhere to map. */
+	if (gdk_display_get_n_monitors (gdk_display_get_default ()) == 0) {
+		g_print ("SKIP: no monitor\n");
+		return 77;
+	}
+
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_default_size (GTK_WINDOW (window), 500, 60);
 
