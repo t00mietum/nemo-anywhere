@@ -382,7 +382,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified on Windows: eight right-clicks in a row, the menu up and staying up every time.
 
 - ✅ Dragging a file towards another application crashed the app, before it had even left the window.
-	- Opened: 20260828
+	- Opened: n/a
 	- Closed: 20260828-163000
 	- Reproduced: nothing to do with the other application. Any drag that passed over the empty space below the last row did it, which a drag out of the window does on its way.
 	- Cause: the toolkit is asked which row sits under the pointer. Past the last row it answers "none" without filling in the row it was handed, and that leftover value was then read and released.
@@ -1519,7 +1519,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: a program is shown under its own description (Notepad, VSCodium), the way Explorer names it.
 
 - ✅ Bookmarks are kept in the toolkit's own file, not ours.
-	- Opened: 20260828
+	- Opened: 20260828-133604
 	- Closed: 20260829-090000
 	- Only relevant on Windows. The toolkit's file sits in the local profile while the settings are in the roaming one, so a roaming profile carried the settings and left the bookmarks behind.
 	- Fixed: on Windows the list lives beside the settings. A list an older version kept in the toolkit's file is copied across the first time, and a reset clears both so the old list cannot come back.
@@ -1543,21 +1543,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - ✅ New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 	- Opened: 20260730-112038
-	- Closed: 20260828
+	- Closed: 20260828-133604
 	- Every stored setting is dropped and the settings file itself is removed, so anything hand-written that nemo does not recognize goes too. Bookmarks and their side file go with it.
 	- It refuses while a copy is running, and says so. That copy holds the settings in memory and would write them straight back.
 	- The first-run marker is cleared along with everything else, so the next start puts the platform defaults back.
 
 - ✅ If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
 	- Opened: 20260722-172504
-	- Closed: 20260828
+	- Closed: 20260828-133604
 	- On the first start the drive root and the user's own folders go in, taken from what Windows reports rather than spelled out, so a machine on another drive or in another language gets the right names.
 	- A bookmark that can only be a path from a POSIX machine is dropped, and so is any setting whose value is one. A set someone already curated on Windows is kept rather than replaced - that matters for anyone upgrading from a build without the marker.
 	- Marked by `state.first-run-done` in the settings file. Clearing that line by hand puts the defaults back on the next start.
 
 - ✅ Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
 	- Opened: 20260722-201512
-	- Closed: 20260828
+	- Closed: 20260828-133604
 	- `~` at the start, and `%NAME%` or `$NAME` anywhere. Both variable spellings work on both platforms so a path can be carried between them.
 	- The literal text still wins: a folder really named with a `%` in it opens as itself, and only a name that is actually set in the environment is ever substituted. Verified both ways.
 	- Reaches the location bar, the bookmark editor and the command line.
