@@ -37,7 +37,7 @@ Statii:
 
 - 🚫 Canceled
 
-Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` date once it is complete or canceled. Format is `YYYYmmDD-HHMMSS`. An item opened and closed on the same day records its open date as `n/a`.
+Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` date once it is complete or canceled. Format is `YYYYmmDD-HHMMSS`. `Opened: n/a` means the open date is not known.
 
 ## Backlog
 
@@ -66,6 +66,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Features and enhancements
 
 - 🔘 Don't run CICD trigger on commit to dev.
+	- Opened: 20260914-182719
 
 - 🔘 The standard .desktop launcher should be titled "Nemo Anywhere", not "File Manager".
 	- Opened: 20260914-173549
@@ -226,7 +227,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 #### Done - Bugs
 
 - ✅ A home folder was deleted again, with no dialog, soon after a copy of the app was opened by accident. The guards added after the first time were not enough.
-	- Opened: 20260914
+	- Opened: 20260914-110000
 	- Closed: 20260914-121200
 	- Nothing in the window was used but About. What removed the files is not known. The app's own log, which could have said, was in the home folder that went.
 	- Home, any folder above it, and a folder where a drive or share is mounted are never removed now, however the job came about. A delete that reaches a mount on its way through a folder stops there.
@@ -381,7 +382,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified on Windows: eight right-clicks in a row, the menu up and staying up every time.
 
 - ✅ Dragging a file towards another application crashed the app, before it had even left the window.
-	- Opened: 20260828
+	- Opened: n/a
 	- Closed: 20260828-163000
 	- Reproduced: nothing to do with the other application. Any drag that passed over the empty space below the last row did it, which a drag out of the window does on its way.
 	- Cause: the toolkit is asked which row sits under the pointer. Past the last row it answers "none" without filling in the row it was handed, and that leftover value was then read and released.
@@ -490,14 +491,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: the config parser itself was never affected - it treats a carriage return as whitespace. Only the check's own reader did.
 
 - ✅ In dark mode the breadcrumb bar and the checked view buttons kept a light background, unreadable against everything around them.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-141014
 	- Cause: a bundled theme is loaded as a stylesheet of our own, but the theme *name* was left pointing at it. GTK cannot resolve a name it has never seen on disk, falls back to its packaged sheet, and drops the dark half while doing so - so the layer under ours was the light one. Anything our sheet did not itself paint showed it through.
 	- Fixed: the name now points at a theme GTK really has, so the base follows light/dark while our sheet sits on top. Verified against both the light and the dark base.
 	- Also fixed alongside: choosing a theme that cannot be found left the previous one on screen, so a bad name looked like nothing had happened.
 
 - ✅ The three view buttons at the bottom left drew as broken-image placeholders.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-141014
 	- Cause: none of the app's own artwork was in the Windows bundle at all. Only the toolkit's icons were packaged, so every one of our own icon names missed - the location button in the toolbar was the same failure.
 	- Fixed: the app's artwork now rides inside the executable, the same way the bundled themes do. Costs no extra files, so nothing is added to startup time, and it works on every platform including a relocated install.
@@ -509,7 +510,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed: where a light/dark pair is named, the pair wins and the redundant sheet is dropped. A theme that states which modes it suits is no longer second-guessed either, so a hand-dropped theme cannot bring the fault back.
 
 - ✅ On Windows a drive root is named `\` everywhere except the sidebar - the window title reads `\` and the breadcrumb reads `(C:) Windows` while the sidebar has `Windows (C:)`. Seen on this box browsing `C:\`.
-	- Opened: n/a
+	- Opened: 20260818-142740
 	- Closed: 20260818-155550
 	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
 	- Three different sources were in play: the basename, which is `\` for every drive alike; the volume monitor, which says `(C:) Windows`; and the sidebar's own string.
@@ -1175,7 +1176,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed: folders always report the folder type, never guessed.
 
 - ✅ Portable fallbacks for the remaining Mint-flavored theme icon names.
-	- Opened: n/a
+	- Opened: 20260719-190803
 	- Closed: 20260725-153058
 	- Cause: menus and toolbars referenced icon names only Mint themes ship. Pre-existing gap on non-Mint, cosmetic only.
 	- Fixed: all names mapped to standard freedesktop names (mostly a straight prefix strip; the non-standard ones got closest equivalents).
@@ -1518,7 +1519,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: a program is shown under its own description (Notepad, VSCodium), the way Explorer names it.
 
 - ✅ Bookmarks are kept in the toolkit's own file, not ours.
-	- Opened: 20260828
+	- Opened: 20260828-133604
 	- Closed: 20260829-090000
 	- Only relevant on Windows. The toolkit's file sits in the local profile while the settings are in the roaming one, so a roaming profile carried the settings and left the bookmarks behind.
 	- Fixed: on Windows the list lives beside the settings. A list an older version kept in the toolkit's file is copied across the first time, and a reset clears both so the old list cannot come back.
@@ -1542,21 +1543,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - ✅ New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
 	- Opened: 20260730-112038
-	- Closed: 20260828
+	- Closed: 20260828-133604
 	- Every stored setting is dropped and the settings file itself is removed, so anything hand-written that nemo does not recognize goes too. Bookmarks and their side file go with it.
 	- It refuses while a copy is running, and says so. That copy holds the settings in memory and would write them straight back.
 	- The first-run marker is cleared along with everything else, so the next start puts the platform defaults back.
 
 - ✅ If the Windows version has never run before, the bookmarks should be cleared, and populated with only the main Windows defaults. (C:\, Desktop, Documents, Downloads, Pictures, Videos, AppData). Also, all linux-specific settings and bookmarks should be cleared on first startup.
 	- Opened: 20260722-172504
-	- Closed: 20260828
+	- Closed: 20260828-133604
 	- On the first start the drive root and the user's own folders go in, taken from what Windows reports rather than spelled out, so a machine on another drive or in another language gets the right names.
 	- A bookmark that can only be a path from a POSIX machine is dropped, and so is any setting whose value is one. A set someone already curated on Windows is kept rather than replaced - that matters for anyone upgrading from a build without the marker.
 	- Marked by `state.first-run-done` in the settings file. Clearing that line by hand puts the defaults back on the next start.
 
 - ✅ Allow '~' in bookmarks to specify home dir (only if at the start and unquoted).
 	- Opened: 20260722-201512
-	- Closed: 20260828
+	- Closed: 20260828-133604
 	- `~` at the start, and `%NAME%` or `$NAME` anywhere. Both variable spellings work on both platforms so a path can be carried between them.
 	- The literal text still wins: a folder really named with a `%` in it opens as itself, and only a name that is actually set in the environment is ever substituted. Verified both ways.
 	- Reaches the location bar, the bookmark editor and the command line.
@@ -1687,7 +1688,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260827-110000
 
 - ✅ Build timestamps come from the commit being built, not the clock, so a release can be reproduced.
-	- Opened: n/a
+	- Opened: 20260826-115717
 	- Closed: 20260826-152000
 	- The Windows exe was the one that really varied: the linker writes a timestamp into the PE header, and two clean builds of the same commit differed in exactly those four bytes. Everything else was already close.
 	- Every lane now sets `SOURCE_DATE_EPOCH` to the commit date and hands it to whatever stamps a time. `zip` has no notion of it, so the staged tree gets the date set on disk and is packed in sorted order; `tar` is told explicitly; the rpm spec has to ask for it before rpm will read it.
@@ -1696,7 +1697,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not covered, and cannot be: a signed exe, since the countersignature carries the real time of signing.
 
 - ✅ Windows: two kinds of hidden file, two options.
-	- Opened: n/a
+	- Opened: 20260823-140628
 	- Closed: 20260823-142431
 	- Supersedes the older item that asked for the same thing as one combined switch.
 	- The premise turned out to be worse than described: Windows reports only its own hidden attribute, so dot-files were shown there whatever the setting said. Same for names ending in a tilde, which count as backups elsewhere.
@@ -1705,7 +1706,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Flipping either one re-reads the open folder, so an edit to the settings file shows up without a restart.
 
 - ✅ Windows: choose which separator paths are shown with.
-	- Opened: n/a
+	- Opened: 20260823-140628
 	- Closed: 20260823-144331
 	- A "Paths" group on the Display page of Preferences, shown only on Windows: "Show separator as" picks `\` or `/`, and a checkbox below it accepts or refuses `/` in a typed location.
 	- The checkbox is ticked and grayed out while `/` is the separator on screen, since refusing what is being shown would make no sense.
@@ -1715,14 +1716,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also fixed on the way past: the preferences dialog named a widget in a size group that no longer exists, so loading it stopped early and silently. Only an unused list model came after the break, which is why nothing looked wrong.
 
 - ✅ Windows: "Copy path as [\|/]".
-	- Opened: n/a
+	- Opened: 20260823-140628
 	- Closed: 20260823-145852
 	- A second clipboard item directly below the existing Copy Path one, spelling out whichever separator the paths are not currently shown with. It follows the same show/hide setting as the first, so the pair travels together.
 	- In all four places the first one appears: the Edit menu, the selection menu, the background menu and the breadcrumb menu. Hidden on every other platform.
 	- The existing Copy Path now follows the display setting too, so the pair is always "what you see" and "the other one". A remote location still contributes its uri untouched, since a uri's slashes were never separators.
 
 - ✅ Windows: "Open with Explorer", for a single selected entry.
-	- Opened: n/a
+	- Opened: 20260823-140628
 	- Closed: 20260823-145852
 	- On the selection menu, below Open With. Shown only when exactly one thing is selected and it has a local path, since a remote location gives Explorer nothing to open.
 	- A folder opens in Explorer; anything else is revealed and picked out inside its own folder.
@@ -1731,7 +1732,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Both routes verified. The item opens a window, so it sits behind `NEMO_PROBE_EXPLORER` rather than running on every pass of the suite.
 
 - ✅ Column widths and the Ext column, second pass. Overrides the earlier column rules where they disagree.
-	- Opened: n/a
+	- Opened: 20260823-130540
 	- Closed: 20260823-134341
 	- "File extension" is now just "Ext", and shows the extension without its leading dot. It sits directly right of Name, with Location next along whenever that is switched on.
 	- Location, on an ordinary folder listing, grows with Name rather than stopping at a share of it: the two split whatever the other columns leave and Name takes no more than half, so Location is never the narrower of the pair and anything Name does not need goes to Location. Dragging Location by hand ends that and pins the width, as it always did.
@@ -1742,12 +1743,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- All of it verified in the running app, the zoom case included.
 
 - ✅ The preferences dialog opens larger, and big enough for the Views page to fit without a scrollbar.
-	- Opened: n/a
+	- Opened: 20260823-130540
 	- Closed: 20260823-134341
 	- The height is measured from the page itself rather than fixed, so a different theme, font size or translation still fits, up to what the monitor has room for.
 
 - ✅ Ask before moving files to Trash defaults to on.
-	- Opened: n/a
+	- Opened: 20260823-130540
 	- Closed: 20260823-134341
 	- Already the default; confirmed rather than changed.
 
@@ -1772,7 +1773,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Both verified in the running app: the dragged ceiling survives narrow-then-wide, and the find-mode split holds at the adjusted ratio across sizes.
 
 - ✅ Properties on Windows opens the one Windows itself shows, instead of ours.
-	- Opened: n/a
+	- Opened: 20260821-180950
 	- Closed: 20260821-204030
 	- Alt+Enter, Ctrl+I and every Properties item now hand the selection to the shell's own sheet - the same one Explorer shows, third-party tabs included. Only Windows; Linux, BSD and macOS are untouched.
 	- Ours stays on a second item, "Advanced properties" (Ctrl+Enter), because the Windows sheet has nowhere to put a custom icon, an emblem, an annotation or the image details page. It is hidden everywhere else, where both items would open the same window.
@@ -1781,7 +1782,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified on Windows, and the fallback rule has checks of its own.
 
 - ✅ Every piece of text in the interface reads as a sentence, not as a headline - only the first word capitalised, and anything that is a name left alone.
-	- Opened: n/a
+	- Opened: 20260821-180950
 	- Closed: 20260821-211359
 	- Menus, buttons, tab and page titles, dialog titles, column headings, tooltips, preference labels, and the bundled actions. About 330 labels in all.
 	- A mnemonic stays where it was, so the underlined letter does not move; it is simply lower case now. Keyboard shortcut text is untouched.
@@ -1791,7 +1792,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The check found what a first pass by eye did not - the plural labels, where two spellings sit in one call, which is what had left "Copy Paths" and "Make Links" behind.
 
 - ✅ One setting for how much of the machine's CPU any compression may use, as a percentage of the cores it finds. Default 50% - the best balance on a hyperthreaded CPU.
-	- Opened: n/a
+	- Opened: 20260821-140715
 	- Closed: 20260821-144459
 	- `performance.cpu-percent`, global rather than per-format, so a later job that can be spread over cores reads the same number instead of inventing one of its own.
 	- Reaches the 7z and rar create lines through a `{{THREADS}}` marker of their own, and tar.xz through the library that writes it. Zip, gzip and the built-in 7z have no such option, so they are left alone rather than handed one they would refuse.
@@ -1800,7 +1801,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: each program is handed the switch it spells its own way.
 
 - ✅ Per-monitor DPI aware where the platform offers it, and DPI aware at minimum everywhere else.
-	- Opened: n/a
+	- Opened: 20260821-140715
 	- Closed: 20260821-150232
 	- The Windows executable now carries an application manifest, which is where this is declared and where Windows reads it before any of our code runs. Per-monitor v2 where it exists, per-monitor v1 and then system-wide on older builds.
 	- Without it the whole window was stretched as a bitmap on a scaled display - blurry - and a second monitor at a different scale could not be followed at all.
@@ -1810,14 +1811,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test. This box runs at 100%, so the fraction itself rests on arithmetic. It still needs a look on a scaled display.
 
 - ✅ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
-	- Opened: n/a
+	- Opened: 20260821-140715
 	- Closed: 20260821-150232
 	- Both views. A folder was already selected whole; a file now is too.
 	- `preferences.rename-selects-whole-name`, a file-only setting with no control in Preferences.
 	- Verified in the running window: F2 on a `.md` file opens the box with the suffix inside the selection.
 
 - ✅ List view columns use the window as it is resized, instead of being pushed off the end of it or leaving a gap.
-	- Opened: n/a
+	- Opened: 20260821-140715
 	- Closed: 20260821-153301
 	- Widening: columns take the new space until one can show the longest value in it, and then that one stops. Name is the only column that keeps growing without limit, so once everything else has what it needs the rest is Name's.
 	- Narrowing, which is the same thing read backwards: Name gives its surplus back first, having had all of it. When every column is down to the longest value it holds and it still does not fit, Type gives next, on its own, to about three characters - it is the one least missed that short, where a date or a size that short says nothing. Only then does everything else give ground together, each in proportion to how wide it is, Name included.
@@ -1830,7 +1831,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified at half a dozen widths on two folders, and the rule itself has a test of its own.
 
 - ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colors, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-160351
 	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
 	- Three new fetch shapes were needed: a repository that keeps one theme family per branch, six themes out of one sparse checkout, and two that ship the icons as a tar committed inside a repository of something else.
@@ -1838,16 +1839,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Three of the twelve carry no license file upstream and are shipped on weaker evidence than the rest. Each one is named, with what it rests on, in `vendor/README.md`. Check them before a release.
 
 - ✅ A gallery of every icon set in the README, four icons each on a light and a dark background, plus how to drop your own in. Rendered by `cicd/utility/icon-gallery.py`; re-run it when the set list changes.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-160351
 	- Each icon is rasterized on its own before being placed. Several sets color themselves through a stylesheet keyed on a class name they all spell the same way, so pasting their markup into one sheet made six differently colored sets come out identical - and renaming the classes apart made them all come out black.
 
 - ✅ `filesystem/` - a tree mirroring where things land on disk, so a folder can be copied straight across. Carries the icon and widget drop-in folders, what they are called on each platform, and the two optional `index.theme` keys that tell the picker which modes a theme suits.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-160351
 
 - ✅ Windows icon sets: one per Windows generation, all with yellow folders.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-145557
 	- Luna (XP) and Aero (7) were already ours; Metro (10) and Mica (11) are new, so every bundled Windows widget theme now has icons drawn to match it. The picker pairs them automatically.
 	- Folders are yellow in all four. Aero's were blue, which is not what Windows 7 shipped, and a yellow folder is the one color that reads on a light background and a dark one alike.
@@ -1856,38 +1857,38 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The vendored Fluent icon set is gone with them: it drew blue folders and looked nothing like Windows 11, and Mica now covers that style. The Fluent *widget* theme stays. About 390 KB and 179 files lighter.
 
 - ✅ Every bundled SVG run through a size pass: 2.1 MB of icon art down to 1.8 MB, and nemo's own artwork from 142 KB to 50 KB.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-145557
 	- Numbers in path data are rounded to a step finer than a two-thousandth of the icon, which is under a tenth of a pixel at any size one is drawn. Colors fold to their short form and unreferenced ids go.
 	- Multipliers - transform matrices, gradient vectors - are deliberately left alone: rounding a scale factor moves everything it touches, which is visible where rounding a coordinate is not.
 	- All 983 icons were compared before and after. One differs at all, by an amount invisible side by side. Checking caught a real fault first time round: an arc's two flags can be written with nothing between them, and reading path data as a plain run of numbers swallows one and silently reshapes the glyph.
 
 - ✅ Default settings changed: folder expanders on in list view, binary size prefixes (KiB/MiB), and thumbnail visibility inherited from the parent folder.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-141014
 
 - ✅ List columns trimmed to one row per idea.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-141014
 	- Three dates, the same three everywhere: Date Created, Date Modified (on by default) and Date Read. The "- Time" twins of the first two are gone; they showed the same instant a second way. The times themselves come from whatever each OS keeps them in, so nothing here is per-platform.
 	- MIME Type and Detailed Type are no longer offered - neither reads as anything but debug output beside the plain Type column. Off behind a named switch in the source rather than deleted, since the underlying values are still what the properties window and the sort menu use.
 
 - ✅ Appearance page: picking a Style now moves the Icons choice to match it, so a Windows 11 window frame no longer comes with macOS icons. Where a style has no icon set of its own the icons stay put. The note about drop-in theme folders sits further down the page, clear of the two pickers.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-141014
 
 - ✅ "System default" in both theme pickers now reads "Nemo Anywhere" - on the bundled targets it is the app's own look, not the platform's.
-	- Opened: n/a
+	- Opened: 20260819-124028
 	- Closed: 20260819-141014
 
 - ✅ Settings belong where each platform keeps them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS. Linux and BSD keep `~/.config`. Themes stay where they were.
-	- Opened: n/a
+	- Opened: 20260819-084600
 	- Closed: 20260819-105607
 	- A folder left in the old place is moved across on first run, so nobody starts from defaults.
 	- Covered by a test over both roots.
 
 - ✅ The Windows executable takes too long to start. 14.2s down to 3.4s, and the executable from 39.8 MB to 33.5 MB.
-	- Opened: n/a
+	- Opened: 20260819-084600
 	- Closed: 20260819-122828
 	- Measured first: the packed single exe reached even `--version` in 14.2s against 0.9s for the same build as a plain folder, and all of the difference is spent before our own code runs. The packer charges about 2.8 ms for every file it carries, and the bundled themes were a couple of thousand of them. The packer's own compression and mapping settings were measured and change nothing.
 	- The bundled themes now ride inside the executable as one compiled-in resource instead of ~2,200 loose files. The sysroot's full Adwaita and its legacy set - 2,693 files to answer the ~180 names we ask of them, plus 33 X11 cursors that do nothing on Windows - are replaced by our own trimmed copies. The whole folder went from 4,840 files to 152.
@@ -1898,7 +1899,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The remaining 2.5s over a plain-folder launch is the packer's own fixed cost and would need a different packer to reach.
 
 - ✅ Dimmer highlight of mouseover line. It can easily get confused with line selection.
-	- Opened: n/a
+	- Opened: 20260802-011216
 	- Closed: 20260802-015402
 	- The hover tint on a file-pane or tree row is dimmed to well under half what the theme sets, and only on rows that are not selected.
 
@@ -1919,7 +1920,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Label follows the count: "Copy Path" for one, "Copy Paths" for several. Show/hide checkboxes in Preferences like the other context-menu items.
 
 - ✅ Right-click "Compress...": a cross-platform way to archive the selected files and folders.
-	- Opened: n/a
+	- Opened: 20260819-170512
 	- Closed: 20260820-153813
 	- On the selection menu, the background menu (the folder being viewed) and a breadcrumb segment; also on the Edit menu.
 	- A dialog asks for the name, the format and the folder to put it in, prefilled from the selection and the folder being viewed. The name follows the format, so switching from zip to tar.xz swaps the suffix instead of stacking one on top of the other.
@@ -1937,7 +1938,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be cancelled, and a cancelled or failed run leaves no half-written archive behind.
 
 - ✅ The 7z and rar command lines are settings, not code, so a user can edit them.
-	- Opened: n/a
+	- Opened: 20260821-124844
 	- Closed: 20260821-133318
 	- Four lines in `settings.shcl` under `archive` - create and unpack, for each of the two programs - each with `{{PLACEHOLDER}}` markers for the parts the app fills in. Point one at a different build, add a switch we do not offer, or work around a version that spells something its own way.
 	- Every switch the Compress dialog can turn on has a marker of its own, so an edited line keeps the dialog working. Leave one out and the app says which control has gone quiet.
@@ -1946,7 +1947,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `{{LIKE_THIS}}` is now the convention for any setting that needs a placeholder. Braces because no shell or command prompt expands them, so a line can be pasted somewhere to try it out and come back unchanged.
 
 - ✅ Right-click "Extract" for the archive formats we recognize, including shelling out to 7z or rar.
-	- Opened: n/a
+	- Opened: 20260820-174223
 	- Closed: 20260821-064823
 	- Three items on the selection menu and the Edit menu, shown only when everything selected is an archive: "Extract Here", "Extract Each to Its Own Folder" (singular when one is selected) and "Extract To..." with a folder chooser. Show/hide them in Preferences like the other context-menu items.
 	- "Extract Here" unpacks exactly what the archive stores, so one made from a folder brings that folder with it and ends up in one place. The folder-each item is the answer to an archive that would otherwise scatter its contents over the folder being viewed.
@@ -1958,7 +1959,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Unpacking runs as a normal background job: it shows in the same progress popup as copying and can be cancelled.
 
 - ✅ Depend on Explorer as little as possible.
-	- Opened: n/a
+	- Opened: 20260818-144244
 	- Closed: 20260818-155550
 	- Audited every place the Windows build reaches into the shell. The only one that handed work to Explorer was a "show this file in the file manager" call, which asked Windows for the default handler for a folder - Explorer, by definition.
 	- It was already unreachable: the only caller sits behind a desktop-view check that went permanently false when the desktop shell was removed. On Windows it would also have been asking for a handler that Windows does not answer for - nothing is registered for a folder as a type.
@@ -2030,7 +2031,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Done: an Appearance page in settings with Light / Dark / Follow the system, plus style and icon pickers filtered to the mode in force. Picking one half of a light/dark pair follows the pair when the mode changes.
 
 - ✅ Config engine: settings + persistence moved to SHCL in a user-level `settings.shcl`; gconf/dconf and the Windows registry are out of the picture.
-	- Opened: n/a
+	- Opened: 20260718-170501
 	- Closed: 20260804-205711
 	- Done: GSettings replaced outright rather than kept over a SHCL backend, so no compiled schema is installed or shipped. All 168 settings, ~300 call sites, 84 change handlers and 16 property binds moved over.
 	- Done: the file holds only non-default values, carries each key's description as a comment, and is re-read while running so a hand-edit applies immediately.
@@ -2084,12 +2085,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- ✅ Local `signtool` signing scaffold in cicd-win stage 5 - env-driven, no-op until a cert is configured (fits a token/store cert: Certum OSS, Azure Trusted Signing, or a commercial EV).
 
 - ✅ Publish the Windows `.zip` alongside the single exe. `install.ps1` only ever looks for the contract-named zip, so on Windows the one-liner installer had nothing to fetch even though the release carried a working exe.
-	- Opened: n/a
+	- Opened: 20260804-133646
 	- Closed: 20260804-232326
 	- Done: `cicd/win/pack-zip.bash` builds it from the cross build, and it ships from `v1.0.0-beta2` on.
 
 - ✅ Don't continuously spam stdout/stderr with meaningless debug messages.
-	- Opened: n/a
+	- Opened: 20260802-011216
 	- Closed: 20260802-012711
 	- Cause: on Windows, any file type without a registry MIME mapping fell through a wildcard and got a doomed image-thumbnail attempt - two warnings per file, every folder browsed. A few one-shot startup notices added to the noise.
 	- Fixed: unknown types are no longer treated as thumbnailable, the image loader gets a real MIME type, and the per-file / startup notices are debug-level now (visible with G_MESSAGES_DEBUG when wanted).
@@ -2135,7 +2136,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed: initial directory is the user's home if it exists, falling back to the drive root, then C:\.
 
 - ✅ Installer script(s) - one-liner install from a shell, for every target.
-	- Opened: n/a
+	- Opened: 20260723-132307
 	- Closed: 20260723-133832
 	- Done: two standalone installers. The bash one covers Linux, BSD, WSL, and macOS; the PowerShell one covers all of those plus Windows.
 	- Done: both take channel, target, and architecture options; print the plan and wait for a yes; verify the download checksum before unpacking; replace an existing install in place; and reverse themselves with an uninstall option.
@@ -2145,7 +2146,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: the Windows half still needs the real-Windows validation pass.
 
 - ✅ Dogfood launcher script.
-	- Opened: n/a
+	- Opened: 20260723-081328
 	- Closed: 20260725-153058
 	- Done: keeps date-stamped copies of the latest build in a local pool, prunes aged-out copies not in use, launches the newest with args passed through.
 	- Done: one cross-platform PowerShell script for Linux and Windows. Working copy deployed to the common util dir.
@@ -2156,12 +2157,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed: copies left by the pre-single-exe layout were invisible to the pruning and sat there for good.
 
 - ✅ Adopt the local-only delivery model: dev = integration target, main = release-only (dev to main = release cut). Feature branches merge --no-ff into dev.
-	- Opened: n/a
+	- Opened: 20260718-192018
 	- Closed: 20260718-195609
 	- Note: copied as high-level concepts (not language tooling) from the sibling project.
 
 - ✅ Stand up the local pipeline: engine, config, git backup+publish, release helper, and a pre-push merge gate.
-	- Opened: n/a
+	- Opened: 20260718-192018
 	- Closed: 20260725-153058
 	- Verified: container build + smoke test, and backup+publish, all pass.
 
@@ -2209,12 +2210,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixed: link-creation options are hidden on Windows (no symlink support there). The permissions tab, columns, and change-permissions paths are hidden too, since Windows fabricates the mode bits.
 
 - ✅ File monitoring via portable backends.
-	- Opened: n/a
+	- Opened: 20260718-155447
 	- Closed: 20260725-153058
 	- Verified: change events deliver through the native monitor backends on both platforms. Nothing to port.
 
 - ✅ Choose and stand up the Windows toolchain.
-	- Opened: n/a
+	- Opened: 20260718-155447
 	- Closed: 20260725-153058
 	- Done: cross-compile from Linux with mingw-w64, smoke-test under wine, in a dedicated container. Details in design.md, "Building (Windows cross)".
 
@@ -2243,12 +2244,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: drives show as roots and open to their contents.
 
 - ✅ Remove desktop management entirely (Nemo Anywhere is a file manager, not a desktop shell).
-	- Opened: n/a
+	- Opened: 20260718-170501
 	- Closed: 20260719-181630
 	- Done: the desktop binary, desktop windows, and the Cinnamon session coupling all deleted. Kept the launcher-file editor and the monitor-geometry helper, both real file-manager features.
 
 - ✅ Isolate xapp / cinnamon-desktop coupling (reimplement portably, not just disable).
-	- Opened: n/a
+	- Opened: 20260718-155447
 	- Closed: 20260719-190803
 	- Done: favorites, thumbnails, tray icon, and the icon chooser all reimplemented portably. Details in design.md, "Decisions along the way".
 
@@ -2263,22 +2264,22 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: view/layout keys and the favorite markers carry the app name. Keys other file managers also read (custom icon, emblems, annotation, backgrounds) stay shared on purpose.
 
 - ✅ Build upstream as-is on Linux (meson) to confirm a known-good reference.
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260718-155447
 	- Done: builds and runs clean on stock Debian 13, in a container (this dev box has newer mixed libs).
 
 - ✅ Note the exact dependency set and versions that produce a working build.
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260718-155447
 	- Done: recorded in the build notes outside the repo.
 
 - ✅ Reorganize into a clean project structure; build consolidated under `source/`, root kept lean.
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260718-161018
 	- Done: meson project moved under `source/` with its internal layout intact. Builds and runs green.
 
 - ✅ Rebrand to "Nemo Anywhere" / `nemo-anywhere` so it co-installs and runs alongside upstream Nemo without conflict.
-	- Opened: n/a
+	- Opened: 20260718-170501
 	- Closed: 20260718-174619
 	- Done: renamed the installed identity only (binaries, service names, settings schema, config/data dirs, menu entries, icons). Internal code identifiers left as-is; no clash.
 	- Done: settings fully isolated from upstream Nemo. Doesn't claim the freedesktop file-manager service when upstream holds it.
@@ -2289,11 +2290,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260719-181454
 
 - ✅ Clean detached baseline from linuxmint/nemo 6.6.4 (no upstream commit history).
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260718-155447
 
 - ✅ Fork branding + provenance (README, fork.md), GPL-2.0-only.
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260718-155447
 
 - ✅ Name chosen: nemo-anywhere.
@@ -2301,12 +2302,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260718-155447
 
 - ✅ Create the GitHub repo and push.
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260725-153058
 	- Done: created public.
 
 - ✅ Strip upstream CI - keep the repo clear of unrelated automation.
-	- Opened: n/a
+	- Opened: 20260718-154147
 	- Closed: 20260725-153058
 	- Done: workflows and issue templates removed in the fork-setup commit.
 
@@ -2349,7 +2350,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: a wine limitation, not our code. Expected to work on real Windows - added to the real-Windows validation pass.
 
 - 🚫 Launching `app\nemo-anywhere.exe` straight from the dogfood folder throws missing-dll dialogs (libcairo-goobject-2 and friends) - the exe has to go through the root `nemo-anywhere.vbs`, which wires the dll path. Punted: the single-exe work removes the whole launcher/dll-folder arrangement.
-	- Opened: n/a
+	- Opened: 20260730-185140
 	- Closed: 20260802-101032
 
 - 🚫 In find mode, shrink the Name column to fit and let Location grow with the window, then put it back on leaving find mode.
