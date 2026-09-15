@@ -1,7 +1,6 @@
 /* Exercises the Recycle Bin trash:/// backend end to end: enumeration with trash
  * attributes, per-item delete, and restore via move, including metadata-sibling
- * cleanup in the XDG trash wine maps the bin onto. Windows-only; the Linux build
- * compiles it out.
+ * cleanup in the XDG trash wine maps the bin onto. Windows-only.
  *
  * The seeded cases need wine, since they write straight into that XDG trash. The
  * rest recycle files of their own through the shell, so they run on either, and a
@@ -15,8 +14,6 @@
 #include <string.h>
 #include <gio/gio.h>
 #include <glib/gstdio.h>
-
-#ifdef G_OS_WIN32
 
 #include <windows.h>
 #include <shellapi.h>
@@ -1002,15 +999,3 @@ main (int argc, char *argv[])
 
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

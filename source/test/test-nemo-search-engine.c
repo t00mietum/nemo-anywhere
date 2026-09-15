@@ -18,6 +18,8 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-search-engine.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -146,7 +148,7 @@ main (int argc, char *argv[])
 	char *scratch, *dir, *sub, *uri;
 	GList *names;
 
-	scratch = g_dir_make_tmp ("nemo-search-engine-home-XXXXXX", NULL);
+	scratch = test_scratch_dir ("nemo-search-engine-home-XXXXXX", NULL);
 	g_setenv ("HOME", scratch, TRUE);
 	g_setenv ("APPDATA", scratch, TRUE);
 	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
@@ -154,7 +156,7 @@ main (int argc, char *argv[])
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();
 
-	dir = g_dir_make_tmp ("nemo-search-engine-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-search-engine-XXXXXX", NULL);
 	sub = g_build_filename (dir, "deeper", NULL);
 	g_mkdir_with_parents (sub, 0755);
 

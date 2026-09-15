@@ -11,6 +11,8 @@
 #include <libnemo-private/nemo-search-engine-advanced.h>
 #include <libnemo-private/nemo-query.h>
 
+#include "test-scratch.h"
+
 static gboolean done;
 
 static void
@@ -30,7 +32,7 @@ main (int argc, char *argv[])
 	gtk_init_check (&argc, &argv);
 
 	/* A directory with a file or two to iterate over. */
-	dir = g_dir_make_tmp ("nemo-search-regex-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-search-regex-XXXXXX", NULL);
 	child = g_build_filename (dir, "somefile.txt", NULL);
 	g_file_set_contents (child, "x", 1, NULL);
 	g_free (child);

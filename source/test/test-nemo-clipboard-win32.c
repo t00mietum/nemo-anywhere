@@ -23,6 +23,8 @@
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-clipboard-win32.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -248,7 +250,7 @@ main (int argc, char *argv[])
 		g_free (got);
 	}
 
-	dir = g_dir_make_tmp ("nemo-clip-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-clip-XXXXXX", NULL);
 	if (dir != NULL) {
 		check_files (window, dir, FALSE);
 		check_files (window, dir, TRUE);

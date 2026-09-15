@@ -7,6 +7,8 @@
 #include <glib/gstdio.h>
 #include <string.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 static void
@@ -76,7 +78,7 @@ main (int argc, char *argv[])
 	GFileInfo *info;
 	gboolean ok;
 
-	base_path = g_dir_make_tmp ("nemo-fileops-XXXXXX", &error);
+	base_path = test_scratch_dir ("nemo-fileops-XXXXXX", &error);
 	if (base_path == NULL) {
 		g_printerr ("cannot create temp dir: %s\n", error->message);
 		return 1;

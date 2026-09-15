@@ -18,6 +18,8 @@
 
 #include <libnemo-private/nemo-crash.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -392,7 +394,7 @@ main (int argc, char *argv[])
 		return run_child (argv[1]);
 	}
 
-	config_root = g_dir_make_tmp ("nemo-crash-XXXXXX", &error);
+	config_root = test_scratch_dir ("nemo-crash-XXXXXX", &error);
 	if (config_root == NULL) {
 		g_printerr ("FAIL could not make a config root: %s\n", error->message);
 		return 1;

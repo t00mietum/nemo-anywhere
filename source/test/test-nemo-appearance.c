@@ -15,6 +15,8 @@
 #include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -368,7 +370,7 @@ main (int argc, char *argv[])
 {
 	char *tmp;
 
-	tmp = g_dir_make_tmp ("nemo-appearance-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-appearance-test-XXXXXX", NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
 	g_setenv ("APPDATA", tmp, TRUE);		/* the config root on Windows */
 	g_setenv ("HOME", tmp, TRUE);

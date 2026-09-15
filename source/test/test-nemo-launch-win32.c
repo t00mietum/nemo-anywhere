@@ -8,6 +8,8 @@
 #include <glib/gstdio.h>
 #include <libnemo-private/nemo-launch-win32.h>
 
+#include "test-scratch.h"
+
 static int failures;
 
 static void
@@ -112,7 +114,7 @@ via_shell_line (const char *line,
 static void
 test_brokers (void)
 {
-	char *dir = g_dir_make_tmp ("nemo-launch-XXXXXX", NULL);
+	char *dir = test_scratch_dir ("nemo-launch-XXXXXX", NULL);
 	char *marker = g_build_filename (dir, "started.txt", NULL);
 	char *line = g_strdup_printf ("cmd.exe /c echo ok> \"%s\"", marker);
 

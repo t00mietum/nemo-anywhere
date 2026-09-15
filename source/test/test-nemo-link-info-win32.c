@@ -20,6 +20,8 @@
 #include <libnemo-private/nemo-shortcut-win32.h>
 #include <libnemo-private/nemo-link-win32.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -180,7 +182,7 @@ main (int argc, char *argv[])
 
 	gtk_init_check (&argc, &argv);
 
-	root = g_dir_make_tmp ("nemo-link-info-test-XXXXXX", NULL);
+	root = test_scratch_dir ("nemo-link-info-test-XXXXXX", NULL);
 	if (root == NULL) {
 		g_printerr ("could not make a temporary directory\n");
 		return EXIT_FAILURE;

@@ -11,6 +11,8 @@
 #include <libnemo-private/nemo-search-engine-win32.h>
 #include <libnemo-private/nemo-query.h>
 
+#include "test-scratch.h"
+
 static int failures;
 static gboolean done;
 static int n_hits;
@@ -154,7 +156,7 @@ test_live (void)
 int
 main (int argc, char *argv[])
 {
-	char *scratch = g_dir_make_tmp ("nemo-search-win32-home-XXXXXX", NULL);
+	char *scratch = test_scratch_dir ("nemo-search-win32-home-XXXXXX", NULL);
 
 	/* Every test that touches a preference points these at a throwaway dir first. */
 	g_setenv ("HOME", scratch, TRUE);

@@ -11,6 +11,8 @@
 
 #include <eel/eel-vfs-extensions.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -71,7 +73,7 @@ main (int argc, char *argv[])
 	char *tmpdir, *real_file, *typed, *resolved;
 	GFile *location;
 
-	tmpdir = g_dir_make_tmp ("eel-input-test-XXXXXX", NULL);
+	tmpdir = test_scratch_dir ("eel-input-test-XXXXXX", NULL);
 	g_assert (tmpdir != NULL);
 
 	test_expansion (tmpdir);

@@ -16,6 +16,8 @@
 
 #include <libnemo-private/nemo-link-copy.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -220,7 +222,7 @@ main (int argc, char **argv)
 
 	g_test_init (&argc, &argv, NULL);
 
-	dir = g_dir_make_tmp ("nemo-link-copy-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-link-copy-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	supported = nemo_link_kinds_supported (dir);

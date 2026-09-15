@@ -7,7 +7,7 @@
  * external thumbnailer still draws one - it is a thumbnail frozen at the small
  * cached size, which is why images went blurry as the zoom went up.
  *
- * Windows-only; Linux compiles it out. */
+ * Windows-only. */
 
 #include <config.h>
 
@@ -17,11 +17,11 @@
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
-#ifdef G_OS_WIN32
-
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-file-private.h>
 #include <libnemo-private/nemo-thumbnails.h>
+
+#include "test-scratch.h"
 
 static int failures = 0;
 
@@ -79,7 +79,7 @@ main (int argc, char *argv[])
 
 	gtk_init_check (&argc, &argv);
 
-	dir = g_dir_make_tmp ("nemo-thumb-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-thumb-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	/* png and jpeg: the two formats gdk-pixbuf always has built in, so this
@@ -152,15 +152,3 @@ main (int argc, char *argv[])
 	}
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

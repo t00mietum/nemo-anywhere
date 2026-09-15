@@ -13,6 +13,8 @@
 
 #include <libnemo-private/nemo-thumbnail-prune.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -247,7 +249,7 @@ check_sweep_over_a_real_cache (void)
 	gint64 now = g_get_real_time () / G_USEC_PER_SEC;
 	gint64 freed;
 
-	root = g_dir_make_tmp ("nemo-prune-XXXXXX", NULL);
+	root = test_scratch_dir ("nemo-prune-XXXXXX", NULL);
 	if (root == NULL) {
 		g_printerr ("FAIL: no temporary folder\n");
 		failures++;

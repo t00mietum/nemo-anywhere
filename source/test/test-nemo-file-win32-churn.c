@@ -8,7 +8,7 @@
  *
  * nemo_file_update_info is documented to "return FALSE if no change", so that
  * contract is what is checked here: feed the same freshly-queried info twice and
- * the second call must be quiet. Windows-only; Linux compiles it out. */
+ * the second call must be quiet. Windows-only. */
 
 #include <config.h>
 
@@ -18,10 +18,10 @@
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
-#ifdef G_OS_WIN32
-
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-file-private.h>
+
+#include "test-scratch.h"
 
 static int failures = 0;
 
@@ -112,7 +112,7 @@ main (int argc, char *argv[])
 	 * the checks - it just grumbles on the way in. */
 	gtk_init_check (&argc, &argv);
 
-	dir = g_dir_make_tmp ("nemo-churn-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-churn-XXXXXX", NULL);
 	g_assert (dir != NULL);
 
 	for (i = 0; i < G_N_ELEMENTS (names); i++) {
@@ -196,15 +196,3 @@ main (int argc, char *argv[])
 	}
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

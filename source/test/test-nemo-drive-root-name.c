@@ -1,7 +1,7 @@
 /* One name for a drive root, shared by every surface that shows one. gio calls
  * it "\" (the basename), the volume monitor calls it "(C:) Windows" and the
  * sidebar used to build "Windows (C:)" - three names for the same place, none
- * of which is what a user would type. Windows-only; Linux compiles it out. */
+ * of which is what a user would type. Windows-only. */
 
 #include <config.h>
 
@@ -9,9 +9,9 @@
 #include <string.h>
 #include <gio/gio.h>
 
-#ifdef G_OS_WIN32
-
 #include <libnemo-private/nemo-file-utilities.h>
+
+#include "test-scratch.h"
 
 static int failures = 0;
 
@@ -52,7 +52,7 @@ main (int argc, char *argv[])
 
 	/* A throwaway config root, or the separator the real user chose decides
 	 * what a drive root is called and the spellings below fail. */
-	tmp = g_dir_make_tmp ("nemo-drive-root-test-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-drive-root-test-XXXXXX", NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
 	g_setenv ("APPDATA", tmp, TRUE);
 	g_setenv ("HOME", tmp, TRUE);
@@ -119,13 +119,3 @@ main (int argc, char *argv[])
 	}
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	return EXIT_SUCCESS;
-}
-
-#endif

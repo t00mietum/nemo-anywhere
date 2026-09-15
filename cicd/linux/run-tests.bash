@@ -49,7 +49,20 @@ fi
 ## test that sends --quit cannot reach a copy someone is actually using.
 export DBUS_SESSION_BUS_ADDRESS='disabled:'
 
+## The run gets a temp dir of its own, so anything a test leaves behind is named
+## here instead of piling up in /tmp. A failed run leaves it for a look.
+TMPDIR="$(mktemp -d /tmp/nemo-suite-XXXXXX)"
+export TMPDIR
+trap 'rmdir "${TMPDIR}" 2>/dev/null || true' EXIT
+
 xvfb-run -a meson test -C "${build}" --no-rebuild --num-processes "${jobs}" --print-errorlogs
+
+leftover="$(find "${TMPDIR}" -mindepth 1 -maxdepth 1 -printf '%f\n' || true)"
+if [[ -n "${leftover}" ]]; then
+	echo "[ tests left these behind in ${TMPDIR} ]" >&2
+	echo "${leftover}" >&2
+	exit 1
+fi
 
 ## The suite covers the program's insides; this covers the argument that has to
 ## answer before any of them are reached.

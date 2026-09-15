@@ -10,6 +10,8 @@
 
 #include <libnemo-private/nemo-metadata-store.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -47,7 +49,7 @@ main (int argc, char *argv[])
 	char **listval;
 	GFileInfo *info;
 
-	tmpdir = g_dir_make_tmp ("nemo-metastore-test-XXXXXX", NULL);
+	tmpdir = test_scratch_dir ("nemo-metastore-test-XXXXXX", NULL);
 	g_assert (tmpdir != NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmpdir, TRUE);
 	g_setenv ("APPDATA", tmpdir, TRUE);		/* the config root on Windows */

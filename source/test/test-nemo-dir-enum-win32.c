@@ -18,6 +18,8 @@
 
 #include <libnemo-private/nemo-dir-enum.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 static gboolean skipped = FALSE;
 
@@ -337,7 +339,7 @@ main (int argc, char *argv[])
 {
 	char *root, *deep;
 
-	root = g_dir_make_tmp ("nemo-dir-enum-test-XXXXXX", NULL);
+	root = test_scratch_dir ("nemo-dir-enum-test-XXXXXX", NULL);
 	if (root == NULL) {
 		g_printerr ("could not make a temporary directory\n");
 		return EXIT_FAILURE;

@@ -19,9 +19,9 @@
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
 
-#ifdef G_OS_WIN32
-
 #include <windows.h>
+
+#include "test-scratch.h"
 
 static int failures = 0;
 static gboolean done = FALSE;
@@ -90,7 +90,7 @@ main (int argc, char **argv)
 		return 77;
 	}
 
-	tmp = g_dir_make_tmp ("nemo-mdready-XXXXXX", NULL);
+	tmp = test_scratch_dir ("nemo-mdready-XXXXXX", NULL);
 	if (tmp == NULL) {
 		g_printerr ("FAIL could not make a temp dir\n");
 		return EXIT_FAILURE;
@@ -155,15 +155,3 @@ main (int argc, char **argv)
 
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else
-
-int
-main (void)
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

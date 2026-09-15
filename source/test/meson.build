@@ -1,19 +1,38 @@
 
+# Scratch directories made through this are removed when the test exits.
+test_scratch = declare_dependency(
+  link_with: static_library('test-scratch',
+    [ 'test-scratch.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+)
+
 test('Search Engine test',
   executable('test-nemo-search-engine',
     [ 'test-nemo-search-engine.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: [],
   timeout: 180        # three searches, each with its own 30s ceiling
+)
+
+test('Search folder test',
+  executable('test-nemo-search-folder',
+    [ 'test-nemo-search-folder.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: [],
+  timeout: 120
 )
 
 test('Directory monitor test',
   executable('test-nemo-directory-monitor',
     [ 'test-nemo-directory-monitor.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: [],
   timeout: 120
@@ -23,7 +42,7 @@ test('Drag drop confirm test',
   executable('test-nemo-drag-confirm',
     [ 'test-nemo-drag-confirm.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -32,7 +51,7 @@ test('Config defaults list test',
   executable('test-nemo-config-catalog',
     [ 'test-nemo-config-catalog.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -41,7 +60,7 @@ test('Config store test',
   executable('test-nemo-config',
     [ 'test-nemo-config.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -50,7 +69,7 @@ test('Favorites test',
   executable('test-nemo-favorites',
     [ 'test-nemo-favorites.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -59,7 +78,7 @@ test('Thumbnail prune test',
   executable('test-nemo-thumbnail-prune',
     [ 'test-nemo-thumbnail-prune.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -68,7 +87,7 @@ test('Thumbnail factory test',
   executable('test-nemo-thumbnail',
     [ 'test-nemo-thumbnail.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: [],
   timeout: 180        # the hung-helper case waits out the thumbnailer timeout
@@ -78,7 +97,7 @@ test('Metadata store test',
   executable('test-nemo-metadata-store',
     [ 'test-nemo-metadata-store.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -98,7 +117,7 @@ test('User input parse test',
   executable('test-eel-user-input',
     [ 'test-eel-user-input.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -109,7 +128,7 @@ if not is_windows
     executable('test-nemo-symlink-recurse',
       [ 'test-nemo-symlink-recurse.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -118,7 +137,16 @@ if not is_windows
     executable('test-nemo-delete-guard',
       [ 'test-nemo-delete-guard.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
+    ),
+    args: []
+  )
+
+  test('Scratch cleanup test',
+    executable('test-nemo-scratch',
+      [ 'test-nemo-scratch.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -128,7 +156,7 @@ test('Search invalid regex test',
   executable('test-nemo-search-regex',
     [ 'test-nemo-search-regex.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -164,7 +192,7 @@ test('Search content test',
   executable('test-nemo-search-content',
     [ 'test-nemo-search-content.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -198,43 +226,47 @@ test('Extension column test',
   args: []
 )
 
-# The recycle-bin monitor is polled, so the same-count case has to sit through
-# a few turns of it - well past the 30s meson allows by default. On a machine
-# with a full bin the whole run has been seen to take four and a half minutes.
-test('Trash win32 test',
-  executable('test-nemo-trash-win32',
-    [ 'test-nemo-trash-win32.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
-  ),
-  args: [],
-  timeout: 600
-)
+if is_windows
+  # The recycle-bin monitor is polled, so the same-count case has to sit through
+  # a few turns of it - well past the 30s meson allows by default. On a machine
+  # with a full bin the whole run has been seen to take four and a half minutes.
+  test('Trash win32 test',
+    executable('test-nemo-trash-win32',
+      [ 'test-nemo-trash-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private ],
+    ),
+    args: [],
+    timeout: 600
+  )
+endif
 
 test('Crash reporter test',
   executable('test-nemo-crash',
     [ 'test-nemo-crash.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: [],
   timeout: 120
 )
 
-test('Shortcut win32 test',
-  executable('test-nemo-shortcut-win32',
-    [ 'test-nemo-shortcut-win32.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private, win_shell ],
-  ),
-  args: []
-)
+if is_windows
+  test('Shortcut win32 test',
+    executable('test-nemo-shortcut-win32',
+      [ 'test-nemo-shortcut-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private, win_shell, test_scratch ],
+    ),
+    args: []
+  )
+endif
 
 test('GIO fileops probe',
   executable('test-gio-fileops',
     [ 'test-gio-fileops.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -252,7 +284,7 @@ test('Copy test',
   executable('test-nemo-copy',
     [ 'test-copy.c', 'test.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
     c_args: nemo_definitions,
   ),
   args: []
@@ -261,7 +293,7 @@ test('Copy test',
 link_copy_job = executable('test-nemo-link-copy-job',
   [ 'test-nemo-link-copy-job.c', 'test.c' ],
   include_directories: [ rootInclude, ],
-  dependencies: [ gtk, nemo_private ],
+  dependencies: [ gtk, nemo_private, test_scratch ],
   c_args: nemo_definitions,
 )
 
@@ -294,7 +326,7 @@ if is_windows
     executable('test-nemo-path-separator-win32',
       [ 'test-nemo-path-separator-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -304,7 +336,7 @@ test('Link copy test',
   executable('test-nemo-link-copy',
     [ 'test-nemo-link-copy.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -313,7 +345,7 @@ test('Shortcut name test',
   executable('test-nemo-shortcut-name',
     [ 'test-nemo-shortcut-name.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -323,7 +355,7 @@ if is_windows
     executable('test-nemo-dot-files-win32',
       [ 'test-nemo-dot-files-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -370,7 +402,7 @@ if is_windows
     executable('test-nemo-properties-win32',
       [ 'test-nemo-properties-win32.c', '../src/nemo-properties-win32.c' ],
       include_directories: [ rootInclude, '../src' ],
-      dependencies: [ gtk, nemo_private, win_shell ],
+      dependencies: [ gtk, nemo_private, win_shell, test_scratch ],
       c_args: nemo_definitions,
     ),
     args: []
@@ -382,7 +414,7 @@ if is_windows
     executable('test-nemo-drive-root-name',
       [ 'test-nemo-drive-root-name.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
       c_args: nemo_definitions,
     ),
     args: []
@@ -394,7 +426,7 @@ if is_windows
     executable('test-nemo-file-win32-churn',
       [ 'test-nemo-file-win32-churn.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
       c_args: nemo_definitions,
     ),
     args: []
@@ -406,7 +438,7 @@ if is_windows
     executable('test-nemo-thumbnail-win32',
       [ 'test-nemo-thumbnail-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
       c_args: nemo_definitions,
     ),
     args: []
@@ -419,7 +451,7 @@ test('Appearance themes test',
   executable('test-nemo-appearance',
     [ 'test-nemo-appearance.c' ] + themeGresources,
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -438,7 +470,7 @@ test('Search group test',
   executable('test-nemo-search-group',
     [ 'test-nemo-search-group.c', '../src/nemo-list-model.c' ],
     include_directories: [ rootInclude, include_directories('../src') ],
-    dependencies: [ gtk, nemo_private, egg ],
+    dependencies: [ gtk, nemo_private, egg, test_scratch ],
     c_args: nemo_definitions,
   ),
   args: []
@@ -459,7 +491,7 @@ if not is_windows
     executable('test-nemo-runtime-env',
       [ 'test-nemo-runtime-env.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -481,7 +513,7 @@ if not is_windows
     executable('test-nemo-instances',
       [ 'test-nemo-instances.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: [ nemo ],
     timeout: 120
@@ -510,7 +542,7 @@ test('Command template test',
   executable('test-nemo-command-template',
     [ 'test-nemo-command-template.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
@@ -529,7 +561,7 @@ test('Archive job test',
   executable('test-nemo-archive-job',
     [ 'test-archive-job.c', 'test.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ archive, gtk, nemo_private ],
+    dependencies: [ archive, gtk, nemo_private, test_scratch ],
     c_args: nemo_definitions,
   ),
   args: []
@@ -549,7 +581,7 @@ test('Extract job test',
   executable('test-nemo-extract-job',
     [ 'test-extract-job.c', 'test.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ archive, gtk, nemo_private ],
+    dependencies: [ archive, gtk, nemo_private, test_scratch ],
     c_args: nemo_definitions,
   ),
   args: []
@@ -577,20 +609,22 @@ test('Directory load clean test',
   executable('test-nemo-directory-load-clean',
     [ 'test-nemo-directory-load-clean.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
 
-test('Metadata ready test',
-  executable('test-nemo-metadata-ready-win32',
-    [ 'test-nemo-metadata-ready-win32.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
-  ),
-  args: [],
-  timeout: 300
-)
+if is_windows
+  test('Metadata ready test',
+    executable('test-nemo-metadata-ready-win32',
+      [ 'test-nemo-metadata-ready-win32.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
+    ),
+    args: [],
+    timeout: 300
+  )
+endif
 
 test('Config schema drift test',
   executable('test-nemo-config-schema',
@@ -614,7 +648,7 @@ if is_windows
     executable('test-nemo-dir-enum-win32',
       [ 'test-nemo-dir-enum-win32.c' ] + longPathManifest,
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -626,7 +660,7 @@ if is_windows
     executable('test-nemo-first-run-win32',
       [ 'test-nemo-first-run-win32.c', '../src/nemo-bookmark-list.c' ],
       include_directories: [ rootInclude, include_directories('../src') ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
       c_args: nemo_definitions,
     ),
     args: []
@@ -638,7 +672,7 @@ test('Search helpers test',
   executable('test-nemo-search-helpers',
     [ 'test-nemo-search-helpers.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private, libgsf ],
+    dependencies: [ gtk, nemo_private, libgsf, test_scratch ],
     c_args: nemo_definitions,
   ),
   args: [],
@@ -651,7 +685,7 @@ if is_windows
     executable('test-nemo-search-win32',
       [ 'test-nemo-search-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -660,7 +694,7 @@ if is_windows
     executable('test-nemo-associations-win32',
       [ 'test-nemo-associations-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -669,7 +703,7 @@ if is_windows
     executable('test-nemo-launch-win32',
       [ 'test-nemo-launch-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -678,7 +712,7 @@ if is_windows
     executable('test-nemo-shell-icon-win32',
       [ 'test-nemo-shell-icon-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -687,7 +721,7 @@ if is_windows
     executable('test-nemo-link-info-win32',
       [ 'test-nemo-link-info-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -696,7 +730,7 @@ if is_windows
     executable('test-nemo-clipboard-win32',
       [ 'test-nemo-clipboard-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )
@@ -705,7 +739,7 @@ if is_windows
     executable('test-nemo-dnd-win32',
       [ 'test-nemo-dnd-win32.c' ],
       include_directories: [ rootInclude, ],
-      dependencies: [ gtk, nemo_private ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
     ),
     args: []
   )

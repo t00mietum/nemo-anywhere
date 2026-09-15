@@ -2,15 +2,13 @@
  * network - and an unreachable host costs the full timeout - so what is checked
  * here is the part that has to hold with no network at all: how a child uri is
  * built, and that two different server/share pairs cannot land on the same uri.
- * Windows-only; the Linux build compiles it out. */
+ * Windows-only. */
 
 #include <config.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <gio/gio.h>
-
-#ifdef G_OS_WIN32
 
 #include <windows.h>
 
@@ -321,15 +319,3 @@ main (int argc, char *argv[])
 	}
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* !G_OS_WIN32 */
-
-int
-main (int argc, char *argv[])
-{
-	g_print ("win32 only; skipping\n");
-
-	return 77;
-}
-
-#endif

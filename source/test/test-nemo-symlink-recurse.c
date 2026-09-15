@@ -19,6 +19,8 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -35,7 +37,7 @@ main (int argc, char *argv[])
 	char  *root, *target, *victim, *link;
 	GFile *link_gf;
 
-	root   = g_dir_make_tmp ("nemo-symlink-XXXXXX", NULL);
+	root   = test_scratch_dir ("nemo-symlink-XXXXXX", NULL);
 	target = g_build_filename (root, "external", NULL);
 	link   = g_build_filename (root, "folder-being-replaced", NULL);
 	g_mkdir (target, 0700);

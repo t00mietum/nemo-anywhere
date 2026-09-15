@@ -11,6 +11,8 @@
 #include <libnemo-private/nemo-search-engine-advanced.h>
 #include <libnemo-private/nemo-query.h>
 
+#include "test-scratch.h"
+
 static gboolean done;
 static GList *found;
 
@@ -63,7 +65,7 @@ main (int argc, char *argv[])
 	int               failures = 0;
 
 	/* Every test that reads a preference points these at a throwaway dir first. */
-	char *scratch = g_dir_make_tmp ("nemo-search-content-home-XXXXXX", NULL);
+	char *scratch = test_scratch_dir ("nemo-search-content-home-XXXXXX", NULL);
 	g_setenv ("HOME", scratch, TRUE);
 	g_setenv ("APPDATA", scratch, TRUE);
 	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
@@ -71,7 +73,7 @@ main (int argc, char *argv[])
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();
 
-	dir = g_dir_make_tmp ("nemo-search-content-XXXXXX", NULL);
+	dir = test_scratch_dir ("nemo-search-content-XXXXXX", NULL);
 
 	write_file (dir, "plain.txt", "the needle is here\n", -1);
 	write_file (dir, "notes.md", "# heading\n\nthe needle is here too\n", -1);
