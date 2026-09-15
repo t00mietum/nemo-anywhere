@@ -25,13 +25,17 @@ This is a product backlog just for pre-v1.0.0 release. After that, bugs, feature
 
 In each section, items are listed approximately from newest to oldest. (Note: if adding/editing frequently, map clipboard or keyboard macro shortcuts to these icons, to go faster.)
 
-| Icon | Status
-| :--: | :--
-| 🔘   | Not started
-| 🛠️   | Started, and/or partially complete
-| ✋   | Defer
-| ✅   | Complete
-| 🚫   | Canceled
+Statii:
+
+- 🔘 Not started
+
+- 🛠️ Started, and/or partially complete
+
+- ✋ Defer
+
+- ✅ Complete
+
+- 🚫 Canceled
 
 Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` date once it is complete or canceled. Format is `YYYYmmDD-HHMMSS`. An item opened and closed on the same day records its open date as `n/a`.
 
@@ -220,7 +224,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 #### Done - Bugs
 
 - ✅ A home folder was deleted again, with no dialog, soon after a copy of the app was opened by accident. The guards added after the first time were not enough.
-	- Opened: n/a
+	- Opened: 20260914
 	- Closed: 20260914-121200
 	- Nothing in the window was used but About. What removed the files is not known. The app's own log, which could have said, was in the home folder that went.
 	- Home, any folder above it, and a folder where a drive or share is mounted are never removed now, however the job came about. A delete that reaches a mount on its way through a folder stops there.
