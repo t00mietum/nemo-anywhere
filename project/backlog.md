@@ -39,53 +39,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- ✅ A home folder was deleted again, with no dialog, soon after a copy of the app was opened by accident. The guards added after the first time were not enough.
-	- Opened: n/a
-	- Closed: 20260914-121200
-	- Nothing in the window was used but About. What removed the files is not known. The app's own log, which could have said, was in the home folder that went.
-	- Home, any folder above it, and a folder where a drive or share is mounted are never removed now, however the job came about. A delete that reaches a mount on its way through a folder stops there.
-	- One job can no longer take most of what sits directly in home. That is refused outright rather than asked about.
-	- Every question that can remove files starts on Cancel.
-	- A delete key within a second of a window coming up or taking focus is ignored, since that is typing meant for another window.
-	- Each trash or delete line also goes to the system journal, which a rollback of home leaves alone.
-
-- ✅ Extracting could delete what a link inside the archive pointed at.
-	- Opened: n/a
-	- Closed: 20260914-121200
-	- Clearing the folder it extracts into, or a file being replaced, followed a link to a folder and emptied the folder at the other end. It asked nothing and logged nothing, so an archive holding a link to home could have taken home. A link is removed as a link now.
-
-- ✅ The unattended-delete guard reads GTK's current event, so a delete started from inside an unrelated event handler is recorded as one a person asked for.
-	- Opened: 20260914-102940
-	- Closed: 20260914-121200
-	- The caller says so now. Only the trash and delete commands in a window count as asked for, and undo, drops and anything else always ask. The event is kept for the log.
-
-- ✅ The action layout editor does not run.
-	- Opened: 20260908-000856
-	- Reachable from Preferences > Actions, which spawns it, but it dies at startup: its paths were baked in at configure time and point at an install prefix a portable copy never has.
-	- Also still reads and writes the pre-fork `nemo` config and data directories, so even once it starts, the app would not see what it saved.
-	- Fixed: it resolves its own prefix, uses the fork's config and data directories, and no longer needs the two Cinnamon libraries it imported. It comes up, lists the shipped actions, reorders them and saves where the action manager reads.
-	- The enable/disable checkboxes went with it. They read a GSettings key that no longer exists, and they duplicated Preferences > Actions, which already does the job. A switched-off action still shows greyed out here, read out of the config file.
-	- Not part of the Windows build: a /bin/sh launcher and a PyGObject script. The button that starts it is hidden there.
+- 🔘 "Focus" can never be on a column, nor a tab.
+	- Opened: 20260914-173549
+	- If focus would have fallen to a column or tab (e.g. as a result of editable path turning into breadcrumb), move it to the main file/folder interface instead.
 
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
-	- Done: a crash now writes a report next to the settings file, under `crash/`. It carries the version, what killed it, and the stack. The same text goes to stderr, which is what a launcher log keeps, and on Windows a message box says where the file is, since a windowed build has no stderr. The next start notes a report was left behind, and the oldest are dropped so the folder cannot grow forever.
+	- Note: a crash now leaves a report behind. That part is under Done.
 	- Left: an actual crash to read. Nothing is known about the cause yet.
-
-- ✅ Windows: When CTRL+L to the editable current path, CTRL+C doesn't copy the path to the clipboard (right-clicking the selected text and picking Copy does), and the context menu key does nothing on selected text.
-	- Opened: 20260903-130431
-	- Closed: 20260909-104658
-	- Fixed 20260905, the copy half: an entry's own cut and copy only advertised the text, the way the toolkit always has, which is the same write that went missing for "Copy path" and file copy. The selected text is now written out as well, for every entry and text box. The regression check goes red with the fix backed out.
-	- The key half works on Windows: with the caret in the entry, with a word selected, and with the whole path selected. The menu that comes up is usable rather than merely present - Select All picked out of it selects the path.
-	- No cause was found for the key half, because it does not reproduce. The menu itself belongs to the toolkit; the only code of ours on the way to it is the entry's key handler, which passes the key through untouched.
-	- A regression check presses the menu key with the caret, with a word selected, and with the whole path selected, and fails if no menu arrives inside five seconds or if the menu that arrives has not noticed the selection. It goes red on the reported shape - the key swallowed only while something is selected. It needs a keymap that carries a menu key, and reports itself skipped where there is none.
 
 - 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
-	- Fixed so far: the Windows half of this was the missing resource bundle, and is gone. Whether the host case has the same cause is untested - it was investigated on Linux, where the resources were never dropped.
-	- Fixed: the second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed. Cause: a file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
-	- Note: a regression check lists a folder and fails on anything logged at warning level or worse.
+	- Note: the Windows half, and a second warning logged once per file, are fixed and filed under Done. Whether the Linux host case has the same cause as the Windows one is untested.
 	- Found: what produces that exact pair is a signal connected to a settings group that is not open yet. The group handles are NULL until the settings are read, and about seventy places connect to one. Reproduced on demand by starting with no session bus, which is what leaves the store unopened.
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
 	- Not reproduced on the Linux host either, with the current build staged out of the container and run headlessly against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
@@ -95,7 +61,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Sharpen the crash reporter.
+- 🔘 The standard .desktop launcher should be titled "Nemo Anywhere", not "File Manager".
+	- Opened: 20260914-173549
+
+- 🔘 Make the crash reporter better.
 	- Opened: 20260909-171500
 	- Filed off a review of the reporter as it went in. None of these stop it doing its job today.
 	- A second crash in the same second from a reused process id loses the second report on Linux and overwrites the first on Windows.
@@ -105,26 +74,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
 	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
 
-- ✅ Run the test suite in the Linux pipeline.
-	- Opened: 20260909-112701
-	- Closed: 20260909-145927
-	- The Linux gate now builds, runs the whole suite, then the launch smoke. Half a minute with nothing to rebuild, longer when there is. A broken check can no longer reach main unnoticed.
-	- The gate had no build step at all, so it had been checking whatever was last left lying around. It builds first now, held to the same job limit as the rest of the pipeline, and so is the suite.
-	- What it builds is the working tree, not the commit being pushed, so an unfinished edit sitting in the tree will stop a push. Building the pushed commit in a detached worktree would be more correct, and would be a cold build every time; a warm build directory is what keeps the gate at half a minute.
-	- The three tests written off as environment failures were all real. One was fixed and two were replaced.
-		- The thumbnail test hid the shared mime database along with the box's own thumbnailers, and reading an image back needs it - so the long-thin-image check failed and read as a thumbnailer defect. The test keeps its isolation and reaches the database again.
-		- The other two were inherited demo programs rather than tests. Neither asserted anything and neither could ever exit, so both ran until the runner killed them. One searched the whole filesystem, because it named no folder to search.
-	- What replaced them. Filename search covers recursion on and off, and a pattern that matches nothing, which still has to come back or the view sits on a spinner. Directory monitoring covers the first listing, a file that appears afterwards, and a forced reload finishing rather than merely starting.
-	- Three Windows-only tests had been reporting a pass on Linux while doing nothing at all. They report themselves skipped now, which is why the count reads 49 passed and 3 skipped rather than 52 passed.
-	- Left: searching through a search folder has no test. The demo that was removed drove one, but it asserted nothing, so no coverage was lost - only the reminder that the path exists.
-	- Left: eighteen Windows-only tests are left out of the Linux build entirely, three are built and report a skip, and eight carry a stub for the other platform of which five are never compiled. Three shapes for one idea. Worth settling on one.
-	- The Windows lane is filed separately below.
-
 - 🔘 Run the test suite in the Windows pipeline.
 	- Opened: 20260909-145927
-	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the previous item was left open rather than guessed at.
+	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the Linux pipeline item was left open rather than guessed at.
 	- Blocked on there being nowhere to run it: neither Windows box holds a checkout at all, so nothing can be built or tested there as things stand.
 	- The cross build is not a stand-in. Run against the emulator the same suite gives six failures and a timeout, and the keyboard and parts of the shell do not behave there, so a green run would prove nothing and a red one would say nothing either.
+
+- 🔘 Searching through a search folder has no test.
+	- Opened: 20260909-152800
+	- Note: the demo that was removed drove one, but it asserted nothing, so no coverage was lost. Split from "Run the test suite in the Linux pipeline".
+
+- 🔘 Pick one way to leave Windows-only tests out of the Linux build.
+	- Opened: 20260909-154342
+	- Today eighteen are left out of the build entirely, three are built and report a skip, and eight carry a stub for the other platform, of which five are never compiled.
+	- Note: split from "Run the test suite in the Linux pipeline".
 
 - 🔘 Tests leave their scratch directories behind.
 	- Opened: 20260909-160500
@@ -146,16 +109,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🛠️ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856
-	- 102 files and 3.8 MB today. Three helper exes are 2.6 MB of that, and nothing spawns two of them.
-	- Done: the three helper exes are gone. The connect and open-with dialogs already ran in-process, so those two were dead weight. The extensions lister is now `--extensions-list` on the program itself, which keeps it a separate process without a separate binary.
-	- Done: the `bin/` shell wrapper. The program points its own data and program paths at the folder it sits in, and finds the extension library through an rpath, so `bin/nemo-anywhere` is the program itself and `libexec/` is gone.
-	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
-	- Done: data that only a system install would use has left the drop - mime, polkit, man pages and the editor syntax files. Nothing reads any of it out of a relocatable prefix or out of /opt, which is where both packages put one. A distro building its own install still gets all of it.
-	- Done: the D-Bus activation file is written at startup into the user's own service directory, naming the path this copy really runs from. The shipped one named wherever it was built.
-	- Done: what could move into the compiled resources has. The whole icon tree except the app icon itself was a second copy of art already in the binary, kept only for a system icon theme; the two info-bar documents are written out to the cache when the button that opens them is pressed, since another program has to read them.
-	- Left as files, deliberately: actions, search helpers and the settings schema. All three are drop-in folders a user adds to or edits, and Preferences has a button that opens two of them.
-	- 102 files down to 44.
-	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
+	- Note: the first pass, from 102 files down to 44, is under Done.
 	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
@@ -176,13 +130,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Real-Windows validation: the two paths still not exercised there.
 	- Opened: 20260826-103001
-	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe - the documented fallback, working as intended, but worth knowing before announcing a build.
+	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
-	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Worth doing only once someone has looked at it on a scaled display.
+	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
 
 - 🔘 Change to username columns (two new columns):
 	- Opened: 20260908-133001
@@ -203,29 +157,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260819-141014
 	- Need to think through the UX.
 
-- ✅ Search options: Flat [ ]  Hierarchical [ ]
-	- Opened: 20260819-141014
-	- Read as a display mode, not another scope switch - the search bar already has a toggle for recursing into subfolders.
-	- Done 20260903. A toggle beside the recurse one groups results under the folder holding them, labeled with the path under the folder searched. Flat is still the default.
-	- Grouped drops the Location column, since the row above every match already says where it is. Switching either way is instant and does not run the search again.
-
-- ✅ Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
-	- Opened: 20260730-112038
-	- Note: a major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
-	- Done 20260903. A drop now names what it is about to do and where, and waits for an answer. Two settings under Behavior: moves ask by default, copies and links do not.
-	- Covers every drop that moves files: the file list, the icon view, both sidebars, the path bar and the tabs. A drop on the Trash still asks under its own setting, not twice.
-
-- ✅ New process for each window. A crash in one shouldn't affect all others. And different versions (e.g. from n8runfm.ps1) should be able to run at once.
-	- Opened: 20260722-172504
-	- Done 20260905. Every launch and, by default, every new window is its own process. A command-line launch never joins a running copy, so two versions run side by side. `--quit` and Close All Windows still reach every copy.
-	- A setting under Behavior puts new windows back inside one process. The trade: a tab cannot move to a window in another process, and on Windows a new window takes the packed exe's start-up time.
-
 - 🔘 Native renamer:
+	- Opened: 20260908-111526
 	- Robust rename that surpasses Thunar Renamer and Directory Opus in functionality, simplicity, and repeatability (e.g. saveable templates).
 	- For media types, be at least as robust as "CamHauler" (formerly "Rapid Photo Downloader Pro" and may get yet another rename), including move functionality.
 		- With an option to preserve restoration attributes in xattrs [e.g. original name, datetimes, etc.]
 
 - 🔘 Feature: Find duplicate files and directories
+	- Opened: 20260908-111526
 	- Smart duplicate file and directory finder with smart, useful options.
 	- Cache content hashes in local SQLite as well as optionally xattrs.
 	- And related, smart:
@@ -244,53 +183,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🛠️ Windows: Need to figure out a way to do GUI testing and demo recording, without interrupting the live console session.
 	- Opened: 20260829-071437
-	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behaviour can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
-	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
-	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the app, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
-	- `-Dir` takes a whole flattened build instead of the packed exe, so a rebuild can be looked at without packing first. That is the form to use while working.
-	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
+	- Note: GUI testing in a throwaway sandbox is done, and is under Done.
 	- Left: demo recording, and anything spanning a reboot (that still wants the Hyper-V guest).
 
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
 
-- ✅ Wire the Linux release lane into the pipeline engine itself, rather than leaving it a script to remember to run by hand.
-	- Opened: 20260804-133646
-	- Done: the lane runs as stage 5. `RELEASE_COLLECT=0` keeps the engine's collector out of the artifact dir, since release.bash already writes the tarball and the sums there itself.
-	- The release smoke check had been failing since the version string gained a build number, so every release since then repackaged an older tarball. It matches on a prefix now.
-
-- ✅ Dogfood the Linux build from the pipeline. It had never been wired up, so the launcher was serving a build from July.
-	- Opened: 20260904-160000
-	- Stage 7 understands a relocatable prefix, not just a single binary: the fixed install puts the tree beside the bin dir and points the name on PATH into it, and the rotating copy is the whole tree under a dated name.
-	- The dated name carries the build's own mtime rather than the run clock, so the pipeline's copy and the launcher's copy of one build agree and neither re-fetches it.
-	- Superseded on 20260907 by the item below: the pipeline publishes one drop and writes no dated copies at all, so the second and third bullets here describe how it used to work.
-
-- ✅ One dogfood location per platform, and a launcher pool that keeps its history.
-	- Opened: 20260907-203000
-	- Every platform's build now lands in `common/exec/app/<platform>/` under its own name: the whole prefix on Linux, the packed exe on Windows. Both pipelines publish there and nowhere else.
-	- The launcher keeps the local pool: `<name>_versions/` beside a symlink at the fixed name, in `~/.local/bin` on Linux, `%LOCALAPPDATA%\Programs` on Windows and `~/Applications` on macOS.
-	- The pool is rotated on every run instead of aged out after a week. It keeps the newest of each finished hour, day, week, month and year, the most recent few, and the very first build forever, then trims to at most ten versions, at least five, and 1 GB between the two. A version something is running out of is never removed.
-	- A build already held is recognised by its bytes rather than its date, so a stamp the sync layer rounded no longer costs a re-copy.
-	- `runfm` is the name to type or put in a `.desktop` file, on every platform. The masters live in `utility/`; stage 7 copies them out to the synced util dirs.
-	- The menu entry now runs the launcher rather than a dated copy of the app, so a menu click picks up a new build the same way a shell launch does. Its icon comes from the newest version.
-
-- ✅ Menu entries and shortcuts that keep working, and one sync path spelling per platform.
-	- Opened: 20260908-013000
-	- Every list of sync-tree paths carries both spellings now - the source dir, the wrapper the menu entry runs, and the launcher itself. `synced` is a link to the Dropbox folder, and a box without the link found nothing at all.
-	- The app icon is copied out of the newest version and kept beside the pool under a fixed name. A menu entry used to point into a version directory and go blank the moment that version was pruned.
-	- Windows shortcuts get the same treatment the Linux menu entry already had. A Start Menu or taskbar link aimed at this app is repointed at the current launcher and icon, and one is created if there is none. Both dev boxes had a link to a launcher path and an exe drop that were retired weeks ago, so clicking it did nothing.
-	- The old by-self exe drop is swept on sight, wherever a run finds one.
-	- The desktop step no longer waits on a successful launch, so a box with no build yet still gets its shortcut fixed.
-	- A launcher run from outside its deployed home writes no shortcut at all, rather than one naming a path that will not last.
-	- Both dev Windows boxes were swept: the stale run log and the last 38 MB copy from the old pool are gone, and each Start Menu and taskbar link now names a launcher and an icon that exist.
-	- Note: `exec/synced/util` is a link into the live synced tree on at least one box. Anything swept under a path that looks local can be the real file, and the sync layer then carries the delete everywhere.
-	- A shortcut or menu entry now records the wrapper's deploy-managed path rather than whatever a PATH lookup returns. On one box PATH reached the file through two chained links, and the shortcut kept that spelling; both boxes name the plain path now.
-	- The wsl copy of the bash wrapper is deployed along with the linux and macos ones. Nothing was keeping it in step and it had fallen a revision behind.
-	- A full sweep of both Windows boxes and this one found no stray versions or launchers left to move or trash. The only stale copies remaining sit inside a scheduled local mirror frozen at 20260903, which other tooling owns.
-
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
-	- UPDATE 20260908-111214: Don't do this if it breaks compatibility with plugins or addons.
 	- Opened: 20260905-112900
+	- UPDATE 20260908-111214: Don't do this if it breaks compatibility with plugins or addons.
 	- First, on its own: bump the vendored `shcl.h` to the release carrying the coming fix, and run the config tests against it.
 	- Each URI becomes a quoted section, each metadata key a string or string-array field under it. The store keeps its mutex, its debounced save and its re-keying on rename; only the file format changes.
 	- No migration of the old files, the same call as for settings pre-1.0.
@@ -309,7 +210,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Windows code signing, and reducing AV false positives.
 	- Opened: 20260804-095855
 	- A paid signing service, around $10 a month for 5,000 signatures, is the option on the table now.
-	- SignPath Foundation (free for open source) was applied for and refused, so releases ship an unsigned exe with the `.zip` as the fallback. The release-only workflow at `.github/workflows/release-win.yml` still builds, packs and publishes; its submission step is left dormant behind the token gate. Consequence worth remembering: that workflow existed because SignPath would only sign CI-built artifacts, so with it gone nothing forces a release into hosted CI and a local cut is viable again.
+	- SignPath Foundation (free for open source) was applied for and refused, so releases ship an unsigned exe with the `.zip` as the fallback. The release-only workflow at `.github/workflows/release-win.yml` still builds, packs and publishes; its submission step is left dormant behind the token gate. That workflow existed because SignPath would only sign CI-built artifacts, so with it gone nothing forces a release into hosted CI and a local cut is viable again.
 	- Options weighed (Azure Artifact Signing, Certum open source, commercial cloud, reapplying) are in `cicd/win/signing.md`.
 	- Also sign the release `.zip` contents and, once it exists, the installer. Blocked on there being any signing identity at all.
 	- Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
@@ -317,6 +218,34 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ A home folder was deleted again, with no dialog, soon after a copy of the app was opened by accident. The guards added after the first time were not enough.
+	- Opened: n/a
+	- Closed: 20260914-121200
+	- Nothing in the window was used but About. What removed the files is not known. The app's own log, which could have said, was in the home folder that went.
+	- Home, any folder above it, and a folder where a drive or share is mounted are never removed now, however the job came about. A delete that reaches a mount on its way through a folder stops there.
+	- One job can no longer take most of what sits directly in home. That is refused outright rather than asked about.
+	- Every question that can remove files starts on Cancel.
+	- A delete key within a second of a window coming up or taking focus is ignored, since that is typing meant for another window.
+	- Each trash or delete line also goes to the system journal, which a rollback of home leaves alone.
+
+- ✅ Extracting could delete what a link inside the archive pointed at.
+	- Opened: n/a
+	- Closed: 20260914-121200
+	- Clearing the folder it extracts into, or a file being replaced, followed a link to a folder and emptied the folder at the other end. It asked nothing and logged nothing, so an archive holding a link to home could have taken home. A link is removed as a link now.
+
+- ✅ The unattended-delete guard reads GTK's current event, so a delete started from inside an unrelated event handler is recorded as one a person asked for.
+	- Opened: 20260914-102940
+	- Closed: 20260914-121200
+	- The caller says so now. Only the trash and delete commands in a window count as asked for, and undo, drops and anything else always ask. The event is kept for the log.
+
+- ✅ Windows: When CTRL+L to the editable current path, CTRL+C doesn't copy the path to the clipboard (right-clicking the selected text and picking Copy does), and the context menu key does nothing on selected text.
+	- Opened: 20260903-130431
+	- Closed: 20260909-104658
+	- Fixed 20260905, the copy half: an entry's own cut and copy only advertised the text, the way the toolkit always has, which is the same write that went missing for "Copy path" and file copy. The selected text is now written out as well, for every entry and text box. The regression check goes red with the fix backed out.
+	- The key half works on Windows: with the caret in the entry, with a word selected, and with the whole path selected. The menu that comes up is usable rather than merely present - Select All picked out of it selects the path.
+	- No cause was found for the key half, because it does not reproduce. The menu itself belongs to the toolkit; the only code of ours on the way to it is the entry's key handler, which passes the key through untouched.
+	- A regression check presses the menu key with the caret, with a word selected, and with the whole path selected, and fails if no menu arrives inside five seconds or if the menu that arrives has not noticed the selection. It goes red on the reported shape - the key swallowed only while something is selected. It needs a keymap that carries a menu key, and reports itself skipped where there is none.
 
 - ✅ When launching fresh on 'C:\opt\0-0\users\collierjr\0_links' in Windows, the view cannot be changed from list to icon (or compact) view. If you change folders, then the view can be changed.
 	- Opened: 20260908-011500
@@ -326,6 +255,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Measured both ways on a folder holding one link to a share that is not there: twenty-one seconds without the fix, none with it. That is the regression check, and it needs an address on the local subnet handed to it, since a name that resolves nowhere fails at once and proves nothing.
 	- Explains the rest of the report too: the answer is kept on each file once it arrives, so leaving the folder and coming back makes the swap instant.
 	- Also added: setting `NEMO_DEBUG_IO` logs which question the file-loading queue is waiting on and for how long. The calls are asynchronous, so timing the call itself shows nothing - the wait is in the answer, and that has now had to be worked out from scratch three times.
+
+- ✅ The action layout editor does not run.
+	- Opened: 20260908-000856
+	- Closed: 20260908-004448
+	- Reachable from Preferences > Actions, which spawns it, but it dies at startup: its paths were baked in at configure time and point at an install prefix a portable copy never has.
+	- Also still reads and writes the pre-fork `nemo` config and data directories, so even once it starts, the app would not see what it saved.
+	- Fixed: it resolves its own prefix, uses the fork's config and data directories, and no longer needs the two Cinnamon libraries it imported. It comes up, lists the shipped actions, reorders them and saves where the action manager reads.
+	- The enable/disable checkboxes went with it. They read a GSettings key that no longer exists, and they duplicated Preferences > Actions, which already does the job. A switched-off action still shows grayed out here, read out of the config file.
+	- Not part of the Windows build: a /bin/sh launcher and a PyGObject script. The button that starts it is hidden there.
 
 - ✅ Bottom scrollbar: missing when the view is tiny, still there after a resize when nothing overflows, flashing at every step of a resize, and now and then strobing along with the vertical one.
 	- Opened: 20260906-110200
@@ -342,6 +280,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The confirmation dialogs keep their usual default button. The dialog itself is the pause.
 
 - ✅ Plugins are duplicated.
+	- Opened: 20260905-112901
 	- Closed: 20260905-184500
 	- Cause: the same share folder reaches the data-dir list more than once. The prefix wrapper puts it on when a launcher already has, and on Windows GLib adds the exe's own share folder on top of the one in the environment. Every action file was then found once per copy.
 	- Fixed: the list is read through one place that drops repeats, and every scan that walks it (actions, search helpers, themes, thumbnailers) uses that. The wrapper also no longer adds a folder that is already there.
@@ -400,7 +339,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260830-150000
 	- Cause: Windows reports no type at all for a link the listing does not follow, so the toolkit handed back its plain file icon. The folder icon comes off the type, so a folder link got the document one. Both a directory symlink and a junction were affected.
 	- Fixed: a link that is a folder is given the folder icon whatever the type came back as.
-	- Note: a new check pins the missing-type behaviour the swap exists for, and holds a folder link to the folder icon.
+	- Note: a new check pins the missing-type behavior the swap exists for, and holds a folder link to the folder icon.
 
 - ✅ "Copy path as" left the clipboard holding whatever was in it before, instead of the path.
 	- Opened: 20260830-141048
@@ -420,6 +359,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260829-083500
 	- Cause: the move of an old-style settings folder into its roaming home fired on any folder found at the old place. On Windows that place is also where actions, scripts and search helpers are kept, so an ordinary data folder was carried off as if it were old settings.
 	- Fixed: only a folder holding a settings file is moved. The data folder stays where it is.
+
+- ✅ Startup warnings on Windows, and one warning per file in the first listing.
+	- Opened: 20260804-133646
+	- Closed: 20260829-073319
+	- Fixed: the Windows half of the NULL-instance criticals was the missing resource bundle.
+	- Fixed: the second signature - `g_file_get_child: assertion 'name != NULL'`, one per file listed. Cause: a file's name is not filled in until late in the same update that first applies its info, and the drive-root naming read it early, so every file in the first listing logged one. It also meant a drive root shown as a child kept the bare separator as its name until something refreshed it.
+	- Note: a regression check lists a folder and fails on anything logged at warning level or worse.
+	- Note: split from "Startup logs a dozen pairs", which stays open for the Linux host.
 
 - ✅ Often when right-clicking on the breadcrumb buttons, the menu closes immediately and has to be right-clicked again.
 	- Opened: 20260802-095853
@@ -870,7 +817,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Fixed: the reference is released.
 
 		- ✅ Item 68. The drag URI array writes its null terminator one element past the allocation.
-			- Fixed: the array is one longer, so the terminator lands inside it.
+			- Fixed: the array is one longer, so the terminator fits inside it.
 
 		- ✅ Item 69. A failed filesystem query during a desktop drag unrefs a null.
 			- Fixed: guarded, and the drag falls back to no filesystem information.
@@ -1077,7 +1024,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Cause: any typed network address is presented as a valid empty folder rather than "not found".
 		- Cause: nothing limits how deep the enumeration recurses.
 		- Fixed: a share's address is joined with a separator, no-network and access-denied are reported instead of reading as an empty folder, an address that cannot be reached comes back as not found, and the enumeration is depth-limited.
-		- Verified on Windows: new test covers the address building - a share now lands under its server, and two server/share pairs that used to run together into one address stay apart.
+		- Verified on Windows: new test covers the address building - a share now sits under its server, and two server/share pairs that used to run together into one address stay apart.
 		- Also verified against real shares: this box serves four of its own, and the test now browses them for real - each comes back as a link to its UNC path, and each is opened to prove the link goes somewhere. The one that does not open is an empty optical drive, which the test names rather than counting against the backend.
 		- Still open: the no-network and access-denied halves. Both need a machine that fails in those specific ways, which this one does not.
 
@@ -1230,8 +1177,67 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Run the test suite in the Linux pipeline.
+	- Opened: 20260909-112701
+	- Closed: 20260909-145927
+	- The Linux gate now builds, runs the whole suite, then the launch smoke. Half a minute with nothing to rebuild, longer when there is. A broken check can no longer reach main unnoticed.
+	- The gate had no build step at all, so it had been checking whatever was last left lying around. It builds first now, held to the same job limit as the rest of the pipeline, and so is the suite.
+	- What it builds is the working tree, not the commit being pushed, so an unfinished edit sitting in the tree will stop a push. Building the pushed commit in a detached worktree would be more correct, and would be a cold build every time; a warm build directory is what keeps the gate at half a minute.
+	- The three tests written off as environment failures were all real. One was fixed and two were replaced.
+		- The thumbnail test hid the shared mime database along with the box's own thumbnailers, and reading an image back needs it - so the long-thin-image check failed and read as a thumbnailer defect. The test keeps its isolation and reaches the database again.
+		- The other two were inherited demo programs rather than tests. Neither asserted anything and neither could ever exit, so both ran until the runner killed them. One searched the whole filesystem, because it named no folder to search.
+	- What replaced them. Filename search covers recursion on and off, and a pattern that matches nothing, which still has to come back or the view sits on a spinner. Directory monitoring covers the first listing, a file that appears afterwards, and a forced reload finishing rather than merely starting.
+	- Three Windows-only tests had been reporting a pass on Linux while doing nothing at all. They report themselves skipped now, which is why the count reads 49 passed and 3 skipped rather than 52 passed.
+	- Note: the Windows lane and two leftovers from this pass are filed as open items.
+
+- ✅ A crash leaves a report behind.
+	- Opened: 20260903-130431
+	- Closed: 20260909-090725
+	- Done: a crash now writes a report next to the settings file, under `crash/`. It carries the version, what killed it, and the stack. The same text goes to stderr, which is what a launcher log keeps, and on Windows a message box says where the file is, since a windowed build has no stderr. The next start notes a report was left behind, and the oldest are dropped so the folder cannot grow forever.
+	- Note: split from "Randomly crashes", which stays open until a report shows the cause.
+
+- ✅ Menu entries and shortcuts that keep working, and one sync path spelling per platform.
+	- Opened: 20260908-013000
+	- Closed: 20260908-015628
+	- Every list of sync-tree paths carries both spellings now - the source dir, the wrapper the menu entry runs, and the launcher itself. `synced` is a link to the Dropbox folder, and a box without the link found nothing at all.
+	- The app icon is copied out of the newest version and kept beside the pool under a fixed name. A menu entry used to point into a version directory and go blank the moment that version was pruned.
+	- Windows shortcuts get the same treatment the Linux menu entry already had. A Start Menu or taskbar link aimed at this app is repointed at the current launcher and icon, and one is created if there is none. Both dev boxes had a link to a launcher path and an exe drop that were retired weeks ago, so clicking it did nothing.
+	- The old by-self exe drop is swept on sight, wherever a run finds one.
+	- The desktop step no longer waits on a successful launch, so a box with no build yet still gets its shortcut fixed.
+	- A launcher run from outside its deployed home writes no shortcut at all, rather than one naming a path that will not last.
+	- Both dev Windows boxes were swept: the stale run log and the last 38 MB copy from the old pool are gone, and each Start Menu and taskbar link now names a launcher and an icon that exist.
+	- Note: `exec/synced/util` is a link into the live synced tree on at least one box. Anything swept under a path that looks local can be the real file, and the sync layer then carries the delete everywhere.
+	- A shortcut or menu entry now records the wrapper's deploy-managed path rather than whatever a PATH lookup returns. On one box PATH reached the file through two chained links, and the shortcut kept that spelling; both boxes name the plain path now.
+	- The wsl copy of the bash wrapper is deployed along with the linux and macos ones. Nothing was keeping it in step and it had fallen a revision behind.
+	- A full sweep of both Windows boxes and this one found no stray versions or launchers left to move or trash. The only stale copies remaining sit inside a scheduled local mirror frozen at 20260903, which other tooling owns.
+
+- ✅ Cut the Linux drop from 102 files to 44.
+	- Opened: 20260908-000856
+	- Closed: 20260908-005434
+	- Note: it started at 102 files and 3.8 MB. Three helper exes were 2.6 MB of that, and nothing spawned two of them.
+	- Done: the three helper exes are gone. The connect and open-with dialogs already ran in-process, so those two were dead weight. The extensions lister is now `--extensions-list` on the program itself, which keeps it a separate process without a separate binary.
+	- Done: the `bin/` shell wrapper. The program points its own data and program paths at the folder it sits in, and finds the extension library through an rpath, so `bin/nemo-anywhere` is the program itself and `libexec/` is gone.
+	- Staying: the four document-to-text converters, and actions, which have to remain user-editable.
+	- Done: data that only a system install would use has left the drop - mime, polkit, man pages and the editor syntax files. Nothing reads any of it out of a relocatable prefix or out of /opt, which is where both packages put one. A distro building its own install still gets all of it.
+	- Done: the D-Bus activation file is written at startup into the user's own service directory, naming the path this copy really runs from. The shipped one named wherever it was built.
+	- Done: what could move into the compiled resources has. The whole icon tree except the app icon itself was a second copy of art already in the binary, kept only for a system icon theme; the two info-bar documents are written out to the cache when the button that opens them is pressed, since another program has to read them.
+	- Left as files, deliberately: actions, search helpers and the settings schema. All three are drop-in folders a user adds to or edits, and Preferences has a button that opens two of them.
+	- Done: the eight Cinnamon-only actions ship disabled. They call cinnamon-settings, the desktop editor or org.Cinnamon over the bus, and are still listed in Preferences > Actions for anyone running Cinnamon.
+	- Note: split from "Cut the Linux drop down toward a single file", which stays open for the static extension library.
+
+- ✅ One dogfood location per platform, and a launcher pool that keeps its history.
+	- Opened: 20260907-203000
+	- Closed: 20260907-224704
+	- Every platform's build now goes to `common/exec/app/<platform>/` under its own name: the whole prefix on Linux, the packed exe on Windows. Both pipelines publish there and nowhere else.
+	- The launcher keeps the local pool: `<name>_versions/` beside a symlink at the fixed name, in `~/.local/bin` on Linux, `%LOCALAPPDATA%\Programs` on Windows and `~/Applications` on macOS.
+	- The pool is rotated on every run instead of aged out after a week. It keeps the newest of each finished hour, day, week, month and year, the most recent few, and the very first build forever, then trims to at most ten versions, at least five, and 1 GB between the two. A version something is running out of is never removed.
+	- A build already held is recognized by its bytes rather than its date, so a stamp the sync layer rounded no longer costs a re-copy.
+	- `runfm` is the name to type or put in a `.desktop` file, on every platform. The masters live in `utility/`; stage 7 copies them out to the synced util dirs.
+	- The menu entry now runs the launcher rather than a dated copy of the app, so a menu click picks up a new build the same way a shell launch does. Its icon comes from the newest version.
+
 - ✅ Add default user-tunable settings as comments to config file.
 	- Opened: n/a
+	- Closed: 20260906-085903
 	- Done 20260906. The settings file ends with every key that is not set, commented out, with the value used instead. Uncommenting a line sets it; setting a key takes it off the list.
 	- Notes were rewritten to say only what a user would see, and dropped entirely where the key name already says it - which is about half of them. The list in the code and the shipped schema are checked against each other so the two cannot drift.
 	- Left off the list: keys the app writes back itself, such as a window size, a sidebar width or the last state of a search toggle. Setting one by hand only gets it overwritten.
@@ -1239,12 +1245,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - ✅ Better thumbnail cache management. Asked for as a database plus background pruning.
 	- Opened: 20260826-103001
+	- Closed: 20260905-192349
 	- Done 20260905. The cache is swept once a day, on a worker thread a minute after startup. A thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed.
 	- Two settings on the Preview page: how long an unused thumbnail is kept, and how big the cache may get. Either can be turned off.
 	- No database. The cache is the shared one every file manager on a Linux desktop uses, and a private store would have cost that sharing and added a dependency to three build environments. Growth was the complaint; sweeping fixes it. Reasoning is in design.md.
 	- Another program's failure records are left alone.
 
 - ✅ Change to search mode column sizing:
+	- Opened: 20260905-133614
+	- Closed: 20260905-184048
 	- In search mode when location column is shown:
 		- Only give 'Name' and 'Location' columns as much space as they need, not more.
 		- Only if they run out of space, shrink column proportional to their space demanded.
@@ -1253,7 +1262,42 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Dragging either column still pins the split, as before, and the pair then fills the row again. Clearing `search.name-location-split` in the settings file goes back to fitting the contents.
 
 - ✅ Need a better icon for "recursive" in search mode. (It currently looks like "press this for enter".)
+	- Opened: 20260905-112901
+	- Closed: 20260905-114812
 	- Done 20260905. A folder with a branch line down into a smaller folder, the usual "include subfolders" shape, in the same flat style as the group-by-folder toggle beside it. Mirrored for right-to-left.
+
+- ✅ New process for each window. A crash in one shouldn't affect all others. And different versions (e.g. from n8runfm.ps1) should be able to run at once.
+	- Opened: 20260722-172504
+	- Closed: 20260905-102753
+	- Done 20260905. Every launch and, by default, every new window is its own process. A command-line launch never joins a running copy, so two versions run side by side. `--quit` and Close All Windows still reach every copy.
+	- A setting under Behavior puts new windows back inside one process. The trade: a tab cannot move to a window in another process, and on Windows a new window takes the packed exe's start-up time.
+
+- ✅ Wire the Linux release lane into the pipeline engine itself, rather than leaving it a script to remember to run by hand.
+	- Opened: 20260804-133646
+	- Closed: 20260904-161518
+	- Done: the lane runs as stage 5. `RELEASE_COLLECT=0` keeps the engine's collector out of the artifact dir, since release.bash already writes the tarball and the sums there itself.
+	- The release smoke check had been failing since the version string gained a build number, so every release since then repackaged an older tarball. It matches on a prefix now.
+
+- ✅ Dogfood the Linux build from the pipeline. It had never been wired up, so the launcher was serving a build from July.
+	- Opened: 20260904-160000
+	- Closed: 20260904-161518
+	- Stage 7 understands a relocatable prefix, not just a single binary: the fixed install puts the tree beside the bin dir and points the name on PATH into it, and the rotating copy is the whole tree under a dated name.
+	- The dated name carries the build's own mtime rather than the run clock, so the pipeline's copy and the launcher's copy of one build agree and neither re-fetches it.
+	- Note: superseded on 20260907 by "One dogfood location per platform": the pipeline publishes one drop and writes no dated copies at all, so the second and third bullets here describe how it used to work.
+
+- ✅ Search options: Flat [ ]  Hierarchical [ ]
+	- Opened: 20260819-141014
+	- Closed: 20260903-185727
+	- Read as a display mode, not another scope switch - the search bar already has a toggle for recursing into subfolders.
+	- Done 20260903. A toggle beside the recurse one groups results under the folder holding them, labeled with the path under the folder searched. Flat is still the default.
+	- Grouped drops the Location column, since the row above every match already says where it is. Switching either way is instant and does not run the search again.
+
+- ✅ Confirm mouse-movement-based actions that don't already ask for some kind of confirmation. (E.g. drag and drop to a new folder)
+	- Opened: 20260730-112038
+	- Closed: 20260903-174842
+	- Note: a major enhancement to call out in README, e.g.: "Helps prevent one of the biggest pain points with GUI file managers: Accidental file & folder moves, sometimes without realizing it."
+	- Done 20260903. A drop now names what it is about to do and where, and waits for an answer. Two settings under Behavior: moves ask by default, copies and links do not.
+	- Covers every drop that moves files: the file list, the icon view, both sidebars, the path bar and the tabs. A drop on the Trash still asks under its own setting, not twice.
 
 - ✅ Allow moving tabs to other windows.
 	- Opened: 20260722-172504
@@ -1273,6 +1317,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Tabs used to be set to expand, which is why three of them split the width evenly whatever they were called.
 
 - ✅ Use the new program icon (`assets/logo.png`).
+	- Opened: 20260902-193009
 	- Closed: 20260903-140000
 	- Every size is cut from the one logo by `cicd/utility/gen-app-icon.py`, and the output is committed.
 	- ✅ Windows .exe. It carried no icon at all before, so it showed the toolkit's default. It now has one, from the file list up to the largest view.
@@ -1317,13 +1362,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Better program icon, for both file .exe and running program. (All supported platforms.)
 	- Opened: 20260831-164337
 	- Closed: 20260902-195000
-	- Answered by the new logo, which the item above puts in place everywhere. Reopen if the art itself should change again.
+	- Answered by the new logo, which "Use the new program icon" puts in place everywhere. Reopen if the art itself should change again.
 
 - ✅ Right-clicking the breadcrumb button for the folder being viewed should offer the same items as right-clicking the empty list background.
 	- Opened: 20260826-103001
 	- Closed: 20260902-194500
 	- Only that one button. The ancestor buttons keep the shorter menu, which is what they had.
 	- The two menus were compared side by side and match item for item; the parent button still gives the shorter one.
+
+- ✅ Windows: GUI testing in a throwaway sandbox, without touching the live console session.
+	- Opened: 20260829-071437
+	- Closed: 20260902-193949
+	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behavior can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
+	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
+	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the app, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
+	- `-Dir` takes a whole flattened build instead of the packed exe, so a rebuild can be looked at without packing first. That is the form to use while working.
+	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
+	- Note: split from "Windows: Need to figure out a way to do GUI testing and demo recording", which stays open for demo recording and anything that spans a reboot.
 
 - ✅ The "Open with" submenu names programs by their file name.
 	- Opened: 20260902-190000
@@ -1348,7 +1403,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Folder symlinks as: symlinks, junctions [Windows], or copies.
 		- Folder junctions [Windows] as: junctions, symlinks, or copies.
 	- Anything the destination cannot take is greyed out. Junction-related options not shown for non-Windows OSes. Each row starts on the same kind if that is possible, otherwise the nearest kind that still points at the original target, otherwise copies.
-	- Done, and on every platform. The dialog names only the kinds the source actually holds, and greys out anything the destination cannot take - including the case where it can take none, where it says why and only the copy is left.
+	- Done, and on every platform. The dialog names only the kinds the source actually holds, and grays out anything the destination cannot take - including the case where it can take none, where it says why and only the copy is left.
 	- Windows had the real gap: a copy always followed the link and left the contents behind, so a link could not be copied at all. POSIX already kept symlinks; what is new there is being able to ask for the contents instead.
 	- The kind of a Windows link comes from the reparse tag. Nothing else tells a junction from a folder symlink, and it also keeps cloud placeholders and store app aliases - which are reparse points too - from being read as links.
 	- A link keeps its own spelling, so a relative one still points where it pointed. Asking for a junction is the exception: those can only name a full path, so a relative target is resolved first.
@@ -1476,7 +1531,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260828-151500
 	- The hidden-files half of this item became "Two kinds of hidden file, two options", now done - it asks for the same thing as two switches rather than one.
 	- A link to a folder is now a junction. One place decides it, so every route into "Make symlink" gets the same answer, and a symlink is still the fallback for anything a junction cannot hold - a file, a share, a relative target.
-	- The point of preferring one: a junction needs no privilege. Making a folder link no longer wants Developer Mode or an elevated run, and the menu item stops greying out for a folder on a machine that has neither.
+	- The point of preferring one: a junction needs no privilege. Making a folder link no longer wants Developer Mode or an elevated run, and the menu item stops graying out for a folder on a machine that has neither.
 	- Verified: a folder link made from the menu reads back as a mount point rather than a symlink, and a new check covers it.
 
 - ✅ New flag: `--reset`. Clears bookmarks, resets to default state. (Maybe just delete the config file?)
@@ -1559,9 +1614,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The menu item shipped turned off.
 	- Renamed "Make symlink" on every platform, since a symlink is what it makes.
 	- Windows gained a second item, "Make shortcut", for the .lnk the shell understands. Both are on by default and share one switch in Context menus - two toggles for nearly the same thing would only be confusing.
-	- Windows allows a symlink only with Developer Mode on or when running elevated, so the item goes grey when neither holds. The check is made once by making a throwaway symlink and deleting it, which is a plainer answer than reading a token and a registry key.
+	- Windows allows a symlink only with Developer Mode on or when running elevated, so the item goes gray when neither holds. The check is made once by making a throwaway symlink and deleting it, which is a plainer answer than reading a token and a registry key.
 	- A drag with the link modifier still makes a shortcut on Windows, which is what Explorer does.
-	- Both verified on Windows against a real folder. Not covered: the greyed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
+	- Both verified on Windows against a real folder. Not covered: the grayed-out state, which needs a box without Developer Mode; and an undo-then-redo of a symlink remakes it as a shortcut, since both share one undo record.
 
 - ✅ Update the vendored SHCL to the current release.
 	- Opened: 20260826-103001
@@ -1572,7 +1627,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- What comes with it: parsing holds roughly half the memory it did and loads faster, number handling no longer follows the host locale (under a comma-decimal locale every float read used to fail and the canonical output diverged), and a line that is malformed but still placeable is now kept and written back instead of dropped.
 	- Its new file tier was deliberately compiled out at first. The writer reaches Windows through the ANSI calls, which are the system codepage unless the exe asks for UTF-8, so a config under a non-ASCII user name would fail to save.
 	- Taken on 20260828, once the manifest asked for UTF-8. Settings now save through it: a temp file beside the target, flushed to disk before it is published, and on Windows a replace that carries the old file's permissions, attributes and alternate streams onto the new one. The previous writer published a brand-new file and left all of that behind.
-	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it is worth keeping; the reader also hands back the exact bytes the "was this our own write" check compares against.
+	- Reading stays where it was. The library reads a file with no size limit, and its allocator ends the process rather than failing, so the cap in front of it stays; the reader also hands back the exact bytes the "was this our own write" check compares against.
 	- The trap: the library names its temp file by splitting the path on a forward slash and nothing else, so a Windows path spelled with backslashes puts the temp somewhere impossible and every save fails. The path is handed over spelled with slashes. The existing config checks caught this immediately.
 
 - ✅ Ask for UTF-8 as the process codepage in the Windows manifest.
@@ -1599,7 +1654,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A shortcut to a folder goes to that path in the current tab.
 	- Use an appropriate icon.
 	- Note: following a shortcut through to its target already works. What is missing is treating each kind of target differently.
-	- A shortcut to a folder still opens in the current tab, which is the one case worth doing differently from the shell. Everything else is now handed to the shell as the shortcut, not as its target.
+	- A shortcut to a folder still opens in the current tab, the one case where the shell's way is not followed. Everything else is now handed to the shell as the shortcut, not as its target.
 	- That is what fixes the program case. A shortcut carries a command line, a working directory and a window state, and none of them survive being reduced to a target path - a shortcut to a shell with arguments used to open a bare shell. Shortcuts to virtual items (Recycle Bin, a control panel page) now open too, having no path to reduce to in the first place.
 	- Verified: a launched shortcut's arguments and working directory both arrive.
 	- Icon split off below - it is a bigger piece than the rest of this and applies to more than shortcuts.
@@ -1618,7 +1673,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260827-110000
 	- If the two are out of step, take the Windows hidden setting as the current value and match the other to it.
 	- Ctrl+Shift+H stays as it is, Windows only.
-	- Both the setting and the dot-file menu item move with it now. The item had to be ticked directly - neither of the two toggles watches for a change made anywhere else, they are only read when the menus are built, which is a wider gap worth closing on its own some time.
+	- Both the setting and the dot-file menu item move with it now. The item had to be ticked directly - neither of the two toggles watches for a change made anywhere else, they are only read when the menus are built. That wider gap is left for later.
 	- Nothing changes off Windows, where one switch already covered both.
 
 - ✅ Ctrl+, opens Preferences.
@@ -1647,7 +1702,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: n/a
 	- Closed: 20260823-144331
 	- A "Paths" group on the Display page of Preferences, shown only on Windows: "Show separator as" picks `\` or `/`, and a checkbox below it accepts or refuses `/` in a typed location.
-	- The checkbox is ticked and greyed out while `/` is the separator on screen, since refusing what is being shown would make no sense.
+	- The checkbox is ticked and grayed out while `/` is the separator on screen, since refusing what is being shown would make no sense.
 	- The choice reaches every surface that spells out a path: the location bar, the Location column, path tooltips, the window and tab titles, the sidebar tooltips, drive roots in the sidebar, and the Location row in properties. Breadcrumbs show names only, so there was nothing to change.
 	- Changing it re-reads the open folder, so the whole window switches over at once rather than on the next visit.
 	- Typed input already took both separators, so what is new is the option to turn `/` off. A location that leans on it is then refused with a beep instead of going anywhere.
@@ -1725,7 +1780,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Menus, buttons, tab and page titles, dialog titles, column headings, tooltips, preference labels, and the bundled actions. About 330 labels in all.
 	- A mnemonic stays where it was, so the underlined letter does not move; it is simply lower case now. Keyboard shortcut text is untouched.
 	- Names keep their capital: the platforms, the toolkit, Trash and the other places in the sidebar, file and disc formats, acronyms. So does a sentence that names a menu item or a tab, since the item itself is still called that.
-	- Left alone on purpose: the licence text, which is quoted verbatim, and the name a new folder or document is given, which is written to disk rather than shown.
+	- Left alone on purpose: the license text, which is quoted verbatim, and the name a new folder or document is given, which is written to disk rather than shown.
 	- It is checked rather than trusted, because a label copied from upstream arrives in Title Case: `cicd/utility/lint-ui-case.py` reads every translatable string in the tree and fails the lint step on any that is not a sentence. The whole exception list lives in that one file, each entry with its reason.
 	- The check found what a first pass by eye did not - the plural labels, where two spellings sit in one call, which is what had left "Copy Paths" and "Make Links" behind.
 
@@ -1746,7 +1801,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The toolkit scales in whole steps only, so a display at 125% or 150% would come out at 100% and read smaller than every other window on that screen. Text is scaled to the monitor's real DPI on top of that, which is not restricted to whole steps, and re-reads it whenever a window moves to a monitor at another scale or a monitor is plugged in. Widgets and icons stay on the whole step.
 	- Nothing was needed for Linux or BSD: X11 and Wayland desktops publish their own scaling and the toolkit already follows it.
 	- The manifest also declares the run level explicitly (unchanged - what we already had by having none) and the versions of Windows we have run on, so the version APIs stop reporting Windows 8 forever.
-	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test. This box runs at 100%, so the fraction itself rests on arithmetic - worth a look on a scaled display.
+	- Verified on this box: the running process reports per-monitor awareness and its window reports the v2 context. The scaling sum is covered by a test. This box runs at 100%, so the fraction itself rests on arithmetic. It still needs a look on a scaled display.
 
 - ✅ F2 selects the whole name, extension and all, rather than just the part before the dot. Settings tunable, for anyone who wants it the other way.
 	- Opened: n/a
@@ -1768,18 +1823,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Refines the earlier "Name column always as large as possible" work under Done, which only made Name take the slack; this is the rule for all of them.
 	- Verified at half a dozen widths on two folders, and the rule itself has a test of its own.
 
-- ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colours, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
+- ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colors, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
 	- Opened: n/a
 	- Closed: 20260819-160351
 	- All SVG, all trimmed to the names a file manager asks for, and all inside the executable - the whole icon payload is 6.6 MB, so nothing needed to be a separate download after all.
 	- Three new fetch shapes were needed: a repository that keeps one theme family per branch, six themes out of one sparse checkout, and two that ship the icons as a tar committed inside a repository of something else.
-	- Buuf is deliberately not included. It is CC BY-NC-SA, and the NonCommercial term rules it out of anything shipped and out of the repository. It is worth having, so `filesystem/` explains where to drop it and gives a one-line fetch for it.
-	- Three of the twelve carry no licence file upstream and are shipped on weaker evidence than the rest. Each one is named, with what it rests on, in `vendor/README.md` - worth a look before a release.
+	- Buuf is deliberately not included. It is CC BY-NC-SA, and the NonCommercial term rules it out of anything shipped and out of the repository. It is still wanted, so `filesystem/` explains where to drop it and gives a one-line fetch for it.
+	- Three of the twelve carry no license file upstream and are shipped on weaker evidence than the rest. Each one is named, with what it rests on, in `vendor/README.md`. Check them before a release.
 
 - ✅ A gallery of every icon set in the README, four icons each on a light and a dark background, plus how to drop your own in. Rendered by `cicd/utility/icon-gallery.py`; re-run it when the set list changes.
 	- Opened: n/a
 	- Closed: 20260819-160351
-	- Each icon is rasterised on its own before being placed. Several sets colour themselves through a stylesheet keyed on a class name they all spell the same way, so pasting their markup into one sheet made six differently coloured sets come out identical - and renaming the classes apart made them all come out black.
+	- Each icon is rasterized on its own before being placed. Several sets color themselves through a stylesheet keyed on a class name they all spell the same way, so pasting their markup into one sheet made six differently colored sets come out identical - and renaming the classes apart made them all come out black.
 
 - ✅ `filesystem/` - a tree mirroring where things land on disk, so a folder can be copied straight across. Carries the icon and widget drop-in folders, what they are called on each platform, and the two optional `index.theme` keys that tell the picker which modes a theme suits.
 	- Opened: n/a
@@ -1789,7 +1844,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: n/a
 	- Closed: 20260819-145557
 	- Luna (XP) and Aero (7) were already ours; Metro (10) and Mica (11) are new, so every bundled Windows widget theme now has icons drawn to match it. The picker pairs them automatically.
-	- Folders are yellow in all four. Aero's were blue, which is not what Windows 7 shipped, and a yellow folder is the one colour that reads on a light background and a dark one alike.
+	- Folders are yellow in all four. Aero's were blue, which is not what Windows 7 shipped, and a yellow folder is the one color that reads on a light background and a dark one alike.
 	- The XP and 7 folders were too shallow to read as folders at a glance; the body is taller in every era now.
 	- The folder itself is drawn per era rather than shared - chunky and outlined for XP and 7, flat and square for 10, rounded with the front panel falling away for 11. It is the icon a Windows generation is recognised by.
 	- The vendored Fluent icon set is gone with them: it drew blue folders and looked nothing like Windows 11, and Mica now covers that style. The Fluent *widget* theme stays. About 390 KB and 179 files lighter.
@@ -1797,7 +1852,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Every bundled SVG run through a size pass: 2.1 MB of icon art down to 1.8 MB, and nemo's own artwork from 142 KB to 50 KB.
 	- Opened: n/a
 	- Closed: 20260819-145557
-	- Numbers in path data are rounded to a step finer than a two-thousandth of the icon, which is under a tenth of a pixel at any size one is drawn. Colours fold to their short form and unreferenced ids go.
+	- Numbers in path data are rounded to a step finer than a two-thousandth of the icon, which is under a tenth of a pixel at any size one is drawn. Colors fold to their short form and unreferenced ids go.
 	- Multipliers - transform matrices, gradient vectors - are deliberately left alone: rounding a scale factor moves everything it touches, which is visible where rounding a coordinate is not.
 	- All 983 icons were compared before and after. One differs at all, by an amount invisible side by side. Checking caught a real fault first time round: an arc's two flags can be written with nothing between them, and reading path data as a plain run of numbers swallows one and silently reshapes the glyph.
 
@@ -1846,14 +1901,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260826-103001
 	- Dropping onto a path button already worked, and still does.
 	- The right-click menu was the short location one. It gained Open, Open in Terminal, Open as Admin and New Folder, so a path segment behaves like the folder it names.
-	- New Folder is only offered on the segment for the folder being viewed, and creates inside it. On any other segment it is greyed.
+	- New Folder is only offered on the segment for the folder being viewed, and creates inside it. On any other segment it is grayed.
 
 - ✅ Ship with "Copy path(s)" script from current nemo install.
 	- Opened: 20260724-091054
 	- Closed: 20260820-055722
 	- Built in rather than shipped as a script, so it needs no interpreter, no clipboard helper and no per-platform install step.
 	- On the selection menu, the background menu (the folder being viewed) and a breadcrumb segment; also on the Edit menu, with Ctrl+Shift+C.
-	- Copies the native path of each selected item, one per line, unquoted, with no trailing newline - the line ending being the local one, so a paste into cmd or notepad lands as separate lines.
+	- Copies the native path of each selected item, one per line, unquoted, with no trailing newline - the line ending being the local one, so a paste into cmd or notepad comes out as separate lines.
 	- Anything with no local path (a remote share) contributes its uri instead, and a recent or favorites entry resolves to the file it stands for rather than copying a virtual uri.
 	- Label follows the count: "Copy Path" for one, "Copy Paths" for several. Show/hide checkboxes in Preferences like the other context-menu items.
 
@@ -1865,13 +1920,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Compressing one folder - selected, or from the background menu or a breadcrumb - archives the folder itself, so opening the archive shows the folder and the contents are one level in. The archive is named after the folder and offered beside it rather than inside it, which is where a person would look for it. A drive root, having no beside, keeps itself.
 	- Selecting everything in a folder and compressing that archives the contents, with no wrapping folder. That one takes the folder's name too, but is offered inside the folder, since that is where the selection was.
 	- A part of a folder gets no name suggested, because there is none a person would agree with; the field starts empty and Compress waits until it is filled in.
-	- "Compress each item separately" makes an archive apiece instead of one archive, each named after the item it came from and all of them written to the chosen folder. Off by default, and greyed with a single item selected, where there is nothing to separate.
-	- With it on there is no name to give, so the name field is greyed - which is also how a part of a folder gets compressed without typing one.
+	- "Compress each item separately" makes an archive apiece instead of one archive, each named after the item it came from and all of them written to the chosen folder. Off by default, and grayed with a single item selected, where there is nothing to separate.
+	- With it on there is no name to give, so the name field is grayed - which is also how a part of a folder gets compressed without typing one.
 	- Each item keeps its whole name, so "notes.rar" becomes "notes.rar.zip". Swapping the suffix would put the new archive on top of the file being read.
 	- However many archives it makes, it is one job: one progress bar, one Cancel, and one question about the ones already there rather than a question apiece.
 	- Formats: zip, tar, tar.gz, tar.xz and 7z are written by the built-in library, so they need nothing installed; rar is offered where the rar command is found, and 7z falls back to the 7z command for anything the library cannot write.
 	- Options, each offered only where the chosen format and the programs present can honour it: compression level, password (with the option to encrypt the file names too), splitting into volumes with an editable list of the usual sizes, solid archives, storing duplicate files once, storing symlinks and junctions as links, following linked folders (off by default, so a link loop cannot pull in the whole disk), and for rar a recovery record (on by default) and locking.
-	- An option nothing can honour is shown greyed rather than hidden, so the dialog does not change shape from one machine to the next.
+	- An option nothing can honor is shown grayed rather than hidden, so the dialog does not change shape from one machine to the next.
 	- Encryption and splitting are treated as requirements - if nothing installed can do them the job is refused rather than quietly writing a readable archive. Everything else is a preference, honoured where possible and dropped where not.
 	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be cancelled, and a cancelled or failed run leaves no half-written archive behind.
 
@@ -1888,7 +1943,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: n/a
 	- Closed: 20260821-064823
 	- Three items on the selection menu and the Edit menu, shown only when everything selected is an archive: "Extract Here", "Extract Each to Its Own Folder" (singular when one is selected) and "Extract To..." with a folder chooser. Show/hide them in Preferences like the other context-menu items.
-	- "Extract Here" unpacks exactly what the archive stores, so one made from a folder brings that folder with it and lands in one place. The folder-each item is the answer to an archive that would otherwise scatter its contents over the folder being viewed.
+	- "Extract Here" unpacks exactly what the archive stores, so one made from a folder brings that folder with it and ends up in one place. The folder-each item is the answer to an archive that would otherwise scatter its contents over the folder being viewed.
 	- Reading covers far more than writing does: the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors all open with nothing installed.
 	- A 7z or rar command is reached for when the built-in library will not open the file - a multi-volume set, or headers it cannot decrypt. Both are tried in turn, since a program being installed is no promise it can read the file.
 	- A protected archive asks for its password once, and reuses it for the rest of the selection.
@@ -2000,7 +2055,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260724-140849
 	- Closed: 20260826-103001
 	- Covers: trash, network browsing, single-instance, default-app setting, the Windows half of the installer, elevated relaunch (UAC prompt), keyboard shortcuts.
-	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Worth deciding whether ours should stand down there. The test that hit it now skips that step unless asked for it.
+	- Note: moving a file to the trash raises a Windows confirmation dialog of its own on this box, on top of ours. Open question: should ours stand down there? The test that hit it now skips that step unless asked for it.
 	- Done on real Windows: the recycle bin end to end, network browsing against this box's own shares, single instance and location forwarding, the installer's install/reinstall/uninstall round trip, and elevated relaunch. Each of the code-review items was re-checked here.
 	- Found doing it, and fixed: the whole compiled-resource bundle was missing from the Windows build, so there was no menu bar at all; a drive root was named three different ways; "Set as default" failed silently forever; the installer read a prerelease version as the release it precedes.
 
