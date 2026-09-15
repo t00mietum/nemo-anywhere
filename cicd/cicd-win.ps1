@@ -38,7 +38,7 @@
 ##		   -Quiet          quiet + unattended (implies -Yes); publish runs quiet too
 ##		   -Quick          skip the slow stages (reserved: none run here yet, so the
 ##		                   build, tests, pack and dogfood all still run)
-##		   -Gate           merge gate only: lint + build + smoke, then exit (no stage/publish)
+##		   -Gate           merge gate only: lint + build + tests + smoke, then exit (no stage/publish)
 ##		   -NoSync         skip the remote sync check (stage 0)
 ##		   -NoFmt          skip the lint stage
 ##		   -NoBuild        skip the build + tests + stage stages
@@ -556,8 +556,8 @@ function fMain {
 	Set-Location -LiteralPath $Root
 	$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 
-	## Gate mode: lint + build + smoke, then exit. The fast local verification for
-	## a push. Nothing is staged or published.
+	## Gate mode: lint + build + tests + smoke, then exit. The local verification
+	## for a push. Nothing is staged or published.
 	if ($Gate) {
 		$miss = fToolchainMissing
 		if ($miss) {
@@ -567,12 +567,14 @@ function fMain {
 			fEcho_Clean
 			return
 		}
-		fSection "Gate 1/3  Lint"
+		fSection "Gate 1/4  Lint"
 		if ($NoFmt) { fNote "lint skipped (-NoFmt)" }
 		else { fLint }
-		fSection "Gate 2/3  Build"
+		fSection "Gate 2/4  Build"
 		fBuild
-		fSection "Gate 3/3  Smoke"
+		fSection "Gate 3/4  Tests"
+		fTests
+		fSection "Gate 4/4  Smoke"
 		fSmoke -Exe (fPrepInPlaceSmoke) -RuntimeBin $MingwBin
 		fSection "$AppName gate: PASSED."
 		fEcho_Clean
@@ -684,6 +686,7 @@ try {
 
 
 ##	History:
+##		- 2026-09-15: The gate runs the meson suite too, between build and smoke.
 ##		- 2026-09-15: Stage 3 runs the meson suite ahead of the --version smoke.
 ##		- 2026-08-04: Optional Authenticode signing of the packed exe (stage 5, after
 ##		  pack), configured entirely by env (NEMO_SIGN_*); no-op/warn when unconfigured
