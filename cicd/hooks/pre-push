@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-##	- Purpose: Local merge gate. The stand-in for a hosted CI: nothing reaches an
-##	  integration branch (main/dev) unverified, even without a full cicd run.
+##	- Purpose: Local merge gate. The stand-in for a hosted CI: nothing reaches the
+##	  release branch (main) unverified, even without a full cicd run.
 ##	- Behavior (per push ref):
-##	   - push to main or dev  -> run the gate (format-check + lints + tests,
+##	   - push to main         -> run the gate (format-check + lints + tests,
 ##	     fail-fast, nothing mutated). A failure blocks the push. Which gate depends
 ##	     on the box: `cicd/cicd.bash --gate` on unix, `cicd-win.ps1 -Gate` on a
 ##	     Windows checkout, where cicd.bash has no docker to build in.
@@ -11,7 +11,9 @@
 ##	     be a strict version increase over what's already on main, and (once one
 ##	     exists) the README "Release-<ver>" badge must match. So a release merge
 ##	     can't ship the same-or-lower version.
-##	   - any other branch     -> not gated (feature branches push freely).
+##	   - any other branch     -> not gated. dev included: a chunk is built and
+##	     tested before it is merged there, and a full run's own publish would
+##	     only repeat the checks it just made.
 ##	- Skips: first push of a ref, branch deletes.
 ##	- Override: `git push --no-verify`, or SKIP_GATE=1.
 ##	- Install: cicd/hooks/install.bash (copies this to .git/hooks/pre-push).
@@ -55,7 +57,7 @@ while read -r localref localsha remoteref remotesha; do
 	[[ "$localsha" == "$z" ]] && continue          # branch delete: skip
 	branch="${remoteref#refs/heads/}"
 	case "$branch" in
-		main|dev) run_gate ;;
+		main) run_gate ;;
 		*) continue ;;
 	esac
 

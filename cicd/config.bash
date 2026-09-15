@@ -128,14 +128,16 @@ RELEASE_NATIVE_CMD=(bash cicd/linux/release.bash)
 RELEASE_NATIVE_BIN="cicd/artifacts/dogfood/${EXE_NAME}/bin/${EXE_NAME}"
 RELEASE_NATIVE_OSARCH="linux-x86_64"
 
-## Stage 5: cross-release targets. Deliberately off.
-## The Windows cross build works (cicd/win/build-cross.bash), but what a Windows box
-## actually dogfoods is the single packed exe, and the packer only runs on Windows -
-## so cross-building here every run would buy a fresher .zip and nothing else. The
-## Windows box builds and dogfoods its own through cicd-win.ps1. Run build-cross.bash
-## by hand before a release, which is what pack-zip.bash expects anyway.
-BUILD_CROSS=0
-CROSS_TARGETS=()
+## Stage 5: cross-release targets. On, so the Windows .zip in stage 6 packs an exe
+## built from the commit being run rather than whatever was cross-built by hand last.
+## --quick and --no-cross leave it out. The Windows box still builds and dogfoods its
+## own packed exe through cicd-win.ps1; this only keeps the zip current.
+## The exe is copied out because the engine checks for the artifact on the host, and
+## the cross build dir lives only in the container.
+BUILD_CROSS=1
+CROSS_TARGETS=(
+	"Windows x86_64 (mingw)|windows-x86_64|cicd/artifacts/cross/nemo-anywhere.exe|rm -f cicd/artifacts/cross/nemo-anywhere.exe && bash cicd/win/build-cross.bash && mkdir -p cicd/artifacts/cross && docker cp nemo-winbuild:/build-win/src/nemo-anywhere.exe cicd/artifacts/cross/nemo-anywhere.exe"
+)
 #	Rust-era original (reference only - cargo/zig cross, not applicable to meson):
 #	CROSS_TARGETS=(
 #		"Windows x86_64 (mingw)|windows-x86_64|target/x86_64-pc-windows-gnu/release/${EXE_NAME}.exe|cargo build --release --target x86_64-pc-windows-gnu"

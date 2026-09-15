@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH "Nemo Anywhere" 1 "October 2012"
+.TH NEMO-ANYWHERE 1 "September 2026"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -16,7 +16,7 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .SH NAME
-nemo \- the Cinnamon File Manager
+nemo-anywhere \- the Nemo Anywhere file manager
 .SH SYNOPSIS
 .B nemo-anywhere
 .RI [ options ] " URIs" ...
@@ -26,10 +26,10 @@ This manual page documents briefly the
 .B nemo-anywhere
 command.
 .PP
-Nemo is the file manager for the Cinnamon desktop.
+Nemo Anywhere is a file manager that needs no particular desktop.
 .br
 .SH OPTIONS
-Nemo follows the usual GNU command line syntax, with long options starting
+Nemo Anywhere follows the usual GNU command line syntax, with long options starting
 with two dashes (`-'). A summary of options is included below.
 .TP
 .B \-g
@@ -68,22 +68,25 @@ Quit every running copy.
 Show a summary of options.
 .TP
 .B \-\-version
-Show Nemo's version.
+Show the version.
 .TP
-Other standard GNOME options not listed here are also supported.
+Other standard GTK options not listed here are also supported.
 
 .SH PROCESSES
 Every launch is its own process, and by default so is every new window, so a crash in one leaves the others running and two versions can be open side by side. The copies find each other over the session bus, which is how \-\-quit reaches all of them. The Behavior page of the preferences can put new windows back inside one process.
 
 .SH NOTE ON THE ROOT USER
-Ordinarily, nemo and nemo-desktop treat being run as the root user as special, with certain
-restrictions and UI changes. This behavior can be bypassed via a gsettings key. You can use
-the following command to enable/disable this override:
-
-gsettings set org.nemo.preferences treat-root-as-normal true|false
+Run as the root user, Nemo Anywhere keeps certain safeguards and UI changes. To turn
+them off, set this in the settings file, nemo-anywhere/settings.shcl under the user
+config folder:
+.PP
+.nf
+preferences:
+	treat-root-as-normal: true
+.fi
 
 .SH BUG REPORTS
-Please report bugs and feature requests here: https://github.com/linuxmint/nemo
+Please report bugs and feature requests here: https://github.com/t00mietum/nemo-anywhere/issues
 
 .SH AUTHOR
 This manual page was originally written for Nautilus by Takuo KITAME <kitame@debian.org> and Dafydd

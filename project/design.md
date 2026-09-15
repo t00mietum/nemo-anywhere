@@ -531,7 +531,7 @@ The one deliberate exception is a release-only workflow, `.github/workflows/rele
 
 - Feature branches merge `--no-ff` into `dev`, the integration target. `main` is release-only, and merging dev into main is what cuts a release. Nothing is committed directly on either.
 
-- The merge gate is `cicd.bash --gate` running as the `pre-push` hook, for pushes to main or dev only. It is the local stand-in for a hosted CI workflow: lints, then a container build, then the test suite, then a headless launch smoke test. Install it per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
+- The merge gate is `cicd.bash --gate` running as the `pre-push` hook, for pushes to main only. A push to dev is not gated, since each chunk is built and tested before it is merged there. It is the local stand-in for a hosted CI workflow: lints, then a container build, then the test suite, then a headless launch smoke test. Install it per clone with `cicd/hooks/install.bash`; override a run with `git push --no-verify` or `SKIP_GATE=1`.
 
 - The Windows gate runs the same lints, build and smoke test, but not the suite yet.
 

@@ -61,11 +61,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Don't run CICD trigger on commit to dev.
-	- Opened: 20260914-182719
-
-- 🔘 The standard .desktop launcher should be titled "Nemo Anywhere", not "File Manager".
+- 🛠️ The standard .desktop launcher should be titled "Nemo Anywhere", not "File Manager".
 	- Opened: 20260914-173549
+	- The launchers this project installs already say Nemo Anywhere. The man page still named the Cinnamon file manager, and now names this one.
+	- The "File Manager" menu entry on the XFCE box is the desktop's own launcher for whatever file manager is preferred, which is set to the dogfood launcher. It is not a file from this project.
+	- Left: whether to hide or shadow that desktop entry, or leave it.
 
 - 🔘 Make the crash reporter better.
 	- Opened: 20260909-171500
@@ -191,6 +191,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
+	- The Windows cross build runs on every full run now, so the zip is never packed from an older exe. `--quick` skips it.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
 	- Opened: 20260905-112900
@@ -1187,6 +1188,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Don't run CICD trigger on commit to dev.
+	- Opened: 20260914-182719
+	- Closed: 20260915-132239
+	- A push to dev no longer runs the gate. Only a push to main does. A chunk is built and tested before it is merged to dev, and a full run's own publish only repeated the checks it had just made.
 
 - ✅ Run the test suite in the Linux pipeline.
 	- Opened: 20260909-112701
