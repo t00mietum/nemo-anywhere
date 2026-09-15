@@ -61,30 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🛠️ Make the crash reporter better.
-	- Opened: 20260909-171500
-	- Filed off a review of the reporter as it went in. None of these stop it doing its job today.
-	- A second crash in the same second from a reused process id loses the second report on Linux and overwrites the first on Windows.
-		- Fixed: the second report gets a number on the end of its name, and the first is left as it was.
-	- The check before the Windows unwind step reads eight bytes, not the frame the unwinder will read, so a badly shredded stack still costs the stack half of the report.
-		- Fixed: every read the unwinder is about to make is checked first. A frame that points at nothing ends the walk with a note, and the frames before it stay in the report.
-	- A stack that unwinds to itself fills the report with sixty-four identical lines, which reads the same as genuine deep recursion.
-		- Fixed on Windows: the walk stops with a note once a frame fails to move up the stack.
-	- On Linux a jump to a null pointer recovers only two frames, because the backtrace call cannot start from an address with no code at it. The handler is already handed the register state that would recover the caller and throws it away.
-		- Fixed: the caller and everything above it are in the report now.
-	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
-		- Fixed: a real fault happens again with no handler in place. A sent signal is still raised, and its report no longer gives an address it does not have.
-	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
-		- Linux reports one now, and a check covers it.
-	- Left: a run on a real Windows box. Stack overflow cannot be driven anywhere else, and the other Windows changes have not run there either.
-
-- 🛠️ Run the test suite in the Windows pipeline.
-	- Opened: 20260909-145927
-	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the Linux pipeline item was left open rather than guessed at.
-	- Blocked on there being nowhere to run it: neither Windows box holds a checkout at all, so nothing can be built or tested there as things stand.
-	- The cross build is not a stand-in. Run against the emulator the same suite gives six failures and a timeout, and the keyboard and parts of the shell do not behave there, so a green run would prove nothing and a red one would say nothing either.
-	- The full Windows pipeline runs the suite before its smoke test now. Left: a first run on a Windows box, and the gate itself still runs only the smoke.
-
 - 🔘 Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615
 	- Nothing in the tree is fuzzed today. The settings file, the action files and the `.desktop` and `.lnk` readers all parse text that arrives from outside the program.
@@ -105,6 +81,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
 	- Opened: 20260908-021923
+	- Note: clearing an extract's staging folder on Windows went into a junction and deleted what it pointed at. Fixed, with a check. The delete job itself has not been checked against a junction yet.
 
 - 🔘 Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
 	- Opened: 20260908-133001
@@ -119,9 +96,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 	- Opened: 20260908-111526
 
-- 🔘 Real-Windows validation: the paths still not exercised there.
+- 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
-	- The Windows pipeline runs the full test suite before its smoke test now, but that has never run on a Windows box. The same suite had six failures and a timeout under wine.
+	- The test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 
@@ -211,6 +188,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ On Windows the delete guard did not know home by its short 8.3 name, or by a path through a junction.
+	- Opened: 20260915-160031
+	- Closed: 20260915-161437
+	- The folder removal behind the guard also went into junctions, so clearing an extract's staging folder could delete what a junction inside it pointed at.
+	- Home and the folders above it are matched by file identity now, as they already were on Linux. A junction counts as a link, and is never walked.
 
 - ✅ "Focus" can never be on a column, nor a tab.
 	- Opened: 20260914-173549
@@ -1177,6 +1160,34 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Make the crash reporter better.
+	- Opened: 20260909-171500
+	- Closed: 20260915-161437
+	- Filed off a review of the reporter as it went in. None of these stop it doing its job today.
+	- A second crash in the same second from a reused process id loses the second report on Linux and overwrites the first on Windows.
+		- Fixed: the second report gets a number on the end of its name, and the first is left as it was.
+	- The check before the Windows unwind step reads eight bytes, not the frame the unwinder will read, so a badly shredded stack still costs the stack half of the report.
+		- Fixed: every read the unwinder is about to make is checked first. A frame that points at nothing ends the walk with a note, and the frames before it stay in the report.
+	- A stack that unwinds to itself fills the report with sixty-four identical lines, which reads the same as genuine deep recursion.
+		- Fixed on Windows: the walk stops with a note once a frame fails to move up the stack.
+	- On Linux a jump to a null pointer recovers only two frames, because the backtrace call cannot start from an address with no code at it. The handler is already handed the register state that would recover the caller and throws it away.
+		- Fixed: the caller and everything above it are in the report now.
+	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
+		- Fixed: a real fault happens again with no handler in place. A sent signal is still raised, and its report no longer gives an address it does not have.
+	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
+		- Linux reports one now, and a check covers it.
+	- Every case now passes on a real Windows box too, stack overflow included.
+		- The check itself had never passed there. It read the report path with the line ending still on it.
+
+- ✅ Run the test suite in the Windows pipeline.
+	- Opened: 20260909-145927
+	- Closed: 20260915-161437
+	- The Windows gate runs lints, build and the launch smoke, but not the suite. That half of the Linux pipeline item was left open rather than guessed at.
+	- Blocked on there being nowhere to run it: neither Windows box holds a checkout at all, so nothing can be built or tested there as things stand.
+	- The cross build is not a stand-in. Run against the emulator the same suite gives six failures and a timeout, and the keyboard and parts of the shell do not behave there, so a green run would prove nothing and a red one would say nothing either.
+	- The full Windows pipeline and the gate both run the suite before the smoke test now, and both pass on a Windows box.
+	- Four tests need a monitor, and skip when there is none, as over ssh.
 
 - ✅ The standard .desktop launcher should be titled "Nemo Anywhere", not "File Manager".
 	- Opened: 20260914-173549
