@@ -67,15 +67,22 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The "File Manager" menu entry on the XFCE box is the desktop's own launcher for whatever file manager is preferred, which is set to the dogfood launcher. It is not a file from this project.
 	- Left: whether to hide or shadow that desktop entry, or leave it.
 
-- 🔘 Make the crash reporter better.
+- 🛠️ Make the crash reporter better.
 	- Opened: 20260909-171500
 	- Filed off a review of the reporter as it went in. None of these stop it doing its job today.
 	- A second crash in the same second from a reused process id loses the second report on Linux and overwrites the first on Windows.
+		- Fixed: the second report gets a number on the end of its name, and the first is left as it was.
 	- The check before the Windows unwind step reads eight bytes, not the frame the unwinder will read, so a badly shredded stack still costs the stack half of the report.
+		- Fixed: every read the unwinder is about to make is checked first. A frame that points at nothing ends the walk with a note, and the frames before it stay in the report.
 	- A stack that unwinds to itself fills the report with sixty-four identical lines, which reads the same as genuine deep recursion.
+		- Fixed on Windows: the walk stops with a note once a frame fails to move up the stack.
 	- On Linux a jump to a null pointer recovers only two frames, because the backtrace call cannot start from an address with no code at it. The handler is already handed the register state that would recover the caller and throws it away.
+		- Fixed: the caller and everything above it are in the report now.
 	- The signal is handed back with a raise, which puts the reporter's own frame on top of the core file. Only a signal that was really sent needs that; a fault could simply be allowed to happen again, and the difference is in what the handler is told.
+		- Fixed: a real fault happens again with no handler in place. A sent signal is still raised, and its report no longer gives an address it does not have.
 	- A stack overflow has never been seen to produce a report on either platform - it cannot be driven under the emulator. Needs a run on real hardware before the claim stands.
+		- Linux reports one now, and a check covers it.
+	- Left: a run on a real Windows box. Stack overflow cannot be driven anywhere else, and the other Windows changes have not run there either.
 
 - 🔘 Run the test suite in the Windows pipeline.
 	- Opened: 20260909-145927

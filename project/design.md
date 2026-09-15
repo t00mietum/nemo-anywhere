@@ -201,13 +201,13 @@ One process per window by default, one main loop each, and a firm rule that noth
 
 A crash leaves a report. Without one there is nothing to work from: a windowed program on Windows has no stderr, so it used to disappear off the screen and that was the whole story.
 
-- The report goes to `crash/`, beside the settings file. It gives the version and build, what killed the program and where, and the stack. The name carries when the run started, since working out the current time is not something the code can safely do at that point; the file's own timestamp is when it died.
+- The report goes to `crash/`, beside the settings file. It gives the version and build, what killed the program and where, and the stack. The name carries when the run started, since working out the current time is not something the code can safely do at that point; the file's own timestamp is when it died. When a process id comes round again within the same second, the second report gets a number on the end rather than being lost.
 
 - The same text goes to stderr, which is where a launcher log keeps it. Windows gets a message box as well, because a windowed build has no stderr for anyone to read.
 
 - Frames are addresses, not names. The Windows build carries no debug database and the released Linux build is stripped, so a frame is only worth anything alongside the build it came from. Windows reports each frame at the address it was linked at, which is what `addr2line` takes directly. Linux writes the module, an offset in parentheses, and the address it happened to run at in brackets; the bare `+0x...` in parentheses is the one to hand over, and where a symbol name stands beside it instead the frame is already named.
 
-- On the way out the signal is handed back, so a core file is still written and an attached debugger still stops. The frame it stops on is the reporter rather than the fault, one step further out than it would have been.
+- On the way out a fault is left to happen again with no handler in place, so a core file and an attached debugger both stop on the fault itself. A signal sent by something else has no fault to repeat, so that one is raised again from the reporter.
 
 - The handler stays off the allocator, since a crash inside it is one of the cases to survive, but it cannot avoid locks altogether: reading a symbol takes the loader's on Linux, and naming a module takes it on Windows. What it does avoid is the worst of them - the Windows side walks the stack with the operating system's own unwinder rather than the symbol library, whose first act is to enumerate every loaded module.
 
