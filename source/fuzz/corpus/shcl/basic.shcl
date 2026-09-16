@@ -1,0 +1,13 @@
+# What the program writes for itself: flat dotted keys, a few types, one block.
+appearance.mode: dark
+appearance.gtk-theme: Adwaita
+appearance.icon-theme:
+archive.create-with-7z: "{{PROGRAM}} a {{FORMAT}} -y -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}"
+favorites: /home/a, /home/b, /home/c
+list-view.column-widths: 200, 80, 120
+window.remember-size: true
+
+window
+	width: 1024
+	height: 768
+	maximized: false

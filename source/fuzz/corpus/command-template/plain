@@ -1,0 +1,1 @@
+{{PROGRAM}} a -y -bsp1 {{SPLIT}} -- {{TARGET_ARCHIVE}} {{FILES}}

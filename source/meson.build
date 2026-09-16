@@ -238,6 +238,13 @@ nemo_definitions =  [
 
 po_subdir = join_paths(meson.project_source_root(), 'po')
 
+# Coverage has to reach the code a fuzz target calls into, not just the target
+# file, so the instrumentation goes on the whole project here and the targets
+# add the linker half themselves. Address sanitizing is left to -Db_sanitize.
+if get_option('fuzzing')
+  add_project_arguments('-fsanitize=fuzzer-no-link', language: 'c')
+endif
+
 subdir('install-scripts')
 subdir('cut-n-paste-code/libegg')
 subdir('data')
@@ -258,6 +265,7 @@ add_test_setup('nobus',
 )
 
 subdir('test')
+subdir('fuzz')
 subdir('docs')
 # A /bin/sh launcher and a PyGObject script; neither ships on Windows.
 if not is_windows

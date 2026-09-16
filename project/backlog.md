@@ -61,11 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Fuzz the parsers that read untrusted input.
-	- Opened: 20260908-133615
-	- Nothing in the tree is fuzzed today. The settings file, the action files and the `.desktop` and `.lnk` readers all parse text that arrives from outside the program.
-	- Wants a libFuzzer or AFL target per parser plus a seed corpus, run from the pipeline and skippable on a quick run.
-
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
 	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
@@ -1160,6 +1155,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Fuzz the parsers that read untrusted input.
+	- Opened: 20260908-133615
+	- Closed: 20260916-104101
+	- Three targets, one for each parser that is ours to fix: the settings file, the drag payload, and the command lines kept in the config.
+	- The item named four parsers, and two of them turned out not to be ours. The settings parser is vendored and `.desktop` files go through GLib, so a find in either is a report upstream rather than a patch here. `.lnk` files are read by Windows itself, which leaves nothing to fuzz and could not run on the Linux host anyway.
+	- Each target builds two ways. Ordinarily it replays a checked-in seed corpus as part of the suite, which keeps it compiling and keeps the seeds meaning something. With `-Dfuzzing=true` it builds against libFuzzer and the pipeline searches for a bounded time per target.
+	- The replay tests carry AddressSanitizer themselves. Without it they passed clean with a known over-read put back, which made them worth nothing; with it the drag payload test catches it.
+	- A time budget running out is a pass. A find exits on a code of its own and leaves the input behind, so the two can never be mistaken for each other.
+	- Left out of `--quick` and out of the pre-push gate. A box with no clang skips the stage with a warning rather than failing the run.
 
 - ✅ Make the crash reporter better.
 	- Opened: 20260909-171500

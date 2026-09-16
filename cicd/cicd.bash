@@ -470,6 +470,18 @@ if [[ -n "${LINT_CMD+x}" ]] && ((${#LINT_CMD[@]})); then
 		fEcho "WARNING: lints skipped: ${LINT_PROBE[*]} failed (component not installed?)"
 	fi
 fi
+## Bounded fuzzing of the parsers that read outside input. Slow by design, so it
+## is left out of --quick; the gate never runs it at all.
+if ((! quick)) && [[ -n "${FUZZ_CMD+x}" ]] && ((${#FUZZ_CMD[@]})); then
+	if "${FUZZ_PROBE[@]}" >/dev/null 2>&1; then
+		"${FUZZ_CMD[@]}"
+		fEcho "OK: fuzz targets clean"
+	else
+		fEcho "WARNING: fuzz skipped: no clang or no libFuzzer runtime in the build container"
+	fi
+elif ((quick)); then
+	fEcho_Clean "fuzz skipped (--quick)"
+fi
 if [[ -n "${DENY_CMD+x}" ]] && ((${#DENY_CMD[@]})); then
 	if "${DENY_PROBE[@]}" >/dev/null 2>&1; then
 		## Advisory-only for now: report license/advisory/duplicate findings

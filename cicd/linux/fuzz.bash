@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+
+##	- Purpose: Build the fuzz targets against libFuzzer and run each one for a
+##	  bounded time over its seed corpus. Handed to docker-run.bash by cicd's fuzz
+##	  stage; not meant to be run on the host.
+##	- Needs clang. Without it, or without the libFuzzer runtime, --probe fails and
+##	  the stage skips with a warning instead of aborting the run. The ordinary gcc
+##	  build still compiles the same targets and replays the seeds as tests.
+##	- A time budget running out is NOT a failure: libFuzzer stops and exits 0. A
+##	  real find exits with FUZZ_FIND_CODE and leaves a crasher under findings/.
+##	  Those are told apart by the exit code, never by the run having ended.
+##	- FUZZ_SECS sets the per-target budget (default 60). BUILD_DIR overrides the
+##	  build directory.
+##	- Syntax: fuzz.bash [--probe]
+
+##	Copyright (c) 2026 Bubbles
+##	Licensed under The MIT License (MIT). Full text at:
+##		https://mit-license.org/
+##	SPDX-License-Identifier: MIT
+
+set -Eeuo pipefail
+
+build="${BUILD_DIR:-/build-fuzz}"
+secs="${FUZZ_SECS:-60}"
+src="/src/source"
+
+## Distinct on purpose: 1 is a build or usage problem, 77 is the tree's "could
+## not run", and this is a crasher. Nothing else uses it.
+declare -i FUZZ_FIND_CODE=86
+
+## Each target and where its seeds live.
+targets=(
+	"fuzz-shcl|shcl"
+	"fuzz-dnd|dnd"
+	"fuzz-command-template|command-template"
+)
+
+case "${1:-}" in
+	-h|--help) sed -n '/^##\t- Purpose:/,/^##\tCopyright/p' "${BASH_SOURCE[0]}" | sed '$d; s/^##\t\{0,1\}//'; exit 0 ;;
+esac
+
+fProbe() {
+	command -v clang >/dev/null 2>&1 || { echo "clang not installed" >&2; return 1; }
+
+	## Having clang is not the same as having the libFuzzer runtime, which is a
+	## separate package on some distros. Compile the smallest thing that needs it.
+	local probeDir
+	probeDir="$(mktemp -d)"
+	printf '#include <stdint.h>\n#include <stddef.h>\nint LLVMFuzzerTestOneInput(const uint8_t *d, size_t n){(void)d;(void)n;return 0;}\n' > "${probeDir}/probe.c"
+
+	local ok=0
+	clang -fsanitize=fuzzer -o "${probeDir}/probe" "${probeDir}/probe.c" >/dev/null 2>&1 || ok=1
+
+	rm -rf -- "${probeDir}"
+
+	if ((ok)); then
+		echo "clang is present but cannot link -fsanitize=fuzzer (libFuzzer runtime missing?)" >&2
+		return 1
+	fi
+
+	return 0
+}
+
+if [[ "${1:-}" == "--probe" ]]; then
+	fProbe
+	exit $?
+fi
+
+fProbe || { echo "[ fuzz stage cannot run here ]" >&2; exit 77; }
+
+case "${secs}" in
+	''|*[!0-9]*|0*) secs=60 ;;
+esac
+
+## A sanitized tree of its own, so the ordinary /build is left alone and the
+## next plain ninja does not have to rebuild the world.
+if [[ -f "${build}/build.ninja" ]]; then
+	CC=clang meson setup --reconfigure "${build}" "${src}" -Dfuzzing=true -Db_sanitize=address -Db_lundef=false
+else
+	CC=clang meson setup "${build}" "${src}" -Dfuzzing=true -Db_sanitize=address -Db_lundef=false
+fi
+
+## Only the targets themselves. Building the whole tree here costs minutes and
+## drags in the extension library, which has no business in a fuzzing build.
+ninjaTargets=()
+for entry in "${targets[@]}"; do
+	ninjaTargets+=("fuzz/${entry%%|*}")
+done
+
+ninja -C "${build}" -j "${NEMO_TEST_JOBS:-2}" "${ninjaTargets[@]}"
+
+findings="${build}/findings"
+mkdir -p "${findings}"
+
+declare -i found=0
+
+for entry in "${targets[@]}"; do
+	name="${entry%%|*}"
+	seedName="${entry##*|}"
+	seeds="${src}/fuzz/corpus/${seedName}"
+	bin="${build}/fuzz/${name}"
+
+	## libFuzzer writes back into the first corpus directory it is given, and the
+	## seeds are checked in, so it gets a copy to scribble on.
+	work="${build}/work/${seedName}"
+	rm -rf -- "${work}"
+	mkdir -p "${work}"
+	cp -- "${seeds}"/* "${work}/"
+
+	echo "[ fuzzing ${name} for ${secs}s ]"
+
+	## -error_exitcode makes a find unmistakable. Without it a crash and a bad
+	## argument both come back as 1, and the stage cannot tell which happened.
+	set +e
+	"${bin}" "${work}" \
+		-max_total_time="${secs}" \
+		-error_exitcode="${FUZZ_FIND_CODE}" \
+		-artifact_prefix="${findings}/${name}-" \
+		-print_final_stats=1
+	rc=$?
+	set -e
+
+	if ((rc == 0)); then
+		echo "[ ${name}: budget spent, nothing found ]"
+	elif ((rc == FUZZ_FIND_CODE)); then
+		echo "[ ${name}: FOUND a crasher - see ${findings} ]" >&2
+		found=$((found + 1))
+	else
+		echo "[ ${name}: exited ${rc}, which is neither a clean run nor a find ]" >&2
+		exit 1
+	fi
+done
+
+if ((found)); then
+	echo "[ ${found} target(s) found a crasher; the input files are under ${findings} ]" >&2
+	exit "${FUZZ_FIND_CODE}"
+fi
+
+echo "OK: fuzz targets clean for ${secs}s each"
