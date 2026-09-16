@@ -37,6 +37,7 @@
 #include "nemo-location-bar.h"
 #include "nemo-mime-actions.h"
 #include "nemo-notebook.h"
+#include "nemo-pane-layout.h"
 #include "nemo-places-sidebar.h"
 #include "nemo-tree-sidebar.h"
 #include "nemo-view-factory.h"
@@ -89,7 +90,6 @@ static guint mouse_back_button = 8;
 static void mouse_back_button_changed		     (gpointer                  callback_data);
 static void mouse_forward_button_changed	     (gpointer                  callback_data);
 static void use_extra_mouse_buttons_changed          (gpointer              callback_data);
-static void side_pane_id_changed                    (NemoWindow            *window);
 static void toggle_menubar                          (NemoWindow            *window,
                                                      gint                   action);
 static void nemo_window_reload                      (NemoWindow            *window);
@@ -108,8 +108,9 @@ static void title_spelling_changed                  (NemoWindow            *wind
 
 enum {
 	PROP_DISABLE_CHROME = 1,
-    PROP_SIDEBAR_VIEW_TYPE,
     PROP_SHOW_SIDEBAR,
+    PROP_SHOW_PLACES,
+    PROP_SHOW_TREE,
 	NUM_PROPERTIES,
 };
 
@@ -378,106 +379,339 @@ nemo_window_set_initial_window_geometry (NemoWindow *window)
 }
 
 static gboolean
-save_sidebar_width_cb (gpointer user_data)
+save_places_width_cb (gpointer user_data)
 {
 	NemoWindow *window = user_data;
 
-	window->details->sidebar_width_handler_id = 0;
+	window->details->places_width_handler_id = 0;
 
-	DEBUG ("Saving sidebar width: %d", window->details->side_pane_width);
+	DEBUG ("Saving places width: %d", window->details->places_width);
 
 	nemo_config_set_int (nemo_window_state,
 			    NEMO_WINDOW_STATE_SIDEBAR_WIDTH,
-			    window->details->side_pane_width);
+			    window->details->places_width);
+
+	return FALSE;
+}
+
+static gboolean
+save_tree_width_cb (gpointer user_data)
+{
+	NemoWindow *window = user_data;
+
+	window->details->tree_width_handler_id = 0;
+
+	DEBUG ("Saving tree width: %d", window->details->tree_width);
+
+	nemo_config_set_int (nemo_window_state,
+			    NEMO_WINDOW_STATE_SIDEBAR_TREE_WIDTH,
+			    window->details->tree_width);
 
 	return FALSE;
 }
 
 /* side pane helpers */
 static void
-side_pane_size_allocate_callback (GtkWidget *widget,
-				  GtkAllocation *allocation,
-				  gpointer user_data)
+places_size_allocate_callback (GtkWidget *widget,
+			       GtkAllocation *allocation,
+			       gpointer user_data)
 {
-	NemoWindow *window;
+	NemoWindow *window = user_data;
 
-	window = user_data;
-
-	if (window->details->sidebar_width_handler_id != 0) {
-		g_source_remove (window->details->sidebar_width_handler_id);
-		window->details->sidebar_width_handler_id = 0;
+	if (allocation->width <= 1 ||
+	    allocation->width == window->details->places_width) {
+		return;
 	}
 
-	if (allocation->width != window->details->side_pane_width &&
-	    allocation->width > 1) {
-		window->details->side_pane_width = allocation->width;
+	window->details->places_width = allocation->width;
 
-		window->details->sidebar_width_handler_id =
-			g_timeout_add (100, save_sidebar_width_cb, window);
+	if (window->details->places_width_handler_id != 0) {
+		g_source_remove (window->details->places_width_handler_id);
 	}
+
+	window->details->places_width_handler_id =
+		g_timeout_add (100, save_places_width_cb, window);
 }
 
 static void
-setup_side_pane_width (NemoWindow *window)
+tree_size_allocate_callback (GtkWidget *widget,
+			     GtkAllocation *allocation,
+			     gpointer user_data)
 {
-	g_return_if_fail (window->details->sidebar != NULL);
+	NemoWindow *window = user_data;
 
-	window->details->side_pane_width =
+	if (allocation->width <= 1 ||
+	    allocation->width == window->details->tree_width) {
+		return;
+	}
+
+	window->details->tree_width = allocation->width;
+
+	if (window->details->tree_width_handler_id != 0) {
+		g_source_remove (window->details->tree_width_handler_id);
+	}
+
+	window->details->tree_width_handler_id =
+		g_timeout_add (100, save_tree_width_cb, window);
+}
+
+/* What the proportion is measured against. GTK has usually moved the divider
+ * itself by the time the handler below runs, so the paned's own position is no
+ * use as a starting point - this pair is. */
+typedef struct {
+	int width;
+	int position;
+} PanedProportion;
+
+/* Neither side of a divider goes below this, however narrow the window. */
+#define PANED_MIN_CHILD 40
+
+static void
+paned_keep_proportion_cb (GtkWidget *widget,
+			  GtkAllocation *allocation,
+			  gpointer user_data)
+{
+	GtkPaned *paned = GTK_PANED (widget);
+	PanedProportion *state = user_data;
+	int position;
+
+	/* One child means there is no divider to keep anywhere. */
+	if (gtk_paned_get_child1 (paned) == NULL ||
+	    gtk_paned_get_child2 (paned) == NULL) {
+		state->width = 0;
+		return;
+	}
+
+	if (allocation->width <= 1) {
+		return;
+	}
+
+	if (state->width == allocation->width) {
+		/* Same width, so the move came from the user dragging it. */
+		state->position = gtk_paned_get_position (paned);
+		return;
+	}
+
+	if (state->width <= 0) {
+		state->width = allocation->width;
+		state->position = gtk_paned_get_position (paned);
+		return;
+	}
+
+	position = nemo_pane_layout_scale_position (state->position,
+						    state->width,
+						    allocation->width,
+						    PANED_MIN_CHILD);
+
+	state->width = allocation->width;
+	state->position = position;
+
+	if (position != gtk_paned_get_position (paned)) {
+		gtk_paned_set_position (paned, position);
+	}
+}
+
+/* Share a width change out in proportion, rather than evenly the way GtkPaned
+ * would. Used for the tree divider and for the one between two content panes. */
+static void
+paned_keep_proportion (GtkWidget *paned)
+{
+	PanedProportion *state = g_new0 (PanedProportion, 1);
+
+	g_object_set_data_full (G_OBJECT (paned), "nemo-proportion", state, g_free);
+
+	g_signal_connect_after (paned, "size-allocate",
+				G_CALLBACK (paned_keep_proportion_cb), state);
+}
+
+static void
+set_up_places_sidebar (NemoWindow *window)
+{
+	GtkWidget *sidebar;
+
+	if (window->details->places_sidebar != NULL) {
+		return;
+	}
+
+	DEBUG ("Setting up the places pane");
+
+	window->details->places_sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+	gtk_style_context_add_class (gtk_widget_get_style_context (window->details->places_sidebar),
+				     GTK_STYLE_CLASS_SIDEBAR);
+
+	/* resize off, so a wider window leaves this pane exactly as it was. */
+	gtk_paned_pack1 (GTK_PANED (window->details->content_paned),
+			 window->details->places_sidebar,
+			 FALSE, FALSE);
+
+	window->details->places_width =
 		nemo_config_get_int (nemo_window_state,
 				    NEMO_WINDOW_STATE_SIDEBAR_WIDTH);
 
 	gtk_paned_set_position (GTK_PANED (window->details->content_paned),
-				window->details->side_pane_width);
+				window->details->places_width);
+
+	g_signal_connect (window->details->places_sidebar,
+			  "size_allocate",
+			  G_CALLBACK (places_size_allocate_callback),
+			  window);
+
+	sidebar = nemo_places_sidebar_new (window);
+
+	gtk_box_pack_start (GTK_BOX (window->details->places_sidebar), sidebar, TRUE, TRUE, 0);
+	gtk_widget_show (sidebar);
+	gtk_widget_show (window->details->places_sidebar);
 }
 
 static void
-nemo_window_set_up_sidebar (NemoWindow *window)
+set_up_tree_sidebar (NemoWindow *window)
 {
 	GtkWidget *sidebar;
 
-	DEBUG ("Setting up sidebar id %s", window->details->sidebar_id);
+	if (window->details->tree_sidebar != NULL) {
+		return;
+	}
 
-	window->details->sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-	gtk_style_context_add_class (gtk_widget_get_style_context (window->details->sidebar),
+	DEBUG ("Setting up the tree pane");
+
+	window->details->tree_sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+	gtk_style_context_add_class (gtk_widget_get_style_context (window->details->tree_sidebar),
 				     GTK_STYLE_CLASS_SIDEBAR);
 
-	gtk_paned_pack1 (GTK_PANED (window->details->content_paned),
-			 GTK_WIDGET (window->details->sidebar),
+	gtk_paned_pack1 (GTK_PANED (window->details->tree_paned),
+			 window->details->tree_sidebar,
 			 FALSE, FALSE);
 
-	setup_side_pane_width (window);
-	g_signal_connect (window->details->sidebar,
+	window->details->tree_width =
+		nemo_config_get_int (nemo_window_state,
+				    NEMO_WINDOW_STATE_SIDEBAR_TREE_WIDTH);
+
+	gtk_paned_set_position (GTK_PANED (window->details->tree_paned),
+				window->details->tree_width);
+
+	g_signal_connect (window->details->tree_sidebar,
 			  "size_allocate",
-			  G_CALLBACK (side_pane_size_allocate_callback),
+			  G_CALLBACK (tree_size_allocate_callback),
 			  window);
 
-    g_signal_connect_object (NEMO_WINDOW (window), "notify::sidebar-view-id",
-                             G_CALLBACK (side_pane_id_changed), window, 0);
+	sidebar = nemo_tree_sidebar_new (window);
 
-    if (g_strcmp0 (window->details->sidebar_id, NEMO_WINDOW_SIDEBAR_PLACES) == 0) {
-        sidebar = nemo_places_sidebar_new (window);
-    } else if (g_strcmp0 (window->details->sidebar_id, NEMO_WINDOW_SIDEBAR_TREE) == 0) {
-        sidebar = nemo_tree_sidebar_new (window);
-    } else {
-        g_assert_not_reached ();
-    }
-
-	gtk_box_pack_start (GTK_BOX (window->details->sidebar), sidebar, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (window->details->tree_sidebar), sidebar, TRUE, TRUE, 0);
 	gtk_widget_show (sidebar);
-	gtk_widget_show (GTK_WIDGET (window->details->sidebar));
+	gtk_widget_show (window->details->tree_sidebar);
+}
+
+static void
+tear_down_places_sidebar (NemoWindow *window)
+{
+	if (window->details->places_sidebar == NULL) {
+		return;
+	}
+
+	DEBUG ("Destroying the places pane");
+
+	gtk_widget_destroy (window->details->places_sidebar);
+	window->details->places_sidebar = NULL;
+}
+
+static void
+tear_down_tree_sidebar (NemoWindow *window)
+{
+	if (window->details->tree_sidebar == NULL) {
+		return;
+	}
+
+	DEBUG ("Destroying the tree pane");
+
+	gtk_widget_destroy (window->details->tree_sidebar);
+	window->details->tree_sidebar = NULL;
 }
 
 static void
 nemo_window_tear_down_sidebar (NemoWindow *window)
 {
-	DEBUG ("Destroying sidebar");
+	tear_down_places_sidebar (window);
+	tear_down_tree_sidebar (window);
+}
 
-    g_signal_handlers_disconnect_by_func (NEMO_WINDOW (window), side_pane_id_changed, window);
+void
+nemo_window_set_show_places (NemoWindow *window,
+			     gboolean show)
+{
+	g_return_if_fail (NEMO_IS_WINDOW (window));
 
-	if (window->details->sidebar != NULL) {
-		gtk_widget_destroy (GTK_WIDGET (window->details->sidebar));
-		window->details->sidebar = NULL;
+	if (window->details->disable_chrome) {
+		show = FALSE;
 	}
+
+	if (show == window->details->show_places) {
+		return;
+	}
+
+	window->details->show_places = show;
+
+	nemo_config_set_boolean (nemo_window_state,
+				NEMO_WINDOW_STATE_START_WITH_PLACES, show);
+
+	if (show) {
+		set_up_places_sidebar (window);
+	} else {
+		tear_down_places_sidebar (window);
+	}
+
+	g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_PLACES]);
+	g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
+
+	nemo_window_update_show_hide_ui_elements (window);
+}
+
+gboolean
+nemo_window_get_show_places (NemoWindow *window)
+{
+	return window->details->show_places;
+}
+
+void
+nemo_window_set_show_tree (NemoWindow *window,
+			   gboolean show)
+{
+	g_return_if_fail (NEMO_IS_WINDOW (window));
+
+	if (window->details->disable_chrome) {
+		show = FALSE;
+	}
+
+	if (show == window->details->show_tree) {
+		return;
+	}
+
+	window->details->show_tree = show;
+
+	nemo_config_set_boolean (nemo_window_state,
+				NEMO_WINDOW_STATE_START_WITH_TREE, show);
+
+	if (show) {
+		set_up_tree_sidebar (window);
+	} else {
+		tear_down_tree_sidebar (window);
+	}
+
+	g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_TREE]);
+	g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
+
+	nemo_window_update_show_hide_ui_elements (window);
+}
+
+gboolean
+nemo_window_get_show_tree (NemoWindow *window)
+{
+	return window->details->show_tree;
+}
+
+gboolean
+nemo_window_get_show_sidebar (NemoWindow *window)
+{
+	return window->details->show_places || window->details->show_tree;
 }
 
 void
@@ -485,14 +719,16 @@ nemo_window_hide_sidebar (NemoWindow *window)
 {
 	DEBUG ("Called hide_sidebar()");
 
-	if (window->details->sidebar == NULL) {
+	if (!nemo_window_get_show_sidebar (window)) {
 		return;
 	}
 
-	nemo_window_tear_down_sidebar (window);
-	nemo_window_update_show_hide_ui_elements (window);
+	/* Remember the pair, so "Full view" puts back what was up. */
+	window->details->restore_places = window->details->show_places;
+	window->details->restore_tree = window->details->show_tree;
 
-    nemo_window_set_show_sidebar (window, FALSE);
+	nemo_window_set_show_places (window, FALSE);
+	nemo_window_set_show_tree (window, FALSE);
 }
 
 void
@@ -500,38 +736,22 @@ nemo_window_show_sidebar (NemoWindow *window)
 {
 	DEBUG ("Called show_sidebar()");
 
-	if (window->details->sidebar != NULL) {
-		return;
-	}
-
 	if (window->details->disable_chrome) {
 		return;
 	}
 
-	nemo_window_set_up_sidebar (window);
-	nemo_window_update_show_hide_ui_elements (window);
+	if (nemo_window_get_show_sidebar (window)) {
+		return;
+	}
 
-    nemo_window_set_show_sidebar (window, TRUE);
-}
+	/* Nothing remembered means nothing was ever hidden - a window whose
+	   panes were both turned off by hand still has to open something. */
+	if (!window->details->restore_places && !window->details->restore_tree) {
+		window->details->restore_places = TRUE;
+	}
 
-static gboolean
-sidebar_id_is_valid (const gchar *sidebar_id)
-{
-    return (g_strcmp0 (sidebar_id, NEMO_WINDOW_SIDEBAR_PLACES) == 0 ||
-            g_strcmp0 (sidebar_id, NEMO_WINDOW_SIDEBAR_TREE) == 0);
-}
-
-static void
-side_pane_id_changed (NemoWindow *window)
-{
-
-    if (!sidebar_id_is_valid (window->details->sidebar_id)) {
-        return;
-    }
-
-    /* refresh the sidebar setting */
-    nemo_window_tear_down_sidebar (window);
-    nemo_window_set_up_sidebar (window);
+	nemo_window_set_show_places (window, window->details->restore_places);
+	nemo_window_set_show_tree (window, window->details->restore_tree);
 }
 
 gboolean
@@ -704,8 +924,17 @@ nemo_window_constructed (GObject *self)
 	gtk_container_add (GTK_CONTAINER (grid), window->details->content_paned);
 	gtk_widget_show (window->details->content_paned);
 
+	/* Places goes in pack1 of content_paned with resize off, so a window
+	   resize leaves it where it is. Everything that does grow sits to its
+	   right, inside tree_paned. */
+	window->details->tree_paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
+	gtk_paned_pack2 (GTK_PANED (window->details->content_paned),
+			 window->details->tree_paned, TRUE, FALSE);
+	gtk_widget_show (window->details->tree_paned);
+	paned_keep_proportion (window->details->tree_paned);
+
 	vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-	gtk_paned_pack2 (GTK_PANED (window->details->content_paned), vbox,
+	gtk_paned_pack2 (GTK_PANED (window->details->tree_paned), vbox,
 			 TRUE, FALSE);
 	gtk_widget_show (vbox);
 
@@ -713,6 +942,7 @@ nemo_window_constructed (GObject *self)
 	gtk_box_pack_start (GTK_BOX (vbox), hpaned, TRUE, TRUE, 0);
 	gtk_widget_show (hpaned);
 	window->details->split_view_hpane = hpaned;
+	paned_keep_proportion (hpaned);
 
 	pane = nemo_window_pane_new (window);
 	window->details->panes = g_list_prepend (window->details->panes, pane);
@@ -759,8 +989,6 @@ nemo_window_constructed (GObject *self)
 	 * but before menu stuff is being called */
 	nemo_window_set_active_pane (window, pane);
 
-	side_pane_id_changed (window);
-
 	nemo_window_initialize_bookmarks_menu (window);
 	nemo_window_set_initial_window_geometry (window);
 
@@ -791,11 +1019,18 @@ nemo_window_set_property (GObject *object,
 	case PROP_DISABLE_CHROME:
 		window->details->disable_chrome = g_value_get_boolean (value);
 		break;
-    case PROP_SIDEBAR_VIEW_TYPE:
-        window->details->sidebar_id = g_strdup (g_value_get_string (value));
-        break;
     case PROP_SHOW_SIDEBAR:
-        nemo_window_set_show_sidebar (window, g_value_get_boolean (value));
+        if (g_value_get_boolean (value)) {
+            nemo_window_show_sidebar (window);
+        } else {
+            nemo_window_hide_sidebar (window);
+        }
+        break;
+    case PROP_SHOW_PLACES:
+        nemo_window_set_show_places (window, g_value_get_boolean (value));
+        break;
+    case PROP_SHOW_TREE:
+        nemo_window_set_show_tree (window, g_value_get_boolean (value));
         break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, arg_id, pspec);
@@ -817,11 +1052,14 @@ nemo_window_get_property (GObject *object,
         case PROP_DISABLE_CHROME:
             g_value_set_boolean (value, window->details->disable_chrome);
             break;
-        case PROP_SIDEBAR_VIEW_TYPE:
-            g_value_set_string (value, window->details->sidebar_id);
-            break;
         case PROP_SHOW_SIDEBAR:
-            g_value_set_boolean (value, window->details->show_sidebar);
+            g_value_set_boolean (value, nemo_window_get_show_sidebar (window));
+            break;
+        case PROP_SHOW_PLACES:
+            g_value_set_boolean (value, window->details->show_places);
+            break;
+        case PROP_SHOW_TREE:
+            g_value_set_boolean (value, window->details->show_tree);
             break;
         default:
         	g_assert_not_reached ();
@@ -871,9 +1109,14 @@ nemo_window_finalize (GObject *object)
 
 	window = NEMO_WINDOW (object);
 
-	if (window->details->sidebar_width_handler_id != 0) {
-		g_source_remove (window->details->sidebar_width_handler_id);
-		window->details->sidebar_width_handler_id = 0;
+	if (window->details->places_width_handler_id != 0) {
+		g_source_remove (window->details->places_width_handler_id);
+		window->details->places_width_handler_id = 0;
+	}
+
+	if (window->details->tree_width_handler_id != 0) {
+		g_source_remove (window->details->tree_width_handler_id);
+		window->details->tree_width_handler_id = 0;
 	}
 
 	cancel_pending_geometry_save (window);
@@ -896,8 +1139,6 @@ nemo_window_finalize (GObject *object)
     g_clear_object (&window->details->secondary_pane_last_location);
 
 	g_clear_object (&window->details->ui_manager);
-
-	g_free (window->details->sidebar_id);
 
 	/* nemo_window_close() should have run */
 	g_assert (window->details->panes == NULL);
@@ -1678,10 +1919,12 @@ nemo_window_connect_content_view (NemoWindow *window,
         nemo_window_sync_view_type (window);
     }
 
-	/* A click in the sidebar leaves the keyboard there. Only a location that
-	 * needs a different view type gets this far, so without the check a place
-	 * with its own view type would lose the focus and one beside it would not. */
-	if (!eel_gtk_focus_is_within (window->details->sidebar)) {
+	/* A click in either side pane leaves the keyboard there. Only a location
+	 * that needs a different view type gets this far, so without the check a
+	 * place with its own view type would lose the focus and one beside it
+	 * would not. A pane that is not up reads as NULL, which is not within. */
+	if (!eel_gtk_focus_is_within (window->details->places_sidebar) &&
+	    !eel_gtk_focus_is_within (window->details->tree_sidebar)) {
 		nemo_view_grab_focus (view);
 	}
 }
@@ -1718,13 +1961,17 @@ nemo_window_show (GtkWidget *widget)
 
 	window = NEMO_WINDOW (widget);
 
-    window->details->sidebar_id = nemo_config_get_string (nemo_window_state,
-                                                         NEMO_WINDOW_STATE_SIDE_PANE_VIEW);
+	if (window->details->disable_chrome) {
+		window->details->show_places = FALSE;
+		window->details->show_tree = FALSE;
+	}
 
-	if (nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR)) {
-		nemo_window_show_sidebar (window);
-	} else {
-		nemo_window_hide_sidebar (window);
+	if (window->details->show_places) {
+		set_up_places_sidebar (window);
+	}
+
+	if (window->details->show_tree) {
+		set_up_tree_sidebar (window);
 	}
 
 	GTK_WIDGET_CLASS (nemo_window_parent_class)->show (widget);
@@ -2107,8 +2354,13 @@ nemo_window_init (NemoWindow *window)
     window->details->show_hidden_files_mode = show_hidden ? NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE :
                                                             NEMO_WINDOW_SHOW_HIDDEN_FILES_DISABLE;
 
-    window->details->show_sidebar = nemo_config_get_boolean (nemo_window_state,
-                                                            NEMO_WINDOW_STATE_START_WITH_SIDEBAR);
+    window->details->show_places = nemo_config_get_boolean (nemo_window_state,
+                                                            NEMO_WINDOW_STATE_START_WITH_PLACES);
+    window->details->show_tree = nemo_config_get_boolean (nemo_window_state,
+                                                          NEMO_WINDOW_STATE_START_WITH_TREE);
+
+    window->details->restore_places = window->details->show_places;
+    window->details->restore_tree = window->details->show_tree;
 
     window->details->menu_skip_release = FALSE;
     window->details->menu_show_queued = FALSE;
@@ -2210,12 +2462,19 @@ nemo_window_class_init (NemoWindowClass *class)
 				      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
 				      G_PARAM_STATIC_STRINGS);
 
-    properties[PROP_SIDEBAR_VIEW_TYPE] =
-        g_param_spec_string ("sidebar-view-id",
-                      "Sidebar view type",
-                      "Sidebar view type",
-                      NULL,
-                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+    properties[PROP_SHOW_PLACES] =
+        g_param_spec_boolean ("show-places",
+                              "Show the places pane",
+                              "Show the places pane",
+                              FALSE,
+                              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    properties[PROP_SHOW_TREE] =
+        g_param_spec_boolean ("show-tree",
+                              "Show the tree view pane",
+                              "Show the tree view pane",
+                              FALSE,
+                              G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
     properties[PROP_SHOW_SIDEBAR] =
         g_param_spec_boolean ("show-sidebar",
@@ -2404,47 +2663,6 @@ nemo_window_clear_secondary_pane_location (NemoWindow *window)
 {
     g_return_if_fail (NEMO_IS_WINDOW (window));
     g_clear_object (&window->details->secondary_pane_last_location);
-}
-
-void
-nemo_window_set_sidebar_id (NemoWindow *window,
-                            const gchar *id)
-{
-    if (g_strcmp0 (id, window->details->sidebar_id) != 0) {
-
-        nemo_config_set_string (nemo_window_state,
-                               NEMO_WINDOW_STATE_SIDE_PANE_VIEW,
-                               id);
-
-        g_free (window->details->sidebar_id);
-
-        window->details->sidebar_id = g_strdup (id);
-
-        g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SIDEBAR_VIEW_TYPE]);
-    }
-}
-
-const gchar *
-nemo_window_get_sidebar_id (NemoWindow *window)
-{
-    return window->details->sidebar_id;
-}
-
-void
-nemo_window_set_show_sidebar (NemoWindow *window,
-                              gboolean show)
-{
-    window->details->show_sidebar = show;
-
-    nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_SIDEBAR, show);
-
-    g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_SHOW_SIDEBAR]);
-}
-
-gboolean
-nemo_window_get_show_sidebar (NemoWindow *window)
-{
-    return window->details->show_sidebar;
 }
 
 const gchar *

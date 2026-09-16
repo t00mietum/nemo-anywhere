@@ -83,8 +83,6 @@ enum {
     ICON_VIEW,
     LIST_VIEW,
     COMPACT_VIEW,
-    SIDEBAR_PLACES,
-    SIDEBAR_TREE,
     TOOLBAR_PATHBAR,
     TOOLBAR_ENTRY
 };
@@ -676,29 +674,6 @@ action_split_view_callback (GtkAction *action,
 }
 
 static void
-sidebar_radio_entry_changed_cb (GtkAction *action,
-                GtkRadioAction *current,
-                gpointer user_data)
-{
-    gint current_value;
-    NemoWindow *window = NEMO_WINDOW (user_data);
-
-    current_value = gtk_radio_action_get_current_value (current);
-
-    switch (current_value) {
-        case SIDEBAR_PLACES:
-            nemo_window_set_sidebar_id (window, NEMO_WINDOW_SIDEBAR_PLACES);
-            break;
-        case SIDEBAR_TREE:
-            nemo_window_set_sidebar_id (window, NEMO_WINDOW_SIDEBAR_TREE);
-            break;
-        default:
-            ;
-            break;
-    }
-}
-
-static void
 view_radio_entry_changed_cb (GtkAction *action,
                              GtkRadioAction *current,
                              gpointer user_data)
@@ -753,36 +728,6 @@ toolbar_radio_entry_changed_cb (GtkAction *action,
     }
 }
 
-/* TODO: bind all of this with nemo_config_bind and GBinding */
-static guint
-sidebar_id_to_value (const gchar *sidebar_id)
-{
-	guint retval = SIDEBAR_PLACES;
-
-	if (g_strcmp0 (sidebar_id, NEMO_WINDOW_SIDEBAR_TREE) == 0)
-		retval = SIDEBAR_TREE;
-
-	return retval;
-}
-
-static void
-update_side_bar_radio_buttons (NemoWindow *window)
-{
-    GtkActionGroup *action_group;
-    GtkAction *action;
-    guint current_value;
-
-    action_group = nemo_window_get_main_action_group (window);
-
-    action = gtk_action_group_get_action (action_group,
-                          "Sidebar Places");
-    current_value = sidebar_id_to_value (nemo_window_get_sidebar_id (window));
-
-    g_signal_handlers_block_by_func (action, sidebar_radio_entry_changed_cb, window);
-    gtk_radio_action_set_current_value (GTK_RADIO_ACTION (action), current_value);
-    g_signal_handlers_unblock_by_func (action, sidebar_radio_entry_changed_cb, window);
-}
-
 void
 nemo_window_update_show_hide_ui_elements (NemoWindow *window)
 {
@@ -800,8 +745,6 @@ nemo_window_update_show_hide_ui_elements (NemoWindow *window)
     gtk_action_unblock_activate (action);
 
 	nemo_window_update_split_view_actions_sensitivity (window);
-
-    update_side_bar_radio_buttons (window);
 
     pane = nemo_window_get_active_pane (window);
     if (pane != NULL) {
@@ -1550,10 +1493,20 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
 			     NULL,
   /* is_active */            TRUE },
   /* name, stock id */     { "Show Hide Sidebar", NULL,
-  /* label, accelerator */   N_("_Show sidebar"), "F9",
-  /* tooltip */              N_("Change the visibility of this window's side pane"),
+  /* label, accelerator */   N_("_Full view"), "F9",
+  /* tooltip */              N_("Show the side panes, or the folder contents on their own"),
                              G_CALLBACK (action_show_hide_sidebar_callback),
   /* is_active */            TRUE },
+  /* name, stock id */     { "Show Hide Places", NULL,
+  /* label, accelerator */   N_("_Places"), NULL,
+  /* tooltip */              N_("Change the visibility of this window's places pane"),
+                             NULL,
+  /* is_active */            TRUE },
+  /* name, stock id */     { "Show Hide Tree", NULL,
+  /* label, accelerator */   N_("_Tree view"), NULL,
+  /* tooltip */              N_("Change the visibility of this window's tree view pane"),
+                             NULL,
+  /* is_active */            FALSE },
   /* name, stock id */     { "Show Hide Statusbar", NULL,
   /* label, accelerator */   N_("St_atusbar"), NULL,
   /* tooltip */              N_("Change the visibility of this window's statusbar"),
@@ -1579,15 +1532,6 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* tooltip */                  N_("Toggle the display of thumbnails in the current directory"),
   /* callback */                 G_CALLBACK (action_show_thumbnails_callback),
   /* default */                  FALSE },
-};
-
-static const GtkRadioActionEntry sidebar_radio_entries[] = {
-	{ "Sidebar Places", NULL,
-	  N_("Places"), NULL, N_("Select Places as the default sidebar"),
-	  SIDEBAR_PLACES },
-	{ "Sidebar Tree", NULL,
-	  N_("Tree"), NULL, N_("Select Tree as the default sidebar"),
-	  SIDEBAR_TREE }
 };
 
 static const GtkRadioActionEntry view_radio_entries[] = {
@@ -1867,6 +1811,22 @@ window_menus_set_bindings (NemoWindow *window)
                             action,
                             "active",
                             G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
+
+    action = gtk_action_group_get_action (action_group, "Show Hide Places");
+
+    g_object_bind_property (window,
+                            "show-places",
+                            action,
+                            "active",
+                            G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
+
+    action = gtk_action_group_get_action (action_group, "Show Hide Tree");
+
+    g_object_bind_property (window,
+                            "show-tree",
+                            action,
+                            "active",
+                            G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
 }
 
 void
@@ -1935,10 +1895,6 @@ nemo_window_initialize_menus (NemoWindow *window)
 	gtk_action_group_add_toggle_actions (action_group,
 					     main_toggle_entries, G_N_ELEMENTS (main_toggle_entries),
 					     window);
-	gtk_action_group_add_radio_actions (action_group,
-					    sidebar_radio_entries, G_N_ELEMENTS (sidebar_radio_entries),
-					    0, G_CALLBACK (sidebar_radio_entry_changed_cb),
-					    window);
     gtk_action_group_add_radio_actions (action_group,
                         view_radio_entries, G_N_ELEMENTS (view_radio_entries),
                         0, G_CALLBACK (view_radio_entry_changed_cb),
@@ -1978,9 +1934,6 @@ nemo_window_initialize_menus (NemoWindow *window)
 #else
     gtk_action_set_visible (action, FALSE);
 #endif
-
-    g_signal_connect_object ( NEMO_WINDOW (window), "notify::sidebar-view-id",
-                             G_CALLBACK (update_side_bar_radio_buttons), window, 0);
 
 	/* Alt+N for the first 10 tabs */
 	for (i = 0; i < 10; ++i) {

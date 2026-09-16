@@ -796,18 +796,20 @@ field: window-state.network-expanded
 	type: bool
 	default: true
 
-field: window-state.side-pane-view
-	type: string
-	default: places
-
 field: window-state.sidebar-bookmark-breakpoint
 	type: int
 	default: -1
 	desc: Bookmark index where the dedicated sidebar section starts
 
+field: window-state.sidebar-tree-width
+	type: int
+	default: 480
+	desc: Width of the tree view pane
+
 field: window-state.sidebar-width
 	type: int
 	default: 240
+	desc: Width of the places pane
 
 field: window-state.start-with-location-bar
 	type: bool
@@ -819,10 +821,10 @@ field: window-state.start-with-menu-bar
 	default: true
 	desc: Show the menu bar in new windows
 
-field: window-state.start-with-sidebar
+field: window-state.start-with-places
 	type: bool
 	default: true
-	desc: Show the side pane in new windows
+	desc: Show the places pane in new windows
 
 field: window-state.start-with-status-bar
 	type: bool
@@ -833,3 +835,8 @@ field: window-state.start-with-toolbar
 	type: bool
 	default: true
 	desc: Show the toolbar in new windows
+
+field: window-state.start-with-tree
+	type: bool
+	default: false
+	desc: Show the tree view pane in new windows

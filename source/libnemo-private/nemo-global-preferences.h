@@ -136,13 +136,14 @@ typedef enum
 
 /* Which views should be displayed for new windows */
 #define NEMO_WINDOW_STATE_START_WITH_STATUS_BAR		"start-with-status-bar"
-#define NEMO_WINDOW_STATE_START_WITH_SIDEBAR		"start-with-sidebar"
+#define NEMO_WINDOW_STATE_START_WITH_PLACES		"start-with-places"
+#define NEMO_WINDOW_STATE_START_WITH_TREE		"start-with-tree"
 #define NEMO_WINDOW_STATE_START_WITH_TOOLBAR		"start-with-toolbar"
 #define NEMO_WINDOW_STATE_START_WITH_MENU_BAR           "start-with-menu-bar"
-#define NEMO_WINDOW_STATE_SIDE_PANE_VIEW                    "side-pane-view"
 #define NEMO_WINDOW_STATE_GEOMETRY				"geometry"
 #define NEMO_WINDOW_STATE_MAXIMIZED				"maximized"
 #define NEMO_WINDOW_STATE_SIDEBAR_WIDTH			"sidebar-width"
+#define NEMO_WINDOW_STATE_SIDEBAR_TREE_WIDTH		"sidebar-tree-width"
 #define NEMO_WINDOW_STATE_MY_COMPUTER_EXPANDED  "my-computer-expanded"
 #define NEMO_WINDOW_STATE_BOOKMARKS_EXPANDED    "bookmarks-expanded"
 #define NEMO_WINDOW_STATE_DEVICES_EXPANDED      "devices-expanded"

@@ -91,6 +91,36 @@ nemo_status_bar_dispose (GObject *object)
 }
 
 static void
+places_button_toggled_cb (GtkToggleButton *button, NemoStatusBar *bar)
+{
+    nemo_window_set_show_places (bar->window, gtk_toggle_button_get_active (button));
+}
+
+static void
+tree_button_toggled_cb (GtkToggleButton *button, NemoStatusBar *bar)
+{
+    nemo_window_set_show_tree (bar->window, gtk_toggle_button_get_active (button));
+}
+
+static void
+hide_sidebar_clicked_cb (GtkButton *button, NemoStatusBar *bar)
+{
+    nemo_window_hide_sidebar (bar->window);
+}
+
+static void
+show_sidebar_clicked_cb (GtkButton *button, NemoStatusBar *bar)
+{
+    nemo_window_show_sidebar (bar->window);
+}
+
+static void
+sidebar_state_changed_cb (GObject *object, GParamSpec *pspec, gpointer user_data)
+{
+    nemo_status_bar_sync_button_states (NEMO_STATUS_BAR (user_data));
+}
+
+static void
 on_slider_changed_cb (GtkWidget *zoom_slider, gpointer user_data)
 {
     NemoStatusBar *bar = NEMO_STATUS_BAR (user_data);
@@ -126,6 +156,54 @@ nemo_status_bar_constructed (GObject *object)
 
     context = gtk_widget_get_style_context (GTK_WIDGET (bar));
     gtk_style_context_add_class (context, GTK_STYLE_CLASS_TOOLBAR);
+    gtk_container_set_border_width (GTK_CONTAINER (bar), 2);
+
+    GtkIconSize size = gtk_icon_size_from_name (NEMO_STATUSBAR_ICON_SIZE_NAME);
+    GtkWidget *button, *icon, *sep;
+
+    button = gtk_toggle_button_new ();
+    icon = gtk_image_new_from_icon_name ("nemo-sidebar-places-symbolic", size);
+    gtk_button_set_image (GTK_BUTTON (button), icon);
+    gtk_widget_set_tooltip_text (button, _("Show places"));
+    bar->places_button = button;
+    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
+    g_signal_connect (button, "toggled",
+                      G_CALLBACK (places_button_toggled_cb), bar);
+
+    button = gtk_toggle_button_new ();
+    icon = gtk_image_new_from_icon_name ("nemo-sidebar-tree-symbolic", size);
+    gtk_button_set_image (GTK_BUTTON (button), icon);
+    gtk_widget_set_tooltip_text (button, _("Show tree view"));
+    bar->tree_button = button;
+    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
+    g_signal_connect (button, "toggled",
+                      G_CALLBACK (tree_button_toggled_cb), bar);
+
+    sep = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+    gtk_box_pack_start (GTK_BOX (bar), sep, FALSE, FALSE, 6);
+    bar->separator = sep;
+
+    /* Only ever one of the next two is up, so keep show_all off both and let
+       sync_button_states say which. */
+    button = gtk_button_new ();
+    icon = gtk_image_new_from_icon_name ("nemo-sidebar-hide-symbolic", size);
+    gtk_button_set_image (GTK_BUTTON (button), icon);
+    gtk_widget_set_tooltip_text (button, _("Show contents only (F9)"));
+    gtk_widget_set_no_show_all (button, TRUE);
+    bar->hide_button = button;
+    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
+    g_signal_connect (button, "clicked",
+                      G_CALLBACK (hide_sidebar_clicked_cb), bar);
+
+    button = gtk_button_new ();
+    icon = gtk_image_new_from_icon_name ("nemo-sidebar-show-symbolic", size);
+    gtk_button_set_image (GTK_BUTTON (button), icon);
+    gtk_widget_set_tooltip_text (button, _("Full view (F9)"));
+    gtk_widget_set_no_show_all (button, TRUE);
+    bar->show_button = button;
+    gtk_box_pack_start (GTK_BOX (bar), button, FALSE, FALSE, 2);
+    g_signal_connect (button, "clicked",
+                      G_CALLBACK (show_sidebar_clicked_cb), bar);
 
     gtk_box_pack_start (GTK_BOX (bar), statusbar, TRUE, TRUE, 10);
     gtk_widget_set_margin_top (GTK_WIDGET (statusbar), 0);
@@ -151,6 +229,15 @@ nemo_status_bar_constructed (GObject *object)
 
     gtk_widget_show_all (GTK_WIDGET (bar));
 
+    g_signal_connect_object (NEMO_WINDOW (bar->window), "notify::show-sidebar",
+                             G_CALLBACK (sidebar_state_changed_cb), bar, G_CONNECT_AFTER);
+
+    g_signal_connect_object (NEMO_WINDOW (bar->window), "notify::show-places",
+                             G_CALLBACK (sidebar_state_changed_cb), bar, G_CONNECT_AFTER);
+
+    g_signal_connect_object (NEMO_WINDOW (bar->window), "notify::show-tree",
+                             G_CALLBACK (sidebar_state_changed_cb), bar, G_CONNECT_AFTER);
+
     g_signal_connect (GTK_RANGE (zoom_slider), "value-changed",
                       G_CALLBACK (on_slider_changed_cb), bar);
 
@@ -163,6 +250,8 @@ nemo_status_bar_constructed (GObject *object)
                                TRUE, FALSE, 10, GTK_PACK_START);
 
     g_list_free (children);
+
+    nemo_status_bar_sync_button_states (bar);
 }
 
 
@@ -204,6 +293,30 @@ GtkWidget *
 nemo_status_bar_get_real_statusbar (NemoStatusBar *bar)
 {
     return bar->real_statusbar;
+}
+
+void
+nemo_status_bar_sync_button_states (NemoStatusBar *bar)
+{
+    gboolean places, tree, any;
+
+    if (!NEMO_IS_WINDOW (bar->window))
+        return;
+
+    places = nemo_window_get_show_places (bar->window);
+    tree = nemo_window_get_show_tree (bar->window);
+    any = places || tree;
+
+    g_signal_handlers_block_by_func (bar->places_button, places_button_toggled_cb, bar);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bar->places_button), places);
+    g_signal_handlers_unblock_by_func (bar->places_button, places_button_toggled_cb, bar);
+
+    g_signal_handlers_block_by_func (bar->tree_button, tree_button_toggled_cb, bar);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (bar->tree_button), tree);
+    g_signal_handlers_unblock_by_func (bar->tree_button, tree_button_toggled_cb, bar);
+
+    gtk_widget_set_visible (bar->hide_button, any);
+    gtk_widget_set_visible (bar->show_button, !any);
 }
 
 void

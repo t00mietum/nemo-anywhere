@@ -52,6 +52,7 @@
 #include "nemo-window-manage-views.h"
 #include "nemo-window-private.h"
 #include "nemo-window-slot.h"
+#include "nemo-statusbar.h"
 
 #include <libnemo-private/nemo-dbus-manager.h>
 #include <libnemo-private/nemo-directory-private.h>
@@ -315,6 +316,10 @@ process_system_theme (GtkSettings *gtk_settings)
 static void
 init_icons_and_styles (void)
 {
+    gtk_icon_size_register (NEMO_STATUSBAR_ICON_SIZE_NAME,
+                            NEMO_STATUSBAR_ICON_SIZE,
+                            NEMO_STATUSBAR_ICON_SIZE);
+
     add_css_provider_at_priority ("/org/nemo/nemo-style-fallback.css",
                                   GTK_STYLE_PROVIDER_PRIORITY_FALLBACK);
 
