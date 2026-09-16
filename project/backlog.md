@@ -61,6 +61,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Focus can never remain on the "Places" pane, after clicking on a place. Focus moves to the main content pane after changing to the place.
+
+- 🔘 Places and TreeView can both exist at the same time.
+	- Both remember their unique horizontal user sizing.
+	- When the window is resized, 
+	- By default, "Tree view" is 2x "Places" width.
+	- Tree view can have focus (as it currently does already).
+	- Bring back the buttons for both views on the bottom-left.
+		- Also the "Hide/show the sidebar" button, but rename it "Show contents only"/"Full view".
+		- The "Tree view" and "Places" buttons should no longer act as mutually-exclusive radio buttons, but as individual on/off toggles.
+	- Created: 20260916-112242 by JC.
+
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
 	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
@@ -75,19 +87,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
-	- Opened: 20260908-021923
+	- Opened: 20260908-021923 by JC.
 	- Note: clearing an extract's staging folder on Windows went into a junction and deleted what it pointed at. Fixed, with a check. The delete job itself has not been checked against a junction yet.
 
 - 🔘 Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
 	- Opened: 20260908-133001
-	- Two definitions exist, and they differ: the spec on the closed "Bottom scrollbar" item under Done - Bugs (2026-09-07), and the "List view column widths" section in design.md (2026-09-08). Which one wins settles most of the points below.
-	- Three places where the code and that section disagree, each needing a decision rather than a guess:
+	- Settled 20260916: the design.md section wins over every backlog item, closed ones included. Each backlog item that sets column widths now carries a note saying so.
+	- Four places where the code and that section disagree, each needing a decision rather than a guess:
 		- The share is `max(1, floor(count * percent))` in the section and rounds up in the code, so at 90% a three-value column is two values by the section and all three by the code.
 		- The section no longer covers search results, and the code still gives Name and Location their own split there, kept in `search.name-location-split`.
 		- The section no longer mentions Name's hundred-pixel floor, and the code still applies it.
-	- Two more that the code cannot settle, because the section is at odds with itself:
-		- "Remember per-folder settings" is named as the thing that makes a hand drag stick, and no setting by that name has ever existed. Either it gets built or the clause loses the name.
-		- The same bullet says a hand drag is not persisted, and four lines later a hand drag becomes a ceiling kept in `list-view.column-max-widths`, which is a state key that persists exactly that.
+		- A hand drag persists only for the folder in view, and the code still keeps it forever in `list-view.column-max-widths`. Either that key goes or it becomes per-folder state.
+	- Two the code cannot settle, because the section is at odds with itself:
+		- "Remember per-folder settings" is named as what makes a hand drag stick on a minor variable-width column, and no setting by that name has ever existed. Either it gets built or the clause loses the name.
+		- Fixed-width columns are said not to be resizable by hand, and are then given a rule for what a hand resize does.
 
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 	- Opened: 20260908-111526
@@ -268,6 +281,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- These directives override ALL previous decisions, and multiple changes, about column widths.
 	- Cause of the flashing: the columns were laid out after the tree view had drawn at the new width, so each step of a resize showed one frame at the old widths. The overlay scrollbar's margin was also set on every allocation, and setting it asks for another.
 	- Fixed: the columns are laid out for the width the view is about to get, before the tree view sees it, and the margin only moves when it has to. Widths follow the rule above; the share is `column-fit-percent` under list-view, default 90. Collapsing a subfolder gives back the width its rows asked for.
+	- Note: This contradicts the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ A running copy on Linux moved everything under the home folder to the trash, with nobody asking it to. The mounts under it cannot be trashed, so the "delete immediately?" question came up for each of those, and they went for good.
 	- Opened: 20260906-110342
@@ -1327,6 +1341,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- But never one more than 2x the other.
 	- Done 20260905. Search results now leave the rest of the row empty rather than stretching Name across it. When the two do not both fit they give in proportion to what they asked for, and neither ends more than twice the width of the other unless the narrower one did not want the extra.
 	- Dragging either column still pins the split, as before, and the pair then fills the row again. Clearing `search.name-location-split` in the settings file goes back to fitting the contents.
+	- Note: This may contradict the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ Need a better icon for "recursive" in search mode. (It currently looks like "press this for enter".)
 	- Opened: 20260905-112901
@@ -1634,6 +1649,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260828-090000
 	- It was held to twice the width of the Ext column, so it read "Folde" and "Link t" in a window with plenty of room to spare.
 	- That ceiling is gone. Type still gives its width back first when the window is too narrow, and still stops at a share of Name so one long value cannot take the row.
+	- Note: This may contradict the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ The preferences dialog opens too short for the Display page, and does not follow a fractional display scale.
 	- Opened: 20260828-083458
@@ -1801,6 +1817,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Zooming in or out re-measures the rows. Before this the widths were thrown away and never worked out again, so one Ctrl+= left Location taking most of the row and every date cut short. Same for a column switched on that had not been on screen to be measured.
 	- A small gap keeps the first and last columns off the window frame.
 	- All of it verified in the running app, the zoom case included.
+	- Note: This contradicts the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ The preferences dialog opens larger, and big enough for the Views page to fit without a scrollbar.
 	- Opened: 20260823-130540
@@ -1824,6 +1841,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- "Owner" now shows on Windows too and is on by default there - the platform reports the file's real owner, so the old fabricated-values reason to hide it no longer applied.
 	- Windows only: "Permissions source" - Inherited, Local or Mixed, read from the file's ACL - off by default, listed after Owner. Verified against files with disabled inheritance and added grants.
 	- Type now defaults to at most twice the File extension column's width.
+	- Note: This may contradict the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ Column widths remember the user's hand. Overrides the earlier auto-sizing rules where they disagree.
 	- Opened: n/a
@@ -1831,6 +1849,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A column with no natural width limit that the user resizes keeps that width as its ceiling from then on, through any window resizing in either direction, saved in settings.
 	- Name still takes all remaining space - except in find mode, where Name and Location split the row one-third/two-thirds by default, and an adjusted split is remembered forever and kept as the window resizes. Supersedes the find-mode column note, now canceled.
 	- Both verified in the running app: the dragged ceiling survives narrow-then-wide, and the find-mode split holds at the adjusted ratio across sizes.
+	- Note: This contradicts the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ Properties on Windows opens the one Windows itself shows, instead of ours.
 	- Opened: 20260821-180950
@@ -1889,6 +1908,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A column dragged wider by hand keeps that width until the window changes shape or the folder does.
 	- Refines the earlier "Name column always as large as possible" work under Done, which only made Name take the slack; this is the rule for all of them.
 	- Verified at half a dozen widths on two folders, and the rule itself has a test of its own.
+	- Note: This contradicts the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ Twelve more icon sets, all of them asked for by name: BeautyLine, the six Simply Circles colors, Lime Numix 2021, MB Lime Suru GLOW, Material Black Pistachio Suru, Avidity Dusk Mixed Suru, FF-BlackGreen and FF-Flamengo-RJ-BR. Twenty-three sets in the picker now.
 	- Opened: 20260819-124028
@@ -2188,6 +2208,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Cause: the Name cell asked for a 40-character width, which acted as a floor the column could never shrink past, so a narrowing window pushed the trailing columns off instead.
 	- Fixed: dropped that request, so Name now gives space back down to its existing minimum. Long names ellipsize as before.
 	- Verified: at 600px wide all four columns fit where Date Modified used to be cut off; at 1500px Name still takes all the slack; shrinking back from wide re-fits correctly.
+	- Note: This contradicts the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
 
 - ✅ Wine launcher.
 	- Opened: 20260724-091054
@@ -2417,3 +2438,4 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260730-112038
 	- Closed: 20260822-075741
 	- Superseded by the column-width work: in find mode Name and Location split the row one-third/two-thirds, and an adjusted split is remembered.
+	- Note: This may contradict the latest canonical column-sizing definition in 'design.md' under the section "List view column widths", as of 20260916-113519.
