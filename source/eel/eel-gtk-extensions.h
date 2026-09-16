@@ -64,4 +64,5 @@ gboolean              eel_gtk_get_treeview_row_text_is_under_pointer  (GtkTreeVi
 /* Focus */
 void                  eel_gtk_widget_refuse_focus                     (GtkWidget *widget);
 void                  eel_gtk_notebook_keep_focus_off_tabs            (GtkNotebook *notebook);
+gboolean              eel_gtk_focus_is_within                         (GtkWidget *container);
 #endif /* EEL_GTK_EXTENSIONS_H */

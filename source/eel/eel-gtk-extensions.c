@@ -595,3 +595,26 @@ eel_gtk_notebook_keep_focus_off_tabs (GtkNotebook *notebook)
     g_signal_connect (notebook, "focus", G_CALLBACK (notebook_focus_cb), NULL);
     g_signal_connect (notebook, "grab-focus", G_CALLBACK (notebook_grab_focus_cb), NULL);
 }
+
+// Whether the toplevel's focus sits on this widget or inside it.
+gboolean
+eel_gtk_focus_is_within (GtkWidget *container)
+{
+    GtkWidget *toplevel, *focus;
+
+    if (container == NULL) {
+        return FALSE;
+    }
+
+    toplevel = gtk_widget_get_toplevel (container);
+    if (!GTK_IS_WINDOW (toplevel)) {
+        return FALSE;
+    }
+
+    focus = gtk_window_get_focus (GTK_WINDOW (toplevel));
+    if (focus == NULL) {
+        return FALSE;
+    }
+
+    return focus == container || gtk_widget_is_ancestor (focus, container);
+}

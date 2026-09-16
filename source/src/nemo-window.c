@@ -1678,7 +1678,12 @@ nemo_window_connect_content_view (NemoWindow *window,
         nemo_window_sync_view_type (window);
     }
 
-	nemo_view_grab_focus (view);
+	/* A click in the sidebar leaves the keyboard there. Only a location that
+	 * needs a different view type gets this far, so without the check a place
+	 * with its own view type would lose the focus and one beside it would not. */
+	if (!eel_gtk_focus_is_within (window->details->sidebar)) {
+		nemo_view_grab_focus (view);
+	}
 }
 
 void

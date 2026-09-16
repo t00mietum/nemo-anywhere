@@ -1,6 +1,9 @@
 /* A column header or a notebook tab never holds the keyboard focus. Focus left
  * on a header after a click, or on a tab after the path entry closed, sent the
- * arrow keys somewhere other than the file list. */
+ * arrow keys somewhere other than the file list.
+ *
+ * The sidebar is the other side of that: it keeps the focus it was given, so
+ * connecting a content view behind it must not grab. */
 
 #include <config.h>
 
@@ -65,6 +68,7 @@ int
 main (int argc, char *argv[])
 {
 	GtkWidget *window, *box, *entry, *notebook, *tree_view, *page_button;
+	GtkWidget *sidebar, *sidebar_row, *content;
 	GtkWidget *buttons[2];
 
 	if (!gtk_init_check (&argc, &argv)) {
@@ -81,9 +85,20 @@ main (int argc, char *argv[])
 	eel_gtk_notebook_keep_focus_off_tabs (GTK_NOTEBOOK (notebook));
 
 	entry = gtk_entry_new ();
+
+	/* Stands in for the places pane and the view beside it. */
+	sidebar_row = gtk_button_new_with_label ("place");
+	sidebar = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar), sidebar_row, FALSE, FALSE, 0);
+	content = gtk_button_new_with_label ("content");
+
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	gtk_box_pack_start (GTK_BOX (box), entry, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX (box), notebook, TRUE, TRUE, 0);
+
+	/* Last, so the tab order the checks below rely on runs entry to notebook. */
+	gtk_box_pack_start (GTK_BOX (box), sidebar, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (box), content, FALSE, FALSE, 0);
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_default_size (GTK_WINDOW (window), 400, 300);
@@ -134,6 +149,20 @@ main (int argc, char *argv[])
 	gtk_widget_grab_focus (page_button);
 	gtk_widget_child_focus (window, GTK_DIR_TAB_BACKWARD);
 	expect_focus (window, entry, "shift+tab out of the page");
+
+	/* What connecting a content view does. It grabs only when the sidebar is
+	 * not holding the focus, or clicking a place would lose the keyboard. */
+	gtk_widget_grab_focus (sidebar_row);
+	if (!eel_gtk_focus_is_within (sidebar)) {
+		gtk_widget_grab_focus (content);
+	}
+	expect_focus (window, sidebar_row, "view connected behind the sidebar");
+
+	gtk_widget_grab_focus (entry);
+	if (!eel_gtk_focus_is_within (sidebar)) {
+		gtk_widget_grab_focus (content);
+	}
+	expect_focus (window, content, "view connected with the focus elsewhere");
 
 	gtk_widget_destroy (window);
 
