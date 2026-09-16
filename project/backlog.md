@@ -65,13 +65,32 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Places and TreeView can both exist at the same time.
 	- Both remember their unique horizontal user sizing.
-	- When the window is resized, 
+	- When the window is resized, "Places" remains fixed size, but the remaining horizontal space is proportionally grown or shrunk among:
+		- TreeView if visible
+		- Content pane
+		- Second content pane if visible.
 	- By default, "Tree view" is 2x "Places" width.
 	- Tree view can have focus (as it currently does already).
 	- Bring back the buttons for both views on the bottom-left.
 		- Also the "Hide/show the sidebar" button, but rename it "Show contents only"/"Full view".
 		- The "Tree view" and "Places" buttons should no longer act as mutually-exclusive radio buttons, but as individual on/off toggles.
 	- Created: 20260916-112242 by JC.
+
+- 🔘 Changes to Preferences|Views:
+	- Fine-tuning the requirements:
+		- "Views" section:
+			- Checkbox: "Remember per-folder settings" (default off) [this is a new setting].
+				- Checkbox (Indented and enabled only if "Remember per-folder settings" is enabled): "Inherit view settings from parent." (default on)
+			- Under that, two side-by side tabs, each with identical settings (but unique values):
+				- Default
+				- Current (entire tab disabled if "Remember per-folder settings" is disabled)
+			- Remove "Default[s]" from current heading names.
+		- Rename "View new folders using" -> "Folder view" (on both tabs).
+		- Remove the "Show only folders" option from "Tree View Defaults".
+			- TreeView can only show folders.
+			- If there are no sub-folders, don't show the "expand" chevron.
+				- And don't show (Empty) when an "empty" bottom-leaf node is expanded (which now shouldn't be possible anyway).
+	- Note: design.md's "List view column widths" section depends on "Remember per-folder settings" existing. A hand-resized minor variable-width column is meant to persist per folder only while it is on.
 
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
@@ -98,9 +117,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- The section no longer covers search results, and the code still gives Name and Location their own split there, kept in `search.name-location-split`.
 		- The section no longer mentions Name's hundred-pixel floor, and the code still applies it.
 		- A hand drag persists only for the folder in view, and the code still keeps it forever in `list-view.column-max-widths`. Either that key goes or it becomes per-folder state.
-	- Two the code cannot settle, because the section is at odds with itself:
-		- "Remember per-folder settings" is named as what makes a hand drag stick on a minor variable-width column, and no setting by that name has ever existed. Either it gets built or the clause loses the name.
+	- One the code cannot settle, because the section is at odds with itself:
 		- Fixed-width columns are said not to be resizable by hand, and are then given a rule for what a hand resize does.
+	- Settled 20260916: "Remember per-folder settings" is a new setting rather than a missing one, specced on the "Changes to Preferences|Views" item. Until it is built, the clause it gates cannot be implemented.
+		- Per-folder view state already persists as file metadata - visible columns, column order, sort column and direction, zoom, view type. Column widths are the one thing not stored, so that key has to be added.
 
 - 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 	- Opened: 20260908-111526
