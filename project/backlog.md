@@ -84,6 +84,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Under that, two side-by side tabs, each with identical settings (but unique values):
 				- Default
 				- Current (entire tab disabled if "Remember per-folder settings" is disabled)
+			- On "Default" and "Current" tabs, add a button on each: "Copy settings to Current|Default" (whatever is the opposite of the current tab). (Near the top-right of the tabbed content for each.)
 			- Remove "Default[s]" from current heading names.
 		- Rename "View new folders using" -> "Folder view" (on both tabs).
 		- Remove the "Show only folders" option from "Tree View Defaults".
@@ -91,6 +92,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- If there are no sub-folders, don't show the "expand" chevron.
 				- And don't show (Empty) when an "empty" bottom-leaf node is expanded (which now shouldn't be possible anyway).
 	- Note: design.md's "List view column widths" section depends on "Remember per-folder settings" existing. A hand-resized minor variable-width column is meant to persist per folder only while it is on.
+	- Created: 20260916-120249 by JC.
 
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615

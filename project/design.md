@@ -366,11 +366,13 @@ This rule has been rewritten several times and will probably move again, so the 
 			- The width that shows all of the values for the column, plus one character of air on the right.
 		- Max width (the width if the available horizontal space is more than all default widths combined):
 			- The columns in this class expand proportionally (or either one alone if the other is not visible), so that the rightmost visible column's right edge is adjacent to the window edge.
+		- Manual resize: Only persists for the current folder view. If navigated away and then back, it resets to this described default.
 	- Fixed-width class:
 		- Columns that display values that vary in narrow bounds based on the nature of their data.
 		- These columns don't resize, and can't even be manually resized.
 		- Sized to fit the longest value displayed, plus one character of air on the right.
 		- Examples: All date/time-related columns, octal and *nix-style permissions
+		- Manual resize: Only persists for the current folder view. If navigated away and then back, it resets to this described default.
 	- Minor variable-width class:
 		- All other columns
 		- Min width:
@@ -381,14 +383,7 @@ This rule has been rewritten several times and will probably move again, so the 
 			- Default size: Same formula and % as "Default width if room" for [Primary variable-width class], plus one character of air on the right.
 		- Max width:
 			- The width that shows all of the values for the column, plus one character of air on the right.
-
-- Manual resizing of columns is not persisted, unless "remember per-folder settings" is enabled.
-
-- A width dragged by hand outranks all of the above for that column.
-	- A drag is a stream of width changes, so the decision is made 350 ms after the last one rather than on each.
-	- On a column with a spread it becomes a ceiling, kept in `list-view.column-max-widths` as `column:pixels`. The column still follows its contents below the ceiling, but never grows past it again however wide the window gets.
-	- Name never takes a ceiling.
-	- Dragging Location is what ends its claim on the surplus and pins it.
+		- Manual resize: Persists for that folder view if "remember per-folder settings" is enabled (off by default), unless manually reset to default view by user.
 
 - What gets measured, and when.
 	- Every row is measured as it arrives and as its details fill in, which is a handful of cells at a time rather than a walk of the folder.
