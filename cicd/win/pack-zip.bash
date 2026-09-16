@@ -45,7 +45,9 @@ while (($#)); do case "$1" in
 esac; done
 
 command -v zip >/dev/null 2>&1 || fDie "zip is not installed"
-docker exec "$CONTAINER" true 2>/dev/null || fDie "cross-build container '${CONTAINER}' is not running"
+## A reboot leaves it stopped, with no restart policy.
+docker exec "$CONTAINER" true 2>/dev/null || docker start "$CONTAINER" >/dev/null 2>&1 || true
+docker exec "$CONTAINER" true 2>/dev/null || fDie "cross-build container '${CONTAINER}' is not running and would not start"
 docker exec "$CONTAINER" test -x "${BUILD}/src/${SLUG}.exe" 2>/dev/null \
 	|| fDie "no built exe at ${BUILD}/src/${SLUG}.exe - build the Windows target first"
 

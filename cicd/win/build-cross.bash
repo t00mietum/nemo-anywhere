@@ -37,7 +37,9 @@ case "${1:-}" in
 	*) fDie "unknown option: $1 (try --help)" ;;
 esac
 
-docker exec "$CONTAINER" true 2>/dev/null || fDie "cross-build container '${CONTAINER}' is not running"
+## A reboot leaves it stopped, with no restart policy.
+docker exec "$CONTAINER" true 2>/dev/null || docker start "$CONTAINER" >/dev/null 2>&1 || true
+docker exec "$CONTAINER" true 2>/dev/null || fDie "cross-build container '${CONTAINER}' is not running and would not start"
 
 fSetSourceDate "$ROOT"
 fWarnIfSourceDateIsAGuess "$ROOT"
