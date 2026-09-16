@@ -1,0 +1,14 @@
+:::
+key with no colon
+: value with no key
+	orphan indent under nothing
+key: "unterminated quote
+"unterminated key: value
+key:: doubled separator
+[[[
+=== not a heading
+key: value: another
+   mixed   spacing	and	tabs
+#
+###
+key:

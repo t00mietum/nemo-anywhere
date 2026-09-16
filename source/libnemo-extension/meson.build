@@ -61,7 +61,12 @@ else
     include_directories: [ rootInclude, ],
     install: true,
     version: '1.4.0',
-    link_args: [ '-Wl,-no-undefined' ],
+    # A fuzzing build instruments every object, but only the final fuzz binary
+    # gets the sanitizer runtimes, so this library is left with __asan_* and
+    # __sancov_* unresolved. Nothing loads it there - the fuzz targets link the
+    # static libnemo-private and never touch it - so the check comes off for
+    # that build flavor rather than the shipped one.
+    link_args: get_option('fuzzing') ? [] : [ '-Wl,-no-undefined' ],
   )
 endif
 

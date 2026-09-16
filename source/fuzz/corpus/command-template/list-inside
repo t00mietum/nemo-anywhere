@@ -1,0 +1,1 @@
+tar -cf pre{{FILES}}post {{TARGET_ARCHIVE}}

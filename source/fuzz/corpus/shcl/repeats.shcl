@@ -1,0 +1,14 @@
+# The same key over and over, and a block reopened after it closed.
+appearance.mode: light
+appearance.mode: dark
+appearance.mode: system
+favorites: /a
+favorites: /b, /c
+
+window
+	width: 100
+	width: 200
+
+window
+	height: 300
+	width: 400

@@ -100,6 +100,19 @@ TEST_CMD=(bash "${DOCKER_RUN}" "tests" "NEMO_TEST_JOBS=${CICD_MAX_JOBS:-2} bash 
 LINT_PROBE=(cppcheck --version)
 LINT_CMD=(bash cicd/utility/lint-c.bash)
 
+## Stage 3 (after lints): fuzz the parsers that read outside input - READY.
+## Bounded on purpose: each target gets FUZZ_SECS of search, and the budget
+## running out is a clean result rather than a failure. A real find exits 86 and
+## leaves the input that caused it under the build dir's findings/.
+## Needs clang and the libFuzzer runtime inside the container; without either the
+## probe fails and the stage skips with a warning. The ordinary gcc build still
+## compiles the same targets and replays their seed corpus as tests, so nothing
+## rots when this stage is skipped. Left out of --quick and out of the gate,
+## where three minutes of searching does not belong.
+FUZZ_SECS=60
+FUZZ_PROBE=(bash "${DOCKER_RUN}" "fuzz probe" "bash /src/cicd/linux/fuzz.bash --probe")
+FUZZ_CMD=(bash "${DOCKER_RUN}" "fuzz" "FUZZ_SECS=${FUZZ_SECS} NEMO_TEST_JOBS=${CICD_MAX_JOBS:-2} bash /src/cicd/linux/fuzz.bash")
+
 ## Stage 3 (after lints): dependency policy (licenses/advisories). NOT READY - unset.
 ## NEEDS: a C-world equivalent if wanted (there is no Cargo.lock to police); likely
 ## not applicable until there are vendored deps.

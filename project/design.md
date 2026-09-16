@@ -474,6 +474,8 @@ Stock Debian 13 is the known-good baseline, in `cicd/linux/Dockerfile.dev` (imag
 
 - Toolchain and development libraries: `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`, `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`, `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`, `libarchive-dev`, `libx11-dev libxext-dev libxrender-dev`.
 
+- `clang` and `llvm` are only needed to build the fuzz targets against libFuzzer with `-Dfuzzing=true`. Everything else builds with gcc, and without the option the fuzz targets still build and replay their seed corpus as ordinary tests. See [Testing](#testing).
+
 - Configure and build:
 	- `export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"`, so the build is reproducible. See [Reproducible builds](#reproducible-builds).
 	- `meson setup build source`
@@ -514,6 +516,8 @@ Tests are ordinary executables run by meson, and the bar for adding one is a def
 - Each regression test is written against a specific defect and is checked by backing the fix out and watching the test fail. A test that passes either way is not evidence.
 
 - Coverage is concentrated where the risk is: the settings parser and its bindings, the metadata store, favorites, search patterns, drag-and-drop parsing, extension objects, symlink handling, and the Windows trash and shortcut backends.
+
+- The parsers that read text from outside the program are fuzzed: the settings file, the drag payload, and the command lines kept in the config. Each target builds two ways. Ordinarily it replays a checked-in seed corpus as part of the suite, which keeps the target compiling and the seeds meaning something. With `-Dfuzzing=true` it builds against libFuzzer and the pipeline runs a real search for a bounded time per target, where the budget running out is a pass and a find leaves behind the input that caused it. The settings parser is vendored rather than ours, so a find there is a report upstream instead of a local patch.
 
 - The suite runs headless, on a virtual display where GTK needs one, and forms part of the Linux pre-push gate along with the build, the lints and a launch smoke test. A test that cannot run on the current platform reports a skip, never a pass.
 
