@@ -91,11 +91,18 @@ NemoDesktopWindow GtkPaned {
 	background-color: alpha(currentColor, 0.035);
 }
 
-/* The bottom bar holds only the status text and the zoom slider, so it does not
-   need toolbar-height padding. Themes size the scale for a settings dialog. */
+/* The bottom bar carries the side-pane buttons again, so it needs room for a
+   button - but only just. Themes size both a button and the scale for a dialog,
+   which is far taller than this bar wants to be. */
 #nemo-statusbar {
 	padding: 0;
+}
+
+#nemo-statusbar button {
+	margin: 0;
+	padding: 1px 4px;
 	min-height: 0;
+	min-width: 0;
 }
 
 #nemo-statusbar statusbar,

@@ -477,6 +477,16 @@ test('Column layout test',
   args: []
 )
 
+test('Pane layout test',
+  executable('test-nemo-pane-layout',
+    [ 'test-nemo-pane-layout.c', '../src/nemo-pane-layout.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Search group test',
   executable('test-nemo-search-group',
     [ 'test-nemo-search-group.c', '../src/nemo-list-model.c' ],

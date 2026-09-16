@@ -73,9 +73,6 @@ enum {
     SORT_DESCENDING = 1
 };
 
-#define NEMO_WINDOW_SIDEBAR_PLACES "places"
-#define NEMO_WINDOW_SIDEBAR_TREE "tree"
-
 typedef struct NemoWindowDetails NemoWindowDetails;
 
 typedef struct {
@@ -162,15 +159,18 @@ gboolean nemo_window_disable_chrome_mapping (GValue                *value,
                                              const NemoConfigValue *config_value,
                                              gpointer               user_data);
 
-void     nemo_window_set_sidebar_id (NemoWindow *window,
-                                    const gchar *id);
-
-const gchar *    nemo_window_get_sidebar_id (NemoWindow *window);
-
-void    nemo_window_set_show_sidebar (NemoWindow *window,
+void     nemo_window_set_show_places (NemoWindow *window,
                                       gboolean show);
 
-gboolean  nemo_window_get_show_sidebar (NemoWindow *window);
+gboolean nemo_window_get_show_places (NemoWindow *window);
+
+void     nemo_window_set_show_tree   (NemoWindow *window,
+                                      gboolean show);
+
+gboolean nemo_window_get_show_tree   (NemoWindow *window);
+
+/* True while either side pane is up. */
+gboolean nemo_window_get_show_sidebar (NemoWindow *window);
 
 const gchar *nemo_window_get_ignore_meta_view_id (NemoWindow *window);
 void         nemo_window_set_ignore_meta_view_id (NemoWindow *window, const gchar *id);

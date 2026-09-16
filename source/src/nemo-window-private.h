@@ -74,12 +74,22 @@ struct NemoWindowDetails
         GtkWidget *content_paned;
         NemoNavigationState *nav_state;
         
-        /* Side Pane */
-        int side_pane_width;
-        GtkWidget *sidebar;
-        gchar *sidebar_id;
+        /* Side panes. Places is packed outside the tree, so the tree divider
+         * moves with the window and the places one does not.
+         */
+        GtkWidget *tree_paned;
+        GtkWidget *places_sidebar;
+        GtkWidget *tree_sidebar;
 
-        gboolean show_sidebar;
+        int places_width;
+        int tree_width;
+
+        gboolean show_places;
+        gboolean show_tree;
+
+        /* What "Full view" puts back after "Show contents only". */
+        gboolean restore_places;
+        gboolean restore_tree;
 
         /* Toolbar */
         GtkWidget *toolbar;
@@ -101,7 +111,8 @@ struct NemoWindowDetails
 
         gboolean disable_chrome;
 
-        guint sidebar_width_handler_id;
+        guint places_width_handler_id;
+        guint tree_width_handler_id;
 
         guint geometry_handler_id;
 

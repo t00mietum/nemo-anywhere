@@ -58,8 +58,8 @@
 		<separator/>
 		<placeholder name="Show Hide Placeholder">
 			<menu action="Sidebar List">
-				<menuitem name="Sidebar Places" action="Sidebar Places"/>
-				<menuitem name="Sidebar Tree" action="Sidebar Tree"/>
+				<menuitem name="Show Hide Places" action="Show Hide Places"/>
+				<menuitem name="Show Hide Tree" action="Show Hide Tree"/>
 				<separator/>
 				<menuitem name="Show Hide Sidebar" action="Show Hide Sidebar"/>
 			</menu>

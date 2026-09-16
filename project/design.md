@@ -317,13 +317,15 @@ Archives are written by libarchive, with the `7z` and `rar` commands as optional
 
 ### UI
 
-The window is a menu and toolbar, a sidebar, a path bar and a view, and the view is interchangeable.
+The window is a menu and toolbar, the side panes, a path bar and a view, and the view is interchangeable.
 
 - Three views share one interface: icon, compact and list, with an optional tree column in list view. Each reads its layout from per-folder state where the folder has any, and from the defaults where it does not.
 
 - A window holds tabs. Each tab is a slot with its own location, history and view, and navigation, loading state and the busy cursor all belong to the slot, which is why a slow location can only block its own tab.
 
-- The sidebar is one tree store rebuilt from bookmarks, mounts, drives and network locations. Anything that could be slow to answer, such as free space or mount state, is fetched off the main loop and folded in when it arrives.
+- Places and the tree view are separate panes, and both can be up at once. Each remembers its own width. A window resize leaves Places at the width it was given and shares the change among the tree view and the content panes, each in proportion to what it already had, so a pane at a third of the window stays at a third. Either pane can be turned off by itself, and one button collapses both and puts them back.
+
+- Places is one tree store rebuilt from bookmarks, mounts, drives and network locations. Anything that could be slow to answer, such as free space or mount state, is fetched off the main loop and folded in when it arrives.
 
 - The list view scrolls sideways before it crushes a column, and remembers a width dragged by hand. The whole rule is under [List view column widths](#list-view-column-widths).
 
