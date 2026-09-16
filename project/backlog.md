@@ -43,13 +43,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 The tree pane keeps its width when the window is resized, instead of sharing the change in proportion.
+- ✅ The tree pane keeps its width when the window is resized, instead of sharing the change in proportion.
 	- Opened: 20260916-210500
 	- Places is right - it holds the width it was given. The content pane then absorbs the whole change on its own, so at 800px wide it is a 60px sliver beside a 500px tree.
 	- Measured in the build container under openbox, taking one window 1278 -> 1500 -> 800 wide: `sidebar-width` stays 240, and `sidebar-tree-width` reads 480, then 498.
 	- The arithmetic is not the suspect. `test-nemo-pane-layout` covers it and was watched to fail when it was broken. Either the position never reaches the widget, or something puts it back afterwards.
 	- Tried and rejected: giving the tree the same `set_size_request` floor the places pane carries, on the theory that `shrink=FALSE` was clamping the divider to the tree's natural width. It made no difference, so it was taken back out rather than left in on a guess.
 	- Everything else on "Places and TreeView can both exist at the same time" works. This is the part left.
+	- Fixed: the position was set after GTK had already laid out the panes, so it never took. The divider is now set before the layout, and measured from where it was last placed, so a slow drag of the window edge moves it too. The split view divider gets the same treatment.
 
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
@@ -82,7 +83,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- The "Tree view" and "Places" buttons should no longer act as mutually-exclusive radio buttons, but as individual on/off toggles.
 	- Created: 20260916-112242 by JC.
 	- Done: both panes show at once, each with its own remembered width. Places holds its width when the window is resized. The tree opens at twice the places width. The two buttons are back on the bottom-left as independent on/off toggles, with "Show contents only"/"Full view" beside them, and the View menu entries are toggles now rather than a radio pair.
-	- Left: the tree does not share a resize in proportion with the content panes. Filed as a bug under Bugs.
+	- Left: the tree does not share a resize in proportion with the content panes. Filed as a bug under Bugs. Fixed since.
 
 - 🔘 Changes to Preferences|Views:
 	- Fine-tuning the requirements:
