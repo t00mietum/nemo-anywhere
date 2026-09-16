@@ -487,6 +487,16 @@ test('Pane layout test',
   args: []
 )
 
+test('Proportional paned test',
+  executable('test-nemo-proportional-paned',
+    [ 'test-nemo-proportional-paned.c', '../src/nemo-proportional-paned.c', '../src/nemo-pane-layout.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Search group test',
   executable('test-nemo-search-group',
     [ 'test-nemo-search-group.c', '../src/nemo-list-model.c' ],

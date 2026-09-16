@@ -37,7 +37,7 @@
 #include "nemo-location-bar.h"
 #include "nemo-mime-actions.h"
 #include "nemo-notebook.h"
-#include "nemo-pane-layout.h"
+#include "nemo-proportional-paned.h"
 #include "nemo-places-sidebar.h"
 #include "nemo-tree-sidebar.h"
 #include "nemo-view-factory.h"
@@ -455,75 +455,6 @@ tree_size_allocate_callback (GtkWidget *widget,
 		g_timeout_add (100, save_tree_width_cb, window);
 }
 
-/* What the proportion is measured against. GTK has usually moved the divider
- * itself by the time the handler below runs, so the paned's own position is no
- * use as a starting point - this pair is. */
-typedef struct {
-	int width;
-	int position;
-} PanedProportion;
-
-/* Neither side of a divider goes below this, however narrow the window. */
-#define PANED_MIN_CHILD 40
-
-static void
-paned_keep_proportion_cb (GtkWidget *widget,
-			  GtkAllocation *allocation,
-			  gpointer user_data)
-{
-	GtkPaned *paned = GTK_PANED (widget);
-	PanedProportion *state = user_data;
-	int position;
-
-	/* One child means there is no divider to keep anywhere. */
-	if (gtk_paned_get_child1 (paned) == NULL ||
-	    gtk_paned_get_child2 (paned) == NULL) {
-		state->width = 0;
-		return;
-	}
-
-	if (allocation->width <= 1) {
-		return;
-	}
-
-	if (state->width == allocation->width) {
-		/* Same width, so the move came from the user dragging it. */
-		state->position = gtk_paned_get_position (paned);
-		return;
-	}
-
-	if (state->width <= 0) {
-		state->width = allocation->width;
-		state->position = gtk_paned_get_position (paned);
-		return;
-	}
-
-	position = nemo_pane_layout_scale_position (state->position,
-						    state->width,
-						    allocation->width,
-						    PANED_MIN_CHILD);
-
-	state->width = allocation->width;
-	state->position = position;
-
-	if (position != gtk_paned_get_position (paned)) {
-		gtk_paned_set_position (paned, position);
-	}
-}
-
-/* Share a width change out in proportion, rather than evenly the way GtkPaned
- * would. Used for the tree divider and for the one between two content panes. */
-static void
-paned_keep_proportion (GtkWidget *paned)
-{
-	PanedProportion *state = g_new0 (PanedProportion, 1);
-
-	g_object_set_data_full (G_OBJECT (paned), "nemo-proportion", state, g_free);
-
-	g_signal_connect_after (paned, "size-allocate",
-				G_CALLBACK (paned_keep_proportion_cb), state);
-}
-
 static void
 set_up_places_sidebar (NemoWindow *window)
 {
@@ -927,27 +858,25 @@ nemo_window_constructed (GObject *self)
 	/* Places goes in pack1 of content_paned with resize off, so a window
 	   resize leaves it where it is. Everything that does grow sits to its
 	   right, inside tree_paned. */
-	window->details->tree_paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
+	window->details->tree_paned = nemo_proportional_paned_new ();
 	gtk_paned_pack2 (GTK_PANED (window->details->content_paned),
 			 window->details->tree_paned, TRUE, FALSE);
 	gtk_widget_show (window->details->tree_paned);
-	paned_keep_proportion (window->details->tree_paned);
 
 	vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	gtk_paned_pack2 (GTK_PANED (window->details->tree_paned), vbox,
 			 TRUE, FALSE);
 	gtk_widget_show (vbox);
 
-	hpaned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
+	hpaned = nemo_proportional_paned_new ();
 	gtk_box_pack_start (GTK_BOX (vbox), hpaned, TRUE, TRUE, 0);
 	gtk_widget_show (hpaned);
 	window->details->split_view_hpane = hpaned;
-	paned_keep_proportion (hpaned);
 
 	pane = nemo_window_pane_new (window);
 	window->details->panes = g_list_prepend (window->details->panes, pane);
 
-	gtk_paned_pack1 (GTK_PANED (hpaned), GTK_WIDGET (pane), TRUE, FALSE);
+	gtk_paned_pack1 (GTK_PANED (hpaned), GTK_WIDGET (pane), FALSE, FALSE);
 
 
     nemo_statusbar = nemo_status_bar_new (window);
@@ -2197,7 +2126,7 @@ create_extra_pane (NemoWindow *window)
                             NULL);
 
 	if (gtk_paned_get_child1 (paned) == NULL) {
-		gtk_paned_pack1 (paned, GTK_WIDGET (pane), TRUE, FALSE);
+		gtk_paned_pack1 (paned, GTK_WIDGET (pane), FALSE, FALSE);
 	} else {
 		gtk_paned_pack2 (paned, GTK_WIDGET (pane), TRUE, FALSE);
 	}
