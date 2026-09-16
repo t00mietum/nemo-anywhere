@@ -61,8 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Focus can never remain on the "Places" pane, after clicking on a place. Focus moves to the main content pane after changing to the place.
-
 - 🔘 Places and TreeView can both exist at the same time.
 	- Both remember their unique horizontal user sizing.
 	- When the window is resized, "Places" remains fixed size, but the remaining horizontal space is proportionally grown or shrunk among:
@@ -1209,6 +1207,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Focus can never remain on the "Places" pane, after clicking on a place. Focus moves to the main content pane after changing to the place.
+	- Opened: n/a
+	- Closed: 20260916-122542
+	- It depended on the folder. A place whose folder wants a different view type lost the focus, and one that reuses the view kept it, since only a new view is connected to the window.
+	- Connecting a content view always grabbed the focus. It now leaves it alone while the sidebar holds it, so the keyboard stays on the place that was clicked.
+	- Startup still puts the focus on the view, where the sidebar has not taken it yet. The tree view was never affected, which is why it already behaved.
 
 - ✅ Fuzz the parsers that read untrusted input.
 	- Opened: 20260908-133615
