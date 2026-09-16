@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		libpango1.0-dev libatk1.0-dev libgail-3-dev \
 		libjson-glib-dev libgsf-1-dev libexempi-dev libexif-dev libarchive-dev \
 		libx11-dev libxext-dev libxrender-dev \
-		xvfb xdotool openbox imagemagick dbus \
+		xvfb xauth x11-utils xdotool openbox imagemagick dbus \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
