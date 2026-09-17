@@ -37,6 +37,10 @@ G_BEGIN_DECLS
 #define NEMO_PERFORMANCE_GROUP			"performance"
 #define NEMO_PREFERENCES_CPU_PERCENT	"cpu-percent"
 
+/* Developer scaffolding, off for everyone else. */
+#define NEMO_DEBUG_GROUP						"debug"
+#define NEMO_PREFERENCES_TESTGUARD_ALL_DELETES	"testguard-all-deletes"
+
 /* Windows */
 #define NEMO_PREFERENCES_WINDOW_PER_PROCESS	"window-per-process"
 

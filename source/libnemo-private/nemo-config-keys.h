@@ -139,6 +139,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_EXTRACT_COMMAND_KEY_RAR, NEMO_CONFIG_STRING, NEMO_EXTRACT_COMMAND_RAR_DEFAULT, NULL, NULL, "Command line rar or unrar is run with to unpack an archive. Empty the line for the built-in one." },
 	{ "compact-view", "all-columns-have-same-width", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "compact-view", "default-zoom-level", NEMO_CONFIG_ENUM, "standard", NULL, enum_ZoomLevel, NULL },
+	{ "debug", "testguard-all-deletes", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for" },
 	{ "interface", "clock-use-24h", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "media-handling", "automount", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "media-handling", "automount-open", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Open a window on media as soon as it is mounted" },

@@ -52,6 +52,11 @@ field: compact-view.default-zoom-level
 	allowed: smallest, smaller, small, standard, large, larger, largest
 	default: standard
 
+field: debug.testguard-all-deletes
+	type: bool
+	default: false
+	desc: Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for
+
 field: interface.clock-use-24h
 	type: bool
 	default: true
