@@ -110,9 +110,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Settled 20260916: "Remember per-folder settings" is a new setting rather than a missing one, specced on the "Changes to Preferences|Views" item. Until it is built, the clause it gates cannot be implemented.
 		- Per-folder view state already persists as file metadata - visible columns, column order, sort column and direction, zoom, view type. Column widths are the one thing not stored, so that key has to be added.
 
-- 🔘 State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
-	- Opened: 20260908-111526
-
 - 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
 	- The test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
@@ -1213,6 +1210,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
+	- Opened: 20260908-111526
+	- Closed: 20260917-073027
+	- Added as a paragraph under "Why" in the README.
 
 - ✅ The tree view shows folders only, and a folder with no sub-folders has no expander. From "Changes to Preferences|Views".
 	- Opened: 20260916-120249
