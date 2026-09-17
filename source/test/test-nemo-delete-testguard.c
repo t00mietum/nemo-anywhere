@@ -7,6 +7,9 @@
  * read once per process and a second read in the same one would see the first
  * answer. The child exits 0 armed, 1 quiet, so the parent just reads a status.
  *
+ * Also checks the two dialogs that name a pair of paths, since the two the
+ * wrong way round would read as the opposite of what is happening.
+ *
  * Runs against a throwaway config root. */
 
 #include <config.h>
@@ -104,6 +107,45 @@ spawn_child (const char *self, const char *mode, const char *env_value)
 	return CHILD_ARMED;
 }
 
+/* A move and an overwrite each lose one of two paths, and the dialog is only
+   any use if it says which. Checked here rather than through the dialog, which
+   wants a display the gate does not have. */
+static void
+check_wording (void)
+{
+	GFile *a = g_file_new_for_path ("/tmp/nemo-guard-src/a");
+	GFile *b = g_file_new_for_path ("/tmp/nemo-guard-src/b");
+	GFile *dest_dir = g_file_new_for_path ("/tmp/nemo-guard-dest");
+	GFile *target = g_file_new_for_path ("/tmp/nemo-guard-dest/a");
+	GList *files = NULL;
+	char *text;
+
+	files = g_list_append (files, a);
+	files = g_list_append (files, b);
+
+	text = nemo_delete_testguard_describe_move (files, dest_dir);
+	check (strstr (text, "/tmp/nemo-guard-dest") != NULL);
+	check (strstr (text, "/tmp/nemo-guard-src/a") != NULL);
+	check (strstr (text, "/tmp/nemo-guard-src/b") != NULL);
+	/* The destination is named above the sources, not among them. */
+	check (strstr (text, "/tmp/nemo-guard-dest") < strstr (text, "/tmp/nemo-guard-src/a"));
+	g_free (text);
+
+	text = nemo_delete_testguard_describe_overwrite (a, target);
+	check (strstr (text, "Overwritten") != NULL);
+	check (strstr (text, "Replaced by") != NULL);
+	/* The one that is lost is named first, under its own heading. */
+	check (strstr (text, "/tmp/nemo-guard-dest/a") < strstr (text, "Replaced by"));
+	check (strstr (text, "Replaced by") < strstr (text, "/tmp/nemo-guard-src/a"));
+	g_free (text);
+
+	g_list_free (files);
+	g_object_unref (a);
+	g_object_unref (b);
+	g_object_unref (dest_dir);
+	g_object_unref (target);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -112,6 +154,8 @@ main (int argc, char *argv[])
 	if (argc > 1) {
 		return run_as_child (argv[1]);
 	}
+
+	check_wording ();
 
 	store_on  = test_scratch_dir ("nemo-testguard-on-XXXXXX", NULL);
 	store_off = test_scratch_dir ("nemo-testguard-off-XXXXXX", NULL);
@@ -156,7 +200,7 @@ main (int argc, char *argv[])
 	g_free (store_off);
 
 	if (failures == 0)
-		g_print ("nemo-delete-testguard: arming order holds\n");
+		g_print ("nemo-delete-testguard: arming order and move/overwrite wording hold\n");
 
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

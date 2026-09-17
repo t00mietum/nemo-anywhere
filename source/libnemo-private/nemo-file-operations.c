@@ -4900,6 +4900,34 @@ make_link_copy (GFile         *src,
 	return ok;
 }
 
+/* An overwrite destroys the target inside g_file_copy or g_file_move, where
+   there is nothing of ours to hook, so the ask goes in front of the flag.
+   Sits at the retry label rather than at each place that sets overwrite, so a
+   new path that sets it cannot slip past. `asked` keeps a file that retries
+   for some other reason from asking twice. */
+static gboolean
+testguard_allows_overwrite_at (GFile      *src,
+			       GFile      *dest,
+			       gboolean   *asked,
+			       const char *func,
+			       const char *source_file,
+			       int         line)
+{
+	if (*asked || !nemo_delete_testguard_armed ()) {
+		return TRUE;
+	}
+
+	*asked = TRUE;
+
+	return nemo_delete_testguard_ask_overwrite_at ("Overwrite", src, dest,
+						       func, source_file, line);
+}
+
+/* Passes the caller's location through, or every dialog would name this helper
+   instead of the loop the overwrite is happening in. */
+#define testguard_allows_overwrite(src, dest, asked) \
+	testguard_allows_overwrite_at ((src), (dest), (asked), G_STRFUNC, __FILE__, __LINE__)
+
 static void
 copy_move_file (CopyMoveJob *copy_job,
 		GFile *src,
@@ -4931,6 +4959,7 @@ copy_move_file (CopyMoveJob *copy_job,
 	NemoLinkKind link_wanted = NEMO_LINK_NONE;
 	char *link_target = NULL;
 	char *link_base_dir = NULL;
+	gboolean asked_overwrite = FALSE;
 
 	job = (CommonJob *)copy_job;
 
@@ -5045,6 +5074,13 @@ copy_move_file (CopyMoveJob *copy_job,
 	}
 
  retry:
+
+	/* Cancel here means stop, not skip: half a copy is worse than none, and a
+	   dialog nobody answered times out as Cancel. */
+	if (overwrite && !testguard_allows_overwrite (src, dest, &asked_overwrite)) {
+		abort_job (job);
+		goto out;
+	}
 
 	error = NULL;
 	flags = G_FILE_COPY_NOFOLLOW_SYMLINKS;
@@ -5711,6 +5747,7 @@ move_file_prepare (CopyMoveJob *move_job,
 	gboolean handled_invalid_filename;
     gboolean target_is_desktop, source_is_desktop;
 	int unique_name_nr = 1;
+	gboolean asked_overwrite = FALSE;
 
     target_is_desktop = (move_job->desktop_location != NULL &&
                          g_file_equal (move_job->desktop_location, dest_dir));
@@ -5776,6 +5813,12 @@ move_file_prepare (CopyMoveJob *move_job,
 	}
 
  retry:
+
+	/* Cancel here means stop, not skip - same as the copy side. */
+	if (overwrite && !testguard_allows_overwrite (src, dest, &asked_overwrite)) {
+		abort_job (job);
+		goto out;
+	}
 
 	flags = G_FILE_COPY_NOFOLLOW_SYMLINKS | G_FILE_COPY_NO_FALLBACK_FOR_MOVE;
 	if (overwrite) {
@@ -6094,6 +6137,7 @@ move_job (GIOSchedulerJob *io_job,
 	char *dest_fs_id;
 	char *dest_fs_type;
 	GList *fallback_files;
+	gboolean guard_open;
 
 	job = user_data;
 	common = &job->common;
@@ -6101,6 +6145,7 @@ move_job (GIOSchedulerJob *io_job,
 
 	dest_fs_id = NULL;
 	dest_fs_type = NULL;
+	guard_open = FALSE;
 
 	fallbacks = NULL;
 
@@ -6113,6 +6158,19 @@ move_job (GIOSchedulerJob *io_job,
 	if (job_aborted (common)) {
 		goto aborted;
 	}
+
+	/* A move has no confirmation of its own, and on one filesystem it is a
+	   single g_file_move with nothing below it to ask. The originals still
+	   stop being where they were, so the job asks here. */
+	if (!nemo_delete_testguard_ask_move ("Move", job->files, job->destination)) {
+		abort_job (common);
+		goto aborted;
+	}
+
+	/* Covers the source deletes a copy-and-delete fallback does below. The
+	   overwrite ask is outside this on purpose - see the header. */
+	nemo_delete_testguard_begin ();
+	guard_open = TRUE;
 
 	/* This moves all files that we can do without copy + delete */
 	move_files_prepare (job, dest_fs_id, &dest_fs_type, &fallbacks);
@@ -6154,6 +6212,10 @@ move_job (GIOSchedulerJob *io_job,
 		    &source_info, &transfer_info);
 
  aborted:
+	if (guard_open) {
+		nemo_delete_testguard_end ();
+	}
+
 	g_list_free_full (fallbacks, g_free);
 
 	g_free (dest_fs_id);
