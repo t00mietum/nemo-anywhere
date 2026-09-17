@@ -1,5 +1,7 @@
-/* Which of the three ways in wins. The define is checked by being absent: with
- * it on there is nothing to decide, so the whole thing skips.
+/* Which of the three ways in wins. The define only ever arms: the variable and
+ * the setting can turn a build with it at 0 on, and neither can turn a build
+ * with it at 1 off. Which half of that is checked depends on how this build was
+ * compiled, so both halves are here.
  *
  * Each case runs as a child of this binary, since the environment variable is
  * read once per process and a second read in the same one would see the first
@@ -107,11 +109,6 @@ main (int argc, char *argv[])
 {
 	char *store_on, *store_off;
 
-	if (NEMO_TESTGUARD_ALL_DELETES) {
-		g_print ("SKIP: armed at compile time, nothing left to decide\n");
-		return 77;
-	}
-
 	if (argc > 1) {
 		return run_as_child (argv[1]);
 	}
@@ -119,28 +116,41 @@ main (int argc, char *argv[])
 	store_on  = test_scratch_dir ("nemo-testguard-on-XXXXXX", NULL);
 	store_off = test_scratch_dir ("nemo-testguard-off-XXXXXX", NULL);
 
-	/* Nothing set anywhere. */
-	point_config_at (store_off);
-	check (spawn_child (argv[0], "read", NULL) == CHILD_QUIET);
+	if (NEMO_TESTGUARD_ALL_DELETES) {
+		/* The define only ever arms. Neither of the other two can take it
+		   back, and off is all either of them has to say. */
+		point_config_at (store_off);
+		check (spawn_child (argv[0], "read", NULL) == CHILD_ARMED);
+		check (spawn_child (argv[0], "read", "0") == CHILD_ARMED);
+		check (spawn_child (argv[0], "read", "off") == CHILD_ARMED);
 
-	/* The setting on its own. */
-	point_config_at (store_on);
-	check (spawn_child (argv[0], "store-on", NULL) == CHILD_ARMED);
-	check (spawn_child (argv[0], "read", NULL) == CHILD_ARMED);
+		point_config_at (store_on);
+		check (spawn_child (argv[0], "store-on", NULL) == CHILD_ARMED);
+		check (spawn_child (argv[0], "read", "0") == CHILD_ARMED);
+	} else {
+		/* Nothing set anywhere. */
+		point_config_at (store_off);
+		check (spawn_child (argv[0], "read", NULL) == CHILD_QUIET);
 
-	/* The variable beats the setting in both directions. */
-	check (spawn_child (argv[0], "read", "0") == CHILD_QUIET);
-	check (spawn_child (argv[0], "read", "off") == CHILD_QUIET);
+		/* The setting on its own. */
+		point_config_at (store_on);
+		check (spawn_child (argv[0], "store-on", NULL) == CHILD_ARMED);
+		check (spawn_child (argv[0], "read", NULL) == CHILD_ARMED);
 
-	point_config_at (store_off);
-	check (spawn_child (argv[0], "store-off", NULL) == CHILD_ARMED);
-	check (spawn_child (argv[0], "read", "1") == CHILD_ARMED);
-	check (spawn_child (argv[0], "read", "YES") == CHILD_ARMED);
+		/* The variable beats the setting in both directions. */
+		check (spawn_child (argv[0], "read", "0") == CHILD_QUIET);
+		check (spawn_child (argv[0], "read", "off") == CHILD_QUIET);
 
-	/* A value that is neither is ignored, so the setting still answers. */
-	check (spawn_child (argv[0], "read", "maybe") == CHILD_QUIET);
-	point_config_at (store_on);
-	check (spawn_child (argv[0], "read", "maybe") == CHILD_ARMED);
+		point_config_at (store_off);
+		check (spawn_child (argv[0], "store-off", NULL) == CHILD_ARMED);
+		check (spawn_child (argv[0], "read", "1") == CHILD_ARMED);
+		check (spawn_child (argv[0], "read", "YES") == CHILD_ARMED);
+
+		/* A value that is neither is ignored, so the setting still answers. */
+		check (spawn_child (argv[0], "read", "maybe") == CHILD_QUIET);
+		point_config_at (store_on);
+		check (spawn_child (argv[0], "read", "maybe") == CHILD_ARMED);
+	}
 
 	g_free (store_on);
 	g_free (store_off);
