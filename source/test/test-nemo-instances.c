@@ -1,6 +1,7 @@
-/* Two launches are two processes that both stay up, and --quit takes every one
- * of them down. Needs the built program (argv[1]) and a display; without a
- * display it skips. The --quit half needs a session bus and skips without one. */
+/* Two launches are two processes that both stay up, a crash in one leaves the
+ * others running, and --quit takes every one of them down. Needs the built
+ * program (argv[1]) and a display; without a display it skips. The crash and
+ * --quit halves need a session bus, and start one if the environment has none. */
 
 #include <config.h>
 
@@ -63,13 +64,122 @@ wait_gone (GPid pid, int seconds)
 	return FALSE;
 }
 
+/* Pid behind a unique bus name, or 0. */
+static GPid
+owner_pid (GDBusConnection *bus, const char *unique)
+{
+	GVariant *reply;
+	guint32 pid = 0;
+
+	reply = g_dbus_connection_call_sync (bus,
+	                                     "org.freedesktop.DBus", "/org/freedesktop/DBus",
+	                                     "org.freedesktop.DBus", "GetConnectionUnixProcessID",
+	                                     g_variant_new ("(s)", unique),
+	                                     G_VARIANT_TYPE ("(u)"),
+	                                     G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+	if (reply == NULL) {
+		return 0;
+	}
+
+	g_variant_get (reply, "(u)", &pid);
+	g_variant_unref (reply);
+
+	return (GPid) pid;
+}
+
+/* Unique name holding org.NemoAnywhere, or NULL if nobody does. */
+static char *
+name_owner (GDBusConnection *bus)
+{
+	GVariant *reply;
+	char *owner = NULL;
+
+	reply = g_dbus_connection_call_sync (bus,
+	                                     "org.freedesktop.DBus", "/org/freedesktop/DBus",
+	                                     "org.freedesktop.DBus", "GetNameOwner",
+	                                     g_variant_new ("(s)", "org.NemoAnywhere"),
+	                                     G_VARIANT_TYPE ("(s)"),
+	                                     G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+	if (reply == NULL) {
+		return NULL;
+	}
+
+	g_variant_get (reply, "(s)", &owner);
+	g_variant_unref (reply);
+
+	return owner;
+}
+
+/* Poll for the name to land somewhere other than was, up to seconds. */
+static char *
+wait_owner_change (GDBusConnection *bus, const char *was, int seconds)
+{
+	char *owner = NULL;
+	int i;
+
+	for (i = 0; i < seconds * 10; i++) {
+		g_free (owner);
+		owner = name_owner (bus);
+		if (owner != NULL && g_strcmp0 (owner, was) != 0) {
+			return owner;
+		}
+		g_usleep (100 * 1000);
+	}
+
+	return owner;
+}
+
+/* meson sets DBUS_SESSION_BUS_ADDRESS=disabled: for every test, so the bus
+ * halves used to skip on each run and still say OK. Start a real bus and come
+ * back in, rather than report a pass on a test that mostly did not happen.
+ * The variable being set proves nothing, so this asks the bus instead. */
+static void
+ensure_session_bus (int argc, char *argv[])
+{
+	GDBusConnection *probe;
+	char *dbus_run;
+	char **relaunch;
+	int i;
+
+	if (g_getenv ("NEMO_TEST_BUS_RELAUNCHED") != NULL) {
+		return;
+	}
+
+	probe = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
+	if (probe != NULL) {
+		g_object_unref (probe);
+		return;
+	}
+
+	dbus_run = g_find_program_in_path ("dbus-run-session");
+	if (dbus_run == NULL) {
+		return;
+	}
+
+	g_setenv ("NEMO_TEST_BUS_RELAUNCHED", "1", TRUE);
+
+	relaunch = g_new0 (char *, argc + 3);
+	relaunch[0] = dbus_run;
+	relaunch[1] = (char *) "--";
+	for (i = 0; i < argc; i++) {
+		relaunch[i + 2] = argv[i];
+	}
+
+	execv (dbus_run, relaunch);
+
+	/* Only here if the exec failed, and then the bus halves skip as before. */
+	g_free (relaunch);
+	g_free (dbus_run);
+}
+
 int
 main (int argc, char *argv[])
 {
 	const char *exe;
 	char *tmp;
-	GPid first, second, quitter;
+	GPid first, second, third = 0, quitter, doomed, survivor;
 	GDBusConnection *bus;
+	char *held = NULL, *owner = NULL;
 
 	if (argc < 2) {
 		g_printerr ("usage: %s <nemo-anywhere>\n", argv[0]);
@@ -81,6 +191,8 @@ main (int argc, char *argv[])
 		g_print ("SKIP: no display\n");
 		return 77;
 	}
+
+	ensure_session_bus (argc, argv);
 
 	tmp = test_scratch_dir ("nemo-instances-test-XXXXXX", NULL);
 	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
@@ -98,15 +210,56 @@ main (int argc, char *argv[])
 	check (alive (second));
 
 	bus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
-	if (bus != NULL) {
-		quitter = launch (exe, "--quit");
-		check (wait_gone (quitter, 20));
-		check (wait_gone (first, 20));
-		check (wait_gone (second, 20));
-		g_object_unref (bus);
-	} else {
-		g_print ("no session bus: --quit not checked\n");
+	if (bus == NULL) {
+		g_print ("no session bus: crash isolation and --quit not checked\n");
+		goto out;
 	}
+
+	/* Crash the copy holding the bus name. It is the one the others have
+	 * something to inherit from, and the crash handler runs in it either way. */
+	held = name_owner (bus);
+	check (held != NULL);
+	if (held == NULL) {
+		goto out;
+	}
+
+	/* Anything but one of ours and there is nothing safe to signal: pid 0 is
+	 * the whole process group, this test included. */
+	doomed = owner_pid (bus, held);
+	check (doomed == first || doomed == second);
+	if (doomed != first && doomed != second) {
+		goto out;
+	}
+	survivor = (doomed == first) ? second : first;
+
+	kill (doomed, SIGSEGV);
+	check (wait_gone (doomed, 20));
+
+	/* Long enough for a sibling to have followed it down. */
+	g_usleep (5 * G_USEC_PER_SEC);
+	check (alive (survivor));
+
+	/* And the survivor picks up the name the dead one was holding. */
+	owner = wait_owner_change (bus, held, 20);
+	check (owner != NULL);
+	check (owner_pid (bus, owner) == survivor);
+
+	/* Back to two, so --quit still has more than one to take down. */
+	third = launch (exe, tmp);
+	check (third > 0);
+	g_usleep (4 * G_USEC_PER_SEC);
+	check (alive (third));
+	check (alive (survivor));
+
+	quitter = launch (exe, "--quit");
+	check (wait_gone (quitter, 20));
+	check (wait_gone (survivor, 20));
+	check (wait_gone (third, 20));
+
+out:
+	g_clear_object (&bus);
+	g_free (held);
+	g_free (owner);
 
 	if (alive (first)) {
 		kill (first, SIGTERM);
@@ -116,8 +269,15 @@ main (int argc, char *argv[])
 		kill (second, SIGTERM);
 		wait_gone (second, 5);
 	}
+	if (alive (third)) {
+		kill (third, SIGTERM);
+		wait_gone (third, 5);
+	}
 	g_spawn_close_pid (first);
 	g_spawn_close_pid (second);
+	if (third > 0) {
+		g_spawn_close_pid (third);
+	}
 
 	g_free (tmp);
 
