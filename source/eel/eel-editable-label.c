@@ -1535,7 +1535,7 @@ eel_editable_label_draw (GtkWidget *widget,
           gint range[2];
 	  const char *text;
           cairo_region_t *clip;
-	  GtkStateType state;
+	  GtkStateFlags state;
           GdkRGBA background_color;
 
           range[0] = label->selection_anchor;

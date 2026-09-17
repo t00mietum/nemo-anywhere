@@ -73,11 +73,19 @@ case "${secs}" in
 esac
 
 ## A sanitized tree of its own, so the ordinary /build is left alone and the
-## next plain ninja does not have to rebuild the world.
-if [[ -f "${build}/build.ninja" ]]; then
-	CC=clang meson setup --reconfigure "${build}" "${src}" -Dfuzzing=true -Db_sanitize=address -Db_lundef=false
+## next plain ninja does not have to rebuild the world. Coverage has to reach the
+## code a target calls into, so fuzzer-no-link goes on the whole project and the
+## targets add the linker half. It is passed here because meson warns about any
+## -fsanitize set from meson.build.
+setupArgs=(-Dfuzzing=true -Db_sanitize=address -Db_lundef=false -Dc_args=-fsanitize=fuzzer-no-link)
+if [[ -f "${build}/build.ninja" ]] && grep -qF -- '-fsanitize=fuzzer-no-link' "${build}/build.ninja"; then
+	CC=clang meson setup --reconfigure "${build}" "${src}" "${setupArgs[@]}"
+elif [[ -f "${build}/build.ninja" ]]; then
+	## meson 1.7 ignores a c_args added on reconfigure, so a tree set up
+	## without it starts over.
+	CC=clang meson setup --wipe "${build}" "${src}" "${setupArgs[@]}"
 else
-	CC=clang meson setup "${build}" "${src}" -Dfuzzing=true -Db_sanitize=address -Db_lundef=false
+	CC=clang meson setup "${build}" "${src}" "${setupArgs[@]}"
 fi
 
 ## Only the targets themselves. Building the whole tree here costs minutes and

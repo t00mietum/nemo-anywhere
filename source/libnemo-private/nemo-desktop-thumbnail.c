@@ -69,7 +69,7 @@ struct _NemoDesktopThumbnailFactoryPrivate {
   NemoConfigGroup *settings;
   gulong disable_all_handler;
   gulong disable_handler;
-  gboolean loaded : 1;
+  guint loaded : 1;
   gboolean disabled : 1;
   gchar **disabled_types;
 

@@ -233,17 +233,10 @@ nemo_definitions =  [
   '-DNEMO_DATADIR="@0@"'.format(nemoDataPath),
   '-DNEMO_EXTENSIONDIR="@0@"'.format(nemoExtensionPath),
   '-DNEMO_APP_SLUG="@0@"'.format(appSlug),
-  '-DG_LOG_DOMAIN="Nemo"'
+  '-DG_LOG_DOMAIN="Nemo Anywhere"'
 ]
 
 po_subdir = join_paths(meson.project_source_root(), 'po')
-
-# Coverage has to reach the code a fuzz target calls into, not just the target
-# file, so the instrumentation goes on the whole project here and the targets
-# add the linker half themselves. Address sanitizing is left to -Db_sanitize.
-if get_option('fuzzing')
-  add_project_arguments('-fsanitize=fuzzer-no-link', language: 'c')
-endif
 
 subdir('install-scripts')
 subdir('cut-n-paste-code/libegg')
