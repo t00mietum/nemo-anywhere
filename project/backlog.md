@@ -43,6 +43,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Shift+Tab sometimes does not leave a notebook page. The focus guard test fails about one run in four, and the same thing in the app would leave Shift+Tab doing nothing now and then.
+	- Opened: 20260917-143946
+	- Found while checking crash isolation, and unrelated to it. `meson test --repeat 40 "Focus guard test"` reproduces; a plain single run almost always passes, which is why it has been quiet until now.
+	- The failing check is "shift+tab out of the page". Focus is meant to land on the entry and instead stays on the page's own button, so `gtk_widget_child_focus (window, GTK_DIR_TAB_BACKWARD)` moved nothing.
+	- Not a memory bug: fixing `MALLOC_PERTURB_` across its range changes nothing. Not display contention either; concurrent copies mostly skip on the existing no-focus guard rather than fail.
+	- Suspect the notebook page switch just before it has not finished when the grab and the Shift+Tab run, so the focus chain is computed against a page that is not up yet. Untested.
+	- Worth settling whether this is the test or `eel_gtk_notebook_keep_focus_off_tabs`, since only the second one would reach a user. Do not quiet the test before that is known.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
