@@ -61,6 +61,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Put in the title, not just the path, but "Nemo Anywhere - 'PATH'".
+
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
 	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
@@ -170,6 +172,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ `make_link_copy` deletes without going through the delete guard.
+	- Opened: 20260917-190000
+	- Closed: 20260917-193000
+	- The two `g_file_delete` calls in it, one for an overwritten destination and one for a moved-from link, skipped `file_delete_wrapper` and so never reached `nemo_delete_guard_check`. Every other delete in `nemo-file-operations.c` was already guarded. Found while wiring the delete test guard.
+	- Both go through the wrapper now. `lint-c.bash` holds the rule, and was watched to fail on the old code.
 
 - ✅ Turning hidden files off leaves a "Loading..." row under an open tree folder that holds only hidden folders.
 	- Opened: 20260917-060256
