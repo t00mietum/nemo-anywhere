@@ -61,30 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🛠️ Changes to Preferences|Views:
-	- Fine-tuning the requirements:
-		- "Views" section:
-			- Checkbox: "Remember per-folder settings" (default off) [this is a new setting].
-				- Checkbox (Indented and enabled only if "Remember per-folder settings" is enabled): "Inherit view settings from parent." (default on)
-			- Under that, two side-by side tabs, each with identical settings (but unique values):
-				- Default
-				- Current (entire tab disabled if "Remember per-folder settings" is disabled)
-			- On "Default" and "Current" tabs, add a button on each: "Copy settings to Current|Default" (whatever is the opposite of the current tab). (Near the top-right of the tabbed content for each.)
-			- Remove "Default[s]" from current heading names.
-		- Rename "View new folders using" -> "Folder view" (on both tabs).
-		- Remove the "Show only folders" option from "Tree View Defaults".
-			- TreeView can only show folders.
-			- If there are no sub-folders, don't show the "expand" chevron.
-				- And don't show (Empty) when an "empty" bottom-leaf node is expanded (which now shouldn't be possible anyway).
-	- Note: design.md's "List view column widths" section depends on "Remember per-folder settings" existing. A hand-resized minor variable-width column is meant to persist per folder only while it is on.
-	- Created: 20260916-120249 by JC.
-	- Note: the tree view part is done, under Done. The rest is not started.
-	- Decided 20260917:
-		- "Remember per-folder settings" replaces "Ignore per-folder view preferences". While it is off, saved folder settings are not read and nothing new is saved.
-		- "Inherit view settings from parent" replaces "Inherit view type from parent". It covers all view settings, taken from the nearest parent folder that has some saved, else Default.
-		- The Current tab follows the folder in the last focused window, and shows its path.
-		- The Current tab shows what the folder actually uses. Changing a value saves the whole set for that folder and applies it at once. A "Forget" button clears what is saved.
-
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
 	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
@@ -114,6 +90,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Fixed-width columns are said not to be resizable by hand, and are then given a rule for what a hand resize does.
 	- Settled 20260916: "Remember per-folder settings" is a new setting rather than a missing one, specced on the "Changes to Preferences|Views" item. Until it is built, the clause it gates cannot be implemented.
 		- Per-folder view state already persists as file metadata - visible columns, column order, sort column and direction, zoom, view type. Column widths are the one thing not stored, so that key has to be added.
+	- Note 20260917: "Remember per-folder settings" is built, so this is no longer blocked.
 
 - 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
@@ -1215,6 +1192,37 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Changes to Preferences|Views:
+	- Fine-tuning the requirements:
+		- "Views" section:
+			- Checkbox: "Remember per-folder settings" (default off) [this is a new setting].
+				- Checkbox (Indented and enabled only if "Remember per-folder settings" is enabled): "Inherit view settings from parent." (default on)
+			- Under that, two side-by side tabs, each with identical settings (but unique values):
+				- Default
+				- Current (entire tab disabled if "Remember per-folder settings" is disabled)
+			- On "Default" and "Current" tabs, add a button on each: "Copy settings to Current|Default" (whatever is the opposite of the current tab). (Near the top-right of the tabbed content for each.)
+			- Remove "Default[s]" from current heading names.
+		- Rename "View new folders using" -> "Folder view" (on both tabs).
+		- Remove the "Show only folders" option from "Tree View Defaults".
+			- TreeView can only show folders.
+			- If there are no sub-folders, don't show the "expand" chevron.
+				- And don't show (Empty) when an "empty" bottom-leaf node is expanded (which now shouldn't be possible anyway).
+	- Note: design.md's "List view column widths" section depends on "Remember per-folder settings" existing. A hand-resized minor variable-width column is meant to persist per folder only while it is on.
+	- Created: 20260916-120249 by JC.
+	- Closed: 20260917-093148
+	- Note: the tree view part is its own item, under Done.
+	- Decided 20260917:
+		- "Remember per-folder settings" replaces "Ignore per-folder view preferences". While it is off, saved folder settings are not read and nothing new is saved.
+		- "Inherit view settings from parent" replaces "Inherit view type from parent". It covers all view settings, taken from the nearest parent folder that has some saved, else Default.
+		- The Current tab follows the folder in the last focused window, and shows its path.
+		- The Current tab shows what the folder actually uses. Changing a value saves the whole set for that folder and applies it at once. A "Forget" button clears what is saved.
+	- Done:
+		- Views has the two checkboxes on top, then Default and Current tabs with the same controls. The copy button sits at the right of the tabs and names the other tab. Forget shows on Current only.
+		- Folder view, sort, reverse, folders first, favorites first, the three zoom levels, text beside icons, same-width columns and folder expanders are all kept per folder now. The last five used to be global only.
+		- "Ignore per-folder view preferences" is gone from Behavior. The two replaced lines in an old settings file are not read.
+		- Opening a folder saves nothing. Only a real change does.
+		- Changing a default no longer drops the zoom of a folder that remembers its own. It still does while remembering is off. This changes the fix for item 22 of the 20260804 review, which predates the Current tab.
 
 - ✅ State in README.md that Nemo Anywhere is "opinionated" and not trying to be a "solve every problem" tool. It does one thing very very well: Manage files, period. With far more useful "file management" features that Nemo has natively without platform-dependent third-party programs, plugins, and extensions.
 	- Opened: 20260908-111526

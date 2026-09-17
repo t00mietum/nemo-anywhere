@@ -44,6 +44,11 @@ const char * const nemo_folder_settings_keys[] = {
 	NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED,
 	NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS,
 	NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER,
+	NEMO_METADATA_KEY_LIST_VIEW_ENABLE_EXPANSION,
+	NEMO_METADATA_KEY_ICON_VIEW_LABELS_BESIDE_ICONS,
+	NEMO_METADATA_KEY_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH,
+	NEMO_METADATA_KEY_SORT_DIRECTORIES_FIRST,
+	NEMO_METADATA_KEY_SORT_FAVORITES_FIRST,
 	NULL
 };
 
@@ -248,13 +253,55 @@ nemo_folder_settings_adopt (NemoFile *folder)
 	nemo_file_set_metadata (folder, NEMO_METADATA_KEY_FOLDER_SETTINGS_SAVED, NULL, "true");
 }
 
+/* Views write their settings back while a folder loads. That is not a change,
+ * and must not give a folder that has nothing saved a set of its own. */
+static gboolean
+same_as_used (NemoFile *folder, const char *key, const char *default_value, const char *value)
+{
+	char *used;
+	gboolean same;
+
+	if (nemo_folder_settings_has_own (folder)) {
+		return FALSE;
+	}
+
+	used = nemo_folder_settings_get (folder, key, default_value);
+	same = g_strcmp0 (used, value != NULL ? value : default_value) == 0;
+	g_free (used);
+
+	return same;
+}
+
+static gboolean
+same_list_as_used (NemoFile *folder, const char *key, GList *list)
+{
+	GList *used, *a, *b;
+	gboolean same;
+
+	if (nemo_folder_settings_has_own (folder)) {
+		return FALSE;
+	}
+
+	used = nemo_folder_settings_get_list (folder, key);
+	for (a = used, b = list; a != NULL && b != NULL; a = a->next, b = b->next) {
+		if (g_strcmp0 (a->data, b->data) != 0) {
+			break;
+		}
+	}
+	same = a == NULL && b == NULL;
+	g_list_free_full (used, g_free);
+
+	return same;
+}
+
 void
 nemo_folder_settings_set (NemoFile   *folder,
 			  const char *key,
 			  const char *default_value,
 			  const char *value)
 {
-	if (folder == NULL || !nemo_global_preferences_get_remember_folder_settings ()) {
+	if (folder == NULL || !nemo_global_preferences_get_remember_folder_settings () ||
+	    same_as_used (folder, key, default_value, value)) {
 		return;
 	}
 
@@ -267,7 +314,8 @@ nemo_folder_settings_set_list (NemoFile   *folder,
 			       const char *key,
 			       GList      *list)
 {
-	if (folder == NULL || !nemo_global_preferences_get_remember_folder_settings ()) {
+	if (folder == NULL || !nemo_global_preferences_get_remember_folder_settings () ||
+	    same_list_as_used (folder, key, list)) {
 		return;
 	}
 

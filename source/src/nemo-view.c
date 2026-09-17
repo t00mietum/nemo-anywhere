@@ -2388,38 +2388,45 @@ dot_files_preference_changed_callback (gpointer callback_data)
 }
 #endif
 
+/* Both follow the folder's saved settings when it has some, else the preference.
+ * The first call comes before any folder is loaded, when there is no class
+ * handler worth running yet. */
+static void
+update_sort_firsts (NemoView *view, gboolean notify)
+{
+	NemoFile *file = view->details->directory_as_file;
+	gboolean directories_first, favorites_first;
+
+	directories_first = nemo_folder_settings_get_boolean (file, NEMO_METADATA_KEY_SORT_DIRECTORIES_FIRST,
+							      nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST));
+	favorites_first = nemo_folder_settings_get_boolean (file, NEMO_METADATA_KEY_SORT_FAVORITES_FIRST,
+							    nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST));
+
+	if (directories_first != view->details->sort_directories_first) {
+		view->details->sort_directories_first = directories_first;
+		if (notify) {
+			NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->sort_directories_first_changed (view);
+		}
+	}
+
+	if (favorites_first != view->details->sort_favorites_first) {
+		view->details->sort_favorites_first = favorites_first;
+		if (notify) {
+			NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->sort_favorites_first_changed (view);
+		}
+	}
+}
+
 static void
 sort_directories_first_changed_callback (gpointer callback_data)
 {
-	NemoView *view;
-	gboolean preference_value;
-
-	view = NEMO_VIEW (callback_data);
-
-	preference_value =
-		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
-
-	if (preference_value != view->details->sort_directories_first) {
-		view->details->sort_directories_first = preference_value;
-		return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->sort_directories_first_changed (view);
-	}
+	update_sort_firsts (NEMO_VIEW (callback_data), TRUE);
 }
 
 static void
 sort_favorites_first_changed_callback (gpointer callback_data)
 {
-	NemoView *view;
-	gboolean preference_value;
-
-	view = NEMO_VIEW (callback_data);
-
-	preference_value =
-		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
-
-	if (preference_value != view->details->sort_favorites_first) {
-		view->details->sort_favorites_first = preference_value;
-		return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->sort_favorites_first_changed (view);
-	}
+	update_sort_firsts (NEMO_VIEW (callback_data), TRUE);
 }
 
 static void
@@ -2884,11 +2891,7 @@ nemo_view_init (NemoView *view)
 				 G_CALLBACK (user_dirs_changed),
 				 view, G_CONNECT_SWAPPED);
 
-	view->details->sort_directories_first =
-		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
-
-	view->details->sort_favorites_first =
-		nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
+	update_sort_firsts (view, FALSE);
 
 	g_signal_connect_object (nemo_trash_monitor_get (), "trash_state_changed",
 				 G_CALLBACK (nemo_view_trash_state_changed_callback), view, 0);
@@ -11497,6 +11500,8 @@ load_directory (NemoView *view,
 	view->details->directory_as_file =
 		nemo_directory_get_corresponding_file (directory);
 	nemo_file_unref (old_file);
+
+	update_sort_firsts (view, TRUE);
 
 	view->details->reported_load_error = FALSE;
 

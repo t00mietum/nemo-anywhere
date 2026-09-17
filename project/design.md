@@ -249,6 +249,14 @@ Per-folder view state - view mode, zoom, sort column, column layout - is app-own
 
 - Changing a default in Settings also applies to folders already on screen. Folders not being looked at keep their own view and zoom until visited.
 
+- Remembering per folder is off by default. While it is off nothing saved is read and nothing new is saved, and a window only keeps what was picked in it until it closes.
+
+- A folder's settings are kept as one set: view type, sort and reverse, folders and favorites first, the zoom of each view, text beside icons, same-width columns, folder expanders and the list columns. With inheriting on, a folder with no set of its own uses the nearest parent's, else the defaults. A change in such a folder copies the set it was using first, so the rest does not jump back to the defaults. A small marker is saved with the set, so a set whose values all match the defaults still counts.
+
+- Opening a folder saves nothing. The views write their settings back as a folder loads, and a write that matches what the folder already uses is dropped.
+
+- The Current tab on the Views page shows the set for the folder in the last focused window, applies a change to that window at once, and can forget the set. The Default tab edits the defaults. Each has a button that copies to the other.
+
 - Window size, position and maximized state are shared by every window and live with the application settings. They are written shortly after a move or resize settles rather than at close, so an abnormal exit does not discard them. With nothing saved yet a window opens at 1280x720 including its frame, with the side pane at about a fifth of the width.
 
 The thumbnail cache is the fourth store and is not ours. It is the shared freedesktop cache: PNGs named by a hash of the file they were made from, under the user's cache directory, read and written by every file manager and image viewer on a Linux desktop, so a thumbnail made in one is already there in the next.

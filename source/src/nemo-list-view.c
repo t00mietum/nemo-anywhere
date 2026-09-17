@@ -464,16 +464,31 @@ tooltip_prefs_changed_callback (NemoListView *view)
     view->details->tooltip_flags = nemo_global_preferences_get_tooltip_flags ();
 }
 
+/* The tree view's own flag is what the rest of the view reads, so a folder
+ * with expanders saved differently from the preference behaves the same way. */
+static gboolean
+expanders_enabled (NemoListView *view)
+{
+    return gtk_tree_view_get_show_expanders (view->details->tree_view);
+}
+
 static void
 expanders_enabled_changed_cb (NemoListView *view)
 {
+    gboolean enabled;
+
     g_return_if_fail (NEMO_IS_LIST_VIEW (view));
     g_return_if_fail (GTK_IS_TREE_VIEW (view->details->tree_view) && view->details->tree_view != NULL);
 
-    gtk_tree_view_collapse_all (view->details->tree_view);
-    gtk_tree_view_set_show_expanders (view->details->tree_view,
-                                      nemo_config_get_boolean (nemo_list_view_preferences,
-                                                             NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION));
+    enabled = nemo_folder_settings_get_boolean (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
+                                                NEMO_METADATA_KEY_LIST_VIEW_ENABLE_EXPANSION,
+                                                nemo_config_get_boolean (nemo_list_view_preferences,
+                                                                         NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION));
+
+    if (enabled != expanders_enabled (view)) {
+        gtk_tree_view_collapse_all (view->details->tree_view);
+        gtk_tree_view_set_show_expanders (view->details->tree_view, enabled);
+    }
 }
 
 static void
@@ -1224,7 +1239,7 @@ clicked_on_text_in_name_cell (NemoListView *view, GtkTreePath *path, GdkEventBut
                                             GTK_CELL_RENDERER (details->file_name_cell),
                                             &x_cell_offset, &width);
 
-    if (nemo_config_get_boolean (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION)) {
+    if (expanders_enabled (view)) {
         gtk_widget_style_get (GTK_WIDGET (details->tree_view),
                                           "expander-size", &expander_size,
                                           "horizontal-separator", &horizontal_separator,
@@ -1454,8 +1469,7 @@ button_press_callback (GtkWidget *widget, GdkEventButton *event, gpointer callba
 	call_parent = TRUE;
 	if (gtk_tree_view_get_path_at_pos (tree_view, event->x, event->y,
 					   &path, NULL, NULL, NULL)) {
-        if (nemo_config_get_boolean (nemo_list_view_preferences,
-                                      NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION)) {
+        if (expanders_enabled (view)) {
     		gtk_widget_style_get (widget,
     				      "expander-size", &expander_size,
     				      "horizontal-separator", &horizontal_separator,
@@ -1802,7 +1816,7 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
 		}
 		break;
 	case GDK_KEY_Right:
-        if (!nemo_config_get_boolean (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION))
+        if (!expanders_enabled (NEMO_LIST_VIEW (view)))
             break;
 
 		gtk_tree_view_get_cursor (tree_view, &path, NULL);
@@ -1813,7 +1827,7 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
 		handled = TRUE;
 		break;
 	case GDK_KEY_Left:
-        if (!nemo_config_get_boolean (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION))
+        if (!expanders_enabled (NEMO_LIST_VIEW (view)))
             break;
 
 		gtk_tree_view_get_cursor (tree_view, &path, NULL);
@@ -4316,6 +4330,7 @@ nemo_list_view_begin_loading (NemoView *view)
 	set_sort_order_from_metadata_and_preferences (list_view);
 	set_zoom_level_from_metadata_and_preferences (list_view);
 	set_columns_settings_from_metadata_and_preferences (list_view);
+	expanders_enabled_changed_cb (list_view);
 
     gtk_widget_set_margin_bottom (GTK_WIDGET (list_view->details->tree_view), 0);
 

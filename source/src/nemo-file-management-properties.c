@@ -43,6 +43,7 @@
 #include <libnemo-private/nemo-module.h>
 
 #include "nemo-plugin-manager.h"
+#include "nemo-prefs-current-folder.h"
 #include "nemo-template-config-widget.h"
 #include "nemo-actions.h"
 
@@ -107,7 +108,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DETECT_CONTENT_MEDIA_WIDGET "media_detect_content_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_ADVANCED_PERMISSIONS_WIDGET "show_advanced_permissions_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_START_WITH_DUAL_PANE_WIDGET "start_with_dual_pane_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_IGNORE_VIEW_METADATA_WIDGET "ignore_view_metadata_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_REMEMBER_FOLDER_SETTINGS_WIDGET "remember_folder_settings_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_BOOKMARKS_IN_TO_MENUS_WIDGET "bookmarks_in_to_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PLACES_IN_TO_MENUS_WIDGET "places_in_to_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_INHERIT_SHOW_THUMBNAILS_WIDGET "inherit_show_thumbnails_checkbutton"
@@ -1280,6 +1281,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 							       (char *)"views_label",
 							       5);
 	nemo_file_management_properties_size_group_create (builder,
+							       (char *)"views_current_label",
+							       5);
+	nemo_file_management_properties_size_group_create (builder,
 							       (char *)"captions_label",
 							       3);
 	/* The two command entries on Behavior start at the same x, so the pair
@@ -1387,6 +1391,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
   bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_INHERIT_VIEW_WIDGET,
 			   NEMO_PREFERENCES_INHERIT_VIEW_SETTINGS);
+  bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_REMEMBER_FOLDER_SETTINGS_WIDGET,
+			   NEMO_PREFERENCES_REMEMBER_FOLDER_SETTINGS);
   bind_builder_bool (builder, nemo_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_REVERSE_SORT_WIDGET,
                NEMO_PREFERENCES_DEFAULT_SORT_IN_REVERSE_ORDER);
@@ -1591,6 +1598,8 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	if (window) {
 		gtk_window_set_transient_for (GTK_WINDOW (dialog), window);
 	}
+
+	nemo_prefs_current_folder_setup (builder, dialog, window);
 
 	size_dialog_to_longest_page (builder, dialog, window);
 

@@ -136,6 +136,26 @@ main (int argc, char *argv[])
 	check (!nemo_folder_settings_has_own (other));
 	check (view_is (other, "default"));
 
+	/* Writing back what a folder already uses is not a change. Views do that
+	 * as a folder loads, and it used to give every folder opened a set. */
+	{
+		GList *columns = NULL;
+
+		nemo_folder_settings_set_int (other, NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, 2, 2);
+		nemo_folder_settings_set (other, NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN, "name", NULL);
+		nemo_folder_settings_set_list (other, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER, NULL);
+		check (!nemo_folder_settings_has_own (other));
+
+		nemo_folder_settings_set (leaf, NEMO_METADATA_KEY_DEFAULT_VIEW, "default", "list");
+		check (!nemo_folder_settings_has_own (leaf));
+
+		columns = g_list_append (columns, (char *) "name");
+		nemo_folder_settings_set_list (other, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER, columns);
+		check (nemo_folder_settings_has_own (other));
+		g_list_free (columns);
+		nemo_folder_settings_forget (other);
+	}
+
 	/* A folder with nothing saved takes the nearest parent's set. */
 	check (nemo_folder_settings_has_own (top));
 	check (source_is (top, top));

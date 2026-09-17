@@ -463,49 +463,78 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                             <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <child>
-                              <object class="GtkBox" id="vbox2">
+                              <object class="GtkCheckButton" id="remember_folder_settings_checkbutton">
+                                <property name="label" translatable="yes">_Remember per-folder settings</property>
+                                <property name="visible">True</property>
+                                <property name="margin-start">6</property>
+                                <property name="margin-top">6</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">False</property>
+                                <property name="use-underline">True</property>
+                                <property name="xalign">0</property>
+                                <property name="draw-indicator">True</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkAlignment" id="inherit_view_alignment">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="border-width">6</property>
-                                <property name="orientation">vertical</property>
-                                <property name="spacing">6</property>
+                                <property name="left-padding">30</property>
                                 <child>
-                                  <object class="GtkLabel" id="label4">
+                                  <object class="GtkCheckButton" id="inherit_view_checkbox">
+                                    <property name="label" translatable="yes">_Inherit view settings from parent</property>
                                     <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Default view&lt;/b&gt;</property>
-                                    <property name="use-markup">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="receives-default">False</property>
+                                    <property name="use-underline">True</property>
                                     <property name="xalign">0</property>
+                                    <property name="draw-indicator">True</property>
                                   </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">0</property>
-                                  </packing>
                                 </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkNotebook" id="views_notebook">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="margin-start">6</property>
+                                <property name="margin-end">6</property>
+                                <property name="margin-top">6</property>
                                 <child>
-                                  <object class="GtkAlignment" id="alignment2">
+                                  <object class="GtkBox" id="views_default_page">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="left-padding">40</property>
+                                    <property name="border-width">6</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">6</property>
                                     <child>
-                                      <object class="GtkBox" id="vbox14">
+                                      <object class="GtkBox" id="views_default_page_sections">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
                                         <property name="orientation">vertical</property>
-                                        <property name="spacing">6</property>
                                         <child>
-                                          <object class="GtkBox" id="hbox34">
+                                          <object class="GtkBox" id="vbox2">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
                                             <child>
-                                              <object class="GtkLabel" id="views_label_0">
+                                              <object class="GtkLabel" id="label4">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">View _new folders using:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">default_view_combobox</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;View&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
                                                 <property name="xalign">0</property>
                                               </object>
                                               <packing>
@@ -515,15 +544,155 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBox" id="default_view_combobox">
+                                              <object class="GtkAlignment" id="alignment2">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="model">model1</property>
+                                                <property name="left-padding">40</property>
                                                 <child>
-                                                  <object class="GtkCellRendererText" id="renderer1"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
+                                                  <object class="GtkBox" id="vbox14">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox34">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_label_0">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Folder _view:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">default_view_combobox</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="default_view_combobox">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model1</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer1"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox11">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_label_1">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">_Arrange items:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">sort_order_combobox</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="sort_order_combobox">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model2</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer2"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">2</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="reverse_sort_checkbox">
+                                                        <property name="label" translatable="yes">Reverse sort</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">3</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="sort_folders_first_checkbutton">
+                                                        <property name="label" translatable="yes">Sort _folders before files</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">4</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="sort_favorites_first_checkbutton">
+                                                        <property name="label" translatable="yes">Sort _favorites before other files</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">True</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">5</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
                                                 </child>
                                               </object>
                                               <packing>
@@ -540,33 +709,18 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkCheckButton" id="inherit_view_checkbox">
-                                            <property name="label" translatable="yes">_Inherit view type from parent</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="hbox11">
+                                          <object class="GtkBox" id="vbox3">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
                                             <child>
-                                              <object class="GtkLabel" id="views_label_1">
+                                              <object class="GtkLabel" id="label5">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">_Arrange items:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">sort_order_combobox</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;Icon view&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
                                                 <property name="xalign">0</property>
                                               </object>
                                               <packing>
@@ -576,15 +730,187 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBox" id="sort_order_combobox">
+                                              <object class="GtkAlignment" id="alignment1">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="model">model2</property>
+                                                <property name="left-padding">40</property>
                                                 <child>
-                                                  <object class="GtkCellRendererText" id="renderer2"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
+                                                  <object class="GtkBox" id="vbox16">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox35">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_label_2">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">_Zoom level:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">icon_view_zoom_combobox</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="icon_view_zoom_combobox">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model3</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer3"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="labels_beside_icons_checkbutton">
+                                                        <property name="label" translatable="yes">_Text beside icons</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkBox" id="vbox">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
+                                            <child>
+                                              <object class="GtkLabel" id="label">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;Compact view&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">False</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkAlignment" id="alignment">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="left-padding">40</property>
+                                                <child>
+                                                  <object class="GtkBox" id="vbox42">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_label_4">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Z_oom level:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">compact_view_zoom_combobox</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="compact_view_zoom_combobox">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model4</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer4"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="all_columns_same_width_checkbutton">
+                                                        <property name="label" translatable="yes">A_ll columns have the same width</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
                                                 </child>
                                               </object>
                                               <packing>
@@ -601,113 +927,172 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkCheckButton" id="reverse_sort_checkbox">
-                                            <property name="label" translatable="yes">Reverse sort</property>
+                                          <object class="GtkBox" id="vbox4">
                                             <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
+                                            <child>
+                                              <object class="GtkLabel" id="label6">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;List view&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">False</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkAlignment" id="alignment3">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="left-padding">40</property>
+                                                <child>
+                                                  <object class="GtkBox" id="vbox15">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox36">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_label_3">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Zoo_m level:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">list_view_zoom_combobox</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="list_view_zoom_combobox">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model5</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer5"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="list_view_show_expanders_checkbutton">
+                                                        <property name="label" translatable="yes">Show folder expanders</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
                                           </object>
                                           <packing>
                                             <property name="expand">False</property>
-                                            <property name="fill">False</property>
+                                            <property name="fill">True</property>
                                             <property name="position">3</property>
                                           </packing>
                                         </child>
-                                        <child>
-                                          <object class="GtkCheckButton" id="sort_folders_first_checkbutton">
-                                            <property name="label" translatable="yes">Sort _folders before files</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">4</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkCheckButton" id="sort_favorites_first_checkbutton">
-                                            <property name="label" translatable="yes">Sort _favorites before other files</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">True</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">5</property>
-                                          </packing>
-                                        </child>
                                       </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
                                     </child>
                                   </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
                                 </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
-                                <property name="position">0</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkBox" id="vbox3">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="border-width">6</property>
-                                <property name="orientation">vertical</property>
-                                <property name="spacing">6</property>
-                                <child>
-                                  <object class="GtkLabel" id="label5">
+                                <child type="tab">
+                                  <object class="GtkLabel" id="views_default_tab">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Icon view defaults&lt;/b&gt;</property>
-                                    <property name="use-markup">True</property>
-                                    <property name="xalign">0</property>
+                                    <property name="label" translatable="yes">Default</property>
                                   </object>
                                   <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">0</property>
+                                    <property name="tab-fill">False</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkAlignment" id="alignment1">
+                                  <object class="GtkBox" id="views_current_page">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="left-padding">40</property>
+                                    <property name="border-width">6</property>
+                                    <property name="orientation">vertical</property>
+                                    <property name="spacing">6</property>
                                     <child>
-                                      <object class="GtkBox" id="vbox16">
+                                      <object class="GtkLabel" id="current_folder_path_label">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="ellipsize">middle</property>
+                                        <property name="xalign">0</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkBox" id="views_current_page_sections">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
                                         <property name="orientation">vertical</property>
-                                        <property name="spacing">6</property>
                                         <child>
-                                          <object class="GtkBox" id="hbox35">
+                                          <object class="GtkBox" id="vbox2_current">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
                                             <child>
-                                              <object class="GtkLabel" id="views_label_2">
+                                              <object class="GtkLabel" id="label4_current">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">Default _zoom level:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">icon_view_zoom_combobox</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;View&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
                                                 <property name="xalign">0</property>
                                               </object>
                                               <packing>
@@ -717,15 +1102,155 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBox" id="icon_view_zoom_combobox">
+                                              <object class="GtkAlignment" id="alignment2_current">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="model">model3</property>
+                                                <property name="left-padding">40</property>
                                                 <child>
-                                                  <object class="GtkCellRendererText" id="renderer3"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
+                                                  <object class="GtkBox" id="vbox14_current">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox34_current">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_current_label_0">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Folder _view:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">default_view_combobox_current</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="default_view_combobox_current">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model1</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer1_current"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox11_current">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_current_label_1">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">_Arrange items:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">sort_order_combobox_current</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="sort_order_combobox_current">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model2</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer2_current"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">2</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="reverse_sort_checkbox_current">
+                                                        <property name="label" translatable="yes">Reverse sort</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">3</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="sort_folders_first_checkbutton_current">
+                                                        <property name="label" translatable="yes">Sort _folders before files</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">4</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="sort_favorites_first_checkbutton_current">
+                                                        <property name="label" translatable="yes">Sort _favorites before other files</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">True</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">5</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
                                                 </child>
                                               </object>
                                               <packing>
@@ -742,81 +1267,18 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkCheckButton" id="labels_beside_icons_checkbutton">
-                                            <property name="label" translatable="yes">_Text beside icons</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkBox" id="vbox">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="border-width">6</property>
-                                <property name="orientation">vertical</property>
-                                <property name="spacing">6</property>
-                                <child>
-                                  <object class="GtkLabel" id="label">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;Compact view defaults&lt;/b&gt;</property>
-                                    <property name="use-markup">True</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkAlignment" id="alignment">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="left-padding">40</property>
-                                    <child>
-                                      <object class="GtkBox" id="vbox42">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="orientation">vertical</property>
-                                        <property name="spacing">6</property>
-                                        <child>
-                                          <object class="GtkBox" id="hbox">
+                                          <object class="GtkBox" id="vbox3_current">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
                                             <child>
-                                              <object class="GtkLabel" id="views_label_4">
+                                              <object class="GtkLabel" id="label5_current">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">_Default zoom level:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">compact_view_zoom_combobox</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;Icon view&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
                                                 <property name="xalign">0</property>
                                               </object>
                                               <packing>
@@ -826,15 +1288,78 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBox" id="compact_view_zoom_combobox">
+                                              <object class="GtkAlignment" id="alignment1_current">
                                                 <property name="visible">True</property>
                                                 <property name="can-focus">False</property>
-                                                <property name="model">model4</property>
+                                                <property name="left-padding">40</property>
                                                 <child>
-                                                  <object class="GtkCellRendererText" id="renderer4"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
+                                                  <object class="GtkBox" id="vbox16_current">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox35_current">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_current_label_2">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">_Zoom level:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">icon_view_zoom_combobox_current</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="icon_view_zoom_combobox_current">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model3</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer3_current"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="labels_beside_icons_checkbutton_current">
+                                                        <property name="label" translatable="yes">_Text beside icons</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
                                                 </child>
                                               </object>
                                               <packing>
@@ -847,148 +1372,290 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                           <packing>
                                             <property name="expand">False</property>
                                             <property name="fill">True</property>
-                                            <property name="position">0</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkCheckButton" id="all_columns_same_width_checkbutton">
-                                            <property name="label" translatable="yes">A_ll columns have the same width</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
                                             <property name="position">1</property>
                                           </packing>
                                         </child>
+                                        <child>
+                                          <object class="GtkBox" id="vbox_current">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
+                                            <child>
+                                              <object class="GtkLabel" id="label_current">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;Compact view&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">False</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkAlignment" id="alignment_current">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="left-padding">40</property>
+                                                <child>
+                                                  <object class="GtkBox" id="vbox42_current">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox_current">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_current_label_4">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Z_oom level:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">compact_view_zoom_combobox_current</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="compact_view_zoom_combobox_current">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model4</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer4_current"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="all_columns_same_width_checkbutton_current">
+                                                        <property name="label" translatable="yes">A_ll columns have the same width</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">2</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkBox" id="vbox4_current">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="border-width">6</property>
+                                            <property name="orientation">vertical</property>
+                                            <property name="spacing">6</property>
+                                            <child>
+                                              <object class="GtkLabel" id="label6_current">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="label" translatable="yes">&lt;b&gt;List view&lt;/b&gt;</property>
+                                                <property name="use-markup">True</property>
+                                                <property name="xalign">0</property>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">False</property>
+                                                <property name="position">0</property>
+                                              </packing>
+                                            </child>
+                                            <child>
+                                              <object class="GtkAlignment" id="alignment3_current">
+                                                <property name="visible">True</property>
+                                                <property name="can-focus">False</property>
+                                                <property name="left-padding">40</property>
+                                                <child>
+                                                  <object class="GtkBox" id="vbox15_current">
+                                                    <property name="visible">True</property>
+                                                    <property name="can-focus">False</property>
+                                                    <property name="orientation">vertical</property>
+                                                    <property name="spacing">6</property>
+                                                    <child>
+                                                      <object class="GtkBox" id="hbox36_current">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_current_label_3">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Zoo_m level:</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">list_view_zoom_combobox_current</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkComboBox" id="list_view_zoom_combobox_current">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="model">model5</property>
+                                                            <child>
+                                                              <object class="GtkCellRendererText" id="renderer5_current"/>
+                                                              <attributes>
+                                                                <attribute name="text">0</attribute>
+                                                              </attributes>
+                                                            </child>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">0</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
+                                                      <object class="GtkCheckButton" id="list_view_show_expanders_checkbutton_current">
+                                                        <property name="label" translatable="yes">Show folder expanders</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                  </object>
+                                                </child>
+                                              </object>
+                                              <packing>
+                                                <property name="expand">False</property>
+                                                <property name="fill">True</property>
+                                                <property name="position">1</property>
+                                              </packing>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">3</property>
+                                          </packing>
+                                        </child>
                                       </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">1</property>
+                                      </packing>
                                     </child>
                                   </object>
                                   <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
                                     <property name="position">1</property>
                                   </packing>
+                                </child>
+                                <child type="tab">
+                                  <object class="GtkLabel" id="views_current_tab">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Current</property>
+                                  </object>
+                                  <packing>
+                                    <property name="position">1</property>
+                                    <property name="tab-fill">False</property>
+                                  </packing>
+                                </child>
+                                <child type="action-end">
+                                  <object class="GtkBox" id="views_tab_actions">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkButton" id="forget_folder_settings_button">
+                                        <property name="label" translatable="yes">Forg_et</property>
+                                        <property name="visible">False</property>
+                                        <property name="can-focus">True</property>
+                                        <property name="receives-default">False</property>
+                                        <property name="use-underline">True</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkButton" id="copy_view_settings_button">
+                                        <property name="label" translatable="yes">Copy settings to _Current</property>
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">True</property>
+                                        <property name="receives-default">False</property>
+                                        <property name="use-underline">True</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                  </object>
                                 </child>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
                                 <property name="position">2</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkBox" id="vbox4">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="border-width">6</property>
-                                <property name="orientation">vertical</property>
-                                <property name="spacing">6</property>
-                                <child>
-                                  <object class="GtkLabel" id="label6">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">&lt;b&gt;List view defaults&lt;/b&gt;</property>
-                                    <property name="use-markup">True</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkAlignment" id="alignment3">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="left-padding">40</property>
-                                    <child>
-                                      <object class="GtkBox" id="vbox15">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="orientation">vertical</property>
-                                        <property name="spacing">6</property>
-                                        <child>
-                                          <object class="GtkBox" id="hbox36">
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
-                                            <child>
-                                              <object class="GtkLabel" id="views_label_3">
-                                                <property name="visible">True</property>
-                                                <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">D_efault zoom level:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">list_view_zoom_combobox</property>
-                                                <property name="xalign">0</property>
-                                              </object>
-                                              <packing>
-                                                <property name="expand">False</property>
-                                                <property name="fill">False</property>
-                                                <property name="position">0</property>
-                                              </packing>
-                                            </child>
-                                            <child>
-                                              <object class="GtkComboBox" id="list_view_zoom_combobox">
-                                                <property name="visible">True</property>
-                                                <property name="can-focus">False</property>
-                                                <property name="model">model5</property>
-                                                <child>
-                                                  <object class="GtkCellRendererText" id="renderer5"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
-                                                </child>
-                                              </object>
-                                              <packing>
-                                                <property name="expand">False</property>
-                                                <property name="fill">True</property>
-                                                <property name="position">1</property>
-                                              </packing>
-                                            </child>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">True</property>
-                                            <property name="position">0</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkCheckButton" id="list_view_show_expanders_checkbutton">
-                                            <property name="label" translatable="yes">Show folder expanders</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
-                                <property name="position">3</property>
                               </packing>
                             </child>
                           </object>
@@ -1180,22 +1847,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                             <property name="expand">False</property>
                                             <property name="fill">False</property>
                                             <property name="position">0</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkCheckButton" id="ignore_view_metadata_checkbutton">
-                                            <property name="label" translatable="yes">Ignore per-folder view preferences</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">False</property>
-                                            <property name="use-underline">True</property>
-                                            <property name="xalign">0</property>
-                                            <property name="draw-indicator">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">False</property>
-                                            <property name="position">1</property>
                                           </packing>
                                         </child>
                                         <child>

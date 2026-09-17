@@ -926,8 +926,10 @@ set_labels_beside_icons (NemoIconView *icon_view)
 
 	if (nemo_icon_view_supports_labels_beside_icons (icon_view)) {
 		labels_beside = nemo_icon_view_is_compact (icon_view) ||
-			nemo_config_get_boolean (nemo_icon_view_preferences,
-						NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
+			nemo_folder_settings_get_boolean (nemo_view_get_directory_as_file (NEMO_VIEW (icon_view)),
+							  NEMO_METADATA_KEY_ICON_VIEW_LABELS_BESIDE_ICONS,
+							  nemo_config_get_boolean (nemo_icon_view_preferences,
+										   NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS));
 
 		if (labels_beside) {
 			nemo_icon_container_set_label_position
@@ -947,8 +949,11 @@ set_columns_same_width (NemoIconView *icon_view)
 	gboolean all_columns_same_width;
 
 	if (nemo_icon_view_is_compact (icon_view)) {
-		all_columns_same_width = nemo_config_get_boolean (nemo_compact_view_preferences,
-								 NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH);
+		all_columns_same_width =
+			nemo_folder_settings_get_boolean (nemo_view_get_directory_as_file (NEMO_VIEW (icon_view)),
+							  NEMO_METADATA_KEY_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH,
+							  nemo_config_get_boolean (nemo_compact_view_preferences,
+										   NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH));
 		nemo_icon_container_set_all_columns_same_width (get_icon_container (icon_view), all_columns_same_width);
 	}
 }
