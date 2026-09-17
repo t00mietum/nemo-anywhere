@@ -224,6 +224,40 @@ main (int argc, char *argv[])
 	check (!nemo_folder_settings_has_own (leaf));
 	check (source_is (leaf, mid));
 
+	/* Dragged column widths belong to the set: a folder that has saved
+	 * nothing else still counts as having one, a child inherits them, and
+	 * resetting to the defaults drops them. */
+	{
+		char *owner_path = make_dir (dir, "widths");
+		char *child_path = make_dir (dir, "widths/child");
+		NemoFile *owner = folder_for (owner_path);
+		NemoFile *child = folder_for (child_path);
+		GList *widths = NULL, *read;
+		char **left;
+		char *uri;
+
+		widths = g_list_append (widths, (char *) "type:146");
+		nemo_folder_settings_set_list (owner, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_WIDTHS, widths);
+		g_list_free (widths);
+
+		check (nemo_folder_settings_has_own (owner));
+		read = nemo_folder_settings_get_list (child, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_WIDTHS);
+		check (g_list_length (read) == 1 && g_strcmp0 (read->data, "type:146") == 0);
+		g_list_free_full (read, g_free);
+
+		nemo_folder_settings_forget (owner);
+		uri = nemo_file_get_uri (owner);
+		left = nemo_metadata_store_get_stringv (uri, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_WIDTHS);
+		check (left == NULL || left[0] == NULL);
+		g_strfreev (left);
+
+		g_free (uri);
+		nemo_file_unref (owner);
+		nemo_file_unref (child);
+		g_free (owner_path);
+		g_free (child_path);
+	}
+
 	/* A set saved before the marker existed still counts. */
 	{
 		char *uri = nemo_file_get_uri (other);

@@ -124,11 +124,7 @@ field: icon-view.thumbnail-size
 field: list-view.column-fit-percent
 	type: int
 	default: 90
-	desc: Share of a column's values its width has to show before the row scrolls sideways rather than narrow further. Name counts every file; a type or an owner counts each distinct value once.
-
-field: list-view.column-max-widths
-	type: string-array
-	desc: Widest each column may get, in pixels. Set by dragging.
+	desc: Share of the values Name and Location still show when the row is short of room, and the share other variable columns show by default. Name counts every file; the others count each distinct value once.
 
 field: list-view.default-column-order
 	type: string-array
@@ -672,11 +668,6 @@ field: search.group-by-folder
 	type: bool
 	default: false
 	desc: Group results under the folder holding them instead of one flat list
-
-field: search.name-location-split
-	type: int
-	default: 0
-	desc: Percent of the row the Name column takes in results. 0 fits both to their contents.
 
 field: search.search-content-case-sensitive
 	type: bool

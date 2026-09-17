@@ -78,20 +78,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260908-021923 by JC.
 	- Note: clearing an extract's staging folder on Windows went into a junction and deleted what it pointed at. Fixed, with a check. The delete job itself has not been checked against a junction yet.
 
-- 🔘 Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
-	- Opened: 20260908-133001
-	- Settled 20260916: the design.md section wins over every backlog item, closed ones included. Each backlog item that sets column widths now carries a note saying so.
-	- Four places where the code and that section disagree, each needing a decision rather than a guess:
-		- The share is `max(1, floor(count * percent))` in the section and rounds up in the code, so at 90% a three-value column is two values by the section and all three by the code.
-		- The section no longer covers search results, and the code still gives Name and Location their own split there, kept in `search.name-location-split`.
-		- The section no longer mentions Name's hundred-pixel floor, and the code still applies it.
-		- A hand drag persists only for the folder in view, and the code still keeps it forever in `list-view.column-max-widths`. Either that key goes or it becomes per-folder state.
-	- One the code cannot settle, because the section is at odds with itself:
-		- Fixed-width columns are said not to be resizable by hand, and are then given a rule for what a hand resize does.
-	- Settled 20260916: "Remember per-folder settings" is a new setting rather than a missing one, specced on the "Changes to Preferences|Views" item. Until it is built, the clause it gates cannot be implemented.
-		- Per-folder view state already persists as file metadata - visible columns, column order, sort column and direction, zoom, view type. Column widths are the one thing not stored, so that key has to be added.
-	- Note 20260917: "Remember per-folder settings" is built, so this is no longer blocked.
-
 - 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
 	- The test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
@@ -1192,6 +1178,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
+	- Opened: 20260908-133001
+	- Settled 20260916: the design.md section wins over every backlog item, closed ones included. Each backlog item that sets column widths now carries a note saying so.
+	- Closed: 20260917-103306
+	- Four places where the code and that section disagreed, each settled 20260917 by JC and now built:
+		- The share rounds down, as the section says. At 90% a three-value column now fits two of them.
+		- Search results follow the same rule as any folder. The separate Name and Location split is gone, and so is `search.name-location-split`.
+		- Name's hundred-pixel floor is gone. The header text is the only floor now.
+		- A hand drag lasts while the folder is in view. `list-view.column-max-widths` is gone. A minor column's width is saved with the folder's settings instead, when "Remember per-folder settings" is on.
+	- Two places where the section is at odds with itself. Both were built the way that reading of it makes sense, and the section still needs a line changed:
+		- Fixed-width columns are said not to be resizable by hand, and are then given a rule for what a hand resize does. They are not resizable; the resize line under that class should go.
+		- The minor class points at the primary class's "Default width if room" for a formula and a percentage, but that rule has no percentage in it. Read as the "Min width" formula: a minor column is at the 50% share at its narrowest, the `list-view.column-fit-percent` share by default, and all of its values at its widest.
+	- Settled 20260916: "Remember per-folder settings" is a new setting rather than a missing one, specced on the "Changes to Preferences|Views" item. Until it is built, the clause it gates cannot be implemented.
+		- Per-folder view state already persists as file metadata - visible columns, column order, sort column and direction, zoom, view type. Column widths are the one thing not stored, so that key has to be added.
+	- Note 20260917: "Remember per-folder settings" is built, so this is no longer blocked.
+	- Done: the three classes, the row split and the drag rules match the section. Ext counts as a minor column rather than a fixed one, every column gets a character of air on its right, and Name and Location share what is left of the row instead of Location taking it all.
 
 - ✅ Changes to Preferences|Views:
 	- Fine-tuning the requirements:
