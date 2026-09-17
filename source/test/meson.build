@@ -507,6 +507,16 @@ test('Search group test',
   args: []
 )
 
+test('Tree folders test',
+  executable('test-nemo-tree-folders',
+    [ 'test-nemo-tree-folders.c', '../src/nemo-tree-sidebar-model.c' ],
+    include_directories: [ rootInclude, include_directories('../src') ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('New process argv test',
   executable('test-nemo-new-process',
     [ 'test-nemo-new-process.c', '../src/nemo-new-process.c' ],

@@ -90,9 +90,6 @@ typedef enum
 	NEMO_NEW_TAB_POSITION_END,
 } NemoNewTabPosition;
 
-/* Sidebar panels  */
-#define NEMO_PREFERENCES_TREE_SHOW_ONLY_DIRECTORIES         "show-only-directories"
-
 /* Single/Double click preference  */
 #define NEMO_PREFERENCES_CLICK_POLICY			"click-policy"
 
@@ -329,7 +326,6 @@ extern NemoConfigGroup *nemo_icon_view_preferences;
 extern NemoConfigGroup *nemo_list_view_preferences;
 extern NemoConfigGroup *nemo_compact_view_preferences;
 extern NemoConfigGroup *nemo_desktop_preferences;
-extern NemoConfigGroup *nemo_tree_sidebar_preferences;
 extern NemoConfigGroup *nemo_window_state;
 extern NemoConfigGroup *nemo_plugin_preferences;
 extern NemoConfigGroup *nemo_menu_config_preferences;

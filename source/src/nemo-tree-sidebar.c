@@ -192,6 +192,7 @@ show_iter_for_file (FMTreeView *view, NemoFile *file, GtkTreeIter *iter)
 	if (parent_iter.user_data == NULL || parent_iter.stamp == 0) {
 		return FALSE;
 	}
+	fm_tree_model_expect_children (view->details->child_model, &parent_iter);
 	path = gtk_tree_model_get_path (model, &parent_iter);
 	sort_path = gtk_tree_model_sort_convert_child_path_to_path
 		(view->details->sort_model, path);
@@ -1595,10 +1596,6 @@ update_filtering_from_preferences (FMTreeView *view)
 
     fm_tree_model_set_show_hidden_files (view->details->child_model,
                                          mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE);
-
-    fm_tree_model_set_show_only_directories (view->details->child_model,
-                                             nemo_config_get_boolean (nemo_tree_sidebar_preferences,
-                                                                     NEMO_PREFERENCES_TREE_SHOW_ONLY_DIRECTORIES));
 }
 
 static void
@@ -1614,12 +1611,6 @@ parent_set_callback (GtkWidget        *widget,
 		create_tree (view);
 		update_filtering_from_preferences (view);
 	}
-}
-
-static void
-filtering_changed_callback (gpointer callback_data)
-{
-	update_filtering_from_preferences (FM_TREE_VIEW (callback_data));
 }
 
 static void
@@ -1704,10 +1695,6 @@ fm_tree_view_init (FMTreeView *view)
                                                                          G_CALLBACK (actions_changed),
                                                                          view);
     view->details->ui_manager = gtk_ui_manager_new ();
-
-	g_signal_connect_swapped (nemo_tree_sidebar_preferences,
-				  "changed::" NEMO_PREFERENCES_TREE_SHOW_ONLY_DIRECTORIES,
-				  G_CALLBACK (filtering_changed_callback), view);
 
     g_signal_connect_swapped (nemo_preferences,
                   "changed::" NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST,
@@ -1803,10 +1790,6 @@ fm_tree_view_dispose (GObject *object)
 
     g_clear_object (&view->details->action_manager);
     g_clear_object (&view->details->ui_manager);
-
-	g_signal_handlers_disconnect_by_func (nemo_tree_sidebar_preferences,
-					      G_CALLBACK(filtering_changed_callback),
-					      view);
 
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                           G_CALLBACK(sort_directories_first_changed_callback),

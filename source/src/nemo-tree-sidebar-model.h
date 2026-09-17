@@ -71,8 +71,10 @@ GType              fm_tree_model_get_type                  (void);
 FMTreeModel *fm_tree_model_new                       (void);
 void               fm_tree_model_set_show_hidden_files     (FMTreeModel *model,
 							    gboolean           show_hidden_files);
-void               fm_tree_model_set_show_only_directories (FMTreeModel *model,
-							    gboolean           show_only_directories);
+/* For a folder about to be expanded to reach a location, where an earlier
+   look found nothing under it. */
+void               fm_tree_model_expect_children           (FMTreeModel *model,
+							    GtkTreeIter       *iter);
 NemoFile *     fm_tree_model_iter_get_file             (FMTreeModel *model,
 							    GtkTreeIter       *iter);
 void               fm_tree_model_add_root_uri              (FMTreeModel *model,

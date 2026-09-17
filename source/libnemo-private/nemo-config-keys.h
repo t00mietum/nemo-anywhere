@@ -290,7 +290,6 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-skip-folders", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_skip_folders, NULL, "Paths or folder names a search never enters" },
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "search", "search-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_visible_columns, NULL, NULL, NEMO_CONFIG_KEY_STATE },
-	{ "sidebar-panels.tree", "show-only-directories", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show only folders in the tree side pane" },
 	{ "state", "first-run-done", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Clear this to get the platform's default bookmarks back on the next start.", NEMO_CONFIG_KEY_STATE },
 	{ "thumbnailers", "disable", NEMO_CONFIG_STRING_LIST, NULL, deflist_thumbnailers_disable, NULL, "Mime types not to use an external thumbnailer for" },
 	{ "thumbnailers", "disable-all", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },

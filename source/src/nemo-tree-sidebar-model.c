@@ -32,6 +32,7 @@
 
 #include <eel/eel-graphic-effects.h>
 
+#include <libnemo-private/nemo-dir-enum.h>
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file-attributes.h>
 #include <libnemo-private/nemo-file.h>
@@ -93,6 +94,8 @@ struct TreeNode {
 	guint done_loading : 1;
 	guint force_has_dummy : 1;
 	guint inserted : 1;
+	guint no_subfolders : 1;
+	guint probe_queued : 1;
     guint pinned : 1;
     guint fav_unavailable : 1;
 };
@@ -105,7 +108,11 @@ struct FMTreeModelDetails {
 	guint monitoring_update_idle_id;
 
 	gboolean show_hidden_files;
-	gboolean show_only_directories;
+
+	GQueue probe_queue;
+	TreeNode *probing;
+	GCancellable *probe_cancellable;
+	guint probe_idle_id;
 
 	GList *highlighted_files;
 };
@@ -129,6 +136,9 @@ static void schedule_monitoring_update     (FMTreeModel *model);
 static void destroy_node_without_reporting (FMTreeModel *model,
 					    TreeNode          *node);
 static void report_node_contents_changed   (FMTreeModel *model,
+					    TreeNode          *node);
+static void schedule_subfolder_probe       (FMTreeModel *model);
+static gboolean directory_has_shown_files  (FMTreeModel *model,
 					    TreeNode          *node);
 
 G_DEFINE_TYPE_WITH_CODE (FMTreeModel, fm_tree_model, G_TYPE_OBJECT,
@@ -217,6 +227,16 @@ tree_node_destroy (FMTreeModel *model, TreeNode *node)
 {
 	g_assert (node->first_child == NULL);
 	g_assert (node->ref_count == 0);
+
+	if (node->probe_queued) {
+		g_queue_remove (&model->details->probe_queue, node);
+	}
+	if (model->details->probing == node) {
+		g_cancellable_cancel (model->details->probe_cancellable);
+		g_clear_object (&model->details->probe_cancellable);
+		model->details->probing = NULL;
+		schedule_subfolder_probe (model);
+	}
 
 	tree_node_unparent (model, node);
 
@@ -421,15 +441,23 @@ tree_node_get_display_name (TreeNode *node)
 	return node->display_name;
 }
 
+/* No "(Empty)" row: a folder known to have nothing to list has no rows at
+ * all, and so no expander. */
 static gboolean
 tree_node_has_dummy_child (TreeNode *node)
 {
 	return (node->directory != NULL
-		&& (!node->done_loading
-		    || node->first_child == NULL
+		&& ((!node->no_subfolders
+		     && (!node->done_loading || node->first_child == NULL))
 		    || node->force_has_dummy)) ||
 		/* Roots always have dummy nodes if directory isn't loaded yet */
 		(node->directory == NULL && node->parent == NULL);
+}
+
+static gboolean
+tree_node_has_rows (TreeNode *node)
+{
+	return node->first_child != NULL || tree_node_has_dummy_child (node);
 }
 
 static int
@@ -665,19 +693,9 @@ report_node_inserted (FMTreeModel *model, TreeNode *node)
 		report_dummy_row_inserted (model, node);
 	}
 
-    gboolean add_child = FALSE;
-
-	if (node->directory != NULL) {
-        guint count;
-        if (nemo_file_get_directory_item_count (node->file, &count, NULL)) {
-            add_child = count > 0 || node->parent == NULL;
-        } else {
-            add_child = TRUE;
-        }
-    }
-
-    if (add_child)
-        report_row_has_child_toggled (model, &iter);
+	if (tree_node_has_rows (node)) {
+		report_row_has_child_toggled (model, &iter);
+	}
 }
 
 static void
@@ -714,6 +732,43 @@ report_dummy_row_contents_changed (FMTreeModel *model, TreeNode *parent)
 	}
 	make_iter_for_dummy_row (parent, &iter, model->details->stamp);
 	report_row_contents_changed (model, &iter);
+}
+
+/* Call after a change that may have made the dummy row come or go. */
+static void
+report_dummy_row_change (FMTreeModel *model, TreeNode *node, gboolean had_dummy)
+{
+	if (tree_node_has_dummy_child (node)) {
+		if (!had_dummy) {
+			report_dummy_row_inserted (model, node);
+		}
+	} else if (had_dummy) {
+		/* Temporarily set this back so that row_deleted is
+		 * sent before actually removing the dummy child */
+		node->force_has_dummy = TRUE;
+		report_dummy_row_deleted (model, node);
+		node->force_has_dummy = FALSE;
+	}
+}
+
+static void
+set_no_subfolders (FMTreeModel *model, TreeNode *node, gboolean no_subfolders)
+{
+	gboolean had_dummy, had_rows;
+
+	no_subfolders = no_subfolders != FALSE;
+	if (node->no_subfolders == no_subfolders
+	    || (no_subfolders && node->first_child != NULL)) {
+		return;
+	}
+
+	had_dummy = tree_node_has_dummy_child (node);
+	had_rows = tree_node_has_rows (node);
+	node->no_subfolders = no_subfolders;
+	report_dummy_row_change (model, node, had_dummy);
+	if (had_rows != tree_node_has_rows (node)) {
+		report_node_has_child_toggled (model, node);
+	}
 }
 
 static void
@@ -759,11 +814,12 @@ static void
 destroy_node (FMTreeModel *model, TreeNode *node)
 {
 	TreeNode *parent;
-	gboolean parent_had_dummy_child;
+	gboolean parent_had_dummy_child, parent_had_rows;
 	GtkTreePath *path;
 
 	parent = node->parent;
 	parent_had_dummy_child = tree_node_has_dummy_child (parent);
+	parent_had_rows = tree_node_has_rows (parent);
 
 	path = get_node_path (model, node);
 
@@ -773,12 +829,24 @@ destroy_node (FMTreeModel *model, TreeNode *node)
 
 	destroy_node_without_reporting (model, node);
 
+	/* The last folder in an open folder went away. A collapse destroys
+	 * children too, but has stopped monitoring first. */
+	if (parent->first_child == NULL && parent->done_loading
+	    && parent->done_loading_id != 0
+	    && !directory_has_shown_files (model, parent)) {
+		parent->no_subfolders = TRUE;
+	}
+
 	if (tree_node_has_dummy_child (parent)) {
 		if (!parent_had_dummy_child) {
 			report_dummy_row_inserted (model, parent);
 		}
 	} else {
 		g_assert (!parent_had_dummy_child);
+	}
+
+	if (parent_had_rows != tree_node_has_rows (parent)) {
+		report_node_has_child_toggled (model, parent);
 	}
 }
 
@@ -814,6 +882,183 @@ destroy_by_function (FMTreeModel *model, FilePredicate f)
 	}
 }
 
+/* Finds the folders with no sub-folders at all, so they can go without an
+ * expander before anyone opens them. One folder at a time and at low priority,
+ * since expanding a big folder queues every folder in it. Never on a share,
+ * where one folder that is not answering costs about twenty seconds. Hidden
+ * folders count too, so a wrong answer only ever leaves an expander that goes
+ * away once the folder is opened. */
+
+typedef struct {
+	FMTreeModel *model;
+	GCancellable *cancellable;
+	GFileEnumerator *enumerator;
+	guint seen;
+} SubfolderProbe;
+
+static void
+probe_free (SubfolderProbe *probe)
+{
+	g_clear_object (&probe->enumerator);
+	g_object_unref (probe->cancellable);
+	g_free (probe);
+}
+
+static void
+probe_done (SubfolderProbe *probe, gboolean has_subfolders)
+{
+	FMTreeModel *model;
+	TreeNode *node;
+
+	model = probe->model;
+	node = model->details->probing;
+	model->details->probing = NULL;
+	g_clear_object (&model->details->probe_cancellable);
+	probe_free (probe);
+
+	/* A folder being loaded right now gets its answer from the load. */
+	if (!has_subfolders && node->done_loading_id == 0) {
+		set_no_subfolders (model, node, TRUE);
+	}
+
+	schedule_subfolder_probe (model);
+}
+
+static void
+probe_files_ready (GObject *source, GAsyncResult *result, gpointer user_data)
+{
+	SubfolderProbe *probe;
+	GList *infos, *l;
+	GError *error;
+	gboolean found;
+	GFileType type;
+
+	probe = user_data;
+	error = NULL;
+	infos = g_file_enumerator_next_files_finish (G_FILE_ENUMERATOR (source), result, &error);
+
+	if (g_cancellable_is_cancelled (probe->cancellable)) {
+		g_list_free_full (infos, g_object_unref);
+		g_clear_error (&error);
+		probe_free (probe);
+		return;
+	}
+	if (error != NULL) {
+		g_error_free (error);
+		probe_done (probe, TRUE);
+		return;
+	}
+	if (infos == NULL) {
+		probe_done (probe, FALSE);
+		return;
+	}
+
+	found = FALSE;
+	for (l = infos; l != NULL && !found; l = l->next) {
+		type = nemo_dir_enum_file_type (l->data);
+		found = type != G_FILE_TYPE_REGULAR && type != G_FILE_TYPE_SPECIAL;
+		probe->seen++;
+	}
+	g_list_free_full (infos, g_object_unref);
+
+	/* A huge folder of plain files is not worth reading to the end. */
+	if (found || probe->seen >= 2000) {
+		probe_done (probe, TRUE);
+		return;
+	}
+
+	g_file_enumerator_next_files_async (probe->enumerator, 64, G_PRIORITY_LOW,
+					    probe->cancellable, probe_files_ready, probe);
+}
+
+static void
+probe_enumerated (GObject *source, GAsyncResult *result, gpointer user_data)
+{
+	SubfolderProbe *probe;
+	GError *error;
+
+	probe = user_data;
+	error = NULL;
+	probe->enumerator = nemo_enumerate_children_finish (G_FILE (source), result, &error);
+
+	if (g_cancellable_is_cancelled (probe->cancellable)) {
+		g_clear_error (&error);
+		probe_free (probe);
+		return;
+	}
+	if (probe->enumerator == NULL) {
+		g_clear_error (&error);
+		probe_done (probe, TRUE);
+		return;
+	}
+
+	g_file_enumerator_next_files_async (probe->enumerator, 64, G_PRIORITY_LOW,
+					    probe->cancellable, probe_files_ready, probe);
+}
+
+static gboolean
+probe_next (gpointer user_data)
+{
+	FMTreeModel *model;
+	SubfolderProbe *probe;
+	TreeNode *node;
+	GFile *location;
+
+	model = FM_TREE_MODEL (user_data);
+	model->details->probe_idle_id = 0;
+
+	if (model->details->probing != NULL) {
+		return G_SOURCE_REMOVE;
+	}
+	node = g_queue_pop_head (&model->details->probe_queue);
+	if (node == NULL) {
+		return G_SOURCE_REMOVE;
+	}
+	node->probe_queued = FALSE;
+
+	probe = g_new0 (SubfolderProbe, 1);
+	probe->model = model;
+	probe->cancellable = g_cancellable_new ();
+	model->details->probing = node;
+	model->details->probe_cancellable = g_object_ref (probe->cancellable);
+
+	location = nemo_file_get_location (node->file);
+	nemo_enumerate_children_async (location, G_FILE_ATTRIBUTE_STANDARD_TYPE,
+				       G_FILE_QUERY_INFO_NONE, G_PRIORITY_LOW,
+				       probe->cancellable, probe_enumerated, probe);
+	g_object_unref (location);
+
+	return G_SOURCE_REMOVE;
+}
+
+/* From idle, so a collapse that destroys a long queue does not start and
+ * cancel one probe per folder on its way through. */
+static void
+schedule_subfolder_probe (FMTreeModel *model)
+{
+	if (model->details->probe_idle_id == 0
+	    && model->details->probing == NULL
+	    && !g_queue_is_empty (&model->details->probe_queue)) {
+		model->details->probe_idle_id = g_idle_add (probe_next, model);
+	}
+}
+
+static void
+queue_subfolder_probe (FMTreeModel *model, TreeNode *node)
+{
+	if (node->parent == NULL || node->directory == NULL
+	    || node->probe_queued || model->details->probing == node) {
+		return;
+	}
+	if (!nemo_file_is_local (node->file) || nemo_file_is_on_a_share (node->file)) {
+		return;
+	}
+
+	g_queue_push_tail (&model->details->probe_queue, node);
+	node->probe_queued = TRUE;
+	schedule_subfolder_probe (model);
+}
+
 static gboolean
 update_node_without_reporting (FMTreeModel *model, TreeNode *node)
 {
@@ -824,6 +1069,7 @@ update_node_without_reporting (FMTreeModel *model, TreeNode *node)
 	if (node->directory == NULL &&
 	    (nemo_file_is_directory (node->file) || node->parent == NULL)) {
 		node->directory = nemo_directory_get_for_file (node->file);
+		queue_subfolder_probe (model, node);
 	} else if (node->directory != NULL &&
 		   !(nemo_file_is_directory (node->file) || node->parent == NULL)) {
 		stop_monitoring_directory (model, node);
@@ -844,9 +1090,12 @@ update_node_without_reporting (FMTreeModel *model, TreeNode *node)
 static void
 insert_node (FMTreeModel *model, TreeNode *parent, TreeNode *node)
 {
-	gboolean parent_empty;
+	gboolean parent_empty, parent_had_rows;
 
-	parent_empty = parent->first_child == NULL;
+	/* Only an empty parent that already shows its dummy row can keep it
+	 * alive here; forcing one it never reported would shift every index. */
+	parent_empty = parent->first_child == NULL && tree_node_has_dummy_child (parent);
+	parent_had_rows = tree_node_has_rows (parent);
 	if (parent_empty) {
 		/* Make sure the dummy lives as we insert the new row */
 		parent->force_has_dummy = TRUE;
@@ -867,6 +1116,11 @@ insert_node (FMTreeModel *model, TreeNode *parent, TreeNode *node)
 			parent->force_has_dummy = FALSE;
 		}
 	}
+
+	if (!parent_had_rows) {
+		report_node_has_child_toggled (model, parent);
+	}
+	set_no_subfolders (model, parent, FALSE);
 }
 
 static void
@@ -903,9 +1157,7 @@ should_show_file (FMTreeModel *model, NemoFile *file)
 					    model->details->show_hidden_files,
 					    TRUE);
 
-	if (should
-	    && model->details->show_only_directories
-	    &&! nemo_file_is_directory (file)) {
+	if (should && !nemo_file_is_directory (file)) {
 		should = FALSE;
 	}
 
@@ -920,6 +1172,22 @@ should_show_file (FMTreeModel *model, NemoFile *file)
 	}
 
 	return should;
+}
+
+static gboolean
+directory_has_shown_files (FMTreeModel *model, TreeNode *node)
+{
+	GList *files, *l;
+	gboolean found;
+
+	found = FALSE;
+	files = nemo_directory_get_file_list (node->directory);
+	for (l = files; l != NULL && !found; l = l->next) {
+		found = should_show_file (model, l->data);
+	}
+	nemo_file_list_free (files);
+
+	return found;
 }
 
 static void
@@ -1010,32 +1278,30 @@ files_changed_callback (NemoDirectory *directory,
 static void
 set_done_loading (FMTreeModel *model, TreeNode *node, gboolean done_loading)
 {
-	gboolean had_dummy;
+	gboolean had_dummy, had_rows;
 
 	if (node == NULL || node->done_loading == done_loading) {
 		return;
 	}
 
 	had_dummy = tree_node_has_dummy_child (node);
+	had_rows = tree_node_has_rows (node);
 
 	node->done_loading = done_loading;
+	if (done_loading && node->first_child == NULL) {
+		/* Done loading can come before the files are handed over, so ask
+		 * the directory rather than go by the rows. */
+		node->no_subfolders = !directory_has_shown_files (model, node);
+	}
 
-	if (tree_node_has_dummy_child (node)) {
-		if (had_dummy) {
-			report_dummy_row_contents_changed (model, node);
-		} else {
-			report_dummy_row_inserted (model, node);
-		}
+	if (had_dummy && tree_node_has_dummy_child (node)) {
+		report_dummy_row_contents_changed (model, node);
 	} else {
-		if (had_dummy) {
-			/* Temporarily set this back so that row_deleted is
-			 * sent before actually removing the dummy child */
-			node->force_has_dummy = TRUE;
-			report_dummy_row_deleted (model, node);
-			node->force_has_dummy = FALSE;
-		} else {
-			g_assert_not_reached ();
-		}
+		report_dummy_row_change (model, node, had_dummy);
+	}
+
+	if (had_rows != tree_node_has_rows (node)) {
+		report_node_has_child_toggled (model, node);
 	}
 }
 
@@ -1104,12 +1370,18 @@ start_monitoring_directory (FMTreeModel *model, TreeNode *node)
 		(directory, "files_changed",
 		 G_CALLBACK (files_changed_callback), node->root);
 
-	set_done_loading (model, node, nemo_directory_are_all_files_seen (directory));
+	if (!nemo_directory_are_all_files_seen (directory)) {
+		set_done_loading (model, node, FALSE);
+	}
 
 	attributes = get_tree_monitor_attributes ();
 	nemo_directory_file_monitor_add (directory, model,
 					     model->details->show_hidden_files,
 					     attributes, files_changed_callback, node->root);
+
+	if (nemo_directory_are_all_files_seen (directory)) {
+		set_done_loading (model, node, TRUE);
+	}
 }
 
 static int
@@ -1245,7 +1517,7 @@ fm_tree_model_get_path (GtkTreeModel *model, GtkTreeIter *iter)
 static void
 fm_tree_model_get_value (GtkTreeModel *model, GtkTreeIter *iter, int column, GValue *value)
 {
-	TreeNode *node, *parent;
+	TreeNode *node;
 
 	g_return_if_fail (FM_IS_TREE_MODEL (model));
 	g_return_if_fail (iter_is_valid (FM_TREE_MODEL (model), iter));
@@ -1256,9 +1528,7 @@ fm_tree_model_get_value (GtkTreeModel *model, GtkTreeIter *iter, int column, GVa
 	case FM_TREE_MODEL_DISPLAY_NAME_COLUMN:
 		g_value_init (value, G_TYPE_STRING);
 		if (node == NULL) {
-			parent = iter->user_data2;
-			g_value_set_static_string (value, parent->done_loading
-						   ? _("(Empty)") : _("Loading..."));
+			g_value_set_static_string (value, _("Loading..."));
 		} else {
 			g_value_set_string (value, tree_node_get_display_name (node));
 		}
@@ -1371,7 +1641,7 @@ fm_tree_model_iter_has_child (GtkTreeModel *model, GtkTreeIter *iter)
 
 	node = iter->user_data;
 
-	has_child = node != NULL && (node->directory != NULL || node->parent == NULL);
+	has_child = node != NULL && tree_node_has_rows (node);
 
 #if 0
 	g_warning ("Node '%s' %s",
@@ -1692,6 +1962,18 @@ fm_tree_model_new (void)
 	return model;
 }
 
+static void
+forget_no_subfolders (FMTreeModel *model, TreeNode *node)
+{
+	for (; node != NULL; node = node->next) {
+		forget_no_subfolders (model, node->first_child);
+		if (node->no_subfolders) {
+			set_no_subfolders (model, node, FALSE);
+			queue_subfolder_probe (model, node);
+		}
+	}
+}
+
 void
 fm_tree_model_set_show_hidden_files (FMTreeModel *model,
 					   gboolean show_hidden_files)
@@ -1707,33 +1989,25 @@ fm_tree_model_set_show_hidden_files (FMTreeModel *model,
 	stop_monitoring (model);
 	if (!show_hidden_files) {
 		destroy_by_function (model, nemo_file_is_hidden_file);
+	} else {
+		/* A folder holding only hidden folders was read as having none. */
+		forget_no_subfolders (model, model->details->root_node);
 	}
 	schedule_monitoring_update (model);
-}
-
-static gboolean
-file_is_not_directory (NemoFile *file)
-{
-	return !nemo_file_is_directory (file);
 }
 
 void
-fm_tree_model_set_show_only_directories (FMTreeModel *model,
-					       gboolean show_only_directories)
+fm_tree_model_expect_children (FMTreeModel *model, GtkTreeIter *iter)
 {
-	g_return_if_fail (FM_IS_TREE_MODEL (model));
-	g_return_if_fail (show_only_directories == FALSE || show_only_directories == TRUE);
+	TreeNode *node;
 
-	show_only_directories = show_only_directories != FALSE;
-	if (model->details->show_only_directories == show_only_directories) {
-		return;
+	g_return_if_fail (FM_IS_TREE_MODEL (model));
+	g_return_if_fail (iter_is_valid (model, iter));
+
+	node = iter->user_data;
+	if (node != NULL && node->directory != NULL) {
+		set_no_subfolders (model, node, FALSE);
 	}
-	model->details->show_only_directories = show_only_directories;
-	stop_monitoring (model);
-	if (show_only_directories) {
-		destroy_by_function (model, file_is_not_directory);
-	}
-	schedule_monitoring_update (model);
 }
 
 NemoFile *
@@ -1883,6 +2157,13 @@ fm_tree_model_finalize (GObject *object)
 
 	model = FM_TREE_MODEL (object);
 
+	if (model->details->probe_cancellable != NULL) {
+		g_cancellable_cancel (model->details->probe_cancellable);
+		g_clear_object (&model->details->probe_cancellable);
+	}
+	model->details->probing = NULL;
+	g_queue_clear (&model->details->probe_queue);
+
 	for (root_node = model->details->root_node; root_node != NULL; root_node = next_root) {
 		next_root = root_node->next;
 		root = root_node->root;
@@ -1893,6 +2174,9 @@ fm_tree_model_finalize (GObject *object)
 
 	if (model->details->monitoring_update_idle_id != 0) {
 		g_source_remove (model->details->monitoring_update_idle_id);
+	}
+	if (model->details->probe_idle_id != 0) {
+		g_source_remove (model->details->probe_idle_id);
 	}
 
 	if (model->details->highlighted_files != NULL) {
