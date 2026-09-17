@@ -29,6 +29,25 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 fEcho(){ echo "[ $* ]"; }
 
+## Every delete in nemo-file-operations.c goes through file_delete_wrapper, so
+## the delete guard sees it. Two calls in make_link_copy sat outside it until
+## 20260917 and were reachable with no guard at all. Whole-tree, since the rule
+## is about that one file whether or not this change touched it.
+fCheckDeleteWrapper(){
+	local src='source/libnemo-private/nemo-file-operations.c'
+	local n
+
+	[[ -f "$src" ]] || return 0
+
+	n="$(grep -c -F 'g_file_delete (' "$src" || true)"
+	if [[ "$n" != 1 ]]; then
+		fEcho "FAIL: ${src}: ${n} g_file_delete calls, expected the 1 in file_delete_wrapper"
+		grep -n -F 'g_file_delete (' "$src" || true
+		exit 2
+	fi
+}
+fCheckDeleteWrapper
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)
