@@ -80,8 +80,6 @@
 #include <math.h>
 #include <sys/time.h>
 
-#define MAX_TITLE_LENGTH 180
-
 /* Forward and back buttons on the mouse */
 static gboolean mouse_extra_buttons = TRUE;
 static guint mouse_forward_button = 9;
@@ -1637,7 +1635,6 @@ nemo_window_sync_title (NemoWindow *window,
 {
 	NemoWindowPane *pane;
 	NemoNotebook *notebook;
-	char *full_title;
 	char *window_title;
 
 	if (NEMO_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title != NULL) {
@@ -1647,17 +1644,7 @@ nemo_window_sync_title (NemoWindow *window,
 	}
 
 	if (slot == nemo_window_get_active_slot (window)) {
-		/* if spatial mode is default, we keep "File Browser" in the window title
-		 * to recognize browser windows. Otherwise, we default to the directory name.
-		 */
-		if (!nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
-			full_title = g_strdup_printf (_("%s - File browser"), slot->title);
-			window_title = eel_str_middle_truncate (full_title, MAX_TITLE_LENGTH);
-			g_free (full_title);
-		} else {
-			window_title = eel_str_middle_truncate (slot->title, MAX_TITLE_LENGTH);
-		}
-
+		window_title = nemo_compute_window_title (slot->title);
 		gtk_window_set_title (GTK_WINDOW (window), window_title);
 		g_free (window_title);
 	}

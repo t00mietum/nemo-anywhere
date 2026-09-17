@@ -66,8 +66,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
 
-- 🔘 Put in the title, not just the path, but "Nemo Anywhere - 'PATH'".
-
 - 🔘 Archive dialog: Add an option - off by default - to delete what contents were archived, once archive is successfully created, and contents verified by relative pathname and file sizes.
 
 - 🔘 Write the public UI and UX style guide.
@@ -1231,6 +1229,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Put in the title, not just the path, but "Nemo Anywhere - 'PATH'".
+	- Opened: n/a
+	- Closed: 20260917-223000
+	- The window title now reads `Nemo Anywhere - 'Documents'`, or the whole path in the quotes when "Show the full path in the title bar and tab bars" is on. The tabs are unchanged, since the window around them already says the program name.
+	- The old title was the folder alone, plus a "- File browser" suffix on the spatial-mode branch. That suffix said what the program name says better, so both branches collapsed into one.
+	- Checked on screen in both preference states, with a regression test that was watched to fail on the old format.
 
 - ✅ Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
 	- Opened: 20260908-133001
