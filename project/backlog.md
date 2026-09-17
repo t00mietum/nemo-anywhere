@@ -180,6 +180,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ A split archive that fits in one volume is still named ".001".
+	- Opened: 20260917-213000
+	- Closed: 20260917-220000
+	- 7z numbers every volume it writes, the only one included, so splitting something small produced "name.7z.001" rather than "name.7z". rar does the same in its own spelling.
+	- Fixed: a split that came out as one volume is renamed back to the name that was asked for. A real split keeps its numbering, and a run that failed now clears its volumes instead of leaving them.
+
+- ✅ Extract is not offered on a split archive, since ".001" is not a suffix anything recognized.
+	- Opened: 20260917-213000
+	- Closed: 20260917-220000
+	- Fixed: a three-digit volume number is read past, so the format underneath decides as usual and the folder name comes out the same for every part. Selecting several parts unpacks once, from the first volume, whichever one was clicked.
+
+- ✅ Archive options: the default volume size is small, and opening Options walks the dialog down the screen.
+	- Opened: 20260917-213000
+	- Closed: 20260917-220000
+	- Fixed: the default volume size is 2 GiB. The dialog keeps its position on screen when Options opens or closes, and stays inside the work area.
+	- The size list is in binary units now, which is what the numbers always meant, and "GiB" can be typed as well as "GB".
+
 - ✅ Preferences|Views: the Forget and Copy settings buttons sit in the tab header, and the tabs crowd the checkbox above them.
 	- Opened: 20260917-210000
 	- Closed: 20260917-213000

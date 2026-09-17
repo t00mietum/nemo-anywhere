@@ -94,6 +94,21 @@ check_recognition (void)
 	/* ".tar.gz" does have something in front of the suffix, though: it is a
 	   hidden file named ".tar" that somebody gzipped. */
 	check (nemo_extract_is_archive_name (".tar.gz"));
+
+	/* A split archive: 7z numbers the volumes past the real extension, and
+	   numbers the only one as well. */
+	check (nemo_extract_is_archive_name ("photos.7z.001"));
+	check (nemo_extract_is_archive_name ("photos.7z.017"));
+	check (nemo_extract_is_archive_name ("photos.zip.001"));
+	check (nemo_extract_is_archive_name ("photos.tar.gz.002"));
+
+	/* Three digits after a dot, and an archive underneath them. Neither on
+	   its own is enough. */
+	check (!nemo_extract_is_archive_name ("photos.txt.001"));
+	check (!nemo_extract_is_archive_name ("photos.7z.01"));
+	check (!nemo_extract_is_archive_name ("photos.7z.0011"));
+	check (!nemo_extract_is_archive_name ("photos.7z.abc"));
+	check (!nemo_extract_is_archive_name (".7z.001"));
 }
 
 static void
@@ -124,6 +139,20 @@ check_folder_names (void)
 
 	text = nemo_extract_folder_name (".tar.gz");
 	check (g_strcmp0 (text, ".tar") == 0);
+	g_free (text);
+
+	/* The volume number goes with the suffix, so every part of a split
+	   archive names the same folder. */
+	text = nemo_extract_folder_name ("photos.7z.001");
+	check (g_strcmp0 (text, "photos") == 0);
+	g_free (text);
+
+	text = nemo_extract_folder_name ("photos.7z.014");
+	check (g_strcmp0 (text, "photos") == 0);
+	g_free (text);
+
+	text = nemo_extract_folder_name ("photos.tar.gz.002");
+	check (g_strcmp0 (text, "photos") == 0);
 	g_free (text);
 }
 
