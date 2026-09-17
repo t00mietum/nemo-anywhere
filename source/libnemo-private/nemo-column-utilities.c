@@ -47,6 +47,7 @@ get_builtin_columns (void)
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "extension",
 					       "attribute", "extension",
+					       "unbounded", TRUE,
 					       "label", _("Ext"),
 					       "description", _("The extension of the file's name."),
 					       NULL));

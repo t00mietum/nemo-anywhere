@@ -95,7 +95,6 @@ static const char *const deflist__favorites[] = { NULL };
 static const char *const deflist__favorites_root_metadata[] = { NULL };
 static const char *const deflist_icon_view_captions[] = { "none", "size", "date_modified", NULL };
 static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL };
-static const char *const deflist_list_view_column_max_widths[] = { NULL };
 #ifdef G_OS_WIN32
 static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "permissions_source", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", NULL };
@@ -155,8 +154,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "icon-view", "labels-beside-icons", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "icon-view", "text-ellipsis-limit", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_text_ellipsis_limit, NULL, "Lines of a name under an icon before it is cut short" },
 	{ "icon-view", "thumbnail-size", NEMO_CONFIG_INT, "64", NULL, NULL, "Thumbnail size in pixels" },
-	{ "list-view", "column-fit-percent", NEMO_CONFIG_INT, "90", NULL, NULL, "Share of a column's values its width has to show before the row scrolls sideways rather than narrow further. Name counts every file; a type or an owner counts each distinct value once." },
-	{ "list-view", "column-max-widths", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_column_max_widths, NULL, "Widest each column may get, in pixels. Set by dragging.", NEMO_CONFIG_KEY_STATE },
+	{ "list-view", "column-fit-percent", NEMO_CONFIG_INT, "90", NULL, NULL, "Share of the values Name and Location still show when the row is short of room, and the share other variable columns show by default. Name counts every file; the others count each distinct value once." },
 	{ "list-view", "default-column-order", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_column_order, NULL, NULL },
 	{ "list-view", "default-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_visible_columns, NULL, NULL },
 	{ "list-view", "default-zoom-level", NEMO_CONFIG_ENUM, "small", NULL, enum_ZoomLevel, NULL },
@@ -285,7 +283,6 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-files-recursively", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "search", "search-files-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "search", "search-regex-format", NEMO_CONFIG_STRING, "pcre", NULL, NULL, "Regex flavour: pcre or javascript" },
-	{ "search", "name-location-split", NEMO_CONFIG_INT, "0", NULL, NULL, "Percent of the row the Name column takes in results. 0 fits both to their contents.", NEMO_CONFIG_KEY_STATE },
 	{ "search", "search-reverse-sort", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "search", "search-skip-folders", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_skip_folders, NULL, "Paths or folder names a search never enters" },
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },

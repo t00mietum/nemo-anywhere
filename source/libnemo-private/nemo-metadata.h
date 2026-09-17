@@ -56,6 +56,7 @@
 #define NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED    	NEMO_APP_SLUG "-list-view-sort-reversed"
 #define NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS    	NEMO_APP_SLUG "-list-view-visible-columns"
 #define NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER    	NEMO_APP_SLUG "-list-view-column-order"
+#define NEMO_METADATA_KEY_LIST_VIEW_COLUMN_WIDTHS    	NEMO_APP_SLUG "-list-view-column-widths"
 
 #define NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL		NEMO_APP_SLUG "-compact-view-zoom-level"
 #define NEMO_METADATA_KEY_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH	NEMO_APP_SLUG "-compact-view-all-columns-same-width"

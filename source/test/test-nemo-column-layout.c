@@ -28,10 +28,10 @@ enum { NAME, SIZE, TYPE, DATE, N_COLS };
 static void
 usual_columns (NemoColumnLayoutItem *items)
 {
-	items[NAME] = (NemoColumnLayoutItem) { 300, 300, 500, TRUE,  FALSE };
-	items[SIZE] = (NemoColumnLayoutItem) {  80,  80,  80, FALSE, FALSE };
-	items[TYPE] = (NemoColumnLayoutItem) {  60, 120, 200, FALSE, FALSE };
-	items[DATE] = (NemoColumnLayoutItem) { 160, 160, 160, FALSE, FALSE };
+	items[NAME] = (NemoColumnLayoutItem) { 300, 300, 500, TRUE  };
+	items[SIZE] = (NemoColumnLayoutItem) {  80,  80,  80, FALSE };
+	items[TYPE] = (NemoColumnLayoutItem) {  60, 120, 200, FALSE };
+	items[DATE] = (NemoColumnLayoutItem) { 160, 160, 160, FALSE };
 }
 
 #define SUM_MIN (300 + 80 + 60 + 160)
@@ -67,7 +67,7 @@ check_fills_the_width (void)
 	}
 }
 
-/* Room to spare: every column shows every value and Name has the rest. */
+/* Room to spare: every column is at its most and Name has the rest. */
 static void
 check_wide (void)
 {
@@ -118,8 +118,8 @@ check_stops_at_max (void)
 	check (total (widths, N_COLS) == SUM_FIT + 400);
 }
 
-/* Short of the width that shows most values: only Type gives, and only down to
-   its minimum. Name does not move, and neither does a date or a size. */
+/* Short of the defaults: only a column with a smaller minimum gives, and only
+   down to it. */
 static void
 check_type_gives_alone (void)
 {
@@ -183,7 +183,7 @@ check_overflows (void)
 static void
 check_single_column (void)
 {
-	NemoColumnLayoutItem only = { 100, 200, 300, TRUE, FALSE };
+	NemoColumnLayoutItem only = { 100, 200, 300, TRUE };
 	int width = 0;
 
 	nemo_column_layout_distribute (&only, 1, 900, &width);
@@ -201,8 +201,8 @@ static void
 check_widths_out_of_order (void)
 {
 	NemoColumnLayoutItem items[2] = {
-		{ 100, 300, 250, TRUE,  FALSE },	/* max under fit */
-		{ 120,  20,  10, FALSE, FALSE }		/* fit and max under min */
+		{ 100, 300, 250, TRUE  },	/* max under fit */
+		{ 120,  20,  10, FALSE }		/* fit and max under min */
 	};
 	int widths[2];
 
@@ -215,13 +215,13 @@ check_widths_out_of_order (void)
 	check (widths[1] == 120);
 }
 
-/* With no Name column nothing takes the surplus, and the row ends short. */
+/* With no column taking the surplus, the row ends short. */
 static void
 check_no_grower (void)
 {
 	NemoColumnLayoutItem items[2] = {
-		{ 100, 100, 100, FALSE, FALSE },
-		{ 100, 100, 100, FALSE, FALSE }
+		{ 100, 100, 100, FALSE },
+		{ 100, 100, 100, FALSE }
 	};
 	int widths[2];
 
@@ -230,30 +230,37 @@ check_no_grower (void)
 	check (widths[1] == 100);
 }
 
-/* Location on the row, growing alongside Name: the surplus past everything
-   shown whole is Location's. Below that the two grow together like any other
-   pair, Name being the wider. */
+/* Name and Location both on the row: past every max they share what is left
+   in proportion to their size. Below that they grow like any other pair. */
 enum { P_NAME, P_LOC, P_SIZE, N_PAIR };
 
 static void
-check_location_takes_the_surplus (void)
+check_primaries_share_the_surplus (void)
 {
 	NemoColumnLayoutItem items[N_PAIR] = {
-		{ 300, 300, 500, TRUE,  FALSE },
-		{ 200, 200, 400, FALSE, TRUE  },
-		{  80,  80,  80, FALSE, FALSE }
+		{ 300, 300, 500, TRUE  },
+		{ 200, 200, 400, TRUE  },
+		{  80,  80,  80, FALSE }
 	};
 	int widths[N_PAIR];
 
+	/* 420 past every max, shared 300:200 */
 	nemo_column_layout_distribute (items, N_PAIR, 1400, widths);
-	check (widths[P_NAME] == 500);
+	check (widths[P_NAME] == 500 + 252);
+	check (widths[P_LOC] == 400 + 168);
 	check (widths[P_SIZE] == 80);
-	check (widths[P_LOC] == 1400 - 500 - 80);
+	check (total (widths, N_PAIR) == 1400);
 
 	nemo_column_layout_distribute (items, N_PAIR, 580 + 100, widths);
 	check (widths[P_NAME] == 360);
 	check (widths[P_LOC] == 240);
 	check (widths[P_SIZE] == 80);
+
+	/* Location alone takes it all when Name does not grow. */
+	items[P_NAME].grows = FALSE;
+	nemo_column_layout_distribute (items, N_PAIR, 1400, widths);
+	check (widths[P_NAME] == 500);
+	check (widths[P_LOC] == 1400 - 500 - 80);
 }
 
 /* The width that shows a share of the values. */
@@ -270,10 +277,11 @@ check_fit (void)
 	check (nemo_column_layout_fit (ten, 10, 50) == 50);
 	check (nemo_column_layout_fit (ten, 10, 1) == 10);
 
-	/* Ninety percent of three values is all three - a share is rounded up to
-	   whole values, never down to fewer. */
-	check (nemo_column_layout_fit (three, 3, 90) == 30);
-	check (nemo_column_layout_fit (three, 3, 34) == 20);
+	/* The share is rounded down, to no fewer than one value: 90 percent of
+	   three values is two, and 99 percent of ten is nine. */
+	check (nemo_column_layout_fit (three, 3, 90) == 20);
+	check (nemo_column_layout_fit (three, 3, 34) == 10);
+	check (nemo_column_layout_fit (ten, 10, 99) == 90);
 	check (nemo_column_layout_fit (one, 1, 10) == 42);
 
 	check (nemo_column_layout_fit (NULL, 0, 90) == 0);
@@ -285,75 +293,6 @@ check_fit (void)
 
 	/* The caller's array is left alone. */
 	check (ten[0] == 50 && ten[9] == 900);
-}
-
-/* Search results: both fit, so neither takes more than it needs and the rest of
-   the row is left empty. */
-static void
-check_search_pair_fits (void)
-{
-	int name, where;
-
-	nemo_column_layout_search_pair (100, 300, 30, 200, 1000, &name, &where);
-
-	check (name == 300);
-	check (where == 200);
-}
-
-/* They do not fit, so both give in proportion to what they asked for. */
-static void
-check_search_pair_shrinks_in_proportion (void)
-{
-	int name, where;
-
-	nemo_column_layout_search_pair (100, 600, 30, 300, 600, &name, &where);
-
-	check (name == 400);
-	check (where == 200);
-	check (name + where == 600);
-}
-
-/* Neither ends more than twice the other, however lopsided the demand. */
-static void
-check_search_pair_ratio_is_capped (void)
-{
-	int name, where;
-
-	nemo_column_layout_search_pair (30, 2000, 30, 400, 600, &name, &where);
-
-	check (name <= 2 * where);
-	check (name + where == 600);
-
-	nemo_column_layout_search_pair (30, 400, 30, 2000, 600, &name, &where);
-
-	check (where <= 2 * name);
-	check (name + where == 600);
-}
-
-/* The cap does not hand a column more than it asked for: a short Location keeps
-   its own width and Name has the difference. */
-static void
-check_search_pair_cap_wastes_nothing (void)
-{
-	int name, where;
-
-	nemo_column_layout_search_pair (30, 2000, 30, 100, 900, &name, &where);
-
-	check (where == 100);
-	check (name == 800);
-}
-
-/* Floors hold even where there is no room for them, and the pair overflows. */
-static void
-check_search_pair_floors (void)
-{
-	int name, where;
-
-	nemo_column_layout_search_pair (120, 600, 80, 600, 100, &name, &where);
-
-	check (name >= 120);
-	check (where >= 80);
-	check (name + where > 100);
 }
 
 int
@@ -369,13 +308,8 @@ main (int argc, char *argv[])
 	check_single_column ();
 	check_widths_out_of_order ();
 	check_no_grower ();
-	check_location_takes_the_surplus ();
+	check_primaries_share_the_surplus ();
 	check_fit ();
-	check_search_pair_fits ();
-	check_search_pair_shrinks_in_proportion ();
-	check_search_pair_ratio_is_capped ();
-	check_search_pair_cap_wastes_nothing ();
-	check_search_pair_floors ();
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

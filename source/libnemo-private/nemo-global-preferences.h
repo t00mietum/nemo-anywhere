@@ -211,7 +211,6 @@ enum
 #define NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS		"default-visible-columns"
 #define NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER		"default-column-order"
 #define NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION         "enable-folder-expansion"
-#define NEMO_PREFERENCES_LIST_VIEW_COLUMN_MAX_WIDTHS        "column-max-widths"
 #define NEMO_PREFERENCES_LIST_VIEW_COLUMN_FIT_PERCENT       "column-fit-percent"
 
 #define NEMO_PREFERENCES_MAX_THUMBNAIL_THREADS "thumbnail-threads"
@@ -303,7 +302,6 @@ typedef enum
 #define NEMO_PREFERENCES_SEARCH_SKIP_FOLDERS           "search-skip-folders"
 #define NEMO_PREFERENCES_SEARCH_FILES_RECURSIVELY      "search-files-recursively"
 #define NEMO_PREFERENCES_SEARCH_VISIBLE_COLUMNS        "search-visible-columns"
-#define NEMO_PREFERENCES_SEARCH_NAME_LOCATION_SPLIT    "name-location-split"
 #define NEMO_PREFERENCES_SEARCH_SORT_COLUMN            "search-sort-column"
 #define NEMO_PREFERENCES_SEARCH_REVERSE_SORT           "search-reverse-sort"
 #define NEMO_PREFERENCES_SEARCH_GROUP_BY_FOLDER        "group-by-folder"
