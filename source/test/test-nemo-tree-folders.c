@@ -178,7 +178,7 @@ static gboolean parent_loaded (void) { return n_children ("parent") == 1 && iter
 static gboolean child_settled (void) { return !has_child ("parent/child"); }
 static gboolean late_listed (void) { return iter_for ("empty/late", &(GtkTreeIter){0}); }
 static gboolean hidden_back (void) { return has_child ("hidden-only"); }
-G_GNUC_UNUSED static gboolean secret_listed (void) { return iter_for ("hidden-only/.secret", &(GtkTreeIter){0}); }
+static gboolean secret_listed (void) { return iter_for ("hidden-only/.secret", &(GtkTreeIter){0}); }
 
 /* A row that says it has children must have some, and the other way round. */
 static void
@@ -310,17 +310,14 @@ main (int argc, char *argv[])
 	pump_for (200);
 	check (has_child ("hidden-only"));
 
-	/* And takes it away again with the folder open. Off until the backlog bug
-	 * "Turning hidden files off leaves a Loading row" is fixed: the folder
-	 * closes when its last row goes, so nothing loads it again. */
-#if 0
+	/* And takes it away again with the folder open. The folder closes when
+	 * its last row goes, so nothing would load it again to find out. */
 	expand ("hidden-only", TRUE);
 	check (wait_for (secret_listed));
 	fm_tree_model_set_show_hidden_files (model, FALSE);
 	check (wait_for (hidden_only_settled));
 	pump_for (200);
 	check (n_children ("hidden-only") == 0);
-#endif
 
 	{
 		GtkTreeIter root;
