@@ -13,6 +13,8 @@
 #include <libnemo-private/nemo-archive.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -229,12 +231,116 @@ check_sizes (void)
 	check (!nemo_archive_parse_size ("0", &bytes));
 	check (!nemo_archive_parse_size ("-5m", &bytes));
 
-	/* A size written out comes back the same way it went in. */
+	/* MB and MiB have always meant the same binary unit here, so the "i"
+	   spelling the dropdown offers has to be readable too. */
+	check (nemo_archive_parse_size ("2 GiB", &bytes) && bytes == 2ULL * 1024 * 1024 * 1024);
+	check (nemo_archive_parse_size ("4480 MiB", &bytes) && bytes == 4480ULL * 1024 * 1024);
+	check (nemo_archive_parse_size ("100mib", &bytes) && bytes == 100ULL * 1024 * 1024);
+
+	/* A size written out comes back the same way it went in, and says which
+	   unit it means. */
 	{
 		char *text = nemo_archive_format_size (700ULL * 1024 * 1024);
 
-		check (g_strcmp0 (text, "700 MB") == 0);
+		check (g_strcmp0 (text, "700 MiB") == 0);
 		g_free (text);
+
+		text = nemo_archive_format_size (2ULL * 1024 * 1024 * 1024);
+		check (g_strcmp0 (text, "2 GiB") == 0);
+		g_free (text);
+	}
+}
+
+static void
+check_volume_names (void)
+{
+	char *text;
+
+	/* 7z hangs the number off the end of the whole name. */
+	text = nemo_archive_volume_name ("photos.7z", NEMO_ARCHIVE_BACKEND_7Z, 1, 3);
+	check (g_strcmp0 (text, "photos.7z.001") == 0);
+	g_free (text);
+
+	text = nemo_archive_volume_name ("photos.zip", NEMO_ARCHIVE_BACKEND_7Z, 12, 3);
+	check (g_strcmp0 (text, "photos.zip.012") == 0);
+	g_free (text);
+
+	/* rar puts it in front of the extension instead. */
+	text = nemo_archive_volume_name ("photos.rar", NEMO_ARCHIVE_BACKEND_RAR, 1, 1);
+	check (g_strcmp0 (text, "photos.part1.rar") == 0);
+	g_free (text);
+
+	text = nemo_archive_volume_name ("photos.rar", NEMO_ARCHIVE_BACKEND_RAR, 3, 2);
+	check (g_strcmp0 (text, "photos.part03.rar") == 0);
+	g_free (text);
+
+	/* Only the last dot is the extension, and a name with none still works. */
+	text = nemo_archive_volume_name ("backup.2026.rar", NEMO_ARCHIVE_BACKEND_RAR, 1, 1);
+	check (g_strcmp0 (text, "backup.2026.part1.rar") == 0);
+	g_free (text);
+
+	text = nemo_archive_volume_name ("photos", NEMO_ARCHIVE_BACKEND_RAR, 1, 1);
+	check (g_strcmp0 (text, "photos.part1") == 0);
+	g_free (text);
+}
+
+/* The bug this covers: a split that fits in one volume still came out numbered,
+   so an archive nothing was really split into arrived as "name.7z.001". */
+static void
+check_volume_collapse (const char *scratch)
+{
+	struct {
+		NemoArchiveBackend backend;
+		const char *archive;
+		const char *first;
+		const char *second;
+	} cases[] = {
+		{ NEMO_ARCHIVE_BACKEND_7Z,  "one.7z",  "one.7z.001",     NULL },
+		{ NEMO_ARCHIVE_BACKEND_7Z,  "many.7z", "many.7z.001",    "many.7z.002" },
+		{ NEMO_ARCHIVE_BACKEND_RAR, "one.rar", "one.part1.rar",  NULL },
+		{ NEMO_ARCHIVE_BACKEND_RAR, "many.rar", "many.part1.rar", "many.part2.rar" },
+	};
+	guint i;
+
+	for (i = 0; i < G_N_ELEMENTS (cases); i++) {
+		GFile *dir = g_file_new_for_path (scratch);
+		GFile *destination = g_file_get_child (dir, cases[i].archive);
+		GFile *first = g_file_get_child (dir, cases[i].first);
+		GFile *written;
+		char *name;
+
+		g_file_replace_contents (first, "x", 1, NULL, FALSE, G_FILE_CREATE_NONE,
+					 NULL, NULL, NULL);
+
+		if (cases[i].second != NULL) {
+			GFile *second = g_file_get_child (dir, cases[i].second);
+
+			g_file_replace_contents (second, "x", 1, NULL, FALSE,
+						 G_FILE_CREATE_NONE, NULL, NULL, NULL);
+			g_object_unref (second);
+		}
+
+		written = nemo_archive_collapse_volume (destination, cases[i].backend);
+		name = g_file_get_basename (written);
+
+		if (cases[i].second == NULL) {
+			/* The only volume takes the name that was asked for. */
+			check (g_strcmp0 (name, cases[i].archive) == 0);
+			check (g_file_query_exists (destination, NULL));
+			check (!g_file_query_exists (first, NULL));
+		} else {
+			/* A real split keeps its numbering, and the answer is the
+			   volume unpacking has to start from. */
+			check (g_strcmp0 (name, cases[i].first) == 0);
+			check (!g_file_query_exists (destination, NULL));
+			check (g_file_query_exists (first, NULL));
+		}
+
+		g_free (name);
+		g_object_unref (written);
+		g_object_unref (first);
+		g_object_unref (destination);
+		g_object_unref (dir);
 	}
 }
 
@@ -444,13 +550,19 @@ check_cpu_share (void)
 int
 main (int argc, char *argv[])
 {
+	char *scratch = test_scratch_dir ("nemo-archive-XXXXXX", NULL);
+
 	check_extensions ();
 	check_names ();
 	check_each_names ();
 	check_sizes ();
+	check_volume_names ();
+	check_volume_collapse (scratch);
 	check_backends ();
 	check_commands ();
 	check_cpu_share ();
+
+	g_free (scratch);
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

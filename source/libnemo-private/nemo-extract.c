@@ -134,6 +134,27 @@ typedef struct {
  * Names
  */
 
+/* 7z numbers a split archive "name.7z.001", so the name to read the format off
+   is the one underneath. Three digits is what it writes, including for the only
+   volume. Returns how much of the end to ignore, or 0 for an ordinary name. */
+static gsize
+volume_suffix_len (const char *name, gsize len)
+{
+	gsize i;
+
+	if (len < 5 || name[len - 4] != '.') {
+		return 0;
+	}
+
+	for (i = len - 3; i < len; i++) {
+		if (!g_ascii_isdigit (name[i])) {
+			return 0;
+		}
+	}
+
+	return 4;
+}
+
 static const char *
 matching_extension (const char *name)
 {
@@ -145,14 +166,16 @@ matching_extension (const char *name)
 	}
 
 	len = strlen (name);
+	len -= volume_suffix_len (name, len);
 
 	for (i = 0; archive_extensions[i] != NULL; i++) {
 		gsize ext_len = strlen (archive_extensions[i]);
 
 		/* A suffix only, and never the whole name - ".zip" on its own is
-		   a file called .zip, not an archive of nothing. */
+		   a file called .zip, not an archive of nothing. Length-limited,
+		   since a volume number may still be sitting past `len`. */
 		if (len > ext_len &&
-		    g_ascii_strcasecmp (name + len - ext_len, archive_extensions[i]) == 0) {
+		    g_ascii_strncasecmp (name + len - ext_len, archive_extensions[i], ext_len) == 0) {
 			return archive_extensions[i];
 		}
 	}
@@ -166,11 +189,51 @@ nemo_extract_is_archive_name (const char *name)
 	return matching_extension (name) != NULL;
 }
 
+/* Where unpacking a split archive has to start. Any other volume answers with
+   its ".001" sibling, and a name that is not a volume answers with itself. A
+   missing sibling is left alone, so the failure reads as the archive it was. */
+static GFile *
+first_volume (GFile *archive)
+{
+	char *name = g_file_get_basename (archive);
+	gsize len = name != NULL ? strlen (name) : 0;
+	GFile *parent;
+	GFile *first = NULL;
+	char *wanted;
+
+	if (name == NULL || volume_suffix_len (name, len) == 0 ||
+	    strcmp (name + len - 3, "001") == 0) {
+		g_free (name);
+		return g_object_ref (archive);
+	}
+
+	parent = g_file_get_parent (archive);
+	if (parent == NULL) {
+		g_free (name);
+		return g_object_ref (archive);
+	}
+
+	wanted = g_strdup_printf ("%.*s001", (int) (len - 3), name);
+	first = g_file_get_child (parent, wanted);
+
+	if (!g_file_query_exists (first, NULL)) {
+		g_clear_object (&first);
+		first = g_object_ref (archive);
+	}
+
+	g_free (wanted);
+	g_free (name);
+	g_object_unref (parent);
+
+	return first;
+}
+
 char *
 nemo_extract_folder_name (const char *archive_name)
 {
 	const char *extension;
 	char *base;
+	gsize len;
 
 	g_return_val_if_fail (archive_name != NULL, NULL);
 
@@ -179,7 +242,10 @@ nemo_extract_folder_name (const char *archive_name)
 		return NULL;
 	}
 
-	base = g_strndup (archive_name, strlen (archive_name) - strlen (extension));
+	len = strlen (archive_name);
+	len -= volume_suffix_len (archive_name, len);
+
+	base = g_strndup (archive_name, len - strlen (extension));
 
 	if (base[0] == '\0') {
 		g_free (base);
@@ -1692,8 +1758,27 @@ nemo_extract_files (GList               *archives,
 
 	job = g_new0 (ExtractJob, 1);
 
-	for (l = archives; l != NULL; l = l->next) {
-		job->archives = g_list_prepend (job->archives, g_object_ref (G_FILE (l->data)));
+	{
+		/* Selecting every part of a split archive is the natural thing to
+		   do, and unpacking has to start from the first volume whichever
+		   one was clicked, so they all come back to the same job. */
+		GHashTable *seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+		for (l = archives; l != NULL; l = l->next) {
+			GFile *archive = first_volume (G_FILE (l->data));
+			char *uri = g_file_get_uri (archive);
+
+			if (g_hash_table_contains (seen, uri)) {
+				g_free (uri);
+				g_object_unref (archive);
+				continue;
+			}
+
+			g_hash_table_add (seen, uri);
+			job->archives = g_list_prepend (job->archives, archive);
+		}
+
+		g_hash_table_destroy (seen);
 	}
 	job->archives = g_list_reverse (job->archives);
 

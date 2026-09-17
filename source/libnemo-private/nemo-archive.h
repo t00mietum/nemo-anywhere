@@ -144,6 +144,18 @@ char   **nemo_archive_build_command (NemoArchiveBackend        backend,
 				     GList                    *names);
 
 /* "700 MB", "4480m", "1.5 GB" -> bytes. Returns FALSE on anything unreadable. */
+/* What the tool actually writes when splitting is on. `digits` is how wide the
+   number is: 7z always uses 3, rar picks its own. */
+char    *nemo_archive_volume_name (const char         *archive_name,
+				   NemoArchiveBackend  backend,
+				   guint               volume,
+				   guint               digits);
+
+/* Renames a split that came out as one volume back to the name asked for.
+   Returns the file the archive is in, which the caller owns. */
+GFile   *nemo_archive_collapse_volume (GFile              *destination,
+				       NemoArchiveBackend  backend);
+
 gboolean nemo_archive_parse_size (const char *text,
 				  guint64    *bytes);
 char    *nemo_archive_format_size (guint64 bytes);

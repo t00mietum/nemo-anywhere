@@ -63,12 +63,28 @@ typedef struct {
 	GList     *files;		/* GFile *, owned */
 	gboolean   whole_folder;	/* the selection is all the folder shows */
 	gboolean   name_edited;		/* the user typed, so stop rewriting it */
+
+	/* Where the dialog was centered before the options expander changed it,
+	   and the size it was then, so the move waits for the real new one. */
+	int        center_x;
+	int        center_y;
+	int        width_before;
+	int        height_before;
+	int        width_now;
+	int        height_now;
+	gboolean   recenter_wanted;
+	guint      recenter_id;
 } ArchiveDialog;
 
-/* Volume sizes people actually use, as the editable dropdown's starting list. */
+/* Volume sizes people actually use, as the editable dropdown's starting list.
+   Binary units, because that is what the sizes mean and what the parser has
+   always computed. 4480 MiB is a DVD, 23 GiB a single-layer Blu-ray. */
 static const char * const split_sizes[] = {
-	"100 MB", "700 MB", "1 GB", "2 GB", "4480 MB", "25 GB", NULL
+	"100 MiB", "700 MiB", "1 GiB", "2 GiB", "4480 MiB", "23 GiB", NULL
 };
+
+/* Big enough that most things fit in one volume, small enough to copy around. */
+#define DEFAULT_SPLIT_SIZE_INDEX 3
 
 static NemoArchiveFormat
 current_format (ArchiveDialog *self)
@@ -261,6 +277,114 @@ add_check (GtkWidget  *grid,
 	return check;
 }
 
+/* How much bigger the title bar and border make the window than its contents.
+   Read as a difference, so it is the same answer whichever size is current. */
+static void
+decoration_size (GtkWidget *widget, int *width, int *height)
+{
+	GdkWindow *gdk_window = gtk_widget_get_window (widget);
+	GdkRectangle frame;
+
+	*width = 0;
+	*height = 0;
+
+	if (gdk_window == NULL) {
+		return;
+	}
+
+	gdk_window_get_frame_extents (gdk_window, &frame);
+	*width = MAX (0, frame.width - gdk_window_get_width (gdk_window));
+	*height = MAX (0, frame.height - gdk_window_get_height (gdk_window));
+}
+
+/* Out of the size-allocate that asked for it, since moving a toplevel from
+   inside one is a request the window manager may simply lose. */
+static gboolean
+recenter_dialog (gpointer data)
+{
+	ArchiveDialog *self = data;
+	GdkWindow *gdk_window = gtk_widget_get_window (self->dialog);
+	int deco_width, deco_height;
+	int width, height;
+	int x, y;
+
+	self->recenter_id = 0;
+
+	/* Everything here is the outer rectangle, which is what the window
+	   manager places and what has to fit on the screen. */
+	decoration_size (self->dialog, &deco_width, &deco_height);
+	width = self->width_now + deco_width;
+	height = self->height_now + deco_height;
+
+	x = self->center_x - width / 2;
+	y = self->center_y - height / 2;
+
+	/* The work area, so a taller dialog does not end up under a panel or
+	   with its buttons off the bottom of the screen. */
+	if (gdk_window != NULL) {
+		GdkDisplay *display = gtk_widget_get_display (self->dialog);
+		GdkMonitor *monitor = gdk_display_get_monitor_at_window (display, gdk_window);
+
+		if (monitor != NULL) {
+			GdkRectangle area;
+
+			gdk_monitor_get_workarea (monitor, &area);
+
+			x = MIN (x, area.x + area.width - width);
+			y = MIN (y, area.y + area.height - height);
+			x = MAX (x, area.x);
+			y = MAX (y, area.y);
+		}
+	}
+
+	gtk_window_move (GTK_WINDOW (self->dialog), x, y);
+
+	return G_SOURCE_REMOVE;
+}
+
+/* The size the expander asked for arrives here, one or more allocations after
+   it was toggled. Waiting for it rather than reading the window back is the
+   point: gtk_window_get_size still answers with the old one at that stage. */
+static void
+dialog_size_allocated (GtkWidget     *widget,
+		       GdkRectangle  *allocation,
+		       ArchiveDialog *self)
+{
+	if (!self->recenter_wanted ||
+	    (allocation->width == self->width_before &&
+	     allocation->height == self->height_before)) {
+		return;
+	}
+
+	self->recenter_wanted = FALSE;
+	self->width_now = allocation->width;
+	self->height_now = allocation->height;
+
+	if (self->recenter_id == 0) {
+		self->recenter_id = g_idle_add (recenter_dialog, self);
+	}
+}
+
+/* The window grows and shrinks from its top left, so opening the options walks
+   the dialog down the screen and can push its buttons off the bottom. */
+static void
+expander_toggled (GObject       *expander,
+		  GParamSpec    *pspec,
+		  ArchiveDialog *self)
+{
+	int deco_width, deco_height;
+	int x, y;
+
+	gtk_window_get_position (GTK_WINDOW (self->dialog), &x, &y);
+	gtk_window_get_size (GTK_WINDOW (self->dialog), &self->width_before,
+			     &self->height_before);
+	decoration_size (self->dialog, &deco_width, &deco_height);
+
+	self->center_x = x + (self->width_before + deco_width) / 2;
+	self->center_y = y + (self->height_before + deco_height) / 2;
+	self->recenter_wanted = TRUE;
+}
+
 static void
 build_options (ArchiveDialog *self,
 	       GtkWidget     *box)
@@ -272,6 +396,8 @@ build_options (ArchiveDialog *self,
 
 	expander = gtk_expander_new_with_mnemonic (_("_Options"));
 	gtk_box_pack_start (GTK_BOX (box), expander, FALSE, FALSE, 0);
+	g_signal_connect (expander, "notify::expanded", G_CALLBACK (expander_toggled), self);
+	g_signal_connect (self->dialog, "size-allocate", G_CALLBACK (dialog_size_allocated), self);
 
 	grid = gtk_grid_new ();
 	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
@@ -309,7 +435,7 @@ build_options (ArchiveDialog *self,
 	for (i = 0; split_sizes[i] != NULL; i++) {
 		gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (self->split_combo), split_sizes[i]);
 	}
-	gtk_combo_box_set_active (GTK_COMBO_BOX (self->split_combo), 1);
+	gtk_combo_box_set_active (GTK_COMBO_BOX (self->split_combo), DEFAULT_SPLIT_SIZE_INDEX);
 	add_row (grid, row++, _("Volume si_ze"), self->split_combo);
 
 	self->solid_check = add_check (grid, row++, _("_Solid archive"), FALSE);
@@ -456,6 +582,10 @@ each_destinations (ArchiveDialog     *self,
 static void
 dialog_free (ArchiveDialog *self)
 {
+	if (self->recenter_id != 0) {
+		g_source_remove (self->recenter_id);
+	}
+
 	g_list_free_full (self->files, g_object_unref);
 	g_free (self);
 }

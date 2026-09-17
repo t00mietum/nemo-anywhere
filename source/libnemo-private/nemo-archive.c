@@ -678,7 +678,11 @@ nemo_archive_parse_size (const char *text,
 		return FALSE;
 	}
 
-	/* A trailing "b" as in "MB" names the same unit; it is not another factor. */
+	/* A trailing "b" as in "MB", or "ib" as in "MiB", names the same unit
+	   rather than another factor. Both spellings mean the binary one here. */
+	if (multiplier > 1 && g_ascii_tolower (*end) == 'i') {
+		end++;
+	}
 	if (multiplier > 1 && g_ascii_tolower (*end) == 'b') {
 		end++;
 	}
@@ -707,13 +711,13 @@ nemo_archive_format_size (guint64 bytes)
 		return g_strdup ("");
 	}
 	if (bytes >= gb && bytes % gb == 0) {
-		return g_strdup_printf ("%llu GB", (unsigned long long) (bytes / gb));
+		return g_strdup_printf ("%llu GiB", (unsigned long long) (bytes / gb));
 	}
 	if (bytes >= mb && bytes % mb == 0) {
-		return g_strdup_printf ("%llu MB", (unsigned long long) (bytes / mb));
+		return g_strdup_printf ("%llu MiB", (unsigned long long) (bytes / mb));
 	}
 	if (bytes >= kb && bytes % kb == 0) {
-		return g_strdup_printf ("%llu KB", (unsigned long long) (bytes / kb));
+		return g_strdup_printf ("%llu KiB", (unsigned long long) (bytes / kb));
 	}
 
 	return g_strdup_printf ("%llu", (unsigned long long) bytes);
@@ -1534,6 +1538,155 @@ scan_percent (const char *text,
 	return found;
 }
 
+/* Neither tool writes the name it was given once splitting is on. 7z appends
+   ".001" to it; rar drops the extension and puts "partN" in front of it, with
+   as many digits as it feels like. Both number the only volume too, which is
+   what nemo_archive_collapse_volume undoes below. */
+char *
+nemo_archive_volume_name (const char         *archive_name,
+			  NemoArchiveBackend  backend,
+			  guint               volume,
+			  guint               digits)
+{
+	const char *dot;
+	char *stem;
+	char *name;
+
+	g_return_val_if_fail (archive_name != NULL, NULL);
+
+	if (backend != NEMO_ARCHIVE_BACKEND_RAR) {
+		return g_strdup_printf ("%s.%0*u", archive_name, (int) digits, volume);
+	}
+
+	dot = strrchr (archive_name, '.');
+	if (dot == NULL || dot == archive_name) {
+		return g_strdup_printf ("%s.part%0*u", archive_name, (int) digits, volume);
+	}
+
+	stem = g_strndup (archive_name, (gsize) (dot - archive_name));
+	name = g_strdup_printf ("%s.part%0*u%s", stem, (int) digits, volume, dot);
+	g_free (stem);
+
+	return name;
+}
+
+static GFile *
+volume_file (GFile              *destination,
+	     NemoArchiveBackend  backend,
+	     guint               volume,
+	     guint               digits)
+{
+	GFile *parent = g_file_get_parent (destination);
+	char *base;
+	char *name;
+	GFile *file;
+
+	if (parent == NULL) {
+		return NULL;
+	}
+
+	base = g_file_get_basename (destination);
+	name = nemo_archive_volume_name (base, backend, volume, digits);
+	file = g_file_get_child (parent, name);
+
+	g_free (base);
+	g_free (name);
+	g_object_unref (parent);
+
+	return file;
+}
+
+/* Renames a lone volume back to the name that was asked for. The digit count
+   is whatever the first volume turned out to be written with, since rar picks
+   it and 7z always uses three. Answers the file the result is in either way. */
+GFile *
+nemo_archive_collapse_volume (GFile              *destination,
+			      NemoArchiveBackend  backend)
+{
+	guint digits;
+
+	for (digits = 1; digits <= 3; digits++) {
+		GFile *first = volume_file (destination, backend, 1, digits);
+		GFile *second;
+
+		if (first == NULL) {
+			return g_object_ref (destination);
+		}
+
+		if (!g_file_query_exists (first, NULL)) {
+			g_object_unref (first);
+			continue;
+		}
+
+		second = volume_file (destination, backend, 2, digits);
+		if (second != NULL && g_file_query_exists (second, NULL)) {
+			/* A real split. The first volume is where unpacking starts. */
+			g_object_unref (second);
+			return first;
+		}
+		g_clear_object (&second);
+
+		/* No overwrite flag: run_command clears the name before it starts,
+		   and the tool wrote the volume instead of it. */
+		if (g_file_move (first, destination, G_FILE_COPY_NONE,
+				 NULL, NULL, NULL, NULL)) {
+			g_object_unref (first);
+			return g_object_ref (destination);
+		}
+
+		/* The rename is a tidy-up, not the job. Leaving the volume named
+		   as the tool wrote it beats failing an archive that is fine. */
+		return first;
+	}
+
+	return g_object_ref (destination);
+}
+
+/* Walks the volumes a split actually left on disk, stopping at the first gap in
+   each digit width, since only one width was ever used. */
+static void
+for_each_volume (GFile              *destination,
+		 NemoArchiveBackend  backend,
+		 void              (*action) (GFile *))
+{
+	guint digits;
+
+	for (digits = 1; digits <= 3; digits++) {
+		guint volume;
+
+		for (volume = 1; volume < 1000; volume++) {
+			GFile *file = volume_file (destination, backend, volume, digits);
+			gboolean there;
+
+			if (file == NULL) {
+				return;
+			}
+
+			there = g_file_query_exists (file, NULL);
+			if (there) {
+				action (file);
+			}
+			g_object_unref (file);
+
+			if (!there) {
+				break;
+			}
+		}
+	}
+}
+
+static void
+delete_one (GFile *file)
+{
+	g_file_delete (file, NULL, NULL);
+}
+
+static void
+queue_one (GFile *file)
+{
+	nemo_file_changes_queue_file_added (file);
+}
+
 static gboolean
 run_command (ArchiveJob *job)
 {
@@ -1736,9 +1889,25 @@ archive_job (GIOSchedulerJob *io_job,
 		}
 
 		/* A half-written archive is worse than none: it looks like a
-		   result. */
+		   result. Splitting means clearing the volumes, not the name. */
 		if (!ok) {
 			g_file_delete (job->destination, NULL, NULL);
+			if (job->options.split_size > 0) {
+				for_each_volume (job->destination, job->backend, delete_one);
+			}
+		} else if (job->options.split_size > 0) {
+			GFile *written = nemo_archive_collapse_volume (job->destination,
+								       job->backend);
+
+			nemo_file_changes_queue_file_added (written);
+			for_each_volume (job->destination, job->backend, queue_one);
+
+			/* One unit means the callback's file is this one, and a
+			   collapsed volume is under a different name than asked. */
+			if (job->units->next == NULL) {
+				g_set_object (&job->result_file, written);
+			}
+			g_object_unref (written);
 		} else {
 			nemo_file_changes_queue_file_added (job->destination);
 		}
