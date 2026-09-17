@@ -57,6 +57,7 @@ typedef struct {
 	GtkWidget *follow_links_check;
 	GtkWidget *recovery_check;
 	GtkWidget *lock_check;
+	GtkWidget *delete_check;
 
 	GtkWidget *compress_button;
 
@@ -165,6 +166,10 @@ update_for_format (ArchiveDialog *self)
 	splitting = (caps & NEMO_ARCHIVE_CAP_SPLIT) != 0 &&
 		    gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->split_check));
 	set_row_sensitive (self->split_combo, splitting);
+
+	/* One volume of a set will not open as an archive, so there is no way to
+	   check the thing before removing what went into it. */
+	set_row_sensitive (self->delete_check, !splitting);
 
 	/* Following linked folders is ours, not the format's - except that a
 	   backend storing the links is not descending into them either. */
@@ -450,6 +455,12 @@ build_options (ArchiveDialog *self,
 
 	self->recovery_check = add_check (grid, row++, _("Add a _recovery record"), TRUE);
 	self->lock_check = add_check (grid, row++, _("Loc_k the archive against changes"), FALSE);
+
+	self->delete_check = add_check (grid, row++,
+					_("De_lete the originals once the archive checks out"), FALSE);
+	gtk_widget_set_tooltip_text (self->delete_check,
+				     _("The archive is read back first. Unless every file is in "
+				       "there at the same size, nothing is deleted."));
 }
 
 static void
@@ -495,6 +506,9 @@ collect_options (ArchiveDialog      *self,
 		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->recovery_check));
 	options->lock = (caps & NEMO_ARCHIVE_CAP_LOCK) != 0 &&
 		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->lock_check));
+
+	options->delete_sources = gtk_widget_get_sensitive (self->delete_check) &&
+		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->delete_check));
 }
 
 /* Asked once for the lot: with a selection compressed separately there can be

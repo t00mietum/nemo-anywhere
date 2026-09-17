@@ -274,6 +274,145 @@ check_archive_of_archive (const char *out_dir,
 	g_object_unref (out);
 }
 
+/* Whether the originals may go is decided by reading the archive back, so that
+   decision is checked from both sides: an archive that really does hold the
+   lot, and each way one can come up short. Between them the happy path is
+   checked again, or a later refusal could just be damage left behind. */
+static void
+check_verify (const char *tmp,
+	      GtkWidget  *window)
+{
+	static const char * const names[] = { "a.txt", "deep", "empty", NULL };
+	char *dir = g_build_filename (tmp, "verify", NULL);
+	char *deep = g_build_filename (dir, "deep", NULL);
+	char *empty = g_build_filename (dir, "empty", NULL);
+	char *out = g_build_filename (tmp, "verify-out", NULL);
+	char *path = g_build_filename (out, "all.zip", NULL);
+	char *extra = g_build_filename (deep, "c.txt", NULL);
+	GFile *archive;
+	GFile *plain;
+	GList *sources;
+	NemoArchiveOptions options;
+	char *reason = NULL;
+
+	g_mkdir_with_parents (deep, 0700);
+	g_mkdir_with_parents (empty, 0700);
+	g_mkdir_with_parents (out, 0700);
+	write_file (dir, "a.txt", "alpha");
+	write_file (deep, "b.txt", "bravo");
+
+	sources = sources_in (dir, names);
+	archive = g_file_new_for_path (path);
+
+	nemo_archive_options_init (&options);
+	options.format = NEMO_ARCHIVE_FORMAT_ZIP;
+
+	job_finished = FALSE;
+	job_succeeded = FALSE;
+	nemo_archive_create (sources, archive, &options, GTK_WINDOW (window),
+			     archive_done, NULL);
+	wait_for_job ();
+
+	/* Everything went in, including the folder with nothing in it. */
+	check (nemo_archive_verify (archive, sources, &options,
+				    NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+	check (reason == NULL);
+
+	/* A source that changed after the archive was written. */
+	write_file (dir, "a.txt", "alpha and then some");
+	check (!nemo_archive_verify (archive, sources, &options,
+				     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+	check (reason != NULL);
+	g_free (reason);
+	reason = NULL;
+
+	write_file (dir, "a.txt", "alpha");
+	check (nemo_archive_verify (archive, sources, &options,
+				    NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, NULL));
+
+	/* A file that appeared inside one of the sources after it was written.
+	   Beside them rather than inside would prove nothing: only what was
+	   selected is checked. */
+	write_file (deep, "c.txt", "charlie");
+	check (!nemo_archive_verify (archive, sources, &options,
+				     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+	check (reason != NULL);
+	g_free (reason);
+	reason = NULL;
+
+	g_remove (extra);
+	check (nemo_archive_verify (archive, sources, &options,
+				    NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, NULL));
+
+	/* One volume of a set is not an archive on its own, so there is nothing
+	   to check and the answer is no whatever is on disk. */
+	options.split_size = 1024;
+	check (!nemo_archive_verify (archive, sources, &options,
+				     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+	check (reason != NULL);
+	g_free (reason);
+	reason = NULL;
+	options.split_size = 0;
+
+	/* Something that will not open as an archive at all. */
+	write_file (out, "notes.txt", "this is not an archive");
+	g_free (path);
+	path = g_build_filename (out, "notes.txt", NULL);
+	plain = g_file_new_for_path (path);
+	check (!nemo_archive_verify (plain, sources, &options,
+				     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+	check (reason != NULL);
+	g_free (reason);
+	reason = NULL;
+	g_object_unref (plain);
+
+#ifndef G_OS_WIN32
+	/* Anything the walk had to pass over means the archive was never offered
+	   all of it, whether or not what did go in reads back cleanly. With the
+	   links box unticked a dangling one is followed, and there is nothing at
+	   the other end to store. */
+	{
+		char *link_path = g_build_filename (deep, "dangling", NULL);
+		GFile *link_file = g_file_new_for_path (link_path);
+		char *link_archive = g_build_filename (out, "links.zip", NULL);
+		GFile *link_destination = g_file_new_for_path (link_archive);
+
+		check (g_file_make_symbolic_link (link_file, "nowhere", NULL, NULL));
+		options.store_links = FALSE;
+
+		job_finished = FALSE;
+		job_succeeded = FALSE;
+		nemo_archive_create (sources, link_destination, &options, GTK_WINDOW (window),
+				     archive_done, NULL);
+		wait_for_job ();
+
+		check (!nemo_archive_verify (link_destination, sources, &options,
+					     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+		check (reason != NULL);
+		g_free (reason);
+		reason = NULL;
+
+		g_remove (link_path);
+		options.store_links = TRUE;
+
+		g_object_unref (link_destination);
+		g_object_unref (link_file);
+		g_free (link_archive);
+		g_free (link_path);
+	}
+#endif
+
+	nemo_archive_options_clear (&options);
+	g_list_free_full (sources, g_object_unref);
+	g_object_unref (archive);
+	g_free (extra);
+	g_free (path);
+	g_free (out);
+	g_free (empty);
+	g_free (deep);
+	g_free (dir);
+}
+
 static void
 remove_tree (const char *path)
 {
@@ -329,6 +468,7 @@ main (int argc, char *argv[])
 	check_one_archive (source_dir, one_dir, names, window);
 	check_each_archive (source_dir, each_dir, names, window);
 	check_archive_of_archive (each_dir, window);
+	check_verify (tmp, window);
 
 	remove_tree (tmp);
 

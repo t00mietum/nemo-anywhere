@@ -82,6 +82,7 @@ typedef struct {
 	gboolean          follow_link_dirs;	/* descend into a linked folder */
 	gboolean          recovery_record;
 	gboolean          lock;
+	gboolean          delete_sources;	/* only once the archive verifies */
 } NemoArchiveOptions;
 
 typedef void (* NemoArchiveCallback) (GFile    *archive_file,
@@ -159,6 +160,20 @@ GFile   *nemo_archive_collapse_volume (GFile              *destination,
 gboolean nemo_archive_parse_size (const char *text,
 				  guint64    *bytes);
 char    *nemo_archive_format_size (guint64 bytes);
+
+/* Walks the sources again and reads the archive back, so that nothing may be
+   deleted on the strength of the writer saying it went well. Answers TRUE only
+   when every file that should have gone in is in there under the same relative
+   path and the same size, and nothing was left out along the way. On FALSE,
+   reason is set to a sentence naming what did not line up; the caller frees it.
+   The walk is deliberately its own, rather than the one the job wrote from -
+   checking with the same code that did the work proves very little. */
+gboolean nemo_archive_verify (GFile                    *archive_file,
+			      GList                    *sources,
+			      const NemoArchiveOptions *options,
+			      NemoArchiveBackend        backend,
+			      GCancellable             *cancellable,
+			      char                    **reason);
 
 /* Queues the job. sources are GFile *; destination is the archive itself. */
 void nemo_archive_create (GList                    *sources,
