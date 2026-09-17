@@ -95,7 +95,8 @@ typedef struct {
 	GtkWidget      *notebook;
 	GtkWidget      *current_page;
 	GtkWidget      *path_label;
-	GtkWidget      *copy_button;
+	GtkWidget      *copy_to_current_button;
+	GtkWidget      *copy_to_default_button;
 	GtkWidget      *forget_button;
 	GtkWidget      *defaults[N_FIELDS];
 	GtkWidget      *current[N_FIELDS];
@@ -111,13 +112,6 @@ static gboolean
 remembering (void)
 {
 	return nemo_global_preferences_get_remember_folder_settings ();
-}
-
-static gboolean
-on_current_page (CurrentTab *tab)
-{
-	return gtk_notebook_get_current_page (GTK_NOTEBOOK (tab->notebook)) ==
-	       gtk_notebook_page_num (GTK_NOTEBOOK (tab->notebook), tab->current_page);
 }
 
 static int
@@ -285,14 +279,8 @@ update_buttons (CurrentTab *tab)
 {
 	gboolean usable = remembering () && tab->folder != NULL;
 
-	if (on_current_page (tab)) {
-		gtk_button_set_label (GTK_BUTTON (tab->copy_button), _("Copy settings to _Default"));
-	} else {
-		gtk_button_set_label (GTK_BUTTON (tab->copy_button), _("Copy settings to _Current"));
-	}
-
-	gtk_widget_set_sensitive (tab->copy_button, usable);
-	gtk_widget_set_visible (tab->forget_button, on_current_page (tab));
+	gtk_widget_set_sensitive (tab->copy_to_current_button, usable);
+	gtk_widget_set_sensitive (tab->copy_to_default_button, usable);
 	gtk_widget_set_sensitive (tab->forget_button, usable && nemo_folder_settings_has_own (tab->folder));
 }
 
@@ -433,18 +421,21 @@ current_field_changed (GtkWidget *widget, CurrentTab *tab)
 	}
 }
 
+/* the Default widgets are bound to the preferences, so writing them is enough */
 static void
-copy_clicked (GtkButton *button, CurrentTab *tab)
+copy_to_default_clicked (GtkButton *button, CurrentTab *tab)
 {
 	int field;
 
-	if (on_current_page (tab)) {
-		/* the Default widgets are bound to the preferences */
-		for (field = 0; field < N_FIELDS; field++) {
-			set_widget_value (tab->defaults[field], widget_value (tab->current[field]));
-		}
-		return;
+	for (field = 0; field < N_FIELDS; field++) {
+		set_widget_value (tab->defaults[field], widget_value (tab->current[field]));
 	}
+}
+
+static void
+copy_to_current_clicked (GtkButton *button, CurrentTab *tab)
+{
+	int field;
 
 	tab->syncing = TRUE;
 	for (field = 0; field < N_FIELDS; field++) {
@@ -570,7 +561,8 @@ nemo_prefs_current_folder_setup (GtkBuilder *builder,
 	tab->notebook = GTK_WIDGET (gtk_builder_get_object (builder, "views_notebook"));
 	tab->current_page = GTK_WIDGET (gtk_builder_get_object (builder, "views_current_page"));
 	tab->path_label = GTK_WIDGET (gtk_builder_get_object (builder, "current_folder_path_label"));
-	tab->copy_button = GTK_WIDGET (gtk_builder_get_object (builder, "copy_view_settings_button"));
+	tab->copy_to_current_button = GTK_WIDGET (gtk_builder_get_object (builder, "copy_to_current_button"));
+	tab->copy_to_default_button = GTK_WIDGET (gtk_builder_get_object (builder, "copy_to_default_button"));
 	tab->forget_button = GTK_WIDGET (gtk_builder_get_object (builder, "forget_folder_settings_button"));
 
 	for (field = 0; field < N_FIELDS; field++) {
@@ -589,7 +581,8 @@ nemo_prefs_current_folder_setup (GtkBuilder *builder,
 				gtk_builder_get_object (builder, "inherit_view_alignment"), "sensitive",
 				G_BINDING_SYNC_CREATE);
 
-	g_signal_connect (tab->copy_button, "clicked", G_CALLBACK (copy_clicked), tab);
+	g_signal_connect (tab->copy_to_current_button, "clicked", G_CALLBACK (copy_to_current_clicked), tab);
+	g_signal_connect (tab->copy_to_default_button, "clicked", G_CALLBACK (copy_to_default_clicked), tab);
 	g_signal_connect (tab->forget_button, "clicked", G_CALLBACK (forget_clicked), tab);
 	g_signal_connect_after (tab->notebook, "switch-page", G_CALLBACK (page_switched_after), tab);
 	g_signal_connect (dialog, "notify::is-active", G_CALLBACK (dialog_activated), tab);

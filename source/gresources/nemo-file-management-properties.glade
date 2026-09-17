@@ -509,7 +509,8 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                 <property name="can-focus">True</property>
                                 <property name="margin-start">6</property>
                                 <property name="margin-end">6</property>
-                                <property name="margin-top">6</property>
+                                <property name="margin-top">18</property>
+                                <property name="margin-bottom">12</property>
                                 <child>
                                   <object class="GtkBox" id="views_default_page">
                                     <property name="visible">True</property>
@@ -517,6 +518,36 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                     <property name="border-width">6</property>
                                     <property name="orientation">vertical</property>
                                     <property name="spacing">6</property>
+                                    <child>
+                                      <object class="GtkBox" id="views_default_actions">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="spacing">6</property>
+                                        <property name="margin-start">6</property>
+                                        <property name="margin-end">6</property>
+                                        <property name="margin-top">6</property>
+                                        <child>
+                                          <object class="GtkButton" id="copy_to_current_button">
+                                            <property name="label" translatable="yes">Copy settings to _Current</property>
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="receives-default">False</property>
+                                            <property name="use-underline">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="pack-type">end</property>
+                                            <property name="position">0</property>
+                                          </packing>
+                                        </child>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
                                     <child>
                                       <object class="GtkBox" id="views_default_page_sections">
                                         <property name="visible">True</property>
@@ -1039,7 +1070,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                       <packing>
                                         <property name="expand">False</property>
                                         <property name="fill">True</property>
-                                        <property name="position">0</property>
+                                        <property name="position">1</property>
                                       </packing>
                                     </child>
                                   </object>
@@ -1062,12 +1093,56 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                     <property name="orientation">vertical</property>
                                     <property name="spacing">6</property>
                                     <child>
-                                      <object class="GtkLabel" id="current_folder_path_label">
+                                      <object class="GtkBox" id="views_current_actions">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
+                                        <property name="spacing">6</property>
                                         <property name="margin-start">6</property>
-                                        <property name="ellipsize">middle</property>
-                                        <property name="xalign">0</property>
+                                        <property name="margin-end">6</property>
+                                        <property name="margin-top">6</property>
+                                        <child>
+                                          <object class="GtkLabel" id="current_folder_path_label">
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">False</property>
+                                            <property name="ellipsize">middle</property>
+                                            <property name="xalign">0</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">True</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">0</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkButton" id="copy_to_default_button">
+                                            <property name="label" translatable="yes">Copy settings to _Default</property>
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="receives-default">False</property>
+                                            <property name="use-underline">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="pack-type">end</property>
+                                            <property name="position">0</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkButton" id="forget_folder_settings_button">
+                                            <property name="label" translatable="yes">Forg_et</property>
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="receives-default">False</property>
+                                            <property name="use-underline">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="pack-type">end</property>
+                                            <property name="position">1</property>
+                                          </packing>
+                                        </child>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1615,41 +1690,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                     <property name="position">1</property>
                                     <property name="tab-fill">False</property>
                                   </packing>
-                                </child>
-                                <child type="action-end">
-                                  <object class="GtkBox" id="views_tab_actions">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="spacing">6</property>
-                                    <child>
-                                      <object class="GtkButton" id="forget_folder_settings_button">
-                                        <property name="label" translatable="yes">Forg_et</property>
-                                        <property name="visible">False</property>
-                                        <property name="can-focus">True</property>
-                                        <property name="receives-default">False</property>
-                                        <property name="use-underline">True</property>
-                                      </object>
-                                      <packing>
-                                        <property name="expand">False</property>
-                                        <property name="fill">True</property>
-                                        <property name="position">0</property>
-                                      </packing>
-                                    </child>
-                                    <child>
-                                      <object class="GtkButton" id="copy_view_settings_button">
-                                        <property name="label" translatable="yes">Copy settings to _Current</property>
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">True</property>
-                                        <property name="receives-default">False</property>
-                                        <property name="use-underline">True</property>
-                                      </object>
-                                      <packing>
-                                        <property name="expand">False</property>
-                                        <property name="fill">True</property>
-                                        <property name="position">1</property>
-                                      </packing>
-                                    </child>
-                                  </object>
                                 </child>
                               </object>
                               <packing>

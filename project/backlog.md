@@ -180,6 +180,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Preferences|Views: the Forget and Copy settings buttons sit in the tab header, and the tabs crowd the checkbox above them.
+	- Opened: 20260917-210000
+	- Closed: 20260917-213000
+	- Fixed: each tab now carries its own buttons at the top right of its content, with margins. Default has Copy settings to Current; Current has Forget and Copy settings to Default beside the folder path. The label no longer changes with the tab, and Forget no longer appears and disappears. More room between Inherit view settings and the tabs.
+
 - ✅ The delete test guard never fires on a move, so nothing asks about the original that leaves or the target that gets written over.
 	- Opened: 20260917-200000
 	- Closed: 20260917-204500
