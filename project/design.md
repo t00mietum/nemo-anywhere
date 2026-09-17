@@ -325,6 +325,8 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - Places and the tree view are separate panes, and both can be up at once. Each remembers its own width. A window resize leaves Places at the width it was given and shares the change among the tree view and the content panes, each in proportion to what it already had, so a pane at a third of the window stays at a third. Either pane can be turned off by itself, and one button collapses both and puts them back.
 
+- The tree view lists folders only, and a folder with nothing to list has no expander. Whether a folder has any sub-folders is checked in the background before anyone opens it, one folder at a time so that expanding a big folder does not flood the disk. Shares are not checked, since one that is not answering would hold up every folder behind it; they keep an expander until opened. Hidden folders count for the check, so a wrong answer can only leave an expander that goes away once the folder is opened.
+
 - Places is one tree store rebuilt from bookmarks, mounts, drives and network locations. Anything that could be slow to answer, such as free space or mount state, is fetched off the main loop and folded in when it arrives.
 
 - The list view scrolls sideways before it crushes a column, and remembers a width dragged by hand. The whole rule is under [List view column widths](#list-view-column-widths).

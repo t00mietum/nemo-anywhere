@@ -724,11 +724,6 @@ field: search.search-sort-column
 field: search.search-visible-columns
 	type: string-array
 
-field: sidebar-panels.tree.show-only-directories
-	type: bool
-	default: true
-	desc: Show only folders in the tree side pane
-
 field: state.first-run-done
 	type: bool
 	default: false

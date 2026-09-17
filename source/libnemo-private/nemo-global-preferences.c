@@ -46,7 +46,6 @@ NemoConfigGroup *nemo_icon_view_preferences;
 NemoConfigGroup *nemo_list_view_preferences;
 NemoConfigGroup *nemo_compact_view_preferences;
 NemoConfigGroup *nemo_desktop_preferences;
-NemoConfigGroup *nemo_tree_sidebar_preferences;
 NemoConfigGroup *nemo_window_state;
 NemoConfigGroup *nemo_plugin_preferences;
 NemoConfigGroup *nemo_menu_config_preferences;
@@ -359,7 +358,6 @@ nemo_global_preferences_init (void)
 	nemo_list_view_preferences      = nemo_config_get_group ("list-view");
 	nemo_compact_view_preferences   = nemo_config_get_group ("compact-view");
 	nemo_desktop_preferences        = nemo_config_get_group ("desktop");
-	nemo_tree_sidebar_preferences   = nemo_config_get_group ("sidebar-panels.tree");
 	nemo_plugin_preferences         = nemo_config_get_group ("plugins");
 	nemo_menu_config_preferences    = nemo_config_get_group ("preferences.menu-config");
 	nemo_search_preferences         = nemo_config_get_group ("search");
