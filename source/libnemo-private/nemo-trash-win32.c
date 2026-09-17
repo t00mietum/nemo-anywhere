@@ -23,6 +23,8 @@
 #include <config.h>
 #include "nemo-trash-win32.h"
 
+#include "nemo-delete-testguard.h"
+
 #ifdef G_OS_WIN32
 
 #include <string.h>
@@ -1105,10 +1107,20 @@ delete_real_tree (GFile *real, GCancellable *cancellable, GError **error)
 	GFileEnumerator *children;
 	gboolean ok = TRUE;
 
+	/* Asked once for the whole tree: the recursion below sees the mark and
+	 * stays quiet. */
+	if (!nemo_delete_testguard_ask_one ("Delete from recycle bin", real)) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+				     "called off at the delete test guard");
+		return FALSE;
+	}
+	nemo_delete_testguard_begin ();
+
 	info = g_file_query_info (real, G_FILE_ATTRIBUTE_STANDARD_TYPE,
 				  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 				  cancellable, error);
 	if (info == NULL) {
+		nemo_delete_testguard_end ();
 		return FALSE;
 	}
 
@@ -1120,6 +1132,7 @@ delete_real_tree (GFile *real, GCancellable *cancellable, GError **error)
 						      cancellable, error);
 		if (children == NULL) {
 			g_object_unref (info);
+			nemo_delete_testguard_end ();
 			return FALSE;
 		}
 
@@ -1150,6 +1163,8 @@ delete_real_tree (GFile *real, GCancellable *cancellable, GError **error)
 	}
 
 	g_object_unref (info);
+
+	nemo_delete_testguard_end ();
 
 	return ok && g_file_delete (real, cancellable, error);
 }

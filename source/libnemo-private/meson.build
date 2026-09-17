@@ -25,6 +25,7 @@ nemo_private_sources = [
   'nemo-debug.c',
   'nemo-default-file-icon.c',
   'nemo-delete-guard.c',
+  'nemo-delete-testguard.c',
   'nemo-desktop-utils.c',
   'nemo-directory-async.c',
   'nemo-desktop-thumbnail.c',

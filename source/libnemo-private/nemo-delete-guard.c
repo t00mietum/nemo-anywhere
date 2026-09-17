@@ -32,6 +32,7 @@
 #include <glib/gstdio.h>
 
 #include "nemo-delete-guard-win32.h"
+#include "nemo-delete-testguard.h"
 #include "nemo-dir-enum.h"
 #include "nemo-link-win32.h"
 
@@ -278,6 +279,13 @@ nemo_delete_guard_remove_tree (GFile *file, GCancellable *cancellable)
 		return FALSE;
 	}
 
+	/* Asked once for the whole tree: the recursion below sees the mark and
+	   stays quiet. */
+	if (!nemo_delete_testguard_ask_one ("Delete tree", file)) {
+		return FALSE;
+	}
+	nemo_delete_testguard_begin ();
+
 	/* NOFOLLOW on the enumerate covers the children only. Opening a link to a
 	   folder still lists what it points at, so only a real folder is walked. */
 	if (is_real_folder (file, cancellable)) {
@@ -298,6 +306,8 @@ nemo_delete_guard_remove_tree (GFile *file, GCancellable *cancellable)
 			g_object_unref (children);
 		}
 	}
+
+	nemo_delete_testguard_end ();
 
 	return g_file_delete (file, cancellable, NULL);
 }

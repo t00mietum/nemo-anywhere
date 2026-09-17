@@ -75,6 +75,7 @@
 #include "nemo-link-win32.h"
 #include "nemo-trash-win32.h"
 #include "nemo-delete-guard.h"
+#include "nemo-delete-testguard.h"
 
 /* TODO: TESTING!!! */
 
@@ -1055,6 +1056,12 @@ file_delete_wrapper (GFile        *file,
         return FALSE;
     }
 
+    if (!nemo_delete_testguard_ask_one ("Delete", file)) {
+        g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+                             "called off at the delete test guard");
+        return FALSE;
+    }
+
     uri = g_file_get_uri (file);
 
     if (g_file_is_native (file) && !eel_uri_is_favorite (uri)) {
@@ -1735,7 +1742,7 @@ should_confirm_move_to_trash (void)
 	return confirm_move_to_trash;
 }
 
-static gboolean
+static gboolean G_GNUC_UNUSED
 confirm_move_to_trash (CommonJob *job,
 			   GList *files)
 {
@@ -1784,7 +1791,7 @@ should_confirm_trash (void)
 	return confirm_trash;
 }
 
-static gboolean
+static gboolean G_GNUC_UNUSED
 confirm_delete_from_trash (CommonJob *job,
 			   GList *files)
 {
@@ -1823,7 +1830,7 @@ confirm_delete_from_trash (CommonJob *job,
 	return (response == 1);
 }
 
-static gboolean
+static gboolean G_GNUC_UNUSED
 confirm_empty_trash (CommonJob *job)
 {
 	char *prompt;
@@ -1847,7 +1854,7 @@ confirm_empty_trash (CommonJob *job)
 	return (response == 1);
 }
 
-static gboolean
+static gboolean G_GNUC_UNUSED
 confirm_delete_directly (CommonJob *job,
 			 GList *files)
 {
@@ -1887,6 +1894,44 @@ confirm_delete_directly (CommonJob *job,
 				NULL);
 
 	return response == 1;
+}
+
+/* Which dialog a job asks with. The test guard replaces the normal ones rather
+   than joining them, so an operation is never asked about twice. Armed, it also
+   asks where the normal path would have gone ahead quietly, which is the point
+   of it. */
+static gboolean
+confirm_delete (CommonJob *job,
+		GList     *files,
+		gboolean   from_trash,
+		gboolean   directly)
+{
+#if NEMO_TESTGUARD_ALL_DELETES
+	(void) from_trash;
+	(void) directly;
+
+	return nemo_delete_testguard_ask ("Delete", files);
+#else
+	if (from_trash) {
+		return confirm_delete_from_trash (job, files);
+	}
+
+	if (directly) {
+		return confirm_delete_directly (job, files);
+	}
+
+	return TRUE;
+#endif
+}
+
+static gboolean
+confirm_trash (CommonJob *job, GList *files)
+{
+#if NEMO_TESTGUARD_ALL_DELETES
+	return nemo_delete_testguard_ask ("Move to trash", files);
+#else
+	return confirm_move_to_trash (job, files);
+#endif
 }
 
 static void
@@ -2284,6 +2329,12 @@ trash_one_file (GFile *file, GCancellable *cancellable, GError **error)
 		return FALSE;
 	}
 
+	if (!nemo_delete_testguard_ask_one ("Move to trash", file)) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+				     "called off at the delete test guard");
+		return FALSE;
+	}
+
 #ifdef G_OS_WIN32
 	return nemo_trash_win32_recycle (file, error);
 #else
@@ -2534,14 +2585,13 @@ delete_job (GIOSchedulerJob *io_job,
 
 	if (to_delete_files != NULL && !job_aborted (common)) {
 		to_delete_files = g_list_reverse (to_delete_files);
-		confirmed = TRUE;
-		if (must_confirm_delete_in_trash) {
-			confirmed = confirm_delete_from_trash (common, to_delete_files);
-		} else if (must_confirm_delete) {
-			confirmed = confirm_delete_directly (common, to_delete_files);
-		}
+		confirmed = confirm_delete (common, to_delete_files,
+					    must_confirm_delete_in_trash,
+					    must_confirm_delete);
 		if (confirmed) {
+			nemo_delete_testguard_begin ();
 			delete_files (common, to_delete_files, &files_skipped);
+			nemo_delete_testguard_end ();
 		} else {
 			job->user_cancel = TRUE;
 		}
@@ -2549,9 +2599,11 @@ delete_job (GIOSchedulerJob *io_job,
 
 	if (to_trash_files != NULL && !job_aborted (common)) {
 		to_trash_files = g_list_reverse (to_trash_files);
-		confirmed = confirm_move_to_trash (common, to_trash_files);
+		confirmed = confirm_trash (common, to_trash_files);
 		if (confirmed) {
+			nemo_delete_testguard_begin ();
 			trash_files (common, to_trash_files, &files_skipped);
+			nemo_delete_testguard_end ();
 		} else {
 			job->user_cancel = TRUE;
 			/* destroy the undo action data too */
@@ -4834,6 +4886,12 @@ make_link_copy (GFile         *src,
 	}
 
 	if (overwrite) {
+		if (!nemo_delete_testguard_ask_one ("Delete (overwritten by a link)", dest)) {
+			g_free (link_path);
+			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
+					     "called off at the delete test guard");
+			return FALSE;
+		}
 		g_file_delete (dest, cancellable, NULL);
 	}
 
@@ -4842,7 +4900,8 @@ make_link_copy (GFile         *src,
 
 	/* Removes the link, never what it points at. */
 	if (ok && is_move) {
-		ok = g_file_delete (src, cancellable, error);
+		ok = nemo_delete_testguard_ask_one ("Delete (moved-from link)", src) &&
+		     g_file_delete (src, cancellable, error);
 	}
 
 	return ok;
@@ -7454,20 +7513,28 @@ empty_trash_job (GIOSchedulerJob *io_job,
 
     nemo_progress_info_start (common->progress);
 
+#if NEMO_TESTGUARD_ALL_DELETES
+	/* Asked whatever the preference says, since a quiet empty is one of the
+	   things being looked for. */
+	confirmed = nemo_delete_testguard_ask ("Empty trash", job->trash_dirs);
+#else
 	if (job->should_confirm && !job_aborted (common)) {
 		confirmed = confirm_empty_trash (common);
 	} else {
 		confirmed = TRUE;
 	}
+#endif
 	if (confirmed) {
 		nemo_progress_info_set_status (common->progress, _("Emptying Trash"));
 		nemo_progress_info_set_details (common->progress, _("Emptying Trash"));
 
+		nemo_delete_testguard_begin ();
 		for (l = job->trash_dirs;
 		     l != NULL && !job_aborted (common);
 		     l = l->next) {
 			delete_trash_file (common, l->data, &deletions_since_progress, FALSE, TRUE);
 		}
+		nemo_delete_testguard_end ();
 	}
 
 	g_io_scheduler_job_send_to_mainloop_async (io_job,
