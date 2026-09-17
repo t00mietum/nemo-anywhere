@@ -33,9 +33,10 @@
  * thread-local mark, since a job and the removals it drives run on one thread.
  *
  * Three things can arm it, and the first one that speaks wins. The define
- * below at 1 arms every run of the build and nothing turns that off. At 0,
- * the NEMO_TESTGUARD_ALL_DELETES environment variable decides, either way.
- * With neither, the debug.testguard-all-deletes setting decides.
+ * below only ever arms: at 1 every run of the build asks and neither of the
+ * other two can take that back. At 0 the NEMO_TESTGUARD_ALL_DELETES
+ * environment variable decides, either way, and with nothing there the
+ * debug.testguard-all-deletes setting does.
  *
  * It compiles in whichever way the define is set, so a build already in use
  * can be armed without replacing it. Quiet, all it costs a delete is one
