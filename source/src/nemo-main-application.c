@@ -1003,7 +1003,7 @@ nemo_main_application_local_command_line (GApplication *application,
 
     if (debug) {
 #if (GLIB_CHECK_VERSION(2,80,0))
-        const gchar* const domains[] = { "Nemo", NULL };
+        const gchar* const domains[] = { "Nemo Anywhere", NULL };
         g_log_writer_default_set_debug_domains (domains);
 #else
         g_setenv ("G_MESSAGES_DEBUG", "all", TRUE);

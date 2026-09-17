@@ -15,4 +15,4 @@ option('tracker',type : 'combo', choices : ['true', 'false', 'auto'], value : 'f
 option('bundled_themes', type : 'combo', choices : ['true', 'false', 'auto'], value : 'auto',
        description: 'Install the bundled widget and icon themes (auto: on for Windows and macOS)')
 option('fuzzing', type : 'boolean', value : false,
-       description: 'Build the fuzz targets against libFuzzer (needs clang). Off: they replay their seed corpus as ordinary tests')
+       description: 'Build the fuzz targets against libFuzzer (needs clang; cicd/linux/fuzz.bash adds the coverage flags). Off: they replay their seed corpus as ordinary tests')

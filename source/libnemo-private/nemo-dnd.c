@@ -238,7 +238,7 @@ nemo_drag_build_selection_list_from_raw (const guchar *raw, int size)
 		if (*p == '\n' || *p == '\0') {
 			result = g_list_prepend (result, item);
 			if (*p == '\0') {
-				g_warning ("Invalid x-special/gnome-icon-list data received: "
+				g_debug ("Invalid x-special/gnome-icon-list data received: "
 					   "missing newline character.");
 				break;
 			} else {
@@ -259,7 +259,7 @@ nemo_drag_build_selection_list_from_raw (const guchar *raw, int size)
 						  &item->icon_x, &item->icon_y,
 						  &item->icon_width, &item->icon_height) == 4;
 		if (!item->got_icon_position) {
-			g_warning ("Invalid x-special/gnome-icon-list data received: "
+			g_debug ("Invalid x-special/gnome-icon-list data received: "
 				   "invalid icon position specification.");
 		}
 
@@ -267,7 +267,7 @@ nemo_drag_build_selection_list_from_raw (const guchar *raw, int size)
 
 		p = memchr (p, '\r', size);
 		if (p == NULL || p[1] != '\n') {
-			g_warning ("Invalid x-special/gnome-icon-list data received: "
+			g_debug ("Invalid x-special/gnome-icon-list data received: "
 				   "missing newline character.");
 			if (p == NULL) {
 				break;

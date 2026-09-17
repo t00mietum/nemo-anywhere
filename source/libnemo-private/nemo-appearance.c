@@ -1044,7 +1044,7 @@ apply_appearance (void)
 	applying = FALSE;
 
 	/* What actually reached GTK, which is the only way to check the chain on a
-	 * box that cannot show a window. G_MESSAGES_DEBUG=Nemo to see it. */
+	 * box that cannot show a window. G_MESSAGES_DEBUG="Nemo Anywhere" to see it. */
 	{
 		char *gtk_theme = NULL;
 		char *icon_theme = NULL;

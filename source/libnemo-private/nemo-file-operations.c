@@ -641,7 +641,15 @@ parse_previous_duplicate_name (const char *name,
 			}
 			*name_base = extract_string_until (name, tag);
 			/* localizers: opening parentheses of the "th copy)" string */
+			/* ' is the glibc digit grouping flag, which clang's format check does not know */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-invalid-specifier"
+#endif
 			if (sscanf (tag, _(" (%'d"), count) == 1) {
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 				if (*count < 1 || *count > 1000000) {
 					/* keep the count within a reasonable range */
 					*count = 0;
@@ -4681,7 +4689,7 @@ do_run_conflict_dialog (gpointer _data)
 	if (response == CONFLICT_RESPONSE_RENAME) {
 		data->resp_data->new_name =
 			nemo_file_conflict_dialog_get_new_name (NEMO_FILE_CONFLICT_DIALOG (dialog));
-	} else if (response != GTK_RESPONSE_CANCEL ||
+	} else if (response != GTK_RESPONSE_CANCEL &&
 		   response != GTK_RESPONSE_NONE) {
 		   data->resp_data->apply_to_all =
 			   nemo_file_conflict_dialog_get_apply_to_all
@@ -5962,7 +5970,6 @@ move_files (CopyMoveJob *job,
 	GList *l;
 	GFile *src;
 	gboolean same_fs;
-	int i;
 	GdkPoint *point;
 	gboolean skipped_file;
 	MoveFileCopyFallback *fallback;
@@ -5970,7 +5977,6 @@ common = &job->common;
 
 	report_copy_progress (job, source_info, transfer_info);
 
-	i = 0;
 	for (l = fallbacks;
 	     l != NULL && !job_aborted (common);
 	     l = l->next) {
@@ -5996,7 +6002,6 @@ common = &job->common;
 				source_info, transfer_info,
 				job->debuting_files,
 				point, fallback->overwrite, &skipped_file, FALSE);
-		i++;
 	}
 }
 
