@@ -433,19 +433,22 @@ places_size_allocate_callback (GtkWidget *widget,
 		g_timeout_add (100, save_places_width_cb, window);
 }
 
+/* From the divider, not from size-allocate. The tree scales with the window,
+   and saving every scaled width would lose the one that was dragged. */
 static void
-tree_size_allocate_callback (GtkWidget *widget,
-			     GtkAllocation *allocation,
-			     gpointer user_data)
+tree_placed_callback (GtkWidget *paned,
+		      int position,
+		      gpointer user_data)
 {
 	NemoWindow *window = user_data;
 
-	if (allocation->width <= 1 ||
-	    allocation->width == window->details->tree_width) {
+	if (window->details->tree_sidebar == NULL ||
+	    position <= 1 ||
+	    position == window->details->tree_width) {
 		return;
 	}
 
-	window->details->tree_width = allocation->width;
+	window->details->tree_width = position;
 
 	if (window->details->tree_width_handler_id != 0) {
 		g_source_remove (window->details->tree_width_handler_id);
@@ -519,11 +522,6 @@ set_up_tree_sidebar (NemoWindow *window)
 
 	gtk_paned_set_position (GTK_PANED (window->details->tree_paned),
 				window->details->tree_width);
-
-	g_signal_connect (window->details->tree_sidebar,
-			  "size_allocate",
-			  G_CALLBACK (tree_size_allocate_callback),
-			  window);
 
 	sidebar = nemo_tree_sidebar_new (window);
 
@@ -859,6 +857,8 @@ nemo_window_constructed (GObject *self)
 	   resize leaves it where it is. Everything that does grow sits to its
 	   right, inside tree_paned. */
 	window->details->tree_paned = nemo_proportional_paned_new ();
+	g_signal_connect (window->details->tree_paned, "placed",
+			  G_CALLBACK (tree_placed_callback), window);
 	gtk_paned_pack2 (GTK_PANED (window->details->content_paned),
 			 window->details->tree_paned, TRUE, FALSE);
 	gtk_widget_show (window->details->tree_paned);
