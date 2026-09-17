@@ -37,6 +37,7 @@
 #include "nemo-command-template.h"
 #include "nemo-dir-enum.h"
 #include "nemo-file-changes-queue.h"
+#include "nemo-file-operations.h"
 #include "nemo-global-preferences.h"
 #include "nemo-job-queue.h"
 #include "nemo-progress-info.h"
@@ -151,6 +152,9 @@ typedef struct {
 	guint64             total_bytes;
 	guint64             done_bytes;
 	guint               file_count;
+
+	GList              *verified;		/* GFile *, sources safe to remove */
+	char               *verify_trouble;	/* why the first one that failed did */
 
 	char               *error_message;
 	char               *error_details;
@@ -721,6 +725,367 @@ nemo_archive_format_size (guint64 bytes)
 	}
 
 	return g_strdup_printf ("%llu", (unsigned long long) bytes);
+}
+
+/* One thing that should have gone into the archive. size is -1 where only
+   being there can be checked: a directory, or something stored as a link. */
+typedef struct {
+	gint64   size;
+	gboolean is_dir;
+} Expected;
+
+typedef struct {
+	GHashTable   *expected;		/* rel_path -> Expected * */
+	GHashTable   *seen_dirs;	/* file ids, so a link loop terminates */
+	GCancellable *cancellable;
+	gboolean      store_links;
+	gboolean      follow_link_dirs;
+	gboolean      whole;		/* nothing was passed over on the way */
+} VerifyWalk;
+
+static void
+expect (VerifyWalk *walk,
+	const char *rel_path,
+	gint64      size,
+	gboolean    is_dir)
+{
+	Expected *item = g_new0 (Expected, 1);
+
+	item->size = size;
+	item->is_dir = is_dir;
+
+	g_hash_table_replace (walk->expected, g_strdup (rel_path), item);
+}
+
+static void verify_walk_item (VerifyWalk *walk, GFile *file, const char *rel_path,
+			      GFileInfo *info);
+
+static void
+verify_walk_directory (VerifyWalk *walk,
+		       GFile      *dir,
+		       const char *rel_path)
+{
+	GFileEnumerator *children;
+	GFileInfo *child_info;
+
+	children = nemo_enumerate_children (dir, SCAN_ATTRIBUTES,
+					    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+					    walk->cancellable, NULL);
+	if (children == NULL) {
+		walk->whole = FALSE;
+		return;
+	}
+
+	while (!g_cancellable_is_cancelled (walk->cancellable)) {
+		GFile *child;
+		char *child_rel;
+
+		child_info = g_file_enumerator_next_file (children, walk->cancellable, NULL);
+		if (child_info == NULL) {
+			break;
+		}
+
+		child = g_file_get_child (dir, g_file_info_get_name (child_info));
+		child_rel = g_strconcat (rel_path, "/", g_file_info_get_name (child_info), NULL);
+
+		verify_walk_item (walk, child, child_rel, child_info);
+
+		g_free (child_rel);
+		g_object_unref (child);
+		g_object_unref (child_info);
+	}
+
+	g_file_enumerator_close (children, NULL, NULL);
+	g_object_unref (children);
+}
+
+/* The same rules the writing scan goes by, arrived at separately. Anything this
+   drops is something the archive was never offered, so the walk is no longer
+   whole and nothing may be deleted on the strength of it. */
+static void
+verify_walk_item (VerifyWalk *walk,
+		  GFile      *file,
+		  const char *rel_path,
+		  GFileInfo  *info)
+{
+	GFileInfo *effective;
+	GFileType type;
+
+	if (g_cancellable_is_cancelled (walk->cancellable)) {
+		return;
+	}
+
+	if (g_file_info_get_is_symlink (info)) {
+		if (walk->store_links && g_file_info_get_symlink_target (info) != NULL) {
+			expect (walk, rel_path, -1, FALSE);
+			return;
+		}
+
+		effective = g_file_query_info (file, SCAN_ATTRIBUTES,
+					       G_FILE_QUERY_INFO_NONE,
+					       walk->cancellable, NULL);
+		if (effective == NULL) {
+			walk->whole = FALSE;	/* dangling, so nothing went in */
+			return;
+		}
+		if (g_file_info_get_file_type (effective) == G_FILE_TYPE_DIRECTORY &&
+		    !walk->follow_link_dirs) {
+			g_object_unref (effective);
+			walk->whole = FALSE;
+			return;
+		}
+	} else {
+		effective = g_object_ref (info);
+	}
+
+	type = g_file_info_get_file_type (effective);
+
+	if (type == G_FILE_TYPE_DIRECTORY) {
+		const char *id = g_file_info_get_attribute_string (effective, G_FILE_ATTRIBUTE_ID_FILE);
+
+		if (id != NULL) {
+			if (g_hash_table_contains (walk->seen_dirs, id)) {
+				g_object_unref (effective);
+				return;
+			}
+			g_hash_table_add (walk->seen_dirs, g_strdup (id));
+		}
+
+		expect (walk, rel_path, -1, TRUE);
+		verify_walk_directory (walk, file, rel_path);
+	} else if (type == G_FILE_TYPE_REGULAR) {
+		expect (walk, rel_path, g_file_info_get_size (effective), FALSE);
+	} else {
+		walk->whole = FALSE;	/* a socket or a device node, and no way to store it */
+	}
+
+	g_object_unref (effective);
+}
+
+/* Archive paths come back in whatever the writer stored: a "./" in front from
+   tar, a "/" behind on a directory, backslashes from a program on Windows. */
+static char *
+normal_archive_path (const char *raw)
+{
+	char *path = g_strdup (raw != NULL ? raw : "");
+	char *start = path;
+	gsize length;
+	char *out;
+
+	for (out = path; *out != '\0'; out++) {
+		if (*out == '\\') {
+			*out = '/';
+		}
+	}
+
+	while (g_str_has_prefix (start, "./")) {
+		start += 2;
+	}
+	while (*start == '/') {
+		start++;
+	}
+
+	out = g_strdup (start);
+	g_free (path);
+
+	length = strlen (out);
+	while (length > 0 && out[length - 1] == '/') {
+		out[--length] = '\0';
+	}
+
+	return out;
+}
+
+/* Every entry the archive holds, by path, with its size where one is recorded
+   and -1 where none is. NULL when the file will not open as an archive. */
+static GHashTable *
+archive_listing (const char *path,
+		 const char *password)
+{
+	struct archive *a = archive_read_new ();
+	struct archive_entry *entry;
+	GHashTable *listing;
+
+	archive_read_support_format_all (a);
+	archive_read_support_filter_all (a);
+
+	if (password != NULL && password[0] != '\0') {
+		archive_read_add_passphrase (a, password);
+	}
+
+	if (archive_read_open_filename (a, path, READ_BUFFER_SIZE) != ARCHIVE_OK) {
+		archive_read_free (a);
+		return NULL;
+	}
+
+	listing = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+
+	while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
+		char *name = normal_archive_path (archive_entry_pathname (entry));
+		gint64 *size = g_new (gint64, 1);
+
+		*size = archive_entry_size_is_set (entry) ?
+			(gint64) archive_entry_size (entry) : -1;
+
+		g_hash_table_replace (listing, name, size);
+	}
+
+	archive_read_free (a);
+
+	return listing;
+}
+
+/* A writer is free to leave the directories themselves out and store only what
+   is under them, so a folder counts as there when anything inside it is. */
+static gboolean
+listing_holds_folder (GHashTable *listing,
+		      const char *rel_path)
+{
+	GHashTableIter iter;
+	gpointer key;
+	char *prefix;
+	gboolean found = FALSE;
+
+	if (g_hash_table_contains (listing, rel_path)) {
+		return TRUE;
+	}
+
+	prefix = g_strconcat (rel_path, "/", NULL);
+	g_hash_table_iter_init (&iter, listing);
+	while (!found && g_hash_table_iter_next (&iter, &key, NULL)) {
+		found = g_str_has_prefix ((const char *) key, prefix);
+	}
+	g_free (prefix);
+
+	return found;
+}
+
+gboolean
+nemo_archive_verify (GFile                    *archive_file,
+		     GList                    *sources,
+		     const NemoArchiveOptions *options,
+		     NemoArchiveBackend        backend,
+		     GCancellable             *cancellable,
+		     char                    **reason)
+{
+	VerifyWalk walk = { NULL, NULL, NULL, FALSE, FALSE, TRUE };
+	GHashTable *listing = NULL;
+	GHashTableIter iter;
+	gpointer key;
+	gpointer value;
+	char *path;
+	char *trouble = NULL;
+	GList *l;
+
+	g_return_val_if_fail (G_IS_FILE (archive_file), FALSE);
+	g_return_val_if_fail (options != NULL, FALSE);
+
+	if (reason != NULL) {
+		*reason = NULL;
+	}
+
+	/* One volume of a set is not an archive on its own, and the readers
+	   will not put the set back together for us. */
+	if (options->split_size > 0) {
+		trouble = g_strdup (_("An archive split into volumes cannot be checked."));
+		goto out;
+	}
+
+	path = g_file_get_path (archive_file);
+	if (path == NULL) {
+		trouble = g_strdup (_("The archive is not on this computer, so it cannot be read back."));
+		goto out;
+	}
+
+	listing = archive_listing (path, options->password);
+	g_free (path);
+
+	if (listing == NULL) {
+		trouble = g_strdup (_("The archive could not be read back."));
+		goto out;
+	}
+
+	walk.expected = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+	walk.seen_dirs = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	walk.cancellable = cancellable;
+	walk.store_links = options->store_links &&
+		(nemo_archive_backend_caps (options->format, backend) &
+		 NEMO_ARCHIVE_CAP_STORE_LINKS) != 0;
+	walk.follow_link_dirs = options->follow_link_dirs;
+
+	for (l = sources; l != NULL; l = l->next) {
+		GFile *file = G_FILE (l->data);
+		GFileInfo *info;
+		char *name;
+
+		info = g_file_query_info (file, SCAN_ATTRIBUTES,
+					  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+					  cancellable, NULL);
+		if (info == NULL) {
+			walk.whole = FALSE;
+			continue;
+		}
+
+		name = g_file_get_basename (file);
+		verify_walk_item (&walk, file, name, info);
+
+		g_free (name);
+		g_object_unref (info);
+	}
+
+	if (g_cancellable_is_cancelled (cancellable)) {
+		trouble = g_strdup (_("Checking the archive was stopped."));
+	} else if (!walk.whole) {
+		trouble = g_strdup (_("Something in the selection could not go into an archive, so not all of it is in there."));
+	}
+
+	g_hash_table_iter_init (&iter, walk.expected);
+	while (trouble == NULL && g_hash_table_iter_next (&iter, &key, &value)) {
+		const char *rel_path = key;
+		const Expected *item = value;
+		gint64 *stored;
+
+		if (item->is_dir) {
+			if (!listing_holds_folder (listing, rel_path)) {
+				trouble = g_strdup_printf (_("The folder \"%s\" is not in the archive."),
+							   rel_path);
+			}
+			continue;
+		}
+
+		stored = g_hash_table_lookup (listing, rel_path);
+		if (stored == NULL) {
+			trouble = g_strdup_printf (_("\"%s\" is not in the archive."), rel_path);
+		} else if (item->size >= 0 && *stored != item->size) {
+			trouble = g_strdup_printf (_("\"%s\" is a different size in the archive."),
+						   rel_path);
+		}
+	}
+
+	if (trouble == NULL && g_hash_table_size (walk.expected) == 0) {
+		trouble = g_strdup (_("There was nothing to check."));
+	}
+
+	g_hash_table_destroy (listing);
+
+ out:
+	if (walk.expected != NULL) {
+		g_hash_table_destroy (walk.expected);
+	}
+	if (walk.seen_dirs != NULL) {
+		g_hash_table_destroy (walk.seen_dirs);
+	}
+
+	if (trouble != NULL) {
+		if (reason != NULL) {
+			*reason = trouble;
+		} else {
+			g_free (trouble);
+		}
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static void
@@ -1791,6 +2156,33 @@ run_command (ArchiveJob *job)
 	return ok && !job_aborted (job);
 }
 
+/* Nothing is removed on the writer's word alone. Only the sources behind an
+   archive that read back whole go on the list, and the first check that would
+   not run is what gets said - a dialog per unit would be no help. */
+static void
+verify_unit (ArchiveJob *job)
+{
+	char *trouble = NULL;
+	GList *l;
+
+	nemo_progress_info_set_status (job->progress, _("Checking the archive"));
+
+	if (nemo_archive_verify (job->destination, job->sources, &job->options,
+				 job->backend, job->cancellable, &trouble)) {
+		for (l = job->sources; l != NULL; l = l->next) {
+			job->verified = g_list_prepend (job->verified,
+							g_object_ref (G_FILE (l->data)));
+		}
+		return;
+	}
+
+	if (job->verify_trouble == NULL) {
+		job->verify_trouble = trouble;
+	} else {
+		g_free (trouble);
+	}
+}
+
 static gboolean
 archive_job_done (gpointer user_data)
 {
@@ -1800,6 +2192,24 @@ archive_job_done (gpointer user_data)
 
 	if (job->error_message != NULL) {
 		eel_show_error_dialog (job->error_message, job->error_details, job->parent_window);
+	}
+
+	/* The box was ticked in the Compress dialog, so this is a delete a person
+	   asked for, and it goes through the ordinary trash-or-delete with its own
+	   confirmation rather than anything quieter here. A cancelled job removes
+	   nothing, even where an earlier archive of it did check out. */
+	if (job->options.delete_sources) {
+		if (job->verify_trouble != NULL) {
+			eel_show_warning_dialog (_("The original files were kept."),
+						 job->verify_trouble, job->parent_window);
+		}
+
+		if (job->verified != NULL && !job_aborted (job)) {
+			job->verified = g_list_reverse (job->verified);
+			nemo_file_operations_trash_or_delete_by_user (job->verified,
+								      job->parent_window,
+								      NULL, NULL);
+		}
 	}
 
 	if (job->done_callback != NULL) {
@@ -1816,6 +2226,8 @@ archive_job_done (gpointer user_data)
 
 	g_list_free_full (job->entries, (GDestroyNotify) archive_entry_free_full);
 	g_list_free_full (job->units, (GDestroyNotify) archive_unit_free);
+	g_list_free_full (job->verified, g_object_unref);
+	g_free (job->verify_trouble);
 	g_clear_object (&job->result_file);
 	g_clear_object (&job->base_dir);
 	g_clear_object (&job->progress);
@@ -1910,6 +2322,10 @@ archive_job (GIOSchedulerJob *io_job,
 			g_object_unref (written);
 		} else {
 			nemo_file_changes_queue_file_added (job->destination);
+		}
+
+		if (ok && job->options.delete_sources) {
+			verify_unit (job);
 		}
 
 		/* One archive failing does not take the rest of them with it -

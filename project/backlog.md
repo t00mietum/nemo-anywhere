@@ -66,8 +66,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
 
-- 🔘 Archive dialog: Add an option - off by default - to delete what contents were archived, once archive is successfully created, and contents verified by relative pathname and file sizes.
-
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
 	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
@@ -1229,6 +1227,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Archive dialog: Add an option - off by default - to delete what contents were archived, once archive is successfully created, and contents verified by relative pathname and file sizes.
+	- Opened: n/a
+	- Closed: 20260917-233000
+	- "Delete the originals once the archive checks out", last in the Options expander, off by default. It is greyed for a split archive, since one volume will not open on its own and there is nothing to check.
+	- Verifying reads the archive back with the library and walks the selection again, separately from the walk that wrote it. Every file has to be there under the same relative path at the same size. A folder counts as there when anything inside it is, since a writer may leave the folder entries out.
+	- Anything the walk had to pass over - a dangling link, a linked folder the options said not to follow, a socket - means the archive was never offered all of it, so nothing is deleted whatever does read back.
+	- What passes goes through the ordinary trash-or-delete, so it asks again and lands in the trash rather than going for good.
+	- New checks in the archive job test cover the clean case and each way one can come up short, and were watched to fail both ways. The accept and the refusal were both checked on screen, including an encrypted archive.
 
 - ✅ Put in the title, not just the path, but "Nemo Anywhere - 'PATH'".
 	- Opened: n/a
