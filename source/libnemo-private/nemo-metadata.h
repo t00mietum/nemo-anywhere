@@ -58,6 +58,11 @@
 #define NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER    	NEMO_APP_SLUG "-list-view-column-order"
 
 #define NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL		NEMO_APP_SLUG "-compact-view-zoom-level"
+#define NEMO_METADATA_KEY_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH	NEMO_APP_SLUG "-compact-view-all-columns-same-width"
+#define NEMO_METADATA_KEY_ICON_VIEW_LABELS_BESIDE_ICONS	NEMO_APP_SLUG "-icon-view-labels-beside-icons"
+#define NEMO_METADATA_KEY_LIST_VIEW_ENABLE_EXPANSION	NEMO_APP_SLUG "-list-view-enable-expansion"
+#define NEMO_METADATA_KEY_SORT_DIRECTORIES_FIRST	NEMO_APP_SLUG "-sort-directories-first"
+#define NEMO_METADATA_KEY_SORT_FAVORITES_FIRST		NEMO_APP_SLUG "-sort-favorites-first"
 
 #define NEMO_METADATA_KEY_WINDOW_GEOMETRY			NEMO_APP_SLUG "-window-geometry"
 #define NEMO_METADATA_KEY_WINDOW_SCROLL_POSITION		NEMO_APP_SLUG "-window-scroll-position"
@@ -87,6 +92,10 @@
 #define NEMO_METADATA_KEY_PINNED                   NEMO_APP_SLUG "-pinned-to-top"
 #define NEMO_METADATA_KEY_FAVORITE                 NEMO_APP_SLUG "-favorite"
 #define NEMO_METADATA_KEY_FAVORITE_AVAILABLE     NEMO_APP_SLUG "-favorite-available"
+
+/* Marks a folder as having its own view settings, so a set whose values all
+ * match the default still counts as saved and stops inheritance there. */
+#define NEMO_METADATA_KEY_FOLDER_SETTINGS_SAVED  NEMO_APP_SLUG "-folder-settings-saved"
 
 guint nemo_metadata_get_id (const char *metadata);
 

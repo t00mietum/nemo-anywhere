@@ -60,6 +60,7 @@ nemo_private_sources = [
   'nemo-dir-enum.c',
   'nemo-metadata.c',
   'nemo-metadata-store.c',
+  'nemo-folder-settings.c',
   'nemo-network-win32.c',
   'nemo-security-win32.c',
   'nemo-link-copy.c',

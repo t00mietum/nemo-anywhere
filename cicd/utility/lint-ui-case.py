@@ -49,6 +49,9 @@ KEEP = set([
 	# Property nicknames on a GObject; never shown to anyone.
 	"Cursor Position",
 	"Selection Bound",
+	# Default and Current are the names of the two tabs on Views.
+	"Copy settings to Current",
+	"Copy settings to Default",
 	# Windows Search is the indexer's name.
 	"Use the Windows Search index for folders it covers",
 	# Disc formats are named things.

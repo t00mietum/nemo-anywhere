@@ -394,6 +394,83 @@ nemo_metadata_store_set_stringv (const char *uri,
 	g_mutex_unlock (&store_mutex);
 }
 
+/* returns a copy, or NULL when the key is unset or holds a list */
+char *
+nemo_metadata_store_get_string (const char *uri,
+				const char *key)
+{
+	GHashTable *file_table;
+	MetaValue *mv;
+	char *value = NULL;
+
+	g_return_val_if_fail (uri != NULL && key != NULL, NULL);
+
+	g_mutex_lock (&store_mutex);
+	ensure_loaded ();
+
+	file_table = g_hash_table_lookup (store, uri);
+	if (file_table != NULL && (mv = g_hash_table_lookup (file_table, key)) != NULL) {
+		value = g_strdup (mv->value);
+	}
+
+	sync_count_locked ();
+	g_mutex_unlock (&store_mutex);
+
+	return value;
+}
+
+char **
+nemo_metadata_store_get_stringv (const char *uri,
+				 const char *key)
+{
+	GHashTable *file_table;
+	MetaValue *mv;
+	char **values = NULL;
+
+	g_return_val_if_fail (uri != NULL && key != NULL, NULL);
+
+	g_mutex_lock (&store_mutex);
+	ensure_loaded ();
+
+	file_table = g_hash_table_lookup (store, uri);
+	if (file_table != NULL && (mv = g_hash_table_lookup (file_table, key)) != NULL) {
+		values = g_strdupv (mv->values);
+	}
+
+	sync_count_locked ();
+	g_mutex_unlock (&store_mutex);
+
+	return values;
+}
+
+gboolean
+nemo_metadata_store_has_any (const char         *uri,
+			     const char * const *keys)
+{
+	GHashTable *file_table;
+	gboolean found = FALSE;
+	int i;
+
+	g_return_val_if_fail (uri != NULL && keys != NULL, FALSE);
+
+	if (nemo_metadata_store_is_empty ()) {
+		return FALSE;
+	}
+
+	g_mutex_lock (&store_mutex);
+	ensure_loaded ();
+
+	file_table = g_hash_table_lookup (store, uri);
+	for (i = 0; file_table != NULL && keys[i] != NULL && !found; i++) {
+		found = g_hash_table_contains (file_table, keys[i]);
+	}
+
+	sync_count_locked ();
+	g_mutex_unlock (&store_mutex);
+
+	return found;
+}
+
 void
 nemo_metadata_store_apply_to_info (const char *uri,
 				   GFileInfo  *info)

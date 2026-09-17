@@ -4913,7 +4913,7 @@ nemo_file_should_show_thumbnail (NemoFile *file)
         return FALSE;
     }
 
-    if (!nemo_global_preferences_get_ignore_view_metadata ()) {
+    if (nemo_global_preferences_get_remember_folder_settings ()) {
         if (nemo_file_is_directory (file)) {
             dir = nemo_file_ref (file);
         } else {

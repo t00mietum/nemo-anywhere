@@ -158,14 +158,14 @@ typedef enum
 
 /* The default folder viewer - one of the two enums below */
 #define NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER		"default-folder-viewer"
-#define NEMO_PREFERENCES_INHERIT_FOLDER_VIEWER		"inherit-folder-viewer"
+#define NEMO_PREFERENCES_INHERIT_VIEW_SETTINGS		"inherit-view-settings"
 
 #define NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES      "show-full-path-titles"
 
 #define NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT "close-device-view-on-device-eject"
 
 #define NEMO_PREFERENCES_START_WITH_DUAL_PANE "start-with-dual-pane"
-#define NEMO_PREFERENCES_IGNORE_VIEW_METADATA "ignore-view-metadata"
+#define NEMO_PREFERENCES_REMEMBER_FOLDER_SETTINGS "remember-folder-settings"
 #define NEMO_PREFERENCES_SHOW_BOOKMARKS_IN_TO_MENUS "show-bookmarks-in-to-menus"
 #define NEMO_PREFERENCES_SHOW_PLACES_IN_TO_MENUS "show-places-in-to-menus"
 
@@ -311,9 +311,9 @@ typedef enum
 void nemo_global_preferences_init                      (void);
 void nemo_global_preferences_finalize                  (void);
 char *nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void);
-gboolean nemo_global_preferences_get_inherit_folder_viewer_preference (void);
+gboolean nemo_global_preferences_get_inherit_view_settings (void);
 gboolean nemo_global_preferences_get_inherit_show_thumbnails_preference (void);
-gboolean nemo_global_preferences_get_ignore_view_metadata (void);
+gboolean nemo_global_preferences_get_remember_folder_settings (void);
 int nemo_global_preferences_get_size_prefix_preference (void);
 int nemo_global_preferences_get_cpu_thread_count (void);
 char *nemo_global_preferences_get_desktop_iid (void);

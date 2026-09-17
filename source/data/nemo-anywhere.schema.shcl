@@ -273,20 +273,15 @@ field: preferences.expand-row-on-dnd-dwell
 	default: true
 	desc: Hovering a folder during a drag opens it
 
-field: preferences.ignore-view-metadata
-	type: bool
-	default: false
-	desc: Use the default view and zoom everywhere, ignoring what each folder remembers
-
 field: preferences.image-viewers-with-external-sort
 	type: string-array
 	default: xviewer, feh, sxiv
 	desc: Image viewers that are told the current sort order
 
-field: preferences.inherit-folder-viewer
+field: preferences.inherit-view-settings
 	type: bool
-	default: false
-	desc: A folder opens in the view its parent used
+	default: true
+	desc: A folder with nothing saved uses the settings of the nearest parent folder that has some
 
 field: preferences.inherit-show-thumbnails
 	type: bool
@@ -316,6 +311,11 @@ field: preferences.never-queue-file-ops
 	type: bool
 	default: false
 	desc: Start every file operation at once rather than queueing them
+
+field: preferences.remember-folder-settings
+	type: bool
+	default: false
+	desc: Each folder keeps its own view, zoom, sort and columns
 
 field: preferences.rename-selects-whole-name
 	type: bool

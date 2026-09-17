@@ -60,8 +60,8 @@ NemoDateFormat  prefs_current_date_format;
 
 GTimer    *nemo_startup_timer;
 
-static gboolean ignore_view_metadata = FALSE;
-static gboolean inherit_folder_view_preference = FALSE;
+static gboolean remember_folder_settings = FALSE;
+static gboolean inherit_view_settings = TRUE;
 static gboolean inherit_show_thumbnails_preference = FALSE;
 static int      size_prefixes_preference = 0;
 
@@ -94,15 +94,15 @@ nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void)
 }
 
 gboolean
-nemo_global_preferences_get_inherit_folder_viewer_preference (void)
+nemo_global_preferences_get_inherit_view_settings (void)
 {
-    return inherit_folder_view_preference;
+    return inherit_view_settings;
 }
 
 gboolean
-nemo_global_preferences_get_ignore_view_metadata (void)
+nemo_global_preferences_get_remember_folder_settings (void)
 {
-    return ignore_view_metadata;
+    return remember_folder_settings;
 }
 
 gboolean
@@ -221,16 +221,16 @@ static void
 setup_cached_pref_keys (void)
 {
     g_signal_connect (nemo_preferences,
-                      "changed::" NEMO_PREFERENCES_IGNORE_VIEW_METADATA,
-                      G_CALLBACK (boolean_changed_cb), &ignore_view_metadata);
+                      "changed::" NEMO_PREFERENCES_REMEMBER_FOLDER_SETTINGS,
+                      G_CALLBACK (boolean_changed_cb), &remember_folder_settings);
 
-    boolean_changed_cb (nemo_preferences, NEMO_PREFERENCES_IGNORE_VIEW_METADATA, &ignore_view_metadata);
+    boolean_changed_cb (nemo_preferences, NEMO_PREFERENCES_REMEMBER_FOLDER_SETTINGS, &remember_folder_settings);
 
     g_signal_connect (nemo_preferences,
-                      "changed::" NEMO_PREFERENCES_INHERIT_FOLDER_VIEWER,
-                      G_CALLBACK (boolean_changed_cb), &inherit_folder_view_preference);
+                      "changed::" NEMO_PREFERENCES_INHERIT_VIEW_SETTINGS,
+                      G_CALLBACK (boolean_changed_cb), &inherit_view_settings);
 
-    boolean_changed_cb (nemo_preferences, NEMO_PREFERENCES_INHERIT_FOLDER_VIEWER, &inherit_folder_view_preference);
+    boolean_changed_cb (nemo_preferences, NEMO_PREFERENCES_INHERIT_VIEW_SETTINGS, &inherit_view_settings);
 
     g_signal_connect (nemo_preferences,
                       "changed::" NEMO_PREFERENCES_INHERIT_SHOW_THUMBNAILS,
