@@ -176,6 +176,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Preferences|Views: with "Remember per-folder settings" off, the Current tab still opens on a dead page.
+	- Opened: 20260917-233000
+	- Closed: 20260917-234500
+	- Greying the page out is not enough. GTK switches the page on a click whatever the page's own state is, so the tab took the click and showed an empty grey pane.
+	- Fixed: the tab label is greyed with the setting, and the notebook refuses the switch, by mouse or by keyboard. Turning the setting off while the Current tab is up drops back to Default.
+
+- ✅ Unselected tabs run together, so one cannot be told from the next.
+	- Opened: 20260917-233000
+	- Closed: 20260917-234500
+	- Most themes draw an unselected tab with no edge of any kind, so three open tabs read as one strip broken only by the close buttons. Nemo has the same problem.
+	- Fixed: a divider between any two adjacent tabs that are both unselected. It rides with the rest of the app styling, so it holds whatever theme is in use.
+
 - ✅ Shift+Tab sometimes does not leave a notebook page.
 	- Opened: 20260917-143946
 	- Closed: 20260917-150800

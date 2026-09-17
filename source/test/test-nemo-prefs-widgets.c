@@ -26,6 +26,9 @@ static const char * const widget_ids[] = {
 	"vbox_shortcuts",
 	"command_label_0",
 	"command_label_1",
+	"views_notebook",
+	"views_current_page",
+	"views_current_tab",
 	NULL
 };
 
