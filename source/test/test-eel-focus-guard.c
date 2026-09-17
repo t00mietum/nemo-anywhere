@@ -3,7 +3,9 @@
  * arrow keys somewhere other than the file list.
  *
  * The sidebar is the other side of that: it keeps the focus it was given, so
- * connecting a content view behind it must not grab. */
+ * connecting a content view behind it must not grab.
+ *
+ * Needs a display, and the keyboard along with it; it skips without either. */
 
 #include <config.h>
 
@@ -30,6 +32,33 @@ expect_focus (GtkWidget *window, GtkWidget *expected, const char *what)
 			 focus != NULL ? G_OBJECT_TYPE_NAME (focus) : "nothing");
 		failures++;
 	}
+}
+
+/* Ask the display for the keyboard and wait for it, up to five seconds. A
+ * display that is not busy hands it over on the first look.
+ *
+ * Every Tab check below needs it. With another window holding the keyboard,
+ * GtkContainer's focus handler re-grabs the widget that is already the window's
+ * focus widget, because it looks at has-focus, which an unfocused toplevel
+ * clears. It then reports that as a move, the traversal stops there, and the
+ * check reads as a failure no key press could ever produce - a real Shift+Tab
+ * goes to whichever window does hold the keyboard. */
+static gboolean
+take_keyboard (GtkWidget *window)
+{
+	int i;
+
+	for (i = 0; i < 500 && !gtk_window_has_toplevel_focus (GTK_WINDOW (window)); i++) {
+		/* With no window manager the first ask lands before the window is on
+		 * screen and X drops it, so keep asking. */
+		if (i % 10 == 0 && gtk_widget_get_mapped (window)) {
+			gdk_window_focus (gtk_widget_get_window (window), GDK_CURRENT_TIME);
+		}
+		g_usleep (10000);
+		pump ();
+	}
+
+	return gtk_window_has_toplevel_focus (GTK_WINDOW (window));
 }
 
 static GtkWidget *
@@ -106,14 +135,7 @@ main (int argc, char *argv[])
 	gtk_widget_show_all (window);
 	pump ();
 
-	/* Without the window's own focus a focused widget grabs again rather than
-	   pass Shift+Tab on, so nothing would ever leave it. */
-	gdk_window_focus (gtk_widget_get_window (window), GDK_CURRENT_TIME);
-	for (int i = 0; i < 50 && !gtk_window_has_toplevel_focus (GTK_WINDOW (window)); i++) {
-		g_usleep (10000);
-		pump ();
-	}
-	if (!gtk_window_has_toplevel_focus (GTK_WINDOW (window))) {
+	if (!take_keyboard (window)) {
 		g_print ("the window could not take the focus; skipping\n");
 		return 77;
 	}
@@ -146,8 +168,19 @@ main (int argc, char *argv[])
 	/* A tree view keeps Shift+Tab to itself, so leave from a plain page. */
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (notebook), 1);
 	pump ();
+	if (!take_keyboard (window)) {
+		g_print ("another window holds the keyboard; the rest is not checked\n");
+		return failures == 0 ? 77 : 1;
+	}
 	gtk_widget_grab_focus (page_button);
 	gtk_widget_child_focus (window, GTK_DIR_TAB_BACKWARD);
+
+	/* Losing it between those two lines is the same thing arriving late. */
+	if (gtk_window_get_focus (GTK_WINDOW (window)) != entry
+	    && !gtk_window_has_toplevel_focus (GTK_WINDOW (window))) {
+		g_print ("another window took the keyboard mid-check; the rest is not checked\n");
+		return failures == 0 ? 77 : 1;
+	}
 	expect_focus (window, entry, "shift+tab out of the page");
 
 	/* What connecting a content view does. It grabs only when the sidebar is

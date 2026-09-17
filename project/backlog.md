@@ -43,14 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Shift+Tab sometimes does not leave a notebook page. The focus guard test fails about one run in four, and the same thing in the app would leave Shift+Tab doing nothing now and then.
-	- Opened: 20260917-143946
-	- Found while checking crash isolation, and unrelated to it. `meson test --repeat 40 "Focus guard test"` reproduces; a plain single run almost always passes, which is why it has been quiet until now.
-	- The failing check is "shift+tab out of the page". Focus is meant to land on the entry and instead stays on the page's own button, so `gtk_widget_child_focus (window, GTK_DIR_TAB_BACKWARD)` moved nothing.
-	- Not a memory bug: fixing `MALLOC_PERTURB_` across its range changes nothing. Not display contention either; concurrent copies mostly skip on the existing no-focus guard rather than fail.
-	- Suspect the notebook page switch just before it has not finished when the grab and the Shift+Tab run, so the focus chain is computed against a page that is not up yet. Untested.
-	- Worth settling whether this is the test or `eel_gtk_notebook_keep_focus_off_tabs`, since only the second one would reach a user. Do not quiet the test before that is known.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -187,6 +179,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Shift+Tab sometimes does not leave a notebook page.
+	- Opened: 20260917-143946
+	- Closed: 20260917-150800
+	- It was the test, not the guard. Nothing in the app was ever wrong and nothing in it changed.
+	- The check needs the test window to hold the keyboard. When another window has it, GTK re-grabs the widget that already had the focus and calls that a move, so the traversal stops there and the check reads as a failure. No key press can reach that state, since Shift+Tab goes to whichever window does hold the keyboard.
+	- The earlier guess about the notebook page switch was wrong. The page, its size and the tab order are all in order at the moment of the check.
+	- Fixed: the test asks for the keyboard before the check and skips rather than fails if it cannot have it. Eight copies on one display used to fail about one run in thirteen; 320 runs are now clean.
+	- The same ask fixed a quieter problem. With no window manager, which is how the suite runs, the test was skipping three runs in four while the suite still read as a pass, because its one focus request went out before the window was on screen.
 
 - ✅ A split archive that fits in one volume is still named ".001".
 	- Opened: 20260917-213000
