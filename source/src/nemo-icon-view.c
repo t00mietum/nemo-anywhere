@@ -54,6 +54,7 @@
 #include <libnemo-private/nemo-icon.h>
 #include <libnemo-private/nemo-link.h>
 #include <libnemo-private/nemo-metadata.h>
+#include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-desktop-utils.h>
 
@@ -616,9 +617,9 @@ nemo_icon_view_get_directory_sort_by (NemoIconView *icon_view,
 
     sync_directory_monitor_number (icon_view, file);
 
-    return nemo_file_get_metadata (file,
-                                   NEMO_METADATA_KEY_ICON_VIEW_SORT_BY,
-                                   default_sort_criterion->metadata_text);
+    return nemo_folder_settings_get (file,
+                                     NEMO_METADATA_KEY_ICON_VIEW_SORT_BY,
+                                     default_sort_criterion->metadata_text);
 }
 
 static NemoFileSortType
@@ -663,10 +664,10 @@ nemo_icon_view_set_directory_sort_by (NemoIconView *icon_view,
 
     sync_directory_monitor_number (icon_view, file);
 
-    nemo_file_set_metadata (file,
-                            NEMO_METADATA_KEY_ICON_VIEW_SORT_BY,
-                            default_sort_criterion->metadata_text,
-                            sort_by);
+    nemo_folder_settings_set (file,
+                              NEMO_METADATA_KEY_ICON_VIEW_SORT_BY,
+                              default_sort_criterion->metadata_text,
+                              sort_by);
 }
 
 gboolean
@@ -683,9 +684,9 @@ nemo_icon_view_get_directory_sort_reversed (NemoIconView *icon_view,
 
     sync_directory_monitor_number (icon_view, file);
 
-    return nemo_file_get_boolean_metadata (file,
-                                           NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED,
-                                           reversed);
+    return nemo_folder_settings_get_boolean (file,
+                                             NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED,
+                                             reversed);
 }
 
 static void
@@ -703,10 +704,10 @@ nemo_icon_view_set_directory_sort_reversed (NemoIconView *icon_view,
 
     sync_directory_monitor_number (icon_view, file);
 
-    nemo_file_set_boolean_metadata (file,
-                                    NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED,
-                                    reversed,
-                                    sort_reversed);
+    nemo_folder_settings_set_boolean (file,
+                                      NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED,
+                                      reversed,
+                                      sort_reversed);
 }
 
 static gboolean
@@ -980,7 +981,7 @@ nemo_icon_view_begin_loading (NemoView *view)
 
 	/* Set up the zoom level from the metadata. */
 	if (nemo_view_supports_zooming (NEMO_VIEW (icon_view))) {
-        if (nemo_global_preferences_get_ignore_view_metadata () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
+        if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
             if (nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (view)) == -1) {
                 nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (view), get_default_zoom_level (icon_view));
             }
@@ -990,13 +991,13 @@ nemo_icon_view_begin_loading (NemoView *view)
             sync_directory_monitor_number (icon_view, file);
 
             if (icon_view->details->compact) {
-                level = nemo_file_get_integer_metadata (file,
-                                                        NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
-                                                        get_default_zoom_level (icon_view));
+                level = nemo_folder_settings_get_int (file,
+                                                      NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
+                                                      get_default_zoom_level (icon_view));
             } else {
-                level = nemo_file_get_integer_metadata (file,
-                                                        NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                                        get_default_zoom_level (icon_view));
+                level = nemo_folder_settings_get_int (file,
+                                                      NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                                      get_default_zoom_level (icon_view));
     		}
         }
 
@@ -1105,21 +1106,21 @@ nemo_icon_view_set_zoom_level (NemoIconView *view,
 		return;
 	}
 
-    if (nemo_global_preferences_get_ignore_view_metadata () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
+    if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
         nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_level);
     } else {
         sync_directory_monitor_number (view, nemo_view_get_directory_as_file (NEMO_VIEW (view)));
 
         if (view->details->compact) {
-            nemo_file_set_integer_metadata (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
-                                            NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
-                                            get_default_zoom_level (view),
-                                            new_level);
+            nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
+                                          NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
+                                          get_default_zoom_level (view),
+                                          new_level);
         } else {
-            nemo_file_set_integer_metadata (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
-                                            NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                            get_default_zoom_level (view),
-                                            new_level);
+            nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
+                                          NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                          get_default_zoom_level (view),
+                                          new_level);
         }
     }
 
@@ -1538,7 +1539,7 @@ nemo_icon_view_reset_to_defaults (NemoView *view)
 
 	nemo_icon_view_restore_default_zoom_level (view);
 
-    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+    if (!nemo_global_preferences_get_remember_folder_settings ()) {
         NemoWindow *window = nemo_view_get_nemo_window (view);
         nemo_window_set_ignore_meta_zoom_level (window, NEMO_ZOOM_LEVEL_NULL);
     }
@@ -2103,35 +2104,30 @@ default_zoom_level_changed_callback (gpointer callback_data)
 		file = nemo_view_get_directory_as_file (NEMO_VIEW (icon_view));
 
         /* Setting a new default is an instruction about the folder in front of you,
-         * so let go of whatever zoom that folder had pinned and take the default.
+         * so let go of the zoom this window was holding and take the default.
          * The callback is per view, so gate on which one is actually in front -
-         * otherwise every open tab's folder loses its pinned zoom too.
+         * otherwise every open tab loses its zoom too. A folder that remembers
+         * its own settings keeps them; those change on the Current tab.
          */
-        if (view_is_frontmost (NEMO_VIEW (icon_view))) {
-            if (nemo_global_preferences_get_ignore_view_metadata ()) {
-                nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), -1);
-            } else if (file != NULL) {
-                nemo_file_set_metadata (file,
-                                        nemo_icon_view_is_compact (icon_view) ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
-                                                                              : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                        NULL, NULL);
-            }
+        if (view_is_frontmost (NEMO_VIEW (icon_view)) &&
+            !nemo_global_preferences_get_remember_folder_settings ()) {
+            nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), -1);
         }
 
-        if (nemo_global_preferences_get_ignore_view_metadata () &&
+        if (!nemo_global_preferences_get_remember_folder_settings () &&
             nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > -1) {
             level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
             sync_directory_monitor_number (icon_view, file);
 
             if (nemo_icon_view_is_compact (icon_view)) {
-                level = nemo_file_get_integer_metadata (file,
-                                                        NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
-                                                        get_default_zoom_level (icon_view));
+                level = nemo_folder_settings_get_int (file,
+                                                      NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
+                                                      get_default_zoom_level (icon_view));
             } else {
-                level = nemo_file_get_integer_metadata (file,
-                                                        NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                                        get_default_zoom_level (icon_view));
+                level = nemo_folder_settings_get_int (file,
+                                                      NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                                      get_default_zoom_level (icon_view));
             }
         }
         nemo_view_zoom_to_level (NEMO_VIEW (icon_view), level);

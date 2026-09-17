@@ -57,6 +57,7 @@
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-metadata.h>
+#include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-module.h>
 #include <libnemo-private/nemo-monitor.h>
 #include <libnemo-private/nemo-search-directory.h>
@@ -815,7 +816,7 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 	char *mimetype;
 	NemoWindow *window;
 	NemoWindowSlot *slot;
-	NemoFile *parent_file, *tmp;
+	NemoFile *parent_file;
 	GFile *location;
 	GMountOperation *mount_op;
 	MountNotMountedData *data;
@@ -892,27 +893,11 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 		mimetype = nemo_file_get_mime_type (file);
 
 		/* Look in metadata for view */
-		if (nemo_global_preferences_get_inherit_folder_viewer_preference ()) {
-        if (nemo_global_preferences_get_ignore_view_metadata ()) {
-        view_id = g_strdup (nemo_window_get_ignore_meta_view_id (window));
-        } else {
-            parent_file = file;
-            nemo_file_ref(parent_file); // Do this once for the initial file
-            while (parent_file) {
-                view_id = nemo_file_get_metadata (parent_file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL);
-                tmp = nemo_file_get_parent (parent_file);
-                nemo_file_unref(parent_file);
-                if (view_id != NULL) {
-                    parent_file = NULL;
-                } else {
-                    parent_file = tmp;
-                }
-            }
-        }
-    } else {
-        view_id = nemo_global_preferences_get_ignore_view_metadata () ? g_strdup (nemo_window_get_ignore_meta_view_id (window)) :
-                                                                        nemo_file_get_metadata (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL);
-    }
+		if (!nemo_global_preferences_get_remember_folder_settings ()) {
+			view_id = g_strdup (nemo_window_get_ignore_meta_view_id (window));
+		} else {
+			view_id = nemo_folder_settings_get (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL);
+		}
 
     if (view_id != NULL &&
 		    !nemo_view_factory_view_supports_uri (view_id,
@@ -1819,9 +1804,10 @@ nemo_window_slot_stop_loading (NemoWindowSlot *slot)
         cancel_location_change (slot);
 }
 
-void
-nemo_window_slot_set_content_view (NemoWindowSlot *slot,
-				       const char *id)
+static void
+switch_content_view (NemoWindowSlot *slot,
+		     const char     *id,
+		     gboolean        save)
 {
 	NemoFile *file;
 	char *uri;
@@ -1842,16 +1828,16 @@ nemo_window_slot_set_content_view (NemoWindowSlot *slot,
 
 	file = nemo_file_get (slot->location);
 
-    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+    if (!nemo_global_preferences_get_remember_folder_settings ()) {
         nemo_window_set_ignore_meta_view_id (nemo_window_slot_get_window (slot), id);
-    } else {
+    } else if (save) {
         gchar *default_id;
 
         /* Picking the view that is already the default is not a per-folder choice,
          * so pass it as the default and let it go unstored.
          */
         default_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
-        nemo_file_set_metadata (file, NEMO_METADATA_KEY_DEFAULT_VIEW, default_id, id);
+        nemo_folder_settings_set (file, NEMO_METADATA_KEY_DEFAULT_VIEW, default_id, id);
         g_free (default_id);
     }
 
@@ -1867,6 +1853,33 @@ nemo_window_slot_set_content_view (NemoWindowSlot *slot,
 	slot->location_change_type = NEMO_LOCATION_CHANGE_RELOAD;
 
         create_content_view (slot, id);
+}
+
+void
+nemo_window_slot_set_content_view (NemoWindowSlot *slot,
+				   const char     *id)
+{
+	switch_content_view (slot, id, TRUE);
+}
+
+/* A new default view reaches folders that have none of their own saved,
+ * without saving anything into them. */
+void
+nemo_window_slot_follow_default_view (NemoWindowSlot *slot,
+				      const char     *default_id)
+{
+	NemoFile *file;
+	char *saved_id;
+
+	file = nemo_file_get (slot->location);
+	saved_id = nemo_global_preferences_get_remember_folder_settings () ?
+		nemo_folder_settings_get (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL) : NULL;
+	nemo_file_unref (file);
+
+	if (saved_id == NULL) {
+		switch_content_view (slot, default_id, FALSE);
+	}
+	g_free (saved_id);
 }
 
 void

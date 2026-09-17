@@ -2256,7 +2256,7 @@ default_folder_viewer_changed (NemoWindow *window)
 				continue;
 			}
 
-			nemo_window_slot_set_content_view (slot, view_id);
+			nemo_window_slot_follow_default_view (slot, view_id);
 		}
 	}
 

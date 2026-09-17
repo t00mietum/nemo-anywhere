@@ -1386,7 +1386,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 			   NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES);
   bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_INHERIT_VIEW_WIDGET,
-			   NEMO_PREFERENCES_INHERIT_FOLDER_VIEWER);
+			   NEMO_PREFERENCES_INHERIT_VIEW_SETTINGS);
   bind_builder_bool (builder, nemo_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_REVERSE_SORT_WIDGET,
                NEMO_PREFERENCES_DEFAULT_SORT_IN_REVERSE_ORDER);
@@ -1509,10 +1509,6 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     bind_builder_bool (builder, nemo_preferences,
                        NEMO_FILE_MANAGEMENT_PROPERTIES_START_WITH_DUAL_PANE_WIDGET,
                        NEMO_PREFERENCES_START_WITH_DUAL_PANE);
-
-    bind_builder_bool (builder, nemo_preferences,
-                       NEMO_FILE_MANAGEMENT_PROPERTIES_IGNORE_VIEW_METADATA_WIDGET,
-                       NEMO_PREFERENCES_IGNORE_VIEW_METADATA);
 
     bind_builder_bool (builder, nemo_preferences,
                        NEMO_FILE_MANAGEMENT_PROPERTIES_BOOKMARKS_IN_TO_MENUS_WIDGET,

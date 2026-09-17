@@ -40,6 +40,17 @@ void nemo_metadata_store_set_stringv   (const char *uri,
 					const char *key,
 					char      **values);
 
+/* copies; NULL when unset. A list entry reads as NULL through get_string
+ * and a string entry as NULL through get_stringv. */
+char    *nemo_metadata_store_get_string  (const char *uri,
+					  const char *key);
+char   **nemo_metadata_store_get_stringv (const char *uri,
+					  const char *key);
+
+/* TRUE when the uri holds at least one of the NULL-terminated keys */
+gboolean nemo_metadata_store_has_any     (const char         *uri,
+					  const char * const *keys);
+
 /* overlay stored values onto a queried GFileInfo as metadata:: attributes */
 /* TRUE when nothing at all is stored, without taking the lock. Lets the
  * per-file info update skip the uri build entirely on a fresh install. */

@@ -361,6 +361,16 @@ test('Shortcut name test',
   args: []
 )
 
+test('Folder settings test',
+  executable('test-nemo-folder-settings',
+    [ 'test-nemo-folder-settings.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 if is_windows
   test('Dot-file switch test',
     executable('test-nemo-dot-files-win32',

@@ -87,6 +87,7 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-link.h>
 #include <libnemo-private/nemo-metadata.h>
+#include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-recent.h>
 #include <libnemo-private/nemo-module.h>
 #include <libnemo-private/nemo-program-choosing.h>
@@ -536,7 +537,7 @@ nemo_view_reset_to_defaults (NemoView *view)
 
     file = view->details->slot->viewed_file;
     nemo_file_set_metadata(file, NEMO_METADATA_KEY_SHOW_THUMBNAILS, NULL, NULL);
-    nemo_file_set_metadata(file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL, NULL);
+    nemo_folder_settings_forget (file);
     gtk_action_activate (gtk_action_group_get_action (nemo_window_get_main_action_group (window), NEMO_ACTION_RELOAD));
 }
 

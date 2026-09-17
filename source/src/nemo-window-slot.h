@@ -153,6 +153,8 @@ void			nemo_window_slot_stop_loading	      (NemoWindowSlot	*slot);
 
 void			nemo_window_slot_set_content_view	      (NemoWindowSlot	*slot,
 								       const char		*id);
+void			nemo_window_slot_follow_default_view	      (NemoWindowSlot	*slot,
+								       const char		*default_id);
 const char	       *nemo_window_slot_get_content_view_id      (NemoWindowSlot	*slot);
 gboolean		nemo_window_slot_content_view_matches_iid (NemoWindowSlot	*slot,
 								       const char		*iid);

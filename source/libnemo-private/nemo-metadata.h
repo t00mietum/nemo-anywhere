@@ -88,6 +88,10 @@
 #define NEMO_METADATA_KEY_FAVORITE                 NEMO_APP_SLUG "-favorite"
 #define NEMO_METADATA_KEY_FAVORITE_AVAILABLE     NEMO_APP_SLUG "-favorite-available"
 
+/* Marks a folder as having its own view settings, so a set whose values all
+ * match the default still counts as saved and stops inheritance there. */
+#define NEMO_METADATA_KEY_FOLDER_SETTINGS_SAVED  NEMO_APP_SLUG "-folder-settings-saved"
+
 guint nemo_metadata_get_id (const char *metadata);
 
 #endif /* NEMO_METADATA_H */
