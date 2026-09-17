@@ -180,6 +180,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ The delete test guard never fires on a move, so nothing asks about the original that leaves or the target that gets written over.
+	- Opened: 20260917-200000
+	- Closed: 20260917-204500
+	- A move on one filesystem is a single `g_file_move`, and an overwrite happens inside glib, so neither reaches the delete path the guard sits on.
+	- Fixed: a move job asks once up front, naming the destination and every source that is about to leave where it is. An overwrite asks per file, naming the target whose contents are lost and the source replacing it. Both were watched on screen, with Cancel leaving the files alone.
+	- `lint-c.bash` holds the rule that `G_FILE_COPY_OVERWRITE` cannot be set without the ask above it, and was watched to fail.
+
 - ✅ `make_link_copy` deletes without going through the delete guard.
 	- Opened: 20260917-190000
 	- Closed: 20260917-193000

@@ -125,8 +125,8 @@ nemo_delete_testguard_armed (void)
    dialog is still up. Whoever lets go last frees it. */
 typedef struct {
 	const char *op;
+	char *primary;
 	char *detail;
-	guint count;
 	gboolean go_ahead;
 
 	GMutex lock;
@@ -151,6 +151,7 @@ ask_data_unref (AskData *data)
 
 	g_mutex_clear (&data->lock);
 	g_cond_clear (&data->done);
+	g_free (data->primary);
 	g_free (data->detail);
 	g_free (data);
 }
@@ -240,6 +241,12 @@ describe_files (GList *files)
 	return g_string_free (out, FALSE);
 }
 
+static char *
+count_line (const char *op, guint count)
+{
+	return g_strdup_printf ("%s: %u item%s", op, count, count == 1 ? "" : "s");
+}
+
 /* Everything the dialog shows below the headline: where it came from in the C
    source, what it would take, and how it got there. */
 static char *
@@ -269,18 +276,13 @@ show_dialog (gpointer _data)
 {
 	AskData *data = _data;
 	GtkWidget *dialog;
-	char *primary;
 	int response;
-
-	primary = g_strdup_printf ("%s: %u item%s",
-				   data->op, data->count,
-				   data->count == 1 ? "" : "s");
 
 	dialog = gtk_message_dialog_new (NULL,
 					 0,
 					 GTK_MESSAGE_WARNING,
 					 GTK_BUTTONS_NONE,
-					 "%s", primary);
+					 "%s", data->primary);
 
 	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
 						  "%s", data->detail);
@@ -289,14 +291,12 @@ show_dialog (gpointer _data)
 	gtk_dialog_add_button (GTK_DIALOG (dialog), GTK_STOCK_OK, GTK_RESPONSE_OK);
 	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_CANCEL);
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "Delete test guard");
+	gtk_window_set_title (GTK_WINDOW (dialog), "Delete/overwrite test guard");
 	gtk_window_set_urgency_hint (GTK_WINDOW (dialog), TRUE);
 	gtk_window_set_keep_above (GTK_WINDOW (dialog), TRUE);
 
 	response = gtk_dialog_run (GTK_DIALOG (dialog));
 	gtk_widget_destroy (dialog);
-
-	g_free (primary);
 
 	g_mutex_lock (&data->lock);
 	data->go_ahead = (response == GTK_RESPONSE_OK);
@@ -312,7 +312,7 @@ show_dialog (gpointer _data)
 /* A job runs off the main thread, so the dialog goes over there and this side
    waits for the answer. */
 static gboolean
-ask (const char *op, guint count, char *detail)
+ask (const char *op, char *primary, char *detail)
 {
 	AskData *data;
 	gboolean go_ahead;
@@ -321,13 +321,14 @@ ask (const char *op, guint count, char *detail)
 	   waiting on an answer that cannot come would just hang it. */
 	if (gdk_display_get_default () == NULL) {
 		nemo_delete_guard_log ("test guard: %s went ahead, nothing to ask on", op);
+		g_free (primary);
 		g_free (detail);
 		return TRUE;
 	}
 
 	data = g_new0 (AskData, 1);
 	data->op = op;
-	data->count = count;
+	data->primary = primary;
 	data->detail = detail;
 	data->refs = 1;
 	g_mutex_init (&data->lock);
@@ -381,7 +382,7 @@ nemo_delete_testguard_ask_at (const char *op,
 		return TRUE;
 	}
 
-	go_ahead = ask (op, g_list_length (files),
+	go_ahead = ask (op, count_line (op, g_list_length (files)),
 			build_detail (files, func, source_file, line));
 
 	nemo_delete_guard_log ("test guard: %s from %s at %s:%d, %s",
@@ -405,4 +406,117 @@ nemo_delete_testguard_ask_one_at (const char *op,
 	}
 
 	return nemo_delete_testguard_ask_at (op, &one, func, source_file, line);
+}
+
+static char *
+parse_name (GFile *file)
+{
+	char *name = file != NULL ? g_file_get_parse_name (file) : NULL;
+
+	return name != NULL ? name : g_strdup ("?");
+}
+
+char *
+nemo_delete_testguard_describe_move (GList *files,
+				     GFile *destination)
+{
+	char *into;
+	char *paths;
+	char *text;
+
+	into = parse_name (destination);
+	paths = describe_files (files);
+
+	text = g_strdup_printf ("Into:\n  %s\n\nLeaving these locations:\n%s",
+				into, paths);
+
+	g_free (into);
+	g_free (paths);
+
+	return text;
+}
+
+char *
+nemo_delete_testguard_describe_overwrite (GFile *source,
+					  GFile *target)
+{
+	char *lost;
+	char *kept;
+	char *text;
+
+	lost = parse_name (target);
+	kept = parse_name (source);
+
+	text = g_strdup_printf ("Overwritten, contents lost:\n  %s\n\nReplaced by:\n  %s\n",
+				lost, kept);
+
+	g_free (lost);
+	g_free (kept);
+
+	return text;
+}
+
+/* The two below share the delete path's dialog, but build their own middle
+   section: one list of paths cannot say which side is being lost. */
+static gboolean
+ask_described (const char *op,
+	       char       *primary,
+	       char       *described,
+	       const char *func,
+	       const char *source_file,
+	       int         line)
+{
+	char *stack;
+	char *detail;
+	gboolean go_ahead;
+
+	stack = describe_stack ();
+	detail = g_strdup_printf ("Asked from %s at %s:%d\n\n%s\nCall stack:\n%s",
+				  func, source_file, line, described, stack);
+	g_free (described);
+	g_free (stack);
+
+	go_ahead = ask (op, primary, detail);
+
+	nemo_delete_guard_log ("test guard: %s from %s at %s:%d, %s",
+			       op, func, source_file, line,
+			       go_ahead ? "went ahead" : "called off");
+
+	return go_ahead;
+}
+
+gboolean
+nemo_delete_testguard_ask_move_at (const char *op,
+				   GList      *files,
+				   GFile      *destination,
+				   const char *func,
+				   const char *source_file,
+				   int         line)
+{
+	if (files == NULL || !nemo_delete_testguard_armed ()) {
+		return TRUE;
+	}
+
+	return ask_described (op, count_line (op, g_list_length (files)),
+			      nemo_delete_testguard_describe_move (files, destination),
+			      func, source_file, line);
+}
+
+gboolean
+nemo_delete_testguard_ask_overwrite_at (const char *op,
+					GFile      *source,
+					GFile      *target,
+					const char *func,
+					const char *source_file,
+					int         line)
+{
+	/* No already_asked() check on purpose. A job asks about the files it was
+	   given; a target that was already sitting there is nobody's source. */
+	if (target == NULL || !nemo_delete_testguard_armed ()) {
+		return TRUE;
+	}
+
+	return ask_described (op, count_line (op, 1),
+			      nemo_delete_testguard_describe_overwrite (source, target),
+			      func, source_file, line);
 }

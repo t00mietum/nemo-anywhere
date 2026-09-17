@@ -48,6 +48,32 @@ fCheckDeleteWrapper(){
 }
 fCheckDeleteWrapper
 
+## G_FILE_COPY_OVERWRITE destroys the target inside glib, where there is nothing
+## of ours to hook, so the test guard has to ask before the flag goes on. Both
+## uses sit a few lines after the ask at their retry label; anything further
+## away has grown a path that reaches the flag without asking. Whole-tree, same
+## reason as above.
+fCheckOverwriteAsk(){
+	local src='source/libnemo-private/nemo-file-operations.c'
+	local bad
+
+	[[ -f "$src" ]] || return 0
+
+	bad="$(awk '
+		/testguard_allows_overwrite \(/ { asked = NR }
+		/G_FILE_COPY_OVERWRITE/ {
+			if (NR - asked > 15) print NR ": " $0
+		}
+	' "$src")"
+
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: ${src}: G_FILE_COPY_OVERWRITE with no test guard ask above it"
+		printf '%s\n' "$bad"
+		exit 2
+	fi
+}
+fCheckOverwriteAsk
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

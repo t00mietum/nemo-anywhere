@@ -26,11 +26,20 @@
  * dialog. The normal confirmations are off while it is armed, so nothing is
  * asked about twice.
  *
+ * Two more ways a file stops being where it was, neither of which reaches the
+ * delete path. A move takes the original away from its old location, and GIO
+ * does that in one step with nothing to hook. An overwrite destroys whatever
+ * was at the target, inside g_file_copy or g_file_move, with no call of ours
+ * anywhere near it. Both ask here, and both name the two paths involved rather
+ * than one list, since which side is being lost is the whole question.
+ *
  * It sits at two levels. A job asks once, up front, for everything it is about
  * to take. Below that, the two functions that actually remove a file ask for
  * anything that got there without a job having asked - that is the half which
  * catches a path nobody knew about. The two are kept from doubling up by a
  * thread-local mark, since a job and the removals it drives run on one thread.
+ * The overwrite ask ignores that mark: a job asks about its sources, never
+ * about a target that happened to already exist.
  *
  * Three things can arm it, and the first one that speaks wins. The define
  * below only ever arms: at 1 every run of the build asks and neither of the
@@ -74,6 +83,22 @@ gboolean nemo_delete_testguard_ask_one_at (const char *op,
 					   const char *source_file,
 					   int         line);
 
+/* A whole move job: the listed files all leave where they are now. */
+gboolean nemo_delete_testguard_ask_move_at (const char *op,
+					    GList      *files,
+					    GFile      *destination,
+					    const char *func,
+					    const char *source_file,
+					    int         line);
+
+/* One file about to be written over. `target` is what is lost. */
+gboolean nemo_delete_testguard_ask_overwrite_at (const char *op,
+						 GFile      *source,
+						 GFile      *target,
+						 const char *func,
+						 const char *source_file,
+						 int         line);
+
 /* Around the part of a job that removes what it already asked about. */
 void     nemo_delete_testguard_begin    (void);
 void     nemo_delete_testguard_end      (void);
@@ -83,5 +108,18 @@ void     nemo_delete_testguard_end      (void);
 
 #define nemo_delete_testguard_ask_one(op, file) \
 	nemo_delete_testguard_ask_one_at ((op), (file), G_STRFUNC, __FILE__, __LINE__)
+
+#define nemo_delete_testguard_ask_move(op, files, destination) \
+	nemo_delete_testguard_ask_move_at ((op), (files), (destination), G_STRFUNC, __FILE__, __LINE__)
+
+#define nemo_delete_testguard_ask_overwrite(op, source, target) \
+	nemo_delete_testguard_ask_overwrite_at ((op), (source), (target), G_STRFUNC, __FILE__, __LINE__)
+
+/* What the dialog would say, minus the backtrace. Exposed because the dialog
+   itself needs a display, and the wording of these two is the point of them. */
+char *nemo_delete_testguard_describe_move      (GList *files,
+						GFile *destination);
+char *nemo_delete_testguard_describe_overwrite (GFile *source,
+						GFile *target);
 
 #endif /* NEMO_DELETE_TESTGUARD_H */
