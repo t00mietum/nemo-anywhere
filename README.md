@@ -87,6 +87,8 @@ That means, in order:
 
 One codebase. "For Windows" and friends are just labels on builds, not separate projects.
 
+It is opinionated. It manages files, period, and does not try to solve every problem around them. What it does do is carry more of the file management you need built in, on every platform, so nothing depends on a third-party program, plugin or extension that only exists on one of them. If you want a file manager that grows into a media browser or a desktop shell, this is not the one.
+
 This is an independent, unofficial hard fork of [linuxmint/nemo](https://github.com/linuxmint/nemo), taken at the 6.6.4 release. It is not affiliated with, endorsed by, or supported by Linux Mint, the Cinnamon team, or GNOME.
 
 Report issues here, never upstream. Provenance details live in [fork.md](fork.md).
