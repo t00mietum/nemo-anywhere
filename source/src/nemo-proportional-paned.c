@@ -46,6 +46,13 @@ struct _NemoProportionalPaned {
 
 G_DEFINE_TYPE (NemoProportionalPaned, nemo_proportional_paned, GTK_TYPE_PANED)
 
+enum {
+	PLACED,
+	LAST_SIGNAL
+};
+
+static guint signals[LAST_SIGNAL];
+
 static void
 nemo_proportional_paned_size_allocate (GtkWidget *widget,
 				       GtkAllocation *allocation)
@@ -54,6 +61,7 @@ nemo_proportional_paned_size_allocate (GtkWidget *widget,
 	GtkPaned *paned = GTK_PANED (widget);
 	gboolean first = self->anchor_width <= 0;
 	gboolean scaled = FALSE;
+	gboolean placed;
 	int position;
 
 	if (gtk_paned_get_child1 (paned) == NULL ||
@@ -88,13 +96,19 @@ nemo_proportional_paned_size_allocate (GtkWidget *widget,
 	   divider during the allocation. The split view centers itself that way. */
 	position = gtk_paned_get_position (paned);
 
-	if (!scaled && (first || position != self->seen)) {
+	placed = !scaled && !first && position != self->seen;
+
+	if (placed || first) {
 		self->anchor_width = allocation->width;
 		self->anchor_position = position;
 	}
 
 	self->last_width = allocation->width;
 	self->seen = position;
+
+	if (placed) {
+		g_signal_emit (self, signals[PLACED], 0, position);
+	}
 }
 
 static void
@@ -106,6 +120,15 @@ static void
 nemo_proportional_paned_class_init (NemoProportionalPanedClass *klass)
 {
 	GTK_WIDGET_CLASS (klass)->size_allocate = nemo_proportional_paned_size_allocate;
+
+	/* The divider was moved at the same width, by a drag or a set_position.
+	   A resize that only scales it does not count, so a width saved from here
+	   is the one that was chosen, not whatever the last window size left. */
+	signals[PLACED] = g_signal_new ("placed",
+					G_TYPE_FROM_CLASS (klass),
+					G_SIGNAL_RUN_LAST,
+					0, NULL, NULL, NULL,
+					G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
 GtkWidget *

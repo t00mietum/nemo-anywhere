@@ -169,6 +169,46 @@ check_position_moved_during_allocation (void)
 	rig_down (&rig);
 }
 
+static void
+count_placed (GtkWidget *paned, int position, gpointer user_data)
+{
+	int *placed = user_data;
+
+	(void) paned;
+	placed[0]++;
+	placed[1] = position;
+}
+
+/* The window saves the tree width from "placed". It used to save every
+   allocation, so a narrow window overwrote the width that had been dragged. */
+static void
+check_only_a_drag_is_placed (void)
+{
+	Rig rig;
+	int placed[2] = { 0, 0 };
+
+	rig_up (&rig, 10);
+	g_signal_connect (rig.paned, "placed", G_CALLBACK (count_placed), placed);
+	gtk_paned_set_position (GTK_PANED (rig.paned), 300);
+
+	allocate (&rig, 900);
+	check (placed[0] == 0);
+
+	allocate (&rig, 450);
+	allocate (&rig, 1800);
+	check (placed[0] == 0);
+
+	gtk_paned_set_position (GTK_PANED (rig.paned), 700);
+	allocate (&rig, 1800);
+	check (placed[0] == 1);
+	check (placed[1] == 700);
+
+	allocate (&rig, 900);
+	check (placed[0] == 1);
+
+	rig_down (&rig);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -182,6 +222,7 @@ main (int argc, char *argv[])
 	check_drag_is_remembered ();
 	check_clamp_is_not_kept ();
 	check_position_moved_during_allocation ();
+	check_only_a_drag_is_placed ();
 
 	if (failures > 0) {
 		g_printerr ("%d check(s) failed\n", failures);

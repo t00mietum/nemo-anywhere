@@ -34,7 +34,10 @@
  * resize against where the divider was last placed, so small steps add up.
  *
  * Pack child1 with resize off. With it on as well as child2's, GTK scales the
- * position again on top of this. */
+ * position again on top of this.
+ *
+ * "placed" (int position) fires when the divider moves at an unchanged width,
+ * which is a drag. Save a remembered width from it, not from size-allocate. */
 
 #ifndef NEMO_PROPORTIONAL_PANED_H
 #define NEMO_PROPORTIONAL_PANED_H
