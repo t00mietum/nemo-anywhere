@@ -862,7 +862,9 @@ static void
 destroy_children_by_function (FMTreeModel *model, TreeNode *parent, FilePredicate f)
 {
 	TreeNode *child, *next;
+	gboolean had_children;
 
+	had_children = parent->first_child != NULL;
 	for (child = parent->first_child; child != NULL; child = next) {
 		next = child->next;
 		if (f (child->file)) {
@@ -870,6 +872,14 @@ destroy_children_by_function (FMTreeModel *model, TreeNode *parent, FilePredicat
 		} else {
 			destroy_children_by_function (model, child, f);
 		}
+	}
+
+	/* Monitoring is stopped by now, so destroy_node could not tell this
+	 * from a collapse, and the folder would keep a dummy row nobody loads. */
+	if (had_children && parent->first_child == NULL && parent->directory != NULL
+	    && parent->done_loading
+	    && !directory_has_shown_files (model, parent)) {
+		set_no_subfolders (model, parent, TRUE);
 	}
 }
 

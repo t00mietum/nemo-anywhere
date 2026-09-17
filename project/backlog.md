@@ -43,12 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Turning hidden files off leaves a "Loading..." row under an open tree folder that holds only hidden folders.
-	- Opened: 20260917-060256
-	- The folder closes when its last row goes, so nothing loads it again, and it keeps an expander it should not have.
-	- Found while testing the folders-only tree. The check for it is in `test-nemo-tree-folders`, switched off until this is fixed.
-	- One fix was tried and did not take. The cause is known; detail is in the private notes.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -211,6 +205,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Turning hidden files off leaves a "Loading..." row under an open tree folder that holds only hidden folders.
+	- Opened: 20260917-060256
+	- Closed: 20260917-072556
+	- The folder closes when its last row goes, so nothing loads it again, and it keeps an expander it should not have.
+	- Found while testing the folders-only tree.
+	- One fix was tried and did not take. The cause is known; detail is in the private notes.
+	- Fixed: when hiding takes a folder's last sub-folder, the folder is now checked right then and loses its expander. The check in `test-nemo-tree-folders` is switched back on.
 
 - ✅ The tree pane keeps its width when the window is resized, instead of sharing the change in proportion.
 	- Opened: 20260916-210500
