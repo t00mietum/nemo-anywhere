@@ -4885,14 +4885,11 @@ make_link_copy (GFile         *src,
 		return FALSE;
 	}
 
+	/* Through the wrapper like every other delete here, so the guard sees it.
+	   A refusal leaves the destination where it is and the link creation below
+	   fails on it, which is the safe way round. */
 	if (overwrite) {
-		if (!nemo_delete_testguard_ask_one ("Delete (overwritten by a link)", dest)) {
-			g_free (link_path);
-			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_CANCELLED,
-					     "called off at the delete test guard");
-			return FALSE;
-		}
-		g_file_delete (dest, cancellable, NULL);
+		file_delete_wrapper (dest, cancellable, NULL);
 	}
 
 	ok = nemo_link_create (target, link_path, base_dir, kind, error);
@@ -4900,8 +4897,7 @@ make_link_copy (GFile         *src,
 
 	/* Removes the link, never what it points at. */
 	if (ok && is_move) {
-		ok = nemo_delete_testguard_ask_one ("Delete (moved-from link)", src) &&
-		     g_file_delete (src, cancellable, error);
+		ok = file_delete_wrapper (src, cancellable, error);
 	}
 
 	return ok;
