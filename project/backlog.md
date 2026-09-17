@@ -79,6 +79,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: design.md's "List view column widths" section depends on "Remember per-folder settings" existing. A hand-resized minor variable-width column is meant to persist per folder only while it is on.
 	- Created: 20260916-120249 by JC.
 	- Note: the tree view part is done, under Done. The rest is not started.
+	- Decided 20260917:
+		- "Remember per-folder settings" replaces "Ignore per-folder view preferences". While it is off, saved folder settings are not read and nothing new is saved.
+		- "Inherit view settings from parent" replaces "Inherit view type from parent". It covers all view settings, taken from the nearest parent folder that has some saved, else Default.
+		- The Current tab follows the folder in the last focused window, and shows its path.
+		- The Current tab shows what the folder actually uses. Changing a value saves the whole set for that folder and applies it at once. A "Forget" button clears what is saved.
 
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
