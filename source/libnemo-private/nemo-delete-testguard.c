@@ -24,11 +24,10 @@
 
 #include "nemo-delete-testguard.h"
 
-#if NEMO_TESTGUARD_ALL_DELETES
-
 #include <glib/gi18n.h>
 
 #include "nemo-delete-guard.h"
+#include "nemo-global-preferences.h"
 
 #if HAVE_BACKTRACE
 #include <execinfo.h>
@@ -46,6 +45,81 @@
    removal functions below it stay quiet. A job and its removals run on one
    thread, which is what makes this enough. */
 static GPrivate covered = G_PRIVATE_INIT (NULL);
+
+/* The define is the loudest of the three ways in: on, nothing quiets it. */
+static const gboolean forced_on = (NEMO_TESTGUARD_ALL_DELETES != 0);
+
+/* 1 for on, 0 for off, -1 for "said nothing". */
+static int
+parse_choice (const char *text)
+{
+	static const char *const on[]  = { "1", "true", "yes", "on", NULL };
+	static const char *const off[] = { "0", "false", "no", "off", NULL };
+	int i;
+
+	for (i = 0; on[i] != NULL; i++) {
+		if (g_ascii_strcasecmp (text, on[i]) == 0) {
+			return 1;
+		}
+	}
+
+	for (i = 0; off[i] != NULL; i++) {
+		if (g_ascii_strcasecmp (text, off[i]) == 0) {
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+/* Read once. The environment does not change under a running process, and a
+   delete is no place to be parsing strings. */
+static int
+env_choice (void)
+{
+	static gsize read_once = 0;
+	static int choice = -1;
+
+	if (g_once_init_enter (&read_once)) {
+		const char *text = g_getenv (NEMO_TESTGUARD_ENV_VAR);
+
+		if (text != NULL && *text != '\0') {
+			choice = parse_choice (text);
+			if (choice < 0) {
+				g_warning ("%s is set to \"%s\", which means neither on nor off - ignoring it",
+					   NEMO_TESTGUARD_ENV_VAR, text);
+			}
+		}
+
+		g_once_init_leave (&read_once, 1);
+	}
+
+	return choice;
+}
+
+gboolean
+nemo_delete_testguard_armed (void)
+{
+	int choice;
+
+	if (forced_on) {
+		return TRUE;
+	}
+
+	choice = env_choice ();
+	if (choice >= 0) {
+		return choice == 1;
+	}
+
+	/* A delete can be reached from local_command_line, before the settings
+	   file has been read. Nothing is stored yet, so the answer is no. */
+	if (!nemo_config_is_ready ()) {
+		return FALSE;
+	}
+
+	return nemo_config_get_boolean (nemo_config_get_group (NEMO_DEBUG_GROUP),
+					NEMO_PREFERENCES_TESTGUARD_ALL_DELETES);
+}
 
 /* Heap held, since the waiting side can give up on the timeout below while the
    dialog is still up. Whoever lets go last frees it. */
@@ -303,7 +377,7 @@ nemo_delete_testguard_ask_at (const char *op,
 {
 	gboolean go_ahead;
 
-	if (files == NULL) {
+	if (files == NULL || !nemo_delete_testguard_armed ()) {
 		return TRUE;
 	}
 
@@ -332,5 +406,3 @@ nemo_delete_testguard_ask_one_at (const char *op,
 
 	return nemo_delete_testguard_ask_at (op, &one, func, source_file, line);
 }
-
-#endif /* NEMO_TESTGUARD_ALL_DELETES */

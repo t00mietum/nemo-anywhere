@@ -32,7 +32,14 @@
  * catches a path nobody knew about. The two are kept from doubling up by a
  * thread-local mark, since a job and the removals it drives run on one thread.
  *
- * Off, none of it compiles in.
+ * Three things can arm it, and the first one that speaks wins. The define
+ * below at 1 arms every run of the build and nothing turns that off. At 0,
+ * the NEMO_TESTGUARD_ALL_DELETES environment variable decides, either way.
+ * With neither, the debug.testguard-all-deletes setting decides.
+ *
+ * It compiles in whichever way the define is set, so a build already in use
+ * can be armed without replacing it. Quiet, all it costs a delete is one
+ * boolean read.
  */
 
 #ifndef NEMO_DELETE_TESTGUARD_H
@@ -41,13 +48,19 @@
 #include <gio/gio.h>
 #include <gtk/gtk.h>
 
-/* 1 arms it. Leave at 0 for a shipping build. */
-#define NEMO_TESTGUARD_ALL_DELETES 0
+/* 1 arms every run of this build, whatever the environment or the settings
+   file say. Leave at 0 for a shipping build. */
+#define NEMO_TESTGUARD_ALL_DELETES 1
 
-#if NEMO_TESTGUARD_ALL_DELETES
+/* 1/true/yes/on, or 0/false/no/off. Beats the setting in both directions, so
+   a run can be quieted as well as armed. */
+#define NEMO_TESTGUARD_ENV_VAR "NEMO_TESTGUARD_ALL_DELETES"
 
-/* TRUE to go ahead, FALSE if it was called off. `op` is what to call the
- * operation in the dialog, such as "Move to trash". */
+/* Whether this run asks. Cheap enough to call per file. */
+gboolean nemo_delete_testguard_armed    (void);
+
+/* TRUE to go ahead, FALSE if it was called off. Quiet, both say go ahead.
+ * `op` is what to call the operation in the dialog, such as "Move to trash". */
 gboolean nemo_delete_testguard_ask_at   (const char *op,
 					 GList      *files,
 					 const char *func,
@@ -69,14 +82,5 @@ void     nemo_delete_testguard_end      (void);
 
 #define nemo_delete_testguard_ask_one(op, file) \
 	nemo_delete_testguard_ask_one_at ((op), (file), G_STRFUNC, __FILE__, __LINE__)
-
-#else
-
-#define nemo_delete_testguard_ask(op, files)   TRUE
-#define nemo_delete_testguard_ask_one(op, file) TRUE
-#define nemo_delete_testguard_begin()          ((void) 0)
-#define nemo_delete_testguard_end()            ((void) 0)
-
-#endif /* NEMO_TESTGUARD_ALL_DELETES */
 
 #endif /* NEMO_DELETE_TESTGUARD_H */

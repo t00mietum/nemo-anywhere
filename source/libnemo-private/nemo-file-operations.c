@@ -1906,12 +1906,10 @@ confirm_delete (CommonJob *job,
 		gboolean   from_trash,
 		gboolean   directly)
 {
-#if NEMO_TESTGUARD_ALL_DELETES
-	(void) from_trash;
-	(void) directly;
+	if (nemo_delete_testguard_armed ()) {
+		return nemo_delete_testguard_ask ("Delete", files);
+	}
 
-	return nemo_delete_testguard_ask ("Delete", files);
-#else
 	if (from_trash) {
 		return confirm_delete_from_trash (job, files);
 	}
@@ -1921,17 +1919,16 @@ confirm_delete (CommonJob *job,
 	}
 
 	return TRUE;
-#endif
 }
 
 static gboolean
 confirm_trash (CommonJob *job, GList *files)
 {
-#if NEMO_TESTGUARD_ALL_DELETES
-	return nemo_delete_testguard_ask ("Move to trash", files);
-#else
+	if (nemo_delete_testguard_armed ()) {
+		return nemo_delete_testguard_ask ("Move to trash", files);
+	}
+
 	return confirm_move_to_trash (job, files);
-#endif
 }
 
 static void
@@ -7509,17 +7506,16 @@ empty_trash_job (GIOSchedulerJob *io_job,
 
     nemo_progress_info_start (common->progress);
 
-#if NEMO_TESTGUARD_ALL_DELETES
-	/* Asked whatever the preference says, since a quiet empty is one of the
-	   things being looked for. */
-	confirmed = nemo_delete_testguard_ask ("Empty trash", job->trash_dirs);
-#else
-	if (job->should_confirm && !job_aborted (common)) {
+	if (nemo_delete_testguard_armed ()) {
+		/* Asked whatever the preference says, since a quiet empty is one of
+		   the things being looked for. */
+		confirmed = nemo_delete_testguard_ask ("Empty trash", job->trash_dirs);
+	} else if (job->should_confirm && !job_aborted (common)) {
 		confirmed = confirm_empty_trash (common);
 	} else {
 		confirmed = TRUE;
 	}
-#endif
+
 	if (confirmed) {
 		nemo_progress_info_set_status (common->progress, _("Emptying Trash"));
 		nemo_progress_info_set_details (common->progress, _("Emptying Trash"));

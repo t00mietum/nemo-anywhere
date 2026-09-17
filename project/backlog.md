@@ -61,7 +61,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Put the delete test guard's compile-time arm back to 0 before the next release.
+	- Opened: 20260917-125536
+	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
+	- At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
+	- The arming-order test skips while the define is 1, since there is nothing left for it to decide.
+
 - 🔘 Put in the title, not just the path, but "Nemo Anywhere - 'PATH'".
+
+- 🔘 Archive dialog: Add an option - off by default - to delete what contents were archived, once archive is successfully created, and contents verified by relative pathname and file sizes.
 
 - 🔘 Write the public UI and UX style guide.
 	- Opened: 20260908-133615
@@ -2478,6 +2486,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: workflows and issue templates removed in the fork-setup commit.
 
 ### Future and/or deferred
+
+- ✋ Make regular delete/recycle/overwrite confirmation dialogs default to OK.
+	- This reverses the earlier design intended to guard against an apparent spontaneous deletion bug.
+	- Don't alter the code that optionally provides ultra-protection by showing what will be deleted, how it was invoked, what files, etc.
+	- Only do this once nemo-anywhere has been in reliable use for many days or weeks, including archiving.
 
 - ✋ Make the CICD test gate resilient to a down or absent docker daemon.
 	- Opened: 20260721-222522
