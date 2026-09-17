@@ -598,6 +598,15 @@ test('Path shorten test',
   args: []
 )
 
+test('Window title test',
+  executable('test-nemo-window-title',
+    [ 'test-nemo-window-title.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Command template test',
   executable('test-nemo-command-template',
     [ 'test-nemo-command-template.c' ],

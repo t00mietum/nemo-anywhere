@@ -65,6 +65,10 @@ static GFile *nemo_find_file_insensitive_next (GFile *parent, const gchar *name)
 /* Roughly what fits a tab before the label starts being cut off anyway. */
 #define TITLE_PATH_LIMIT 52
 
+/* How much of the folder part of a window title survives. Long enough that a
+   deep path with the full-path preference on still reads. */
+#define WINDOW_TITLE_LIMIT 180
+
 char *
 nemo_compute_title_for_location (GFile *location)
 {
@@ -121,6 +125,26 @@ nemo_compute_title_for_location (GFile *location)
         g_free (builder);
     }
     return title;
+}
+
+/* The window title names the program as well as the folder, so a taskbar button
+   or a window switcher tells our window from any other file manager's. The tabs
+   keep the bare folder title, since the window around them already says it. */
+char *
+nemo_compute_window_title (const char *location_title)
+{
+	char *shortened;
+	char *title;
+
+	if (location_title == NULL || *location_title == '\0') {
+		return g_strdup (_("Nemo Anywhere"));
+	}
+
+	shortened = eel_str_middle_truncate (location_title, WINDOW_TITLE_LIMIT);
+	title = g_strdup_printf (_("Nemo Anywhere - '%s'"), shortened);
+	g_free (shortened);
+
+	return title;
 }
 
 // TODO: Maybe this can replace nemo_compute_title_for_location() all around?
