@@ -1188,9 +1188,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Search results follow the same rule as any folder. The separate Name and Location split is gone, and so is `search.name-location-split`.
 		- Name's hundred-pixel floor is gone. The header text is the only floor now.
 		- A hand drag lasts while the folder is in view. `list-view.column-max-widths` is gone. A minor column's width is saved with the folder's settings instead, when "Remember per-folder settings" is on.
-	- Two places where the section is at odds with itself. Both were built the way that reading of it makes sense, and the section still needs a line changed:
-		- Fixed-width columns are said not to be resizable by hand, and are then given a rule for what a hand resize does. They are not resizable; the resize line under that class should go.
-		- The minor class points at the primary class's "Default width if room" for a formula and a percentage, but that rule has no percentage in it. Read as the "Min width" formula: a minor column is at the 50% share at its narrowest, the `list-view.column-fit-percent` share by default, and all of its values at its widest.
+	- Two places where the section was at odds with itself, built the way that reading of it makes sense and reworded in design.md on 20260917 to say so:
+		- Fixed-width columns were said not to be resizable by hand, and were then given a rule for what a hand resize does. They are not resizable, and that stale resize line is gone.
+		- The minor class pointed at the primary class's "Default width if room" for a formula and a percentage, but that rule has no percentage in it. It points at "Min width" now: a minor column is at the 50% share at its narrowest, the `list-view.column-fit-percent` share by default, and all of its values at its widest.
 	- Settled 20260916: "Remember per-folder settings" is a new setting rather than a missing one, specced on the "Changes to Preferences|Views" item. Until it is built, the clause it gates cannot be implemented.
 		- Per-folder view state already persists as file metadata - visible columns, column order, sort column and direction, zoom, view type. Column widths are the one thing not stored, so that key has to be added.
 	- Note 20260917: "Remember per-folder settings" is built, so this is no longer blocked.

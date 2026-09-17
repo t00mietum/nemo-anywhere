@@ -361,7 +361,7 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 ### List view column widths
 
-This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. This should be treated (and updated) as THE canonical, precise, complete, conflict-free definition. It describes where the behavior is going, so where the code differs it is the code that moves; the differences open today, including two places where the section is at odds with itself, are listed against the conformance item in [backlog.md](backlog.md). The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
+This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. This should be treated (and updated) as THE canonical, precise, complete, conflict-free definition. It describes where the behavior is going, so where the code differs it is the code that moves. The code has matched it since 2026-09-17. The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
 
 - There are three "classes" of columns, for width sizing:
 	- The minimum column width that overrides all minimum-width definitions below: Column header text.
@@ -384,15 +384,15 @@ This rule has been rewritten several times and will probably move again, so the 
 		- These columns don't resize, and can't even be manually resized.
 		- Sized to fit the longest value displayed, plus one character of air on the right.
 		- Examples: All date/time-related columns, octal and *nix-style permissions
-		- Manual resize: Only persists for the current folder view. If navigated away and then back, it resets to this described default.
+		- Manual resize: Not offered. There is no grip on the column edge to drag.
 	- Minor variable-width class:
 		- All other columns
 		- Min width:
-			- Uses the same formula as "Default width if room" for [Primary variable-width class], but for the shortest 50%, plus one character of air on the right.
+			- Uses the same formula as "Min width" for [Primary variable-width class], but for the shortest 50%, plus one character of air on the right.
 			- Plus ellipses for values that are too short - except for columns that are already very narrow (e.g. Ext with only 1 to 4 character extensions.)
 			- Plus one character of air on the right.
 		- Default width if room:
-			- Default size: Same formula and % as "Default width if room" for [Primary variable-width class], plus one character of air on the right.
+			- Default size: Same formula and % as "Min width" for [Primary variable-width class], plus one character of air on the right.
 		- Max width:
 			- The width that shows all of the values for the column, plus one character of air on the right.
 		- Manual resize: Persists for that folder view if "remember per-folder settings" is enabled (off by default), unless manually reset to default view by user.
