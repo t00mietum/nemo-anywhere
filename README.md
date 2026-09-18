@@ -163,6 +163,8 @@ Details:
 
 - Code style: [project/style-guide_code.md](project/style-guide_code.md)
 
+- UI style: [project/style-guide_ui.md](project/style-guide_ui.md)
+
 ## Icon themes
 
 Twenty-three icon sets ship inside the application - light and dark, and no download. Pick one in **Preferences -> Appearance**; the Style picker moves the Icons picker to match, so a Windows 11 window frame does not come with macOS icons unless you ask for it.

@@ -66,10 +66,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
 
-- 🔘 Write the public UI and UX style guide.
-	- Opened: 20260908-133615
-	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
-
 - 🔘 Fill the gaps in design.md.
 	- Opened: 20260908-133615
 	- Missing: a status and revision block, the non-functional requirements (startup time, memory, listing speed on a large folder), a security section, what the program logs and how to turn it up, and any diagram at all.
@@ -1239,6 +1235,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Write the public UI and UX style guide.
+	- Opened: 20260908-133615
+	- Closed: 20260917-182027
+	- `project/style-guide_code.md` covers the code. Nothing yet covers dialog layout, sentence case, when a prompt is warranted, keyboard behavior or icon use, all of which the lint gate half-enforces already without saying why.
+	- Done: `project/style-guide_ui.md`. It collects the rules the closed items settled one at a time, with the reason for each, and says which of them a check enforces. Linked from the README and the code guide.
 
 - ✅ Archive dialog: Add an option - off by default - to delete what contents were archived, once archive is successfully created, and contents verified by relative pathname and file sizes.
 	- Opened: n/a
