@@ -1554,7 +1554,6 @@ synch_groups_combo_box (GtkComboBox *combo_box, NemoFile *file)
 	GtkListStore *store;
 	const char *group_name;
 	char *current_group_name;
-	int group_index;
 	int current_group_index;
 
 	g_assert (GTK_IS_COMBO_BOX (combo_box));
@@ -1577,7 +1576,7 @@ synch_groups_combo_box (GtkComboBox *combo_box, NemoFile *file)
 		 */
 		gtk_list_store_clear (store);
 
-		for (node = groups, group_index = 0; node != NULL; node = node->next, ++group_index) {
+		for (node = groups; node != NULL; node = node->next) {
 			group_name = (const char *)node->data;
 			gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo_box), group_name);
 		}
@@ -1870,7 +1869,6 @@ synch_user_menu (GtkComboBox *combo_box, NemoFile *file)
 	GtkTreeIter iter;
 	char *user_name;
 	char *owner_name;
-	int user_index;
 	int owner_index;
 	char **name_array;
 	char *combo_text;
@@ -1895,7 +1893,7 @@ synch_user_menu (GtkComboBox *combo_box, NemoFile *file)
 		 */
 		gtk_list_store_clear (store);
 
-		for (node = users, user_index = 0; node != NULL; node = node->next, ++user_index) {
+		for (node = users; node != NULL; node = node->next) {
 			user_name = (char *)node->data;
 
 			name_array = g_strsplit (user_name, "\n", 2);
