@@ -69,6 +69,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Hi-DPI testing: Make sure preferences dialog box fits on the screen. (Or shrink and use scrollbars if not.)
+
 - 🔘 Put the delete test guard's compile-time arm back to 0 before the next release.
 	- Opened: 20260917-125536
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
