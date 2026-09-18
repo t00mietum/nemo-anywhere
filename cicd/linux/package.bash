@@ -130,9 +130,9 @@ deb_depends(){
 	local line=""
 
 	if docker exec "$CONTAINER" true 2>/dev/null; then
-		## -l for the prefix's own lib dir, so the bundled extension library
-		## resolves; --ignore-missing-info so it is then skipped rather than
-		## treated as an unpackaged dependency and made fatal.
+		## -l for the prefix's own lib dir, if the build has one, so a bundled
+		## extension library resolves; --ignore-missing-info so it is then
+		## skipped rather than treated as an unpackaged dependency and made fatal.
 		line="$(docker exec -i "$CONTAINER" sh -c '
 			set -e
 			d=$(mktemp -d); cd "$d"
@@ -142,7 +142,9 @@ deb_depends(){
 			printf "Source: pkg\n\nPackage: pkg\nArchitecture: any\n" > debian/control
 			: > debian/pkg.substvars
 			libargs=""
-			for ld in lib/*/; do [ -d "$ld" ] && libargs="$libargs -l$PWD/$ld"; done
+			for ld in lib/*/; do
+				if [ -d "$ld" ]; then libargs="$libargs -l$PWD/$ld"; fi
+			done
 			dpkg-shlibdeps -O --ignore-missing-info $libargs \
 				-Tdebian/pkg.substvars bin/* 2>/dev/null
 		' < "$tarball" | sed -n 's/^shlibs:Depends=//p' | head -1)" || line=""

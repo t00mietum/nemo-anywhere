@@ -43,6 +43,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 The document search helper for old Office files checks the wrong thing after a read.
+	- Opened: 20260918-112900
+	- `nemo-mso-to-txt.c` tests the buffer it just read into for NULL, which is never true, instead of what the read returned. A failed read is then treated as text. The compiler warns about it on a fresh build.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -65,11 +69,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260917-125536
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
-
-- 🛠️ Cut the Linux drop down toward a single file.
-	- Opened: 20260908-000856
-	- Note: the first pass, from 102 files down to 44, is under Done.
-	- Static-linking the extension library is specced, not decided.
 
 - 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
 	- Opened: 20260908-021923 by JC.
@@ -1265,6 +1264,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Cut the Linux drop down toward a single file.
+	- Opened: 20260908-000856
+	- Closed: 20260918-112900
+	- Note: the first pass, from 102 files down to 44, is under Done.
+	- Done: the release build folds the extension library into the program, which exports the same API to extensions. The `lib/` folder is gone from the drop.
+	- Done: the compiled resources moved into the program on every platform. They were most of the old library's size.
+	- A default build still makes the shared library, for anyone building extensions against it. A new test loads a stand-in extension against either kind of build.
 
 - ✅ Fill the gaps in design.md.
 	- Opened: 20260908-133615

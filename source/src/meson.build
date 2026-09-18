@@ -135,16 +135,17 @@ if is_windows
   )
 endif
 
-# gresources rides with the executable on Windows, where the extension library is
-# static and the linker would otherwise drop the self-registering resource object.
+# The resources ride with the executable. They register from a constructor that
+# nothing calls by name, so out of a static library the linker drops them, and
+# in the shared one they were most of its size.
 nemo = executable('nemo-anywhere',
   nemoCommon_sources + nemoWindow_sources + nemo_win_res +
-    (is_windows ? gresources + themeGresources : []),
+    gresources + themeGresources,
   include_directories: [ rootInclude ],
   c_args: nemo_definitions,
   dependencies: nemo_deps,
   # GUI subsystem so Windows doesn't spawn a console window (no-op elsewhere)
   win_subsystem: 'windows',
   install: true,
-  install_rpath: is_windows ? '' : nemoRpath,
+  install_rpath: extensionShared ? nemoRpath : '',
 )

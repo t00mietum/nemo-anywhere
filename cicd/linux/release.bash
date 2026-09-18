@@ -89,7 +89,7 @@ fEcho "Building ${SLUG} ${ver} (linux-${arch})"
 docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 	set -e
 	if [ -d ${BUILD} ]; then reconf=--reconfigure; else reconf=; fi
-	meson setup \$reconf --buildtype=release -Dstrip=true -Dprefix=/opt/${SLUG} ${BUILD} /src/source >/dev/null
+	meson setup \$reconf --buildtype=release -Dstrip=true -Dextension_library=static -Dprefix=/opt/${SLUG} ${BUILD} /src/source >/dev/null
 	ninja -C ${BUILD} -j ${jobs}" | tail -1
 
 fEcho_Clean ""
@@ -99,6 +99,10 @@ smoke="$(docker exec "$CONTAINER" xvfb-run -a "${BUILD}/src/${SLUG}" --version)"
 ## on every reconfigure. An exact match here silently failed every release for a week.
 [[ "$smoke" == "${SLUG} v${ver} build "* ]] || fDie "smoke test said '${smoke}', expected '${SLUG} v${ver} build <n>'"
 fEcho_Clean "$smoke"
+## The extension API lives in the exe in this build, and nothing else in the
+## lane would notice if an extension could no longer reach it.
+docker exec "$CONTAINER" meson test -C "$BUILD" --no-rebuild "Extension load test" >/dev/null \
+	|| fDie "extension load test failed; see ${BUILD}/meson-logs/testlog.txt in ${CONTAINER}"
 
 fEcho_Clean ""
 fEcho "Staging prefix"
