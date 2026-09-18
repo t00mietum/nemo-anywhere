@@ -143,7 +143,7 @@ How theme lookup works is in [design.md, Appearance and themes](design.md#appear
 
 - `cicd/utility/lint-ui-case.py` checks every translatable string in the tree for sentence case. It runs from `cicd/utility/lint-c.bash` and fails the gate. A name that trips it goes in its `NAMES` list, and a whole string it reads wrong goes in `KEEP`, each with a one-line reason.
 
-- `lint-c.bash` also fails if a delete or an overwrite in `nemo-file-operations.c` can get past the delete guards without being seen.
+- `lint-c.bash` also fails if a delete or an overwrite in `nemo-file-operations.c` can get past the delete guards without being seen. It also fails if something other than a window could start a trash, delete or move, such as a new bus method.
 
 - `test-nemo-prefs-widgets` fails if a preferences widget the code looks up by name has gone missing from the layout file.
 

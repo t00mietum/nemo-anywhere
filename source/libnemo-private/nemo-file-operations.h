@@ -70,7 +70,6 @@ void nemo_file_operations_copy_file (GFile *source_file,
 					 GtkWindow *parent_window,
 					 NemoCopyCallback done_callback,
 					 gpointer done_callback_data);
-void nemo_file_operations_empty_trash (GtkWidget                 *parent_view);
 void nemo_file_operations_empty_trash_by_user (GtkWidget         *parent_view);
 gboolean nemo_file_operations_empty_trash_asks (gboolean          by_user);
 void nemo_file_operations_new_folder  (GtkWidget                 *parent_view,
@@ -94,6 +93,9 @@ void nemo_file_operations_new_file_from_template (GtkWidget               *paren
 						      NemoCreateCallback   done_callback,
 						      gpointer                 data);
 
+/* Only for a trash or delete that follows from something done in a window,
+   such as undo or a drop. These always ask. Nothing outside a window may start
+   one, and lint-c.bash holds the list of callers. */
 void nemo_file_operations_delete          (GList                  *files,
 					       GtkWindow              *parent_window,
 					       NemoDeleteCallback  done_callback,
@@ -104,7 +106,7 @@ void nemo_file_operations_trash_or_delete (GList                  *files,
 					       gpointer                done_callback_data);
 
 /* The same two, for a trash or delete a person asked for with a command in a
-   window. Anything else counts as unasked and always confirms. */
+   window. Only these may skip the question when the preferences say so. */
 void nemo_file_operations_delete_by_user          (GList                  *files,
 						   GtkWindow              *parent_window,
 						   NemoDeleteCallback  done_callback,

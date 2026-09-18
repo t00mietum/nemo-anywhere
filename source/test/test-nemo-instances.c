@@ -1,5 +1,6 @@
 /* Two launches are two processes that both stay up, a crash in one leaves the
- * others running, and --quit takes every one of them down. Needs the built
+ * others running, and --quit takes every one of them down. Nothing on the bus
+ * may copy, move, trash or delete. Needs the built
  * program (argv[1]) and a display; without a display it skips. The crash and
  * --quit halves need a session bus, and start one if the environment has none. */
 
@@ -9,6 +10,7 @@
 #include <glib/gstdio.h>
 
 #include <signal.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -133,6 +135,23 @@ wait_owner_change (GDBusConnection *bus, const char *was, int seconds)
  * halves used to skip on each run and still say OK. Start a real bus and come
  * back in, rather than report a pass on a test that mostly did not happen.
  * The variable being set proves nothing, so this asks the bus instead. */
+static char *
+introspect (GDBusConnection *bus, const char *unique, const char *path)
+{
+	GVariant *reply;
+	char *xml = NULL;
+
+	reply = g_dbus_connection_call_sync (bus, unique, path,
+					     "org.freedesktop.DBus.Introspectable", "Introspect",
+					     NULL, G_VARIANT_TYPE ("(s)"),
+					     G_DBUS_CALL_FLAGS_NONE, 5000, NULL, NULL);
+	if (reply != NULL) {
+		g_variant_get (reply, "(s)", &xml);
+		g_variant_unref (reply);
+	}
+	return xml;
+}
+
 static void
 ensure_session_bus (int argc, char *argv[])
 {
@@ -221,6 +240,23 @@ main (int argc, char *argv[])
 	check (held != NULL);
 	if (held == NULL) {
 		goto out;
+	}
+
+	/* The file operations interface left over from the Nemo desktop let any
+	 * program copy, move or empty the trash. Only asked about, never called,
+	 * so a build that still has it cannot empty a trash here. */
+	{
+		const char *paths[] = { "/org/Nemo", "/org/NemoAnywhere", "/", NULL };
+		int i;
+
+		for (i = 0; paths[i] != NULL; i++) {
+			char *xml = introspect (bus, held, paths[i]);
+
+			check (xml == NULL || strstr (xml, "FileOperations") == NULL);
+			check (xml == NULL || strstr (xml, "EmptyTrash") == NULL);
+			check (xml == NULL || strstr (xml, "MoveURIs") == NULL);
+			g_free (xml);
+		}
 	}
 
 	/* Anything but one of ours and there is nothing safe to signal: pid 0 is

@@ -162,7 +162,6 @@ typedef struct {
 	CommonJob common;
 	GList *trash_dirs;
 	gboolean should_confirm;
-	gboolean unattended;	/* no empty trash command behind it */
 	NemoOpCallback done_callback;
 	gpointer done_callback_data;
 } EmptyTrashJob;
@@ -1727,7 +1726,7 @@ static char *
 unattended_note (CommonJob *job, const char *secondary)
 {
 	if (((DeleteJob *) job)->unattended) {
-		return f (_("This did not come from a trash or delete command. It may have come from undo, a drop, another program or a timer. %s"), secondary);
+		return f (_("This did not come from a trash or delete command. It came from undo, a drop or another command in a window. %s"), secondary);
 	}
 
 	return f ("%s", secondary);
@@ -1793,8 +1792,8 @@ should_confirm_trash (void)
 }
 
 /* Emptying the trash cannot be taken back, so only the command in a window may
-   skip the question when the preference says to. The bus can ask for it too,
-   and that asks regardless, the same as a trash or delete nobody asked for. */
+   skip the question when the preference says to. That command is the only way
+   in now, since nothing outside a window may start one. */
 gboolean
 nemo_file_operations_empty_trash_asks (gboolean by_user)
 {
@@ -1846,7 +1845,7 @@ confirm_empty_trash (CommonJob *job)
 	char *prompt;
 	int response;
 
-	if (!nemo_file_operations_empty_trash_asks (!((EmptyTrashJob *) job)->unattended)) {
+	if (!nemo_file_operations_empty_trash_asks (TRUE)) {
 		return TRUE;
 	}
 
@@ -1854,9 +1853,7 @@ confirm_empty_trash (CommonJob *job)
 
 	response = run_warning (job,
 				prompt,
-				((EmptyTrashJob *) job)->unattended
-					? f (_("This did not come from an empty trash command. It may have come from another program. All items in the Trash will be permanently deleted."))
-					: f (_("All items in the Trash will be permanently deleted.")),
+				f (_("All items in the Trash will be permanently deleted.")),
 				NULL,
 				FALSE,
 				GTK_STOCK_CANCEL, _("Empty _Trash"),
@@ -2647,8 +2644,6 @@ trash_or_delete_internal (GList                  *files,
 			  gpointer                done_callback_data)
 {
 	DeleteJob *job;
-
-	/* TODO: special case desktop icon link files ... */
 
 	job = op_job_new (DeleteJob, parent_window);
 	job->files = eel_g_object_list_copy (files);
@@ -7610,8 +7605,11 @@ empty_trash_job (GIOSchedulerJob *io_job,
 	return FALSE;
 }
 
-static void
-empty_trash_start (GtkWidget *parent_view, gboolean unattended)
+/* From the empty trash command in a window. There is no other way to start
+   one: the bus method that could was removed along with the rest of that
+   interface. */
+void
+nemo_file_operations_empty_trash_by_user (GtkWidget *parent_view)
 {
 	EmptyTrashJob *job;
 	GtkWindow *parent_window;
@@ -7628,7 +7626,6 @@ empty_trash_start (GtkWidget *parent_view, gboolean unattended)
 	job->trash_dirs = g_list_prepend (job->trash_dirs,
 					  g_file_new_for_uri ("trash:"));
 	job->should_confirm = TRUE;
-	job->unattended = unattended;
 
 	event = gtk_get_current_event ();
 	trigger = describe_event (event);
@@ -7636,8 +7633,7 @@ empty_trash_start (GtkWidget *parent_view, gboolean unattended)
 		gdk_event_free (event);
 	}
 	title = parent_window != NULL ? gtk_window_get_title (parent_window) : NULL;
-	nemo_delete_guard_log ("empty trash (%s, %s, window \"%s\")",
-			       unattended ? "no empty trash command" : "empty trash command",
+	nemo_delete_guard_log ("empty trash (%s, window \"%s\")",
 			       trigger, title != NULL ? title : "none");
 	g_free (trigger);
 
@@ -7646,20 +7642,6 @@ empty_trash_start (GtkWidget *parent_view, gboolean unattended)
     generate_initial_job_details (job->common.progress, OP_KIND_EMPTY_TRASH, NULL, NULL);
 
     add_job_to_job_queue (empty_trash_job, job, job->common.cancellable, job->common.progress, OP_KIND_EMPTY_TRASH);
-}
-
-/* From the empty trash command in a window, which is a person asking. */
-void
-nemo_file_operations_empty_trash_by_user (GtkWidget *parent_view)
-{
-	empty_trash_start (parent_view, FALSE);
-}
-
-/* From anywhere else, such as the bus. Asks whatever the preference says. */
-void
-nemo_file_operations_empty_trash (GtkWidget *parent_view)
-{
-	empty_trash_start (parent_view, TRUE);
 }
 
 static gboolean

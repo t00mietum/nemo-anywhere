@@ -54,7 +54,6 @@
 #include "nemo-window-slot.h"
 #include "nemo-statusbar.h"
 
-#include <libnemo-private/nemo-dbus-manager.h>
 #include <libnemo-private/nemo-directory-private.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file-operations.h>

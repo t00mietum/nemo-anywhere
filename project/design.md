@@ -344,7 +344,9 @@ Trashing and deleting are the two things a file manager cannot take back, so the
 
 - A job that would take most of what sits directly in home is refused outright, not asked about. Nobody clears a home folder from a file manager on purpose, and a question is one Enter away from yes.
 
-- Only the trash and delete commands in a window count as a person asking. Anything else, such as undo, a drop or another program, always asks first whatever the preference says, and the question says so. This used to be inferred from whether an input event was in flight, which any unrelated key or click could satisfy.
+- Nothing outside a window can trash, delete, move or empty the trash. Each of those starts from something done in a window: a command, a drop, undo, or a button in the preferences. The bus interface that let other programs copy, move and empty the trash came from the Nemo desktop, and was removed. `cicd/utility/lint-c.bash` keeps three lists: the files allowed to start one of these jobs, the bus methods, and the files allowed a raw delete. That last list only touches the app's own files, such as the settings on `--reset`, the thumbnail cache and old crash reports.
+
+- Only the trash and delete commands in a window count as a person asking. Anything else, such as undo or a drop, always asks first whatever the preference says, and the question says so. This used to be inferred from whether an input event was in flight, which any unrelated key or click could satisfy.
 
 - A job of `confirm-many-items` or more asks even with confirmation switched off. Twenty by default, and zero turns it off. A slip that takes one file is a nuisance; one that takes a folder is a day.
 
@@ -504,7 +506,7 @@ Each window is its own process by default, and every launch is a fresh one. A cr
 
 - A selection has to be sayable on a command line for another process to show it, so `--select` takes the folder around an item with the item selected. "Show in folder" from other programs goes through it.
 
-- D-Bus needed no per-platform gating. GLib autolaunches a per-user session bus on Windows as well, shared across processes, so the two D-Bus services - the freedesktop file-manager interface and the internal file-operations one - get a real connection everywhere. The only case needing work was having no bus at all, on a headless or locked-down machine: the file-operations service, which only ever serves other processes, must simply not set itself up rather than fail.
+- D-Bus needed no per-platform gating. GLib autolaunches a per-user session bus on Windows as well, shared across processes, so the freedesktop file-manager interface gets a real connection everywhere.
 
 Paths and platform behavior:
 
@@ -558,7 +560,7 @@ What it does not do:
 
 - It never elevates itself. Open as Administrator on Windows and Open as Root on Linux start a new copy through UAC or pkexec, which ask in their own right. The copy that asked stays as it was.
 
-Other programs on the session bus can reach two interfaces. The freedesktop one only shows folders and properties. Ours can copy, move and empty the trash. A request from the bus is not a person at a window, so anything that removes files asks first whatever the preferences say, the same as a trash or delete no command asked for.
+Other programs on the session bus can reach one interface, the freedesktop one, which only shows folders and properties. Nothing on the bus can copy, move, trash or delete. Nemo's own interface for that served its desktop, and it was removed.
 
 Extensions and actions run with the user's rights. An extension is loaded into the process and can do anything the program can, so one is only worth installing from someone trusted with that much. A command line kept in the settings file is run as written.
 
