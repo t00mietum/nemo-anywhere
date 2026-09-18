@@ -8,8 +8,9 @@
 ##	- Runs INSIDE the build container (meson, glib-compile-schemas and
 ##	  gtk-update-icon-cache all have to be the ones the build used).
 ##	- One executable, at bin/nemo-anywhere, with no wrapper script in front of it.
-##	  It points XDG_DATA_DIRS and PATH at its own folder on startup and finds the
-##	  extension library through an $ORIGIN rpath, so the prefix runs from anywhere.
+##	  It points XDG_DATA_DIRS and PATH at its own folder on startup, and the release
+##	  build carries the extension API inside it, so the prefix runs from anywhere.
+##	  A build with the shared extension library finds it through an $ORIGIN rpath.
 ##	- Syntax: stage-prefix.bash <build-dir> <dest-dir>   (dest is wiped and rebuilt)
 
 ##	Copyright (c) 2026 Bubbles
@@ -66,7 +67,10 @@ gtk-update-icon-cache -qtf "${DEST}/share/icons/hicolor" 2>/dev/null || true
 ## Nothing here is meant to be built against - the SDK headers, pkg-config files and
 ## the .so devel symlink only matter to someone compiling an extension.
 rm -rf "${DEST}/include" "${DEST}"/lib/*/pkgconfig
-find "${DEST}/lib" -maxdepth 2 -type l -name "lib${SLUG}-extension.so" -delete
+if [[ -d "${DEST}/lib" ]]; then
+	find "${DEST}/lib" -maxdepth 2 -type l -name "lib${SLUG}-extension.so" -delete
+	find "${DEST}/lib" -type d -empty -delete
+fi
 
 ## Files no program reads unless they sit under a system data dir. This prefix is
 ## relocatable and the packages put it under /opt, so in every artifact we ship

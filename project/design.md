@@ -147,7 +147,7 @@ Measured on 2026-09-17 with the Linux release build on a desktop machine. Each i
 
 - On Windows the packed exe took 3.4 s to start on 2026-08-19. It had been 14.2 s, nearly all of it the packer handling a couple of thousand small theme files before any of our code ran, until the themes were compiled in.
 
-- Size: the Linux drop is 44 files and 3.4 MB, 2.5 MB of it the program. The packed Windows exe is about 38 MB, most of it the GTK runtime.
+- Size: the Linux drop is 43 files and 3.4 MB, 3.1 MB of it the program. The packed Windows exe is about 38 MB, most of it the GTK runtime.
 
 ## Architecture
 
@@ -191,7 +191,7 @@ Inside `source/` there are four layers, bottom to top, each depending only on wh
 
 - `eel/` - a small widget and utility library inherited from the fork's ancestry: string and GTK helpers, stock dialogs, the editable label and the canvas the icon view draws on. It knows nothing about files or settings, which is why the couple of desktop-integration helpers living here read the desktop's own settings directly instead of asking the config store.
 
-- `libnemo-extension/` - the public plugin interface, and nothing else. The interfaces a third-party extension implements (menu provider, column provider, property page, info provider) and the small value types they exchange. It is a standalone shared library with its own headers, so it depends on GTK and on none of our other code.
+- `libnemo-extension/` - the public plugin interface, and nothing else. The interfaces a third-party extension implements (menu provider, column provider, property page, info provider) and the small value types they exchange. It has its own headers and depends on GTK and on none of our other code. A default build makes it a shared library for extensions to link against. The release build folds it into the program, which then exports the same API itself, so an extension loads against either one.
 
 - `libnemo-private/` - the model. Files and directories with their asynchronous attribute loading, the file operations engine, search, thumbnails, favorites, the settings store, the per-file metadata store, and the platform backends for trash, network and shell integration. No window or view lives here.
 
@@ -589,6 +589,8 @@ Stock Debian 13 is the known-good baseline, in `cicd/linux/Dockerfile.dev` (imag
 
 - The binary is at `build/src/nemo-anywhere`. There is no second desktop-drawing binary.
 
+- `-Dextension_library=static` builds the extension API into the program, the way the release does. The default, `shared`, installs it as a library with headers and a pkg-config file for extensions to build against.
+
 - The action layout editor is a separate PyGObject script rather than part of the program, so at run time it wants `python3-gi`, `python3-gi-cairo` and `gir1.2-gtk-3.0`. Nothing else needs them, and without them only that one window is missing.
 
 Release builds do not use this container. They are built against an older glibc, for reasons under [Release artifacts and packaging](#release-artifacts-and-packaging).
@@ -695,7 +697,7 @@ Linux is a thin relocatable prefix of a couple of MB that uses the distro's own 
 
 - It is built in an Ubuntu 22.04 container, never the day-to-day Debian 13 one. A binary's glibc floor is whatever it was built against, so a release built on Debian 13 would refuse to start on anything older than 2025. The floor is therefore glibc 2.35 and GTK 3.24.33, which reaches Ubuntu 22.04, Debian 12, Mint 21 and Fedora 36 onward.
 
-- What makes it relocatable: the program works out where it is and points `XDG_DATA_DIRS` and `PATH` at the folder it sits in, at startup, before anything reads them. The extension library is found through an `$ORIGIN` rpath. Everything looked up through the XDG data dirs - actions, search helpers, icons, mime info - then resolves wherever the folder was installed. There used to be a shell wrapper in `bin/` doing that with the real binary hidden in `libexec/`; two files where one would do, so it went.
+- What makes it relocatable: the program works out where it is and points `XDG_DATA_DIRS` and `PATH` at the folder it sits in, at startup, before anything reads them. The extension API is inside the program, so there is no `lib/` folder to find. Everything looked up through the XDG data dirs - actions, search helpers, icons, mime info - then resolves wherever the folder was installed. There used to be a shell wrapper in `bin/` doing that with the real binary hidden in `libexec/`; two files where one would do, so it went.
 
 - The D-Bus activation file is written at startup rather than installed, into the user's own service directory. It has to name an absolute path, and a portable copy does not have one until it runs.
 

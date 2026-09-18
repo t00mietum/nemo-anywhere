@@ -757,6 +757,24 @@ if is_windows
   )
 endif
 
+# Windows loads no extensions. The module is left unlinked on purpose; see its
+# header.
+if not is_windows
+  test_extension_module = shared_module('test-nemo-extension-module',
+    [ 'test-nemo-extension-module.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ glib, gtk ],
+  )
+  test('Extension load test',
+    executable('test-nemo-extension-load',
+      [ 'test-nemo-extension-load.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, gmodule, nemo_extension ],
+    ),
+    args: [ test_extension_module ]
+  )
+endif
+
 # The document converters, run on files written for the purpose.
 test('Search helpers test',
   executable('test-nemo-search-helpers',

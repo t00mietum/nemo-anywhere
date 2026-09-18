@@ -3,11 +3,6 @@ nemo_i18n_header = [
   'nemo-extension-i18n.h'
 ]
 
-# The compiled resources register themselves from a constructor, which nothing
-# calls by name. Out of a shared library that is fine - the whole object is
-# loaded. Out of a static one the linker takes only the members that resolve a
-# symbol, so the resources were dropped and every .ui, .glade and .css lookup
-# failed. On Windows they go straight into the executable instead.
 nemo_extension_sources = [
   'nemo-column-provider.c',
   'nemo-column.c',
@@ -45,18 +40,15 @@ nemo_extension_incdir = include_directories('.')
 nemo_extension_deps = [ glib, gtk ]
 
 # On Windows nemo loads no external plugins (see nemo-module.c), so the exe is the
-# only consumer of these symbols - fold them straight in as a static lib. Linux still
-# ships the shared API that third-party extensions link against.
-if is_windows
-  nemo_extension_lib = static_library('nemo-anywhere-extension',
-    nemo_extension_sources + nemo_i18n_header,
-    dependencies: nemo_extension_deps,
-    include_directories: [ rootInclude, ],
-    install: false,
-  )
-else
+# only consumer of these symbols - fold them straight in as a static lib. Linux
+# ships the shared API that third-party extensions link against, unless
+# extension_library=static, where the exe carries the whole API and exports it.
+extensionShared = not is_windows and get_option('extension_library') == 'shared'
+extensionExported = not is_windows and not extensionShared
+
+if extensionShared
   nemo_extension_lib = shared_library('nemo-anywhere-extension',
-    nemo_extension_sources + nemo_i18n_header + gresources + themeGresources,
+    nemo_extension_sources + nemo_i18n_header,
     dependencies: nemo_extension_deps,
     include_directories: [ rootInclude, ],
     install: true,
@@ -68,6 +60,13 @@ else
     # that build flavor rather than the shipped one.
     link_args: get_option('fuzzing') ? [] : [ '-Wl,-no-undefined' ],
   )
+else
+  nemo_extension_lib = static_library('nemo-anywhere-extension',
+    nemo_extension_sources + nemo_i18n_header,
+    dependencies: nemo_extension_deps,
+    include_directories: [ rootInclude, ],
+    install: false,
+  )
 endif
 
 # Public dev artifacts (headers for third-party extensions) - Linux only; Windows
@@ -78,15 +77,33 @@ if not is_windows
   )
 endif
 
-nemo_extension = declare_dependency(
-  include_directories: include_directories('.'),
-  link_with: [ nemo_extension_lib ],
-  dependencies: nemo_extension_deps,
-)
+if extensionExported
+  # Every member goes in, since an extension may call what nemo itself never
+  # does. Only the API is exported, not the rest of the exe's symbols, which
+  # would cost more than the shared library it replaces.
+  nemo_extension_dynlist = custom_target('nemo-extension-dynlist',
+    input: nemo_extension_lib,
+    output: 'nemo-extension.dynlist',
+    command: [ py, files('dynamic-list.py'), find_program('nm'), '@INPUT@', '@OUTPUT@' ],
+  )
+  nemo_extension = declare_dependency(
+    include_directories: include_directories('.'),
+    link_whole: [ nemo_extension_lib ],
+    link_args: [ '-Wl,--dynamic-list=' + nemo_extension_dynlist.full_path() ],
+    sources: [ nemo_extension_dynlist ],
+    dependencies: nemo_extension_deps,
+  )
+else
+  nemo_extension = declare_dependency(
+    include_directories: include_directories('.'),
+    link_with: [ nemo_extension_lib ],
+    dependencies: nemo_extension_deps,
+  )
+endif
 
 # GObject-introspection is Linux-only here: the mingw sysroot ships no g-ir-scanner
 # and cross introspection isn't worth it. Skip GIR/typelib generation on Windows.
-if not is_windows
+if extensionShared
   typelibdir = go_intr.get_variable(pkgconfig: 'typelibdir',
     pkgconfig_define: ['libdir', join_paths(get_option('prefix'), get_option('libdir'))]
   )
@@ -105,7 +122,7 @@ if not is_windows
   )
 endif
 
-if not is_windows
+if extensionShared
   pkgconfig.generate(filebase: 'libnemo-anywhere-extension',
     name: 'libnemo-anywhere-extension',
     description: 'A library to create Nemo Anywhere view extensions',
