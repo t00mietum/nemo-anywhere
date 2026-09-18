@@ -172,6 +172,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Another program could empty the trash with no question, once "Ask before deleting outright or emptying the Trash" was off.
+	- Opened: 20260917-181500
+	- Closed: 20260917-182900
+	- Found while writing the security part of design.md. `EmptyTrash` on the bus went through the same path as the command in a window, so it took the person's preference as its own. Every other trash or delete asks regardless when nobody at a window asked for it. It also left no line in the log.
+	- Masked for now, since the test guard is armed in every build and asks about every delete. It would have shown once that goes back to 0.
+	- Fixed: only the Empty Trash command in a window may skip the question, whether from the menu, the trash bar or the sidebar. The question says when a request came from somewhere else. Every empty trash writes a log line saying which it was. A lint rule keeps the bus handler off anything that counts as a person asking.
+
 - ✅ Preferences|Views: with "Remember per-folder settings" off, the Current tab still opens on a dead page.
 	- Opened: 20260917-233000
 	- Closed: 20260917-234500

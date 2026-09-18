@@ -3408,7 +3408,7 @@ static void
 empty_trash_cb (GtkAction           *item,
 		NemoPlacesSidebar *sidebar)
 {
-	nemo_file_operations_empty_trash (GTK_WIDGET (sidebar->window));
+	nemo_file_operations_empty_trash_by_user (GTK_WIDGET (sidebar->window));
 }
 
 static gboolean

@@ -74,6 +74,22 @@ fCheckOverwriteAsk(){
 }
 fCheckOverwriteAsk
 
+## Nothing on the bus is a person at a window, so nothing it asks for may use a
+## *_by_user entry point, which is what lets a job skip the question. EmptyTrash
+## went through with no question and no log line until 20260917.
+fCheckBusNotByUser(){
+	local src='source/libnemo-private/nemo-dbus-manager.c'
+
+	[[ -f "$src" ]] || return 0
+
+	if grep -q '_by_user' "$src"; then
+		fEcho "FAIL: ${src}: a bus request reached a *_by_user call"
+		grep -n '_by_user' "$src" || true
+		exit 2
+	fi
+}
+fCheckBusNotByUser
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

@@ -74,6 +74,15 @@ test('Delete test guard arming test',
   args: []
 )
 
+test('Empty trash asks test',
+  executable('test-nemo-empty-trash',
+    [ 'test-nemo-empty-trash.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Favorites test',
   executable('test-nemo-favorites',
     [ 'test-nemo-favorites.c' ],
