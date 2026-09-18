@@ -43,6 +43,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 `--version` fails with "Cannot open display" when there is no display.
+	- Opened: 20260917-183048
+	- First seen 2026-09-07, still the case on 2026-09-17. Printing a version should need nothing but the binary.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -65,10 +69,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260917-125536
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
-
-- 🔘 Fill the gaps in design.md.
-	- Opened: 20260908-133615
-	- Missing: a status and revision block, the non-functional requirements (startup time, memory, listing speed on a large folder), a security section, what the program logs and how to turn it up, and any diagram at all.
 
 - 🛠️ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856
@@ -1242,6 +1242,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Fill the gaps in design.md.
+	- Opened: 20260908-133615
+	- Closed: 20260917-183048
+	- Missing: a status and revision block, the non-functional requirements (startup time, memory, listing speed on a large folder), a security section, what the program logs and how to turn it up, and any diagram at all.
+	- Done: all five. The speed and memory figures are measured, not targets; no budget is set yet. Writing the security part turned up the empty trash bug under Done - Bugs.
 
 - ✅ Write the public UI and UX style guide.
 	- Opened: 20260908-133615

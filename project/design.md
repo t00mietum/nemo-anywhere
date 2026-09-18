@@ -9,6 +9,8 @@
 
 What the project is for, and the decisions behind it. Companion to [backlog.md](backlog.md), which tracks the work itself.
 
+Status: kept current as decisions change, rather than written once. Last read through on 2026-09-17, at 1.0.0-beta2. The git log of this file is its revision history. Where a decision was reversed, the text says so at the point it changed.
+
 <!-- TOC ignore:true -->
 ## Table of contents
 
@@ -17,12 +19,14 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 - [What and why](#what-and-why)
 - [Goals](#goals)
 - [Fork decisions](#fork-decisions)
+- [Speed, memory and size](#speed-memory-and-size)
 - [Architecture](#architecture)
 	- [Software stack](#software-stack)
 	- [Code layout](#code-layout)
 	- [Data flow](#data-flow)
 	- [Execution flow](#execution-flow)
 	- [When it crashes](#when-it-crashes)
+	- [What it logs](#what-it-logs)
 	- [Configuration and persistence](#configuration-and-persistence)
 	- [File operations](#file-operations)
 	- [Search](#search)
@@ -30,6 +34,7 @@ What the project is for, and the decisions behind it. Companion to [backlog.md](
 	- [List view column widths](#list-view-column-widths)
 	- [Appearance and themes](#appearance-and-themes)
 	- [Platform integration](#platform-integration)
+	- [Security](#security)
 - [Building](#building)
 	- [Linux](#linux)
 	- [Windows](#windows)
@@ -123,6 +128,27 @@ What the project is trying to be, roughly in priority order:
 
 - The first runnable milestone was scoped to browse, copy, move, trash and delete. Everything else came after that worked.
 
+## Speed, memory and size
+
+No hard budget is set yet. The figures below are where things stand, and a change that makes one of them noticeably worse needs a reason. The profiler stage of the pipeline is where to look first. See [The pipeline](#the-pipeline).
+
+Measured on 2026-09-17 with the Linux release build on a desktop machine. Each is the median of several launches into a folder of empty files, in list view, with no saved settings. `NEMO_BENCHMARK_LOADING` prints the two times.
+
+| Folder          | Window up and listed | Settled | Peak memory
+| :---            | :---                 | :---    | :---
+| empty           | 0.4 s                | 0.4 s   | 90 MiB
+| 1,000 files     | 0.6 s                | 0.6 s   | 92 MiB
+| 10,000 files    | 2.9 s                | 4.4 s   | 119 MiB
+| 50,000 files    | 11.4 s               | -       | 270 MiB
+
+- "Settled" is when the view has gone idle, with icons and column widths done. The 50,000 case was not timed that far.
+
+- Listing time grows about in step with the file count, at roughly a quarter of a millisecond per file. That is the one to watch. A big download or photo folder is where it is felt.
+
+- On Windows the packed exe took 3.4 s to start on 2026-08-19. It had been 14.2 s, nearly all of it the packer handling a couple of thousand small theme files before any of our code ran, until the themes were compiled in.
+
+- Size: the Linux drop is 44 files and 3.4 MB, 2.5 MB of it the program. The packed Windows exe is about 38 MB, most of it the GTK runtime.
+
 ## Architecture
 
 ### Software stack
@@ -171,6 +197,19 @@ Inside `source/` there are four layers, bottom to top, each depending only on wh
 
 - `src/` - the application and its views. The GtkApplication, windows, tabs and slots, the icon, compact and list views, the sidebar and path bar, and the properties and preferences dialogs.
 
+~~~text
+    +---------------------------------------------------------------+
+    |  src/               app, windows, tabs, views, dialogs        |
+    +---------------------------------------------------------------+
+    |  libnemo-private/   files and folders, file operations,       |
+    |                     search, settings, metadata, platform code |
+    +--------------------------------+------------------------------+
+    |  libnemo-extension/            |  eel/                        |
+    |  the public plugin interface   |  widget and string helpers   |
+    +--------------------------------+------------------------------+
+         GTK 3, GLib, GIO, libarchive and the other libraries
+~~~
+
 Platform-specific code is kept out of the shared files where it can be: `*-win32.c` modules for trash, network, shortcuts, clipboard, drag-and-drop and shell actions, plus a POSIX compatibility header that lets ordinary callers compile unchanged where the platform has no equivalent. Some large shared files still carry inline platform blocks. Settling on one convention is an open item.
 
 ### Data flow
@@ -184,6 +223,16 @@ A location is a URI throughout, and everything hangs off two model objects.
 - Anything the filesystem does not store is layered on top. Per-folder view state, custom icons, emblems and favorite markers come from the app's own metadata store and are merged into the file's attributes as they load. On Linux a gvfs metadata daemon may supply the same keys; ours wins.
 
 - Settings flow the other way. A read goes through one store to one file, a change emits a per-key signal, and the widgets bound to that key follow. An external edit to the file produces exactly the same signals as a change made in the UI.
+
+~~~text
+    disk, share, trash     --GIO, async-->  NemoDirectory  --files added-->  views
+                                                 |                           |
+    our metadata store     --merged in-->    NemoFile      --changed----->   |
+                                                 ^                           |
+                                                 +---attributes wanted-------+
+
+    settings.shcl  <-->  config store  --changed::key-->  bound widgets
+~~~
 
 ### Execution flow
 
@@ -216,6 +265,22 @@ A crash leaves a report. Without one there is nothing to work from: a windowed p
 - Reports do not pile up. The oldest are dropped at startup, and the first run after a crash notes in the log that one was left behind. On Windows that log line goes nowhere in a windowed build, which is what the message box at the time of the crash is for.
 
 - `NEMO_NO_CRASH_HANDLER` installs nothing, and `NEMO_NO_CRASH_DIALOG` keeps the report while dropping the message box, for anything running unattended.
+
+### What it logs
+
+Not much, by default. Warnings and criticals go to stderr. Started from a desktop menu on Linux, that usually ends up in the session log or the journal. A windowed build on Windows has no stderr at all, which is why a crash there also puts up a message box.
+
+- Every trash, delete and empty trash writes one line saying what was taken and what asked for it, and so does every refusal. On Linux the same line goes to the system journal, since a log file under home is the first thing lost when home is. `journalctl -t nemo-anywhere` shows them.
+
+- `G_MESSAGES_DEBUG="Nemo Anywhere"` turns on the program's own debug messages. That name is the log domain. `all` turns on everything, the toolkit's included, which is a lot.
+
+- `NEMO_DEBUG` picks areas of the older debug output inherited from Nemo, by name and comma separated: Actions, Bookmarks, DBus, DirectoryView, File, IconContainer, IconView, ListView, Mime, Places, Preferences, Previewer, Search, Thumbnails, Undo, Window, or `all`. It prints through the same log domain, so it needs `G_MESSAGES_DEBUG` too. It also makes a warning or critical stop in an attached debugger.
+
+- `NEMO_DEBUG_IO` prints which fetch a folder is waiting on and for how long. It was written to find the one fetch costing twenty seconds on a share that was not answering.
+
+- `NEMO_BENCHMARK_LOADING` prints the startup time and how long the first folder took to list and then to settle.
+
+- Crash reports are their own thing, under [When it crashes](#when-it-crashes).
 
 ### Configuration and persistence
 
@@ -472,6 +537,36 @@ On Windows the gaps are filled natively rather than by porting gvfs:
 - "Open in terminal" and "open elevated" map to native equivalents. On Windows that is the native console - Windows Terminal, then PowerShell, then cmd - opened at the folder, and an elevated relaunch through the ordinary UAC prompt, labeled "Open as Administrator". On Linux it is the configured terminal and a pkexec relaunch, labeled "Open as Root".
 
 - A copy running elevated cannot be dropped on at all. Windows refuses to let an ordinary program hand anything to an elevated one and there is no way to accept it from this side. Dragging out is unaffected.
+
+### Security
+
+The line that matters is the user account. The program runs as the person using it and can do what they can do, no more. It does not try to protect them from their own other programs: anything that can write the settings file, drop an action in the actions folder or talk on their session bus can already do what it likes as that user.
+
+What comes from outside that account is treated as hostile:
+
+- File names can hold any bytes a filesystem allows, and are shown and passed on without being interpreted.
+
+- An archive does not get to say where its contents go. A stored path that is absolute, names a drive or climbs out with `..` is brought back inside the folder picked. See [File operations](#file-operations).
+
+- The parsers that read text from outside - the settings file, drag data from other programs, the command lines in the config - are fuzzed. See [Testing](#testing).
+
+- A share is not trusted to answer quickly. The per-file questions that would wait on one are skipped for files on a share, so a host that has stopped answering does not hold up a listing.
+
+What it does not do:
+
+- It opens no network connection of its own. No update check, no usage reporting, no crash upload. The only web address in it is the project link under About.
+
+- It never elevates itself. Open as Administrator on Windows and Open as Root on Linux start a new copy through UAC or pkexec, which ask in their own right. The copy that asked stays as it was.
+
+Other programs on the session bus can reach two interfaces. The freedesktop one only shows folders and properties. Ours can copy, move and empty the trash. A request from the bus is not a person at a window, so anything that removes files asks first whatever the preferences say, the same as a trash or delete no command asked for.
+
+Extensions and actions run with the user's rights. An extension is loaded into the process and can do anything the program can, so one is only worth installing from someone trusted with that much. A command line kept in the settings file is run as written.
+
+An archive password is handed to the archiver as a value and never written to disk, but it shows in the process list while the archiver runs. That is true of every archiver that takes one on the command line.
+
+A crash report holds the version, what killed the program and a list of addresses with the modules they fall in. It holds no file contents and no names from the folder being viewed. A module path can include the user name, when the program was installed under home.
+
+Report a security problem privately, as [contributing.md](../contributing.md) describes.
 
 ## Building
 
