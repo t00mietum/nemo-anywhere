@@ -4,8 +4,9 @@
  * test-nemo-link-copy-job.c.
  *
  * Argument: "delete" (default) or "move". The move needs a second file system
- * so the job falls back to copy and delete. There a junction, which GIO calls a
- * folder, used to take the contents of the folder it pointed at along with it.
+ * so the job falls back to copy and delete, and asks for the contents. A move
+ * takes the link anyway. On Windows it used to walk into a junction, which GIO
+ * calls a folder, and move the contents out of the folder it pointed at.
  */
 
 #include "test.h"
@@ -243,8 +244,8 @@ other_volume (const char *root)
 #endif
 }
 
-/* A folder link moved to another file system, told to take what it holds. The
-   folder it pointed at keeps what it holds either way. */
+/* A folder link moved to another file system, told to take what it holds. It
+   goes as a link, and the folder it pointed at keeps what it holds. */
 static int
 test_move (const char *root, const char *outside, const char *precious, const char *deep)
 {
@@ -290,11 +291,8 @@ test_move (const char *root, const char *outside, const char *precious, const ch
 	landed_kind = nemo_link_kind (landed_gf, NULL);
 	g_object_unref (landed_gf);
 #ifdef G_OS_WIN32
-	/* GIO calls a junction a folder, so the move copies what it holds. */
-	check (landed_kind == NEMO_LINK_NONE);
+	check (landed_kind == NEMO_LINK_JUNCTION);
 #else
-	/* GLib's move fallback never follows a symlink, whatever it is told, so
-	   the link itself goes across. That is what keeps this safe here. */
 	check (landed_kind == NEMO_LINK_DIR_SYMLINK);
 #endif
 

@@ -4816,35 +4816,6 @@ get_target_file_for_display_name (GFile *dir,
 	return dest;
 }
 
-/* The link a move copied through, now its contents are at the far end. */
-static void
-remove_followed_link (CommonJob *job, GFile *src, gboolean *skipped_file)
-{
-	GError *error = NULL;
-	int response;
-
-	if (file_delete_wrapper (src, job->cancellable, &error)) {
-		nemo_file_changes_queue_file_removed (src);
-		return;
-	}
-
-	if (!IS_IO_ERROR (error, CANCELLED) && !job->skip_all_error) {
-		response = run_warning (job,
-					f (_("Error while moving \"%B\"."), src),
-					f (_("What the link points at was copied, but the link itself could not be removed.")),
-					error->message,
-					FALSE,
-					GTK_STOCK_CANCEL, SKIP,
-					NULL);
-		if (response == 0 || response == GTK_RESPONSE_DELETE_EVENT) {
-			abort_job (job);
-		}
-	}
-
-	g_error_free (error);
-	*skipped_file = TRUE;
-}
-
 /* Debuting files is non-NULL only for toplevel items */
 /* Whether this source is a link, and if it is, what should stand in for it at
    the far end. *target is filled in only where the link has to be built by
@@ -4870,6 +4841,9 @@ plan_link_copy (CopyMoveJob  *copy_job,
 	}
 
 	*wanted = nemo_link_choice_for (&copy_job->link_choice, found);
+	if (*wanted == NEMO_LINK_NONE && copy_job->is_move) {
+		*wanted = found;
+	}
 	if (*wanted == NEMO_LINK_NONE) {
 		return found;
 	}
@@ -4997,7 +4971,6 @@ copy_move_file (CopyMoveJob *copy_job,
 	char *link_target = NULL;
 	char *link_base_dir = NULL;
 	gboolean asked_overwrite = FALSE;
-	gboolean following, recursed;
 
 	job = (CommonJob *)copy_job;
 
@@ -5106,9 +5079,29 @@ copy_move_file (CopyMoveJob *copy_job,
 		goto out;
 	}
 
-	if (copy_job->link_choice_set) {
+	/* A move takes a link as the link, never what it points at, whatever the
+	   dialog said or whether it was asked at all. Following one would move the
+	   contents out of the folder it points at. */
+	if (copy_job->link_choice_set || copy_job->is_move) {
 		link_found = plan_link_copy (copy_job, src, &link_wanted,
 					     &link_target, &link_base_dir);
+	}
+	if (copy_job->is_move && link_found != NEMO_LINK_NONE && link_wanted == NEMO_LINK_NONE) {
+		if (!job->skip_all_error) {
+			response = run_warning (job,
+						f (_("Error while moving \"%B\"."), src),
+						f (_("A link is only ever moved as a link, and this one could not be read. It was left where it is.")),
+						NULL,
+						(source_info->num_files - transfer_info->num_files) > 1,
+						GTK_STOCK_CANCEL, SKIP_ALL, SKIP,
+						NULL);
+			if (response == 0 || response == GTK_RESPONSE_DELETE_EVENT) {
+				abort_job (job);
+			} else if (response == 1) {
+				job->skip_all_error = TRUE;
+			}
+		}
+		goto out;
 	}
 
  retry:
@@ -5385,30 +5378,15 @@ copy_move_file (CopyMoveJob *copy_job,
 			same_fs = FALSE;
 		}
 
-		/* A move told to take what a folder link holds copies it instead.
-		   Moving would empty the folder the link points at, which is not
-		   what was asked to go. Only the link itself is removed after. */
-		following = copy_job->is_move && nemo_link_kind (src, NULL) != NEMO_LINK_NONE;
-		if (following) {
-			copy_job->is_move = FALSE;
-		}
-		recursed = copy_move_directory (copy_job, src, &dest, same_fs,
-						would_recurse, dest_fs_type,
-						source_info, transfer_info,
-						debuting_files, skipped_file,
-						readonly_source_fs);
-		if (following) {
-			copy_job->is_move = TRUE;
-		}
-		if (!recursed) {
+		if (!copy_move_directory (copy_job, src, &dest, same_fs,
+					  would_recurse, dest_fs_type,
+					  source_info, transfer_info,
+					  debuting_files, skipped_file,
+					  readonly_source_fs)) {
 			/* destination changed, since it was an invalid file name */
 			g_assert (*dest_fs_type != NULL);
 			handled_invalid_filename = TRUE;
 			goto retry;
-		}
-
-		if (following && !*skipped_file && !job_aborted (job)) {
-			remove_followed_link (job, src, skipped_file);
 		}
 
 		g_object_unref (dest);

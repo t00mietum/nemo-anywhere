@@ -354,7 +354,7 @@ Trashing and deleting are the two things a file manager cannot take back, so the
 
 - A trash or delete key that arrives within a second of a window appearing or taking focus is ignored. A window that opens while someone is typing somewhere else gets the rest of that typing.
 
-- Removing a folder tree never follows a link to another folder. The link is removed as a link.
+- Removing a folder tree never follows a link to another folder. The link is removed as a link. That holds for a symlink, a junction, a `.desktop` file and a `.lnk` shortcut, wherever one sits in the tree, and it is not a setting. Windows reports a junction as an ordinary folder, so every walk that removes things asks for itself, and the lint gate fails a new one that does not.
 
 Copying a link asks what should be at the far end. A link can stay a link or be replaced by what it points at, and neither answer is right every time, so the question is put once per operation rather than guessed. It is asked whenever the source holds a link, on every platform, including where the destination can hold none - there every option but the copy is grayed out and the dialog says why. A copy that quietly turns links into files, or files into links, is the thing being avoided.
 
@@ -363,6 +363,8 @@ Copying a link asks what should be at the far end. A link can stay a link or be 
 - Windows has two kinds of link where POSIX has one, and the dialog says so. A folder symlink and a junction both point at a folder, but only the symlink needs a privilege Windows normally withholds. Each row starts on the kind it found and falls back to the nearest kind that still reaches the same target, then to a plain copy. Anything the destination cannot take is grayed out rather than hidden, so the dialog does not change shape between machines.
 
 - A link counts as one item rather than a folder to walk into. That is what POSIX always did and Windows never did, and it is what stops a copy following a link to somewhere large or unreachable.
+
+- A move always takes a link as the link. Taking the contents would empty the folder the link points at, which is not what was asked to go. The dialog still offers a different kind of link on a move, but the copy option is grayed out.
 
 Archives are written by libarchive, with the `7z` and `rar` commands as optional extras rather than the primary route. Linking a library needs nothing installed on the user's machine, writes the tar, zip and 7z families natively, and reports real per-file progress through the ordinary job queue. What it cannot do on the write side is why the commands are still reached for: no rar at all, and no split volumes, solid blocks, duplicate references or 7z encryption. Where an installed command can honor one of those it is used, and where nothing can the option is grayed out rather than hidden.
 
