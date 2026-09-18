@@ -9,6 +9,9 @@ foreach name : ['mso', 'xls', 'ppt', 'doc']
   search_helper_exes += executable('nemo-anywhere-' + name + '-to-txt',
     'nemo-' + name + '-to-txt.c',
     dependencies: [libgsf, gio, glib],
+    # mso-to-txt once tested its own read buffer for NULL, which is always
+    # true, rather than what the read returned. The build only warned.
+    c_args: [ '-Werror=address' ],
     install: true
   )
 endforeach
