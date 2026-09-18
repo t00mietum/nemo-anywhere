@@ -43,10 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 The document search helper for old Office files checks the wrong thing after a read.
-	- Opened: 20260918-112900
-	- `nemo-mso-to-txt.c` tests the buffer it just read into for NULL, which is never true, instead of what the read returned. A failed read is then treated as text. The compiler warns about it on a fresh build.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -171,6 +167,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The search helper for zip-based documents (docx, odt, epub) checks the wrong thing after a read.
+	- Opened: 20260918-112900
+	- Closed: 20260918-113800
+	- `nemo-mso-to-txt.c` tested the buffer it had just read into for NULL, which is never true, instead of what the read returned. The compiler warned about it on a fresh build.
+	- Done: it checks the read and stops at the first failure. The helpers now build with that warning as an error, which fails on the old code.
+	- Note: no damaged file could make the read fail. The zip reader underneath returns data even for a broken member, so the old check never changed what came out.
 
 - ✅ Nothing but a window may trash, delete, move or empty the trash. Other programs could still ask over the bus.
 	- Opened: 20260917-185500

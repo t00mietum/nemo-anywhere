@@ -54,24 +54,25 @@ process_file (GString   *collective,
 {
     GString *contents;
     gsf_off_t remaining;
+    guint8 chunk[1024];
 
     contents = g_string_new (NULL);
     remaining = gsf_input_size (GSF_INPUT (file));
 
-    do {
-        gint size = MIN (remaining, 1024);
-        guint8 chunk[size];
+    while (remaining > 0) {
+        gsf_off_t size = MIN (remaining, (gsf_off_t) sizeof chunk);
 
-        gsf_input_read (GSF_INPUT (file), size, chunk);
+        /* A damaged member keeps what read cleanly and stops there. Carrying on
+           would add whatever the buffer last held. */
+        if (gsf_input_read (GSF_INPUT (file), size, chunk) == NULL)
+            break;
 
-        if (chunk != NULL)
-        {
-            remaining -= size;
-            contents = g_string_append_len (contents, (const gchar *) chunk, size);
-        }
-    } while (remaining > 0);
+        remaining -= size;
+        g_string_append_len (contents, (const gchar *) chunk, size);
+    }
 
     g_string_append (contents, " ");
+    /* cppcheck-suppress ctunullpointer ; g_string_new aborts rather than return NULL */
     g_string_append (collective, contents->str);
     g_string_free (contents, TRUE);
 }
