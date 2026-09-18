@@ -1872,7 +1872,7 @@ action_empty_trash_callback (GtkAction *action,
 {
         g_assert (NEMO_IS_VIEW (callback_data));
 
-	nemo_file_operations_empty_trash (GTK_WIDGET (callback_data));
+	nemo_file_operations_empty_trash_by_user (GTK_WIDGET (callback_data));
 }
 
 typedef struct {

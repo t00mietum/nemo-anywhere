@@ -183,7 +183,7 @@ trash_bar_response_cb (GtkInfoBar *infobar,
 
 	switch (response_id) {
 	case TRASH_BAR_RESPONSE_EMPTY:
-		nemo_file_operations_empty_trash (window);
+		nemo_file_operations_empty_trash_by_user (window);
 		break;
 	case TRASH_BAR_RESPONSE_RESTORE:
 		files = nemo_view_get_selection (bar->priv->view);

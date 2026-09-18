@@ -71,6 +71,8 @@ void nemo_file_operations_copy_file (GFile *source_file,
 					 NemoCopyCallback done_callback,
 					 gpointer done_callback_data);
 void nemo_file_operations_empty_trash (GtkWidget                 *parent_view);
+void nemo_file_operations_empty_trash_by_user (GtkWidget         *parent_view);
+gboolean nemo_file_operations_empty_trash_asks (gboolean          by_user);
 void nemo_file_operations_new_folder  (GtkWidget                 *parent_view,
 					   GdkPoint                  *target_point,
 					   const char                *parent_dir_uri,
