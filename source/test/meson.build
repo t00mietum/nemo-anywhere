@@ -300,14 +300,17 @@ test('GIO fileops probe',
   args: []
 )
 
-test('DBus manager no-bus test',
-  executable('test-nemo-dbus-manager',
-    [ 'test-nemo-dbus-manager.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
-  ),
-  args: []
-)
+# Off since the file operations interface it exported was removed: nothing but a
+# window may start a trash, delete or move. test-nemo-dbus-manager.c needs
+# nemo-dbus-manager.h, which went with it.
+# test('DBus manager no-bus test',
+#   executable('test-nemo-dbus-manager',
+#     [ 'test-nemo-dbus-manager.c' ],
+#     include_directories: [ rootInclude, ],
+#     dependencies: [ gtk, nemo_private ],
+#   ),
+#   args: []
+# )
 
 test('Copy test',
   executable('test-nemo-copy',

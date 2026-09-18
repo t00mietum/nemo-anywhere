@@ -74,21 +74,104 @@ fCheckOverwriteAsk(){
 }
 fCheckOverwriteAsk
 
-## Nothing on the bus is a person at a window, so nothing it asks for may use a
-## *_by_user entry point, which is what lets a job skip the question. EmptyTrash
-## went through with no question and no log line until 20260917.
-fCheckBusNotByUser(){
-	local src='source/libnemo-private/nemo-dbus-manager.c'
+## Nothing may trash, delete or move a person's files unless it started in a
+## window. Another program must have no way in: the bus exported CopyURIs,
+## MoveURIs and EmptyTrash, left over from the Nemo desktop, until 20260917.
+## These four checks hold that. A new entry on any of their lists wants a
+## reason, and whoever adds one should be able to say what window starts it.
 
-	[[ -f "$src" ]] || return 0
+## Bus methods: the freedesktop file manager interface only, none of which
+## touches a file.
+fCheckBusMethods(){
+	local allowed=' ShowFolders ShowItems ShowItemProperties '
+	local name bad=""
 
-	if grep -q '_by_user' "$src"; then
-		fEcho "FAIL: ${src}: a bus request reached a *_by_user call"
-		grep -n '_by_user' "$src" || true
+	while read -r name; do
+		[[ -z "$name" ]] && continue
+		[[ "$allowed" == *" ${name} "* ]] || bad+="${name} "
+	done <<< "$(grep -rhoE "<method name=['\"][A-Za-z0-9_]+" source | sed -E "s/.*=['\"]//" | sort -u || true)"
+
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: bus methods not on the list in lint-c.bash: ${bad% }"
+		grep -rnE "<method name=['\"]" source || true
 		exit 2
 	fi
 }
-fCheckBusNotByUser
+fCheckBusMethods
+
+## Application actions are exported on the bus too. Only quit.
+fCheckAppActions(){
+	local hits
+
+	hits="$(grep -rnE 'g_simple_action_new|GActionEntry|g_action_map_add_action_entries' \
+		source/src source/libnemo-private source/eel 2>/dev/null \
+		| grep -v -F 'g_simple_action_new ("quit"' || true)"
+	if [[ -n "$hits" ]]; then
+		fEcho "FAIL: a new application action; another program can call it over the bus"
+		printf '%s\n' "$hits"
+		exit 2
+	fi
+}
+fCheckAppActions
+
+## Who may start a trash, delete, empty trash or move job. Each file here is
+## reached from something done in a window.
+fCheckJobCallers(){
+	local allowed=' '
+	allowed+='source/src/nemo-view.c '				# trash and delete commands, drops, paste
+	allowed+='source/src/nemo-tree-sidebar.c '		# trash and delete commands in the tree
+	allowed+='source/src/nemo-places-sidebar.c '		# empty trash, drops
+	allowed+='source/src/nemo-trash-bar.c '			# empty trash button
+	allowed+='source/src/nemo-mime-actions.c '			# broken link dialog
+	allowed+='source/src/nemo-template-config-widget.c '	# remove button in preferences
+	allowed+='source/libnemo-private/nemo-archive.c '	# compress dialog, delete originals
+	allowed+='source/libnemo-private/nemo-file-undo-operations.c '	# undo
+	allowed+='source/libnemo-private/nemo-dnd-win32.c '	# a move dragged out of a window
+	local file bad=""
+
+	while read -r file; do
+		[[ -z "$file" ]] && continue
+		[[ "$allowed" == *" ${file} "* ]] || bad+="${file} "
+	done <<< "$(grep -rlE 'nemo_file_operations_(trash_or_delete|delete|empty_trash|move|copy_move)(_by_user)?[[:space:]]*\(' \
+		source --include='*.c' \
+		| grep -v -e '^source/test/' -e '^source/libnemo-private/nemo-file-operations\.c$' || true)"
+
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: trash, delete or move started from a file not on the list in lint-c.bash: ${bad% }"
+		exit 2
+	fi
+}
+fCheckJobCallers
+
+## Raw deletes outside the jobs. What is left only touches files the app made
+## for itself.
+fCheckRawDeletes(){
+	local allowed=' '
+	allowed+='source/libnemo-private/nemo-file-operations.c '	# the jobs
+	allowed+='source/libnemo-private/nemo-delete-guard.c '		# the guarded delete the jobs use
+	allowed+='source/libnemo-private/nemo-trash-win32.c '		# the recycle bin, behind the jobs
+	allowed+='source/libnemo-private/nemo-link-win32.c '		# its own probe, and a link it failed to finish
+	allowed+='source/libnemo-private/nemo-archive.c '			# an archive it was writing
+	allowed+='source/libnemo-private/nemo-crash.c '			# old crash reports
+	allowed+='source/libnemo-private/nemo-thumbnail-prune.c '	# thumbnail cache
+	allowed+='source/libnemo-private/nemo-desktop-thumbnail.c '	# thumbnail cache
+	allowed+='source/libnemo-private/nemo-file.c '			# thumbnail cache
+	allowed+='source/src/nemo-bookmark-list.c '			# --reset
+	allowed+='source/src/nemo-main-application.c '			# --reset
+	local file bad=""
+
+	while read -r file; do
+		[[ -z "$file" ]] && continue
+		[[ "$allowed" == *" ${file} "* ]] || bad+="${file} "
+	done <<< "$(grep -rlE '(^|[^>.[:alnum:]_])(g_file_delete|g_file_delete_async|g_file_trash|g_file_trash_async|g_unlink|g_remove|g_rmdir|unlink|rmdir|remove|_wunlink|_wremove|_wrmdir|DeleteFileW|DeleteFileA|RemoveDirectoryW|RemoveDirectoryA|SHFileOperationW|SHEmptyRecycleBinW)[[:space:]]*\(' \
+		source/src source/libnemo-private source/libnemo-extension source/eel --include='*.c' || true)"
+
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: a raw delete in a file not on the list in lint-c.bash: ${bad% }"
+		exit 2
+	fi
+}
+fCheckRawDeletes
 
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.

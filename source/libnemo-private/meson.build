@@ -1,13 +1,5 @@
 
-dbusBuiltSources = gnome.gdbus_codegen('nemo-generated',
-  join_paths(meson.project_source_root(), 'data', 'dbus-interfaces.xml'),
-  interface_prefix: 'org.Nemo.',
-  namespace: 'NemoDBus',
-  object_manager: true
-)
-
 nemo_private_sources = [
-  dbusBuiltSources,
   'nemo-action-manager.c',
   'nemo-appearance.c',
   'nemo-action.c',
@@ -21,7 +13,6 @@ nemo_private_sources = [
   'nemo-column-utilities.c',
   'nemo-command-template.c',
   'nemo-crash.c',
-  'nemo-dbus-manager.c',
   'nemo-debug.c',
   'nemo-default-file-icon.c',
   'nemo-delete-guard.c',

@@ -25,7 +25,7 @@
 #include "nemo-freedesktop-dbus.h"
 #include "nemo-freedesktop-generated.h"
 
-/* We share the same debug domain as nemo-dbus-manager */
+/* Debug output goes under the DBus area */
 #define DEBUG_FLAG NEMO_DEBUG_DBUS
 #include <libnemo-private/nemo-debug.h>
 

@@ -10,6 +10,7 @@
 #include "nemo-file.h"
 #include "nemo-global-preferences.h"
 #include <libnemo-private/nemo-file-utilities.h>
+#include <libnemo-private/nemo-file-operations.h>
 
 #include <glib.h>
 
@@ -299,9 +300,15 @@ on_remove_row_clicked (GtkWidget *button, gpointer user_data)
     }
 
     TemplateInfo *info = g_object_get_data (G_OBJECT (row), "template-info");
-    GFile *file = g_file_new_for_path (info->path);
-    g_file_delete_async (file, G_PRIORITY_DEFAULT, NULL, NULL, NULL);
-    g_object_unref (file);
+    GtkWidget *toplevel = gtk_widget_get_toplevel (GTK_WIDGET (widget));
+    GList *files = g_list_prepend (NULL, g_file_new_for_path (info->path));
+
+    /* A template is a file of the person's own. It goes to the trash through
+     * the same job as any other, so it is asked about and logged. */
+    nemo_file_operations_trash_or_delete (files,
+                                          GTK_IS_WINDOW (toplevel) ? GTK_WINDOW (toplevel) : NULL,
+                                          NULL, NULL);
+    g_list_free_full (files, g_object_unref);
 }
 
 static void

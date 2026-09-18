@@ -48,7 +48,6 @@
 #include "nemo-statusbar.h"
 #include "nemo-notebook.h"
 
-#include <libnemo-private/nemo-dbus-manager.h>
 #include <libnemo-private/nemo-directory-private.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-file-operations.h>
@@ -112,7 +111,6 @@ G_DEFINE_TYPE (NemoMainApplication, nemo_main_application, NEMO_TYPE_APPLICATION
 struct _NemoMainApplicationPriv {
 	GVolumeMonitor *volume_monitor;
 
-	NemoDBusManager *dbus_manager;
 	NemoFreedesktopDBus *fdb_manager;
 
 	/* Command line, kept for the open handler. */
@@ -842,7 +840,6 @@ nemo_main_application_finalize (GObject *object)
     g_clear_object (&application->priv->volume_monitor);
     g_free (application->priv->geometry);
 
-    g_clear_object (&application->priv->dbus_manager);
     g_clear_object (&application->priv->fdb_manager);
 
     free_search_helpers ();
@@ -1213,8 +1210,6 @@ nemo_main_application_continue_startup (NemoApplication *app)
 {
 	NemoMainApplication *self = NEMO_MAIN_APPLICATION (app);
 
-	/* create DBus manager */
-	self->priv->dbus_manager = nemo_dbus_manager_new ();
 	self->priv->fdb_manager = nemo_freedesktop_dbus_new ();
 	publish_instance (self);
 	refresh_dbus_service_file (self);

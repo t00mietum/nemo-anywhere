@@ -164,9 +164,28 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also sign the release `.zip` contents and, once it exists, the installer. Blocked on there being any signing identity at all.
 	- Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 
+- 🔘 Take out the rest of the Nemo desktop code.
+	- Opened: 20260917-191500
+	- The desktop itself went long ago, but the icon view still carries a desktop mode, desktop orphans and desktop sort order, and `--no-desktop` is still accepted and ignored. None of it runs and none of it deletes anything.
+	- Removing it touches about twenty files, mostly the icon view, so it wants its own pass and a look on screen after.
+
 ### Done
 
 #### Done - Bugs
+
+- ✅ Nothing but a window may trash, delete, move or empty the trash. Other programs could still ask over the bus.
+	- Opened: 20260917-185500
+	- Closed: 20260917-191500
+	- The bus interface that could copy, move and empty the trash came from the Nemo desktop. Nothing here uses it. A move to the trash folder over it was a recycle with no window behind it.
+	- Fixed: the interface is removed. Only the freedesktop one is left, and it shows folders and properties. The instances test now checks the bus has no way to copy, move or empty the trash. Its no-bus test is commented out, since what it tested is gone.
+	- Lint now keeps three lists: which files may start a trash, delete or move job, which bus methods exist, and which files may delete anything directly. The last only touches the app's own files. Each was watched to fail.
+	- The rest of the Nemo desktop code, such as the icon view's desktop mode, is dead but deletes nothing. It is on the backlog.
+
+- ✅ Removing a template in Preferences deleted the file outright, with no question and nothing in the log.
+	- Opened: 20260917-185500
+	- Closed: 20260917-191500
+	- Found while checking every delete. It skipped the delete guard entirely.
+	- Fixed: it goes to the trash through the same job as any other, so it asks first and is logged. The lint list above catches a delete like it.
 
 - ✅ `--version` fails with "Cannot open display" when there is no display.
 	- Opened: 20260917-183048
@@ -181,6 +200,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Found while writing the security part of design.md. `EmptyTrash` on the bus went through the same path as the command in a window, so it took the person's preference as its own. Every other trash or delete asks regardless when nobody at a window asked for it. It also left no line in the log.
 	- Masked for now, since the test guard is armed in every build and asks about every delete. It would have shown once that goes back to 0.
 	- Fixed: only the Empty Trash command in a window may skip the question, whether from the menu, the trash bar or the sidebar. The question says when a request came from somewhere else. Every empty trash writes a log line saying which it was. A lint rule keeps the bus handler off anything that counts as a person asking.
+	- Later the same day the bus method was removed outright, with the rest of that interface. See the item above.
 
 - ✅ Preferences|Views: with "Remember per-folder settings" off, the Current tab still opens on a dead page.
 	- Opened: 20260917-233000
