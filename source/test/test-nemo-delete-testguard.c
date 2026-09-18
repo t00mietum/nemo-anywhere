@@ -109,7 +109,8 @@ spawn_child (const char *self, const char *mode, const char *env_value)
 
 /* A move and an overwrite each lose one of two paths, and the dialog is only
    any use if it says which. Checked here rather than through the dialog, which
-   wants a display the gate does not have. */
+   wants a display the gate does not have. The paths are looked for as the
+   dialog spells them, which on Windows is with backslashes. */
 static void
 check_wording (void)
 {
@@ -117,6 +118,10 @@ check_wording (void)
 	GFile *b = g_file_new_for_path ("/tmp/nemo-guard-src/b");
 	GFile *dest_dir = g_file_new_for_path ("/tmp/nemo-guard-dest");
 	GFile *target = g_file_new_for_path ("/tmp/nemo-guard-dest/a");
+	char *a_name = g_file_get_parse_name (a);
+	char *b_name = g_file_get_parse_name (b);
+	char *dest_name = g_file_get_parse_name (dest_dir);
+	char *target_name = g_file_get_parse_name (target);
 	GList *files = NULL;
 	char *text;
 
@@ -124,22 +129,26 @@ check_wording (void)
 	files = g_list_append (files, b);
 
 	text = nemo_delete_testguard_describe_move (files, dest_dir);
-	check (strstr (text, "/tmp/nemo-guard-dest") != NULL);
-	check (strstr (text, "/tmp/nemo-guard-src/a") != NULL);
-	check (strstr (text, "/tmp/nemo-guard-src/b") != NULL);
+	check (strstr (text, dest_name) != NULL);
+	check (strstr (text, a_name) != NULL);
+	check (strstr (text, b_name) != NULL);
 	/* The destination is named above the sources, not among them. */
-	check (strstr (text, "/tmp/nemo-guard-dest") < strstr (text, "/tmp/nemo-guard-src/a"));
+	check (strstr (text, dest_name) < strstr (text, a_name));
 	g_free (text);
 
 	text = nemo_delete_testguard_describe_overwrite (a, target);
 	check (strstr (text, "Overwritten") != NULL);
 	check (strstr (text, "Replaced by") != NULL);
 	/* The one that is lost is named first, under its own heading. */
-	check (strstr (text, "/tmp/nemo-guard-dest/a") < strstr (text, "Replaced by"));
-	check (strstr (text, "Replaced by") < strstr (text, "/tmp/nemo-guard-src/a"));
+	check (strstr (text, target_name) < strstr (text, "Replaced by"));
+	check (strstr (text, "Replaced by") < strstr (text, a_name));
 	g_free (text);
 
 	g_list_free (files);
+	g_free (a_name);
+	g_free (b_name);
+	g_free (dest_name);
+	g_free (target_name);
 	g_object_unref (a);
 	g_object_unref (b);
 	g_object_unref (dest_dir);
