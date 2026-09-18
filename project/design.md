@@ -272,7 +272,7 @@ Not much, by default. Warnings and criticals go to stderr. Started from a deskto
 
 - Every trash, delete and empty trash writes one line saying what was taken and what asked for it, and so does every refusal. On Linux the same line goes to the system journal, since a log file under home is the first thing lost when home is. `journalctl -t nemo-anywhere` shows them.
 
-- `G_MESSAGES_DEBUG="Nemo Anywhere"` turns on the program's own debug messages. That name is the log domain. `all` turns on everything, the toolkit's included, which is a lot.
+- `G_MESSAGES_DEBUG="Nemo Anywhere"` turns on the program's own debug messages, and so does `--debug`. That name is the log domain. `all` turns on everything, the toolkit's included, which is a lot.
 
 - `NEMO_DEBUG` picks areas of the older debug output inherited from Nemo, by name and comma separated: Actions, Bookmarks, DBus, DirectoryView, File, IconContainer, IconView, ListView, Mime, Places, Preferences, Previewer, Search, Thumbnails, Undo, Window, or `all`. It prints through the same log domain, so it needs `G_MESSAGES_DEBUG` too. It also makes a warning or critical stop in an attached debugger.
 

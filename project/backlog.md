@@ -43,10 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 `--version` fails with "Cannot open display" when there is no display.
-	- Opened: 20260917-183048
-	- First seen 2026-09-07, still the case on 2026-09-17. Printing a version should need nothing but the binary.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -171,6 +167,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ `--version` fails with "Cannot open display" when there is no display.
+	- Opened: 20260917-183048
+	- Closed: 20260917-183306
+	- First seen 2026-09-07, still the case on 2026-09-17. Printing a version should need nothing but the binary.
+	- Cause: the toolkit's own options open the display while the command line is read, so the read failed before `--version` was looked at. `--about` did the same. `--help` was never affected.
+	- Fixed: with either flag the display is left alone. A `--display` given alongside is still honored when a window opens. New test runs both with no display.
 
 - ✅ Another program could empty the trash with no question, once "Ask before deleting outright or emptying the Trash" was off.
 	- Opened: 20260917-181500
