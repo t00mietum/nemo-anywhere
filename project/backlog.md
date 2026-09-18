@@ -43,6 +43,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Two tests fail on a native Windows build: the test guard arming test and the tree folders test.
+	- Opened: 20260918-213000
+	- Neither had run on Windows before. Both were added after the last real-Windows pass, and b29w is the first box to run them.
+	- The arming test looks for `/tmp/...` in text that Windows spells with backslashes.
+	- The tree folders test times out in its hidden folder steps. Its hidden folders are hidden by a leading dot, which may not count on Windows.
+	- Test problems as far as can be seen, not product ones.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -65,10 +72,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260917-125536
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
-
-- 🔘 Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
-	- Opened: 20260908-021923 by JC.
-	- Note: clearing an extract's staging folder on Windows went into a junction and deleted what it pointed at. Fixed, with a check. The delete job itself has not been checked against a junction yet.
 
 - 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
@@ -1267,6 +1270,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
+	- Opened: 20260908-021923 by JC.
+	- Closed: 20260918-213000
+	- Note: clearing an extract's staging folder on Windows went into a junction and deleted what it pointed at. Fixed, with a check. The delete job itself has not been checked against a junction yet.
+	- Found: Windows calls a junction a plain folder. Three walks trusted that and would go into one: deleting a folder from the Recycle Bin, replacing a folder on a copy, and a generic empty-trash walk. The first was real. On Windows, taking a recycled folder that held a junction out of the bin deleted what the junction pointed at, and so did a junction recycled on its own. Seen on b29w.
+	- Found: a move to another drive, told to take a link's contents, would have moved them out of the folder the link points at. design.md says moves never follow links, so a move now always takes the link, and the dialog greys out the copy option on a move.
+	- Fixed: one check for "a real folder, not a link", used by every walk that removes things. The delete job asks it too, before it would ever walk into something that would not delete on its own. Lint fails any new walk that does not ask, and was watched to fail on the old code.
+	- Tests: a new test runs the real delete and move jobs on a folder holding a folder link, a file link and a shortcut, and checks the target survives. A new Recycle Bin case covers the junction, and failed on the old code on b29w. `.desktop` and `.lnk` files were already removed as plain files.
+	- Not tested: a move of a junction to another drive, since neither Windows box has a second drive.
 
 - ✅ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856

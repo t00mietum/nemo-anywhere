@@ -332,6 +332,16 @@ link_copy_job = executable('test-nemo-link-copy-job',
 test('Link copy keeps the link', link_copy_job, args: [ 'keep' ])
 test('Link copy follows the link', link_copy_job, args: [ 'copy' ])
 
+link_delete_job = executable('test-nemo-link-delete-job',
+  [ 'test-nemo-link-delete-job.c', 'test.c' ],
+  include_directories: [ rootInclude, ],
+  dependencies: [ gtk, nemo_private, test_scratch ],
+  c_args: nemo_definitions,
+)
+
+test('Link delete leaves the target', link_delete_job, args: [ 'delete' ])
+test('Link move leaves the target', link_delete_job, args: [ 'move' ])
+
 # Carries its own copy of the resource, for the reason the next test explains.
 test('App resources test',
   executable('test-nemo-app-resources',

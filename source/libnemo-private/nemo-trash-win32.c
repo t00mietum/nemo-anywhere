@@ -23,7 +23,9 @@
 #include <config.h>
 #include "nemo-trash-win32.h"
 
+#include "nemo-delete-guard.h"
 #include "nemo-delete-testguard.h"
+#include "nemo-dir-enum.h"
 
 #ifdef G_OS_WIN32
 
@@ -1040,9 +1042,9 @@ trash_file_enumerate_children (GFile *file, const char *attributes,
 		trash_item_free (item);
 
 		real = g_file_new_for_path (real_path);
-		children = g_file_enumerate_children (real, G_FILE_ATTRIBUTE_STANDARD_NAME,
-						      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-						      cancellable, error);
+		children = nemo_enumerate_children (real, G_FILE_ATTRIBUTE_STANDARD_NAME,
+						    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+						    cancellable, error);
 		g_object_unref (real);
 
 		if (children == NULL) {
@@ -1124,12 +1126,14 @@ delete_real_tree (GFile *real, GCancellable *cancellable, GError **error)
 		return FALSE;
 	}
 
-	/* NOFOLLOW above, and only a real directory is walked into - a link or a
-	 * junction is deleted as the link it is, never followed out of the bin. */
-	if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
-		children = g_file_enumerate_children (real, G_FILE_ATTRIBUTE_STANDARD_NAME,
-						      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-						      cancellable, error);
+	/* Only a real directory is walked into - a link or a junction is deleted
+	 * as the link it is, never followed out of the bin. GIO reports both kinds
+	 * of folder link as a directory here, NOFOLLOW or not, so the type alone
+	 * let a junction through until 20260918. */
+	if (nemo_delete_guard_is_real_folder (real, info, cancellable)) {
+		children = nemo_enumerate_children (real, G_FILE_ATTRIBUTE_STANDARD_NAME,
+						    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+						    cancellable, error);
 		if (children == NULL) {
 			g_object_unref (info);
 			nemo_delete_testguard_end ();

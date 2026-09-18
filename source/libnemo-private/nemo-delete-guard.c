@@ -42,21 +42,28 @@
 #define SETTLE_USEC G_USEC_PER_SEC
 #define FOCUSED_AT_KEY "nemo-delete-guard-focused-at"
 
-/* GLib calls a junction a folder even when told not to follow links, so on
-   Windows the directory entry is asked too. */
-static gboolean
-is_real_folder (GFile *file, GCancellable *cancellable)
+/* GLib calls a junction or a folder symlink a folder on Windows even when told
+   not to follow links, so there the directory entry is asked too. */
+gboolean
+nemo_delete_guard_is_real_folder (GFile        *file,
+				  GFileInfo    *info,
+				  GCancellable *cancellable)
 {
+	GFileType type;
 	gboolean real;
 
-	real = g_file_query_file_type (file, G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable) == G_FILE_TYPE_DIRECTORY;
+	if (info != NULL && g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_STANDARD_TYPE)) {
+		type = g_file_info_get_file_type (info);
+	} else {
+		type = g_file_query_file_type (file, G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable);
+	}
+	real = type == G_FILE_TYPE_DIRECTORY;
 
 #ifdef G_OS_WIN32
 	if (real) {
-		char *path = g_file_get_path (file);
+		const char *path = g_file_peek_path (file);
 
 		real = path == NULL || nemo_win32_link_kind (path) == NEMO_LINK_NONE;
-		g_free (path);
 	}
 #endif
 
@@ -216,7 +223,7 @@ nemo_delete_guard_is_protected (GFile *file)
 	const char *rest;
 	gboolean protected;
 
-	if (!is_real_folder (file, NULL)) {
+	if (!nemo_delete_guard_is_real_folder (file, NULL, NULL)) {
 		return FALSE;
 	}
 
@@ -288,7 +295,7 @@ nemo_delete_guard_remove_tree (GFile *file, GCancellable *cancellable)
 
 	/* NOFOLLOW on the enumerate covers the children only. Opening a link to a
 	   folder still lists what it points at, so only a real folder is walked. */
-	if (is_real_folder (file, cancellable)) {
+	if (nemo_delete_guard_is_real_folder (file, NULL, cancellable)) {
 		children = nemo_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
 						    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
 						    cancellable, NULL);

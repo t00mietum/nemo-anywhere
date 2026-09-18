@@ -218,6 +218,7 @@ add_row (GtkGrid      *grid,
          Row          *row,
          guint         supported,
          gboolean      with_junctions,
+         gboolean      is_move,
          NemoLinkKind  selected)
 {
 	GtkWidget *label;
@@ -249,8 +250,9 @@ add_row (GtkGrid      *grid,
 			group = button;
 		}
 
-		/* A copy is always possible; the rest need the destination's blessing. */
-		if (column != COLUMN_COPY && !(supported & offer)) {
+		/* A copy is always possible, except on a move, which takes a link as
+		   the link. The rest need the destination's blessing. */
+		if (column == COLUMN_COPY ? is_move : !(supported & offer)) {
 			gtk_widget_set_sensitive (button, FALSE);
 		}
 		if (offer == selected) {
@@ -342,10 +344,14 @@ nemo_link_choice_ask (GtkWindow      *parent,
 	/* Say why an option is greyed out, for the two reasons a whole column can
 	   be. Junctions without symlinks is only ever Windows without the
 	   privilege; nothing at all is a file system that keeps no links. */
-	if (supported == 0) {
+	if (is_move && supported == 0) {
+		note = gtk_label_new (_("This folder cannot hold links, so the links cannot be moved here."));
+	} else if (supported == 0) {
 		note = gtk_label_new (_("This folder cannot hold links, so only a copy is possible."));
 	} else if ((supported & NEMO_LINK_JUNCTION) && !(supported & NEMO_LINK_DIR_SYMLINK)) {
 		note = gtk_label_new (_("Symlinks need Developer Mode turned on, or nemo running as administrator."));
+	} else if (is_move) {
+		note = gtk_label_new (_("A link is moved as a link. Only a copy can take what it points at."));
 	} else {
 		note = gtk_label_new (_("A copy holds the contents; a link keeps pointing at the original."));
 	}
@@ -357,7 +363,7 @@ nemo_link_choice_ask (GtkWindow      *parent,
 	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
 	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
 	for (i = 0; i < used; i++) {
-		add_row (GTK_GRID (grid), i, &rows[i], supported, with_junctions,
+		add_row (GTK_GRID (grid), i, &rows[i], supported, with_junctions, is_move,
 			 nemo_link_choice_for (choice, rows[i].found));
 	}
 	gtk_box_pack_start (GTK_BOX (box), grid, FALSE, FALSE, 0);

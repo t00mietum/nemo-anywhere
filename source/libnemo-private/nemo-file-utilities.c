@@ -1043,6 +1043,7 @@ nemo_get_bin_dir (void)
 	return dir;
 }
 
+#ifndef G_OS_WIN32
 /* Put dir at the front of a colon-separated environment list, unless it is
  * already on it. fallback stands in for a list that is not set at all. */
 static void
@@ -1076,6 +1077,7 @@ prepend_env_dir (const char *var, const char *dir, const char *fallback)
 	g_setenv (var, joined, TRUE);
 	g_free (joined);
 }
+#endif
 
 /* A relocatable prefix used to be entered through a shell wrapper that set this
  * up, which meant two files where one would do. The program does it for itself

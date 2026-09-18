@@ -1,12 +1,14 @@
 /* Scratch directories for the tests, removed when the test exits.
  *
  * Only a directory this process made through here is removed, and only while
- * it still sits directly under the temp dir as a real directory. The walk never
- * goes through a link, a junction or onto another filesystem. Home has been
- * lost twice on the dev box; a test helper is not going to be the third. */
+ * it still sits directly under the temp dir (or the base it was made in) as a
+ * real directory. The walk never goes through a link, a junction or onto
+ * another filesystem. Home has been lost twice on the dev box; a test helper
+ * is not going to be the third. */
 
 #include <config.h>
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <gio/gio.h>
@@ -28,6 +30,7 @@
 	G_FILE_ATTRIBUTE_DOS_REPARSE_POINT_TAG
 
 static GPtrArray *made = NULL;
+static GPtrArray *made_in = NULL;
 static gboolean registered = FALSE;
 #ifndef G_OS_WIN32
 static pid_t made_by = 0;
@@ -76,7 +79,7 @@ remove_tree (GFile *dir, guint32 device)
 }
 
 static void
-remove_made (const char *path)
+remove_made (const char *path, const char *base)
 {
 	GFile *file, *tmp;
 	GFileInfo *info, *tmp_info;
@@ -97,7 +100,7 @@ remove_made (const char *path)
 		return;
 	}
 
-	tmp_path = g_canonicalize_filename (g_get_tmp_dir (), NULL);
+	tmp_path = g_canonicalize_filename (base, NULL);
 	tmp = g_file_new_for_path (tmp_path);
 	tmp_info = g_file_query_info (tmp, WALK_ATTRIBUTES, 0, NULL, NULL);
 	parent = g_path_get_dirname (path);
@@ -146,27 +149,37 @@ test_scratch_cleanup (void)
 #endif
 
 	for (i = 0; i < made->len; i++) {
-		remove_made (g_ptr_array_index (made, i));
+		remove_made (g_ptr_array_index (made, i), g_ptr_array_index (made_in, i));
 	}
 
 	g_ptr_array_free (made, TRUE);
+	g_ptr_array_free (made_in, TRUE);
 	made = NULL;
+	made_in = NULL;
 }
 
-char *
-test_scratch_dir (const char *tmpl, GError **error)
+static char *
+make_in (const char *base, const char *tmpl, GError **error)
 {
 	char *path;
 
-	path = g_dir_make_tmp (tmpl, error);
-	if (path == NULL) {
+	/* g_mkdtemp_full fills in the template where it stands. */
+	path = g_build_filename (base, tmpl, NULL);
+	if (g_mkdtemp_full (path, 0700) == NULL) {
+		int saved = errno;
+
+		g_set_error (error, G_FILE_ERROR, g_file_error_from_errno (saved),
+			     "could not make a directory in %s: %s", base, g_strerror (saved));
+		g_free (path);
 		return NULL;
 	}
 
 	if (made == NULL) {
 		made = g_ptr_array_new_with_free_func (g_free);
+		made_in = g_ptr_array_new_with_free_func (g_free);
 	}
 	g_ptr_array_add (made, g_canonicalize_filename (path, NULL));
+	g_ptr_array_add (made_in, g_canonicalize_filename (base, NULL));
 
 	if (!registered) {
 #ifndef G_OS_WIN32
@@ -177,4 +190,16 @@ test_scratch_dir (const char *tmpl, GError **error)
 	}
 
 	return path;
+}
+
+char *
+test_scratch_dir (const char *tmpl, GError **error)
+{
+	return make_in (g_get_tmp_dir (), tmpl, error);
+}
+
+char *
+test_scratch_dir_in (const char *base, const char *tmpl, GError **error)
+{
+	return make_in (base, tmpl, error);
 }

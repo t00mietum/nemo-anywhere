@@ -173,6 +173,41 @@ fCheckRawDeletes(){
 }
 fCheckRawDeletes
 
+## A tree removal walks into a real folder only, never through a symlink or a
+## junction. GIO calls a junction a folder on Windows even with NOFOLLOW, so the
+## type alone let three of these walks through one until 20260918. Any function
+## that lists a folder and removes things has to ask
+## nemo_delete_guard_is_real_folder, or be on the list with a reason.
+fCheckTreeWalks(){
+	local allowed=' '
+	allowed+='copy_move_directory '	# walks a link only to copy it; a move through one is turned into a copy
+	allowed+='sweep_old_reports '		# its own crash-*.txt files, one level, no walk
+	local bad
+
+	bad="$(awk -v allowed="$allowed" '
+		FNR == 1 { fn = "" }
+		/^[a-zA-Z_][a-zA-Z0-9_]* *\(/ {
+			fn = $1; sub(/\(.*/, "", fn)
+			walks = 0; removes = 0; gated = 0
+		}
+		/(nemo_enumerate_children|g_file_enumerate_children|g_dir_open) *\(/ { walks = 1 }
+		/(file_delete_wrapper|g_file_delete|g_remove|g_rmdir|g_unlink|delete_file|delete_dir|delete_trash_file|delete_real_tree|remove_target_recursively|nemo_delete_guard_remove_tree) *\(/ { removes = 1 }
+		/nemo_delete_guard_is_real_folder/ { gated = 1 }
+		/^}/ {
+			if (fn != "" && walks && removes && !gated && index(allowed, " " fn " ") == 0)
+				print FILENAME ": " fn
+			fn = ""
+		}
+	' source/libnemo-private/*.c source/src/*.c)"
+
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: lists a folder and removes things without nemo_delete_guard_is_real_folder"
+		printf '%s\n' "$bad"
+		exit 2
+	fi
+}
+fCheckTreeWalks
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)
