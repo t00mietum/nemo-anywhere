@@ -55,6 +55,16 @@ protected_path (const char *path)
 }
 
 static gboolean
+real_folder (const char *path)
+{
+	GFile *file = g_file_new_for_path (path);
+	gboolean real = nemo_delete_guard_is_real_folder (file, NULL, NULL);
+
+	g_object_unref (file);
+	return real;
+}
+
+static gboolean
 exists (const char *path)
 {
 	GStatBuf st;
@@ -194,6 +204,13 @@ main (int argc, char *argv[])
 	g_free (make_file (inner, "scratch.txt"));
 	link = g_build_filename (tree, "link-out", NULL);
 	check (nemo_win32_link_create (outside, link, NULL, NEMO_LINK_JUNCTION, NULL));
+
+	/* What every tree walk asks before going in. GIO calls both of the links
+	   here a folder. */
+	check (real_folder (tree));
+	check (!real_folder (link));
+	check (!real_folder (up));
+	check (!real_folder (precious));
 
 	file = g_file_new_for_path (tree);
 	check (nemo_delete_guard_remove_tree (file, NULL));

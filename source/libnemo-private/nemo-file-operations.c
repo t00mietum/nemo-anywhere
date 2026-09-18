@@ -2033,6 +2033,12 @@ delete_dir (CommonJob *job, GFile *dir,
 
 	local_skipped_file = FALSE;
 
+	/* A link that would not go on its own gets one more try below and is
+	   reported if that fails too. What it points at is never walked. */
+	if (!nemo_delete_guard_is_real_folder (dir, NULL, job->cancellable)) {
+		goto remove;
+	}
+
 	skip_error = should_skip_readdir_error (job, dir);
  retry:
 	error = NULL;
@@ -2124,6 +2130,9 @@ delete_dir (CommonJob *job, GFile *dir,
 		}
 	}
 
+ remove:
+	/* Also clears what the walk above left here after freeing it. */
+	error = NULL;
 	if (!job_aborted (job) &&
 	    /* Don't delete dir if there was a skipped file */
 	    !local_skipped_file) {
@@ -4460,22 +4469,15 @@ remove_target_recursively (CommonJob *job,
 	char *primary, *secondary, *details;
 	int response;
 	GFileInfo *info;
-	GFileInfo *type_info;
 
 	stop = FALSE;
 
 	/* NOFOLLOW on the enumerate only affects the children's attributes, not
 	 * the directory open itself - a symlink to a directory would enumerate
 	 * its target and delete through it, outside the folder being replaced.
-	 * Only a real directory gets recursed; everything else is unlinked. */
-	type_info = g_file_query_info (file,
-				       G_FILE_ATTRIBUTE_STANDARD_TYPE,
-				       G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-				       job->cancellable,
-				       NULL);
-	is_dir = type_info != NULL &&
-		 g_file_info_get_file_type (type_info) == G_FILE_TYPE_DIRECTORY;
-	g_clear_object (&type_info);
+	 * Only a real directory gets recursed; everything else is unlinked. A
+	 * junction reads as a directory on Windows, hence the guard's check. */
+	is_dir = nemo_delete_guard_is_real_folder (file, NULL, job->cancellable);
 
 	error = NULL;
 	enumerator = !is_dir ? NULL :
@@ -4814,6 +4816,35 @@ get_target_file_for_display_name (GFile *dir,
 	return dest;
 }
 
+/* The link a move copied through, now its contents are at the far end. */
+static void
+remove_followed_link (CommonJob *job, GFile *src, gboolean *skipped_file)
+{
+	GError *error = NULL;
+	int response;
+
+	if (file_delete_wrapper (src, job->cancellable, &error)) {
+		nemo_file_changes_queue_file_removed (src);
+		return;
+	}
+
+	if (!IS_IO_ERROR (error, CANCELLED) && !job->skip_all_error) {
+		response = run_warning (job,
+					f (_("Error while moving \"%B\"."), src),
+					f (_("What the link points at was copied, but the link itself could not be removed.")),
+					error->message,
+					FALSE,
+					GTK_STOCK_CANCEL, SKIP,
+					NULL);
+		if (response == 0 || response == GTK_RESPONSE_DELETE_EVENT) {
+			abort_job (job);
+		}
+	}
+
+	g_error_free (error);
+	*skipped_file = TRUE;
+}
+
 /* Debuting files is non-NULL only for toplevel items */
 /* Whether this source is a link, and if it is, what should stand in for it at
    the far end. *target is filled in only where the link has to be built by
@@ -4966,6 +4997,7 @@ copy_move_file (CopyMoveJob *copy_job,
 	char *link_target = NULL;
 	char *link_base_dir = NULL;
 	gboolean asked_overwrite = FALSE;
+	gboolean following, recursed;
 
 	job = (CommonJob *)copy_job;
 
@@ -5353,15 +5385,30 @@ copy_move_file (CopyMoveJob *copy_job,
 			same_fs = FALSE;
 		}
 
-		if (!copy_move_directory (copy_job, src, &dest, same_fs,
-					  would_recurse, dest_fs_type,
-					  source_info, transfer_info,
-					  debuting_files, skipped_file,
-					  readonly_source_fs)) {
+		/* A move told to take what a folder link holds copies it instead.
+		   Moving would empty the folder the link points at, which is not
+		   what was asked to go. Only the link itself is removed after. */
+		following = copy_job->is_move && nemo_link_kind (src, NULL) != NEMO_LINK_NONE;
+		if (following) {
+			copy_job->is_move = FALSE;
+		}
+		recursed = copy_move_directory (copy_job, src, &dest, same_fs,
+						would_recurse, dest_fs_type,
+						source_info, transfer_info,
+						debuting_files, skipped_file,
+						readonly_source_fs);
+		if (following) {
+			copy_job->is_move = TRUE;
+		}
+		if (!recursed) {
 			/* destination changed, since it was an invalid file name */
 			g_assert (*dest_fs_type != NULL);
 			handled_invalid_filename = TRUE;
 			goto retry;
+		}
+
+		if (following && !*skipped_file && !job_aborted (job)) {
+			remove_followed_link (job, src, skipped_file);
 		}
 
 		g_object_unref (dest);
@@ -7519,7 +7566,7 @@ delete_trash_file (CommonJob *job,
 
 				child = g_file_get_child (file,
 							  g_file_info_get_name (info));
-                is_dir = (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY);
+                is_dir = nemo_delete_guard_is_real_folder (child, info, job->cancellable);
 
                 delete_trash_file (job, child, deletions_since_progress, TRUE, should_recurse && is_dir);
 				g_object_unref (child);

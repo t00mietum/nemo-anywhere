@@ -18,6 +18,7 @@
 #include <windows.h>
 #include <shellapi.h>
 
+#include <libnemo-private/nemo-link-win32.h>
 #include <libnemo-private/nemo-trash-win32.h>
 
 static int failures = 0;
@@ -268,6 +269,85 @@ test_trashed_folder (void)
 
 		uri = find_item_uri ("nemo-trashdir-test");
 	}
+}
+
+/* --- a junction goes to the bin and out of it as a link ---
+ *
+ * GIO calls a junction a folder, so taking a trashed folder out of the bin
+ * walked into one and deleted what it pointed at, until 20260918. A junction
+ * recycled on its own is checked too, since that is the shell's walk, not ours. */
+
+static void
+remove_items_named (const char *name)
+{
+	char *uri;
+
+	while ((uri = find_item_uri (name)) != NULL) {
+		GFile *item = g_file_new_for_uri (uri);
+		GError *error = NULL;
+		gboolean gone;
+
+		gone = g_file_delete (item, NULL, &error);
+		check (gone);
+		if (error != NULL) {
+			g_printerr ("  delete said: %s\n", error->message);
+			g_error_free (error);
+		}
+		g_object_unref (item);
+		g_free (uri);
+		if (!gone) {
+			return;
+		}
+	}
+}
+
+static void
+test_junction_in_bin (void)
+{
+	char *outside, *precious, *dir, *link, *bare;
+
+	outside = g_build_filename (g_get_home_dir (), "nemo-trashjunc-outside", NULL);
+	precious = g_build_filename (outside, "precious.txt", NULL);
+	dir = g_build_filename (g_get_home_dir (), "nemo-trashjunc-test", NULL);
+	link = g_build_filename (dir, "link-out", NULL);
+	bare = g_build_filename (g_get_home_dir (), "nemo-trashjunc-bare", NULL);
+
+	g_mkdir_with_parents (outside, 0700);
+	g_mkdir_with_parents (dir, 0700);
+	write_fixture (precious, "keep me");
+
+	if (!nemo_win32_link_create (outside, link, NULL, NEMO_LINK_JUNCTION, NULL) ||
+	    !nemo_win32_link_create (outside, bare, NULL, NEMO_LINK_JUNCTION, NULL)) {
+		g_printerr ("SKIP junction-in-bin: no junctions under home\n");
+		goto out;
+	}
+
+	if (!recycle_quietly (dir) || !recycle_quietly (bare)) {
+		g_printerr ("SKIP junction-in-bin: could not recycle\n");
+		goto out;
+	}
+	check (g_file_test (precious, G_FILE_TEST_EXISTS));
+
+	remove_items_named ("nemo-trashjunc-test");
+	check (g_file_test (precious, G_FILE_TEST_EXISTS));
+
+	remove_items_named ("nemo-trashjunc-bare");
+	check (g_file_test (precious, G_FILE_TEST_EXISTS));
+
+	real_bin_ran = TRUE;
+
+ out:
+	/* Whatever is left here is ours: the links, then the folder they pointed at. */
+	g_rmdir (link);
+	g_rmdir (dir);
+	g_rmdir (bare);
+	g_remove (precious);
+	g_rmdir (outside);
+	g_free (bare);
+	g_free (link);
+	g_free (dir);
+	g_free (precious);
+	g_free (outside);
 }
 
 /* --- a real bin item: listed name, original location and date survive a restore ---
@@ -906,6 +986,7 @@ main (int argc, char *argv[])
 
 	nemo_trash_win32_register ();
 	test_trashed_folder ();
+	test_junction_in_bin ();
 	test_real_bin_roundtrip ();
 	test_outside_bin_refused ();
 	test_fresh_item_parent ();

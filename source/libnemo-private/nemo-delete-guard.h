@@ -39,6 +39,13 @@
 #include <gtk/gtk.h>
 
 gboolean nemo_delete_guard_is_protected (GFile        *file);
+
+/* A folder a tree removal may walk into: not a symlink, not a junction.
+   info may be NULL; if given it must have been read without following. */
+gboolean nemo_delete_guard_is_real_folder (GFile        *file,
+					   GFileInfo    *info,
+					   GCancellable *cancellable);
+
 gboolean nemo_delete_guard_check        (GFile        *file,
 					 GError      **error);
 gboolean nemo_delete_guard_remove_tree  (GFile        *file,
