@@ -49,6 +49,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The arming test looks for `/tmp/...` in text that Windows spells with backslashes.
 	- The tree folders test times out in its hidden folder steps. Its hidden folders are hidden by a leading dot, which may not count on Windows.
 	- Test problems as far as can be seen, not product ones.
+	- Next vm925w run: fix and check these, and run the link move test, which needs its second drive.
 
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
@@ -1279,7 +1280,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Found: a move to another drive, told to take a link's contents, would have moved them out of the folder the link points at. design.md says moves never follow links, so a move now always takes the link, and the dialog greys out the copy option on a move.
 	- Fixed: one check for "a real folder, not a link", used by every walk that removes things. The delete job asks it too, before it would ever walk into something that would not delete on its own. Lint fails any new walk that does not ask, and was watched to fail on the old code.
 	- Tests: a new test runs the real delete and move jobs on a folder holding a folder link, a file link and a shortcut, and checks the target survives. A new Recycle Bin case covers the junction, and failed on the old code on b29w. `.desktop` and `.lnk` files were already removed as plain files.
-	- Not tested: a move of a junction to another drive, since neither Windows box has a second drive.
+	- Not tested yet: a move of a junction to another drive. b29w has one drive. vm925w has two, so the move test runs there when it is back up.
 
 - ✅ Cut the Linux drop down toward a single file.
 	- Opened: 20260908-000856
