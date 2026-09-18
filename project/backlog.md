@@ -43,14 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Two tests fail on a native Windows build: the test guard arming test and the tree folders test.
-	- Opened: 20260918-213000
-	- Neither had run on Windows before. Both were added after the last real-Windows pass, and b29w is the first box to run them.
-	- The arming test looks for `/tmp/...` in text that Windows spells with backslashes.
-	- The tree folders test times out in its hidden folder steps. Its hidden folders are hidden by a leading dot, which may not count on Windows.
-	- Test problems as far as can be seen, not product ones.
-	- Next vm925w run: fix and check these, and run the link move test, which needs its second drive.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -79,6 +71,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
+	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
@@ -171,6 +164,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Two tests fail on a native Windows build: the test guard arming test and the tree folders test.
+	- Opened: 20260918-213000
+	- Closed: 20260918-234500
+	- Neither had run on Windows before. Both were added after the last real-Windows pass, and b29w is the first box to run them.
+	- Both were test problems, not product ones.
+	- The arming test looked for `/tmp/...` in text that Windows spells with backslashes. It now looks for each path the way the dialog writes it.
+	- The tree folders test hid its folder with a leading dot, which is not what hidden means on Windows. There it sets the hidden attribute instead.
+	- Both pass on b29w now, where they failed before.
 
 - ✅ The search helper for zip-based documents (docx, odt, epub) checks the wrong thing after a read.
 	- Opened: 20260918-112900
