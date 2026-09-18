@@ -15,6 +15,9 @@
 #include <libnemo-private/nemo-global-preferences.h>
 
 #include "nemo-tree-sidebar-model.h"
+#ifdef G_OS_WIN32
+#include <windows.h>
+#endif
 
 #include "test-scratch.h"
 
@@ -45,6 +48,29 @@ make_dir (const char *relative)
 	char *path = g_build_filename (root_dir, relative, NULL);
 	g_mkdir_with_parents (path, 0755);
 	g_free (path);
+}
+
+/* Hidden means a leading dot here, and the hidden attribute on Windows, where
+ * a dot-file is a separate switch the tree never looks at. */
+#ifdef G_OS_WIN32
+#define SECRET "secret"
+#else
+#define SECRET ".secret"
+#endif
+
+static void
+make_hidden_dir (const char *relative)
+{
+	make_dir (relative);
+#ifdef G_OS_WIN32
+	{
+		char *path = g_build_filename (root_dir, relative, NULL);
+		wchar_t *wide = (wchar_t *) g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+		SetFileAttributesW (wide, GetFileAttributesW (wide) | FILE_ATTRIBUTE_HIDDEN);
+		g_free (wide);
+		g_free (path);
+	}
+#endif
 }
 
 /* Walks the rows by name. Looking a file up by uri instead would make a
@@ -178,7 +204,7 @@ static gboolean parent_loaded (void) { return n_children ("parent") == 1 && iter
 static gboolean child_settled (void) { return !has_child ("parent/child"); }
 static gboolean late_listed (void) { return iter_for ("empty/late", &(GtkTreeIter){0}); }
 static gboolean hidden_back (void) { return has_child ("hidden-only"); }
-static gboolean secret_listed (void) { return iter_for ("hidden-only/.secret", &(GtkTreeIter){0}); }
+static gboolean secret_listed (void) { return iter_for ("hidden-only/" SECRET, &(GtkTreeIter){0}); }
 
 /* A row that says it has children must have some, and the other way round. */
 static void
@@ -228,7 +254,7 @@ main (int argc, char *argv[])
 	make_dir ("tree/parent/child");
 	make_dir ("tree/empty");
 	make_dir ("tree/files-only");
-	make_dir ("tree/hidden-only/.secret");
+	make_hidden_dir ("tree/hidden-only/" SECRET);
 	{
 		char *file = g_build_filename (root_dir, "tree", "files-only", "a.txt", NULL);
 		char *top = g_build_filename (root_dir, "tree", "top.txt", NULL);

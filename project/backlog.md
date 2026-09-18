@@ -43,14 +43,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Two tests fail on a native Windows build: the test guard arming test and the tree folders test.
-	- Opened: 20260918-213000
-	- Neither had run on Windows before. Both were added after the last real-Windows pass, and b29w is the first box to run them.
-	- The arming test looks for `/tmp/...` in text that Windows spells with backslashes.
-	- The tree folders test times out in its hidden folder steps. Its hidden folders are hidden by a leading dot, which may not count on Windows.
-	- Test problems as far as can be seen, not product ones.
-	- Next vm925w run: fix and check these, and run the link move test, which needs its second drive.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -69,8 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Hi-DPI testing: Make sure preferences dialog box fits on the screen. (Or shrink and use scrollbars if not.)
-
 - 🔘 Put the delete test guard's compile-time arm back to 0 before the next release.
 	- Opened: 20260917-125536
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
@@ -81,6 +71,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
+	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
@@ -173,6 +164,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Two tests fail on a native Windows build: the test guard arming test and the tree folders test.
+	- Opened: 20260918-213000
+	- Closed: 20260918-234500
+	- Neither had run on Windows before. Both were added after the last real-Windows pass, and b29w is the first box to run them.
+	- Both were test problems, not product ones.
+	- The arming test looked for `/tmp/...` in text that Windows spells with backslashes. It now looks for each path the way the dialog writes it.
+	- The tree folders test hid its folder with a leading dot, which is not what hidden means on Windows. There it sets the hidden attribute instead.
+	- Both pass on b29w now, where they failed before.
 
 - ✅ The search helper for zip-based documents (docx, odt, epub) checks the wrong thing after a read.
 	- Opened: 20260918-112900
@@ -1273,6 +1273,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Hi-DPI testing: Make sure preferences dialog box fits on the screen. (Or shrink and use scrollbars if not.)
+	- Opened: 20260918-152452
+	- Closed: 20260918-233500
+	- Checked on Linux at nine screen sizes and scales, from 1920x1080 down to 1024x600 at 2x, and with text alone scaled to 125%, 150% and 200%, which is what Windows does.
+	- It already fits every time. The dialog is capped at nine tenths of the screen, and both the page list and the page scroll once it is that tight.
+	- No change made. The scrollbars stay hidden until the mouse moves over them, which at 2x can make the page list look cut off when it is not.
 
 - ✅ Make extra sure that deleting symlinks, junctions, and [.desktop, and .lnk] files only delete or trash the links, and NEVER the contents inside (e.g. never the contents inside a Windows junction). A strict "Don't follow" policy, no matter where they are encountered in a tree to be deleted, and not a user setting that can be changed.
 	- Opened: 20260908-021923 by JC.
