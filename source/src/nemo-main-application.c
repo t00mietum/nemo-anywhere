@@ -966,15 +966,26 @@ nemo_main_application_local_command_line (GApplication *application,
 	GError *error = NULL;
 	gint argc = 0;
 	gchar **argv = NULL;
+	gboolean open_display = TRUE;
+	gint i;
 
 	*exit_status = EXIT_SUCCESS;
 
-	context = g_option_context_new (_("\n\nBrowse the file system with the file manager"));
-	g_option_context_add_main_entries (context, options, NULL);
-	g_option_context_add_group (context, gtk_get_option_group (TRUE));
-
 	argv = *arguments;
 	argc = g_strv_length (argv);
+
+	/* The GTK group opens the display as part of the parse, so with no screen
+	   the parse itself failed and --version never got looked at. A --display
+	   given alongside is still read, and used when a window is opened. */
+	for (i = 1; i < argc; i++) {
+		if (g_strcmp0 (argv[i], "--version") == 0 || g_strcmp0 (argv[i], "--about") == 0) {
+			open_display = FALSE;
+		}
+	}
+
+	context = g_option_context_new (_("\n\nBrowse the file system with the file manager"));
+	g_option_context_add_main_entries (context, options, NULL);
+	g_option_context_add_group (context, gtk_get_option_group (open_display));
 
 	if (!g_option_context_parse (context, &argc, &argv, &error)) {
 		g_printerr ("Could not parse arguments: %s\n", error->message);

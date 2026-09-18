@@ -578,6 +578,15 @@ if not is_windows
 endif
 
 if not is_windows
+  test('Version with no display test',
+    executable('test-nemo-cli-version',
+      [ 'test-nemo-cli-version.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ glib ],
+    ),
+    args: [ nemo ],
+  )
+
   test('Instances test',
     executable('test-nemo-instances',
       [ 'test-nemo-instances.c' ],
