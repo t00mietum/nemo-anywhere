@@ -78,10 +78,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
 
-- 🔘 Owner name and Owner - name columns on Windows.
-	- Opened: 20260918-175048
-	- GIO leaves the display name empty there, so both columns are left out on Windows for now. The account's full name would have to be looked up by us.
-
 - 🔘 Cut an RC1 release.
 	- Opened: 20260908-111526
 
@@ -1272,6 +1268,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Owner name and Owner - name columns on Windows.
+	- Opened: 20260918-175048
+	- Closed: 20260918-184500
+	- GIO leaves the display name empty there, so both columns are left out on Windows for now. The account's full name would have to be looked up by us.
+	- Done. Both columns are offered on Windows now, off by default. The name is the local account's full name, looked up once per account. A domain account, a service or a file on a share shows none.
 
 - ✅ Add an option under "Behavior" to include extension on rename (on by default).
 	- Opened: 20260918-181654
