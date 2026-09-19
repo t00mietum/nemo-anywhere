@@ -2558,6 +2558,43 @@ nemo_filename_get_extension (const gchar *name)
 	return g_strdup (tail + 1);
 }
 
+static gint archive_mount_state = -1;
+
+/* GIO lists the archive scheme only when gvfs is running and has the archive
+   backend installed. Never on Windows, where there is no gvfs. */
+void
+nemo_archive_mount_init (void)
+{
+	const gchar * const *schemes;
+
+	if (archive_mount_state != -1) {
+		return;
+	}
+
+	schemes = g_vfs_get_supported_uri_schemes (g_vfs_get_default ());
+	archive_mount_state = schemes != NULL && g_strv_contains (schemes, "archive");
+}
+
+gboolean
+nemo_archive_mount_supported (void)
+{
+	nemo_archive_mount_init ();
+	return archive_mount_state == 1;
+}
+
+/* gvfs wants the archive's own URI escaped twice as the host part:
+   archive://file%253A%252F%252F.../ */
+GFile *
+nemo_archive_mount_location (GFile *archive)
+{
+	g_autofree gchar *uri = g_file_get_uri (archive);
+	g_autofree gchar *once = g_uri_escape_string (uri, NULL, FALSE);
+	g_autofree gchar *twice = g_uri_escape_string (once, NULL, FALSE);
+	g_autofree gchar *mount_uri = g_strconcat ("archive://", twice, "/", NULL);
+
+	return g_file_new_for_uri (mount_uri);
+}
+
 #if !defined (NEMO_OMIT_SELF_CHECK)
 
 void

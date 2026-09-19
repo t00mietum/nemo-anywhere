@@ -165,6 +165,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ "Mount archive" doesn't seem to do anything.
+	- Opened: 20260918-163716
+	- Closed: 20260918-170628
+	- It was a Cinnamon action that ran `gnome-disk-image-mounter`. That only attaches disk images, so a zip or 7z did nothing.
+	- Now a built-in menu item beside the Extract items. It opens the archive through gvfs, which mounts it and shows its contents. The mount shows under Network with an eject button.
+	- Checked once at startup. With no gvfs archive support, which includes Windows, the item is not shown.
+
 - ✅ Two tests fail on a native Windows build: the test guard arming test and the tree folders test.
 	- Opened: 20260918-213000
 	- Closed: 20260918-234500
@@ -1273,6 +1280,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ If preferences is too small to show everything, make the scrollbar always visible.
+	- Opened: 20260918-163716
+	- Closed: 20260918-170628
+	- Every scrolled area in the dialog, the page list included, now uses a normal scrollbar. It shows whenever something does not fit, and not otherwise.
 
 - ✅ Hi-DPI testing: Make sure preferences dialog box fits on the screen. (Or shrink and use scrollbars if not.)
 	- Opened: 20260918-152452

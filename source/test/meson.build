@@ -676,6 +676,15 @@ test('Extract naming test',
   args: []
 )
 
+test('Archive mount address test',
+  executable('test-nemo-archive-mount',
+    [ 'test-nemo-archive-mount.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 # Writes its own zip with libarchive, so it needs the library the app links.
 test('Extract job test',
   executable('test-nemo-extract-job',
