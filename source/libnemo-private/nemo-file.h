@@ -532,6 +532,7 @@ void                    nemo_file_list_cancel_call_when_ready       (NemoFileLis
 
 char *   nemo_file_get_owner_as_string            (NemoFile          *file,
                                                           gboolean           include_real_name);
+char *   nemo_file_get_owner_real_name            (NemoFile          *file);
 char *   nemo_file_get_type_as_string             (NemoFile          *file);
 char *   nemo_file_get_detailed_type_as_string    (NemoFile          *file);
 

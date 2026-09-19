@@ -410,9 +410,11 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - Places is one tree store rebuilt from bookmarks, mounts, drives and network locations. Anything that could be slow to answer, such as free space or mount state, is fetched off the main loop and folded in when it arrives.
 
+- Every other row can be shaded, off by default. GTK 3 no longer draws the rules hint, so each cell tints its own background on odd rows, counted by place on screen so an open subfolder's rows take their turn. A cell leaves its background off a selected row, and the tint is see-through, so selection and hover still read. The color is the setting's, then the theme's `nemo_row_shading`, then a faint wash of the text color.
+
 - The list view scrolls sideways before it crushes a column, and remembers a width dragged by hand. The whole rule is under [List view column widths](#list-view-column-widths).
 
-- The column roster earns its defaults. Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Owner shows by default on Windows too, where the platform reports a file's real owner. Permissions source - whether a file's permissions come from its folder, from the file itself, or both - is offered on Windows and off by default.
+- The column roster earns its defaults. Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Owner shows the user name alone, by default on Windows too, where the platform reports a file's real owner. Owner name and Owner - name are offered everywhere else; Windows reports no display name, so they would stay empty there. Permissions source - whether a file's permissions come from its folder, from the file itself, or both - is offered on Windows and off by default.
 
 - Extensions can add context-menu items, list columns, property pages and file attributes. Nothing in the interface depends on one being present.
 

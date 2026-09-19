@@ -99,7 +99,7 @@ static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL }
 static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "permissions_source", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", NULL };
 #else
-static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "group", "permissions", NULL };
+static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "owner_name", "owner_and_name", "group", "permissions", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", "group", "permissions", NULL };
 #endif
 /* The actions that only do anything under Cinnamon: they call cinnamon-settings,
@@ -160,6 +160,8 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "list-view", "default-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_visible_columns, NULL, NULL },
 	{ "list-view", "default-zoom-level", NEMO_CONFIG_ENUM, "small", NULL, enum_ZoomLevel, NULL },
 	{ "list-view", "enable-folder-expansion", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Let a folder be expanded in place to show what is in it" },
+	{ "list-view", "row-shading", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Shade every other row" },
+	{ "list-view", "row-shading-color", NEMO_CONFIG_STRING, "", NULL, NULL, "Color of the shaded rows, in any form CSS takes. Empty uses the theme's nemo_row_shading color, or a faint tint of the text color if it has none" },
 	{ "plugins", "disabled-actions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_actions, NULL, "Action files that are switched off. The shipped Cinnamon-only ones start here" },
 	{ "plugins", "disabled-extensions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_extensions, NULL, NULL },
 	{ "plugins", "disabled-scripts", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_scripts, NULL, NULL },

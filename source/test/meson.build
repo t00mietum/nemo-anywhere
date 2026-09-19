@@ -620,6 +620,15 @@ test('Filename extension test',
   args: []
 )
 
+test('Owner columns test',
+  executable('test-nemo-owner-columns',
+    [ 'test-nemo-owner-columns.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Path shorten test',
   executable('test-nemo-path-shorten',
     [ 'test-nemo-path-shorten.c' ],

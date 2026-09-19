@@ -29,6 +29,7 @@ static const char * const widget_ids[] = {
 	"views_notebook",
 	"views_current_page",
 	"views_current_tab",
+	"list_view_row_shading_checkbutton",
 	NULL
 };
 
