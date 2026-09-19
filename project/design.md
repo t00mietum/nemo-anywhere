@@ -98,8 +98,7 @@ What the project is trying to be, roughly in priority order:
 	- A drag that moves files says what it is about to do, and waits. (Because accidental mouse drag-and-drops - especially large ones across filesystems - are the bane of GUI file managers.)
 	- Trash and delete jobs each write a line saying what was taken and what asked for it.
 	- Home, the folders above it and mounted drives are never deleted, and no one job may take most of a home folder.
-	- A copy/move/delete with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
-	- A copy/move/delete over a size threshold, asks first no matter what the preferences say.
+	- A trash or delete with no user input driving it, and/or one over a size threshold, asks first no matter what the preferences say.
 
 - Keep configuration in plain sight. One text file, readable and editable by hand, with no registry keys, no dconf, and no compiled schema to install. Hand-editing it behaves the same as changing the setting in the dialog.
 
