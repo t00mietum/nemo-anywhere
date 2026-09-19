@@ -23,3 +23,7 @@ build/
 
 # core dumps from headless test runs
 core.*
+
+## Python bytecode, from anything that imports the cicd helpers
+__pycache__/
+*.pyc

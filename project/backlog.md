@@ -45,6 +45,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Horizontal scrollbar sometimes shows up when not needed.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -82,9 +84,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - ✅ Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
 	- Opened: 20260804-230307. Closed: 20260919.
-	- The gif is 57 seconds and 1.4 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
-	- Six scenes: both side panes, list columns and row shading, icon view thumbnails, search grouped by folder, and Compress.
+	- The gif is 58 seconds and 1.6 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
+	- Six scenes: the window opens with Places alone, then the folder tree opens beside it and closes again; F3 opens a second content pane and closes it; icon view thumbnails; search flat then grouped by folder; and Compress to 7z.
 	- Runs on its own Xvfb with the synthetic home mounted at a generic path, so no account name or working path is on screen.
+	- It picks a free display rather than insisting on one number, after a sister project's recorder was found on the one this had claimed.
 	- `cicd.bash --demo` records it. Off by default and skipped on a quick run, since it takes about six minutes and only changes when the interface or the script does.
 	- Note: merged with an older item from 20260804 that asked for about twenty seconds. The lengths above win.
 
