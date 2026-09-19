@@ -43,6 +43,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Icon view:
+	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
+	- The size slider is jammed too far to the right. Needs proper padding or margin.
+
+- 🔘 Path in window title: Show the whole thing, rather than shortened version, if it will fit.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -61,7 +67,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Put the delete test guard's compile-time arm back to 0 before the next release.
+- 🔘 Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
+
+- 🔘 Put the delete test guard's compile-time arm back to 0 before the next STABLE release.
 	- Opened: 20260917-125536
 	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
 	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
@@ -77,13 +85,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260821-150232
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
-
-- 🔘 Cut an RC1 release.
-	- Opened: 20260908-111526
-
-- 🔘 Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
-	- Opened: 20260819-141014
-	- Need to think through the UX.
 
 - 🔘 Native renamer:
 	- Opened: 20260908-111526
@@ -2687,6 +2688,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- PyCmd
 		- CMD.exe
 		- Powershell 5
+
+- ✋ Session bookmarks - that allow you to jump backwards and forwards to folders and/or files
+	- Opened: 20260819-141014
+	- Backlogged: 20260918-184949
+	- Need to think through the UX.
 
 ### Canceled
 
