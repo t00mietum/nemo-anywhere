@@ -132,8 +132,8 @@ if is_windows
   # shell/COM libs for the Recycle Bin trash backend, mpr for network enumeration,
   # advapi32 for the registry (system light/dark theme follow), version for a
   # program's own description in the Open With menu, wbemuuid for starting a
-  # program through the management service
-  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lwbemuuid', '-lmpr', '-ladvapi32', '-lversion'])
+  # program through the management service, netapi32 for an owner's full name
+  win_shell = declare_dependency(link_args: ['-lshell32', '-lole32', '-loleaut32', '-lshlwapi', '-luuid', '-lwbemuuid', '-lmpr', '-ladvapi32', '-lversion', '-lnetapi32'])
 else
   gio_unix = dependency('gio-unix-2.0',              version: glib_version)
   x11      = dependency('x11')

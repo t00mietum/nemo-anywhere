@@ -2922,11 +2922,19 @@ update_info_internal (NemoFile *file,
 		file->details->owner = g_ref_string_new_intern (owner);
 	}
 
+#ifdef G_OS_WIN32
+	/* GIO never fills owner_real on Windows. Ours is read again when next
+	   asked, and a new owner already counts as a change above. */
+	(void) owner_real;
+	g_clear_pointer (&file->details->owner_real, g_ref_string_release);
+	file->details->win32_owner_real_read = FALSE;
+#else
 	if (g_strcmp0 (file->details->owner_real, owner_real) != 0) {
 		changed = TRUE;
         g_clear_pointer (&file->details->owner_real, g_ref_string_release);
 		file->details->owner_real = g_ref_string_new_intern (owner_real);
 	}
+#endif
 
 	if (g_strcmp0 (file->details->group, group) != 0) {
 		changed = TRUE;
@@ -7035,6 +7043,39 @@ nemo_file_get_permissions_source_as_string (NemoFile *file)
 }
 #endif
 
+/* GIO leaves an owner's display name empty on Windows, so it is looked up
+ * the first time a column asks and kept until the next info load. A share is
+ * skipped, since the owner lookup would go over the network per file. */
+static void
+read_owner_real (NemoFile *file)
+{
+#ifdef G_OS_WIN32
+	char *path;
+	char *full_name;
+
+	if (file->details->win32_owner_real_read) {
+		return;
+	}
+	file->details->win32_owner_real_read = TRUE;
+
+	if (file->details->owner_real != NULL || file->details->owner == NULL ||
+	    nemo_file_is_on_a_share (file)) {
+		return;
+	}
+
+	path = nemo_file_get_path (file);
+	full_name = nemo_security_win32_owner_full_name (path);
+	g_free (path);
+
+	if (full_name != NULL) {
+		file->details->owner_real = g_ref_string_new_intern (full_name);
+		g_free (full_name);
+	}
+#else
+	(void) file;
+#endif
+}
+
 /**
  * nemo_file_get_owner_as_string:
  *
@@ -7051,6 +7092,10 @@ char *
 nemo_file_get_owner_as_string (NemoFile *file, gboolean include_real_name)
 {
 	char *user_name;
+
+	if (include_real_name) {
+		read_owner_real (file);
+	}
 
 	/* Before we have info on a file, the owner is unknown. */
 	if (file->details->owner == NULL &&
@@ -7075,11 +7120,12 @@ nemo_file_get_owner_as_string (NemoFile *file, gboolean include_real_name)
 	return user_name;
 }
 
-/* The display name alone, or NULL when the system has none. GIO on Windows
- * never fills it in. */
+/* The display name alone, or NULL when the system has none. */
 char *
 nemo_file_get_owner_real_name (NemoFile *file)
 {
+	read_owner_real (file);
+
 	if (file->details->owner_real == NULL || file->details->owner_real[0] == '\0') {
 		return NULL;
 	}
