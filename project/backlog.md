@@ -1288,7 +1288,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Subtle
 	- Complementary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
 	- Themable, customizable.
-	- Done. A checkbox on the List columns page, off by default. The theme or gtk.css can set `nemo_row_shading`, and `row-shading-color` in the settings file overrides it.
+	- Done. A checkbox on the Display page, under List view, off by default. The theme or gtk.css can set `nemo_row_shading`, and `row-shading-color` in the settings file overrides it.
 
 - ✅ When the full path is shown on tabs, and tabs won't all fit in the tab bar:
 	- Opened: 20260918-170700
