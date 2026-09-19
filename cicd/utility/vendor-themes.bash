@@ -620,10 +620,36 @@ for record in "${widgetThemes[@]}"; do fBuildWidgetTheme "$record"; done
 for record in "${iconThemes[@]}";   do fBuildIconTheme   "$record"; done
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+## Tab-separated rows in, the first one the header, a markdown table out.
+fMdTable(){
+	awk -F'\t' '
+		{ for (i = 1; i <= NF; i++) { cell[NR, i] = $i; if (length($i) > width[i]) width[i] = length($i) } cols = (NF > cols ? NF : cols); rows = NR }
+		END {
+			for (r = 1; r <= rows; r++) {
+				line = ""
+				for (i = 1; i <= cols; i++) {
+					val = cell[r, i]
+					line = line "| " val (i < cols ? sprintf("%*s", width[i] - length(val) + 1, "") : "")
+				}
+				print line
+				if (r == 1) {
+					line = ""
+					for (i = 1; i <= cols; i++) line = line "| " (i < cols ? sprintf("%-*s", width[i] + 1, ":---") : ":---")
+					print line
+				}
+			}
+		}'
+}
+
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Provenance. Only the themes section is rewritten - the rest of the file
 ## records the other vendored code and its licenses.
 
 if (( ${#wanted[@]} == 0 )); then
+	## Anything from the first ### under Themes on is written by hand, such as the
+	## license notes, and is carried over rather than dropped.
+	handTail=""
+	[[ -f "$vendor/README.md" ]] && handTail="$(sed -n '/^## Themes/,$p' "$vendor/README.md" | sed -n '/^### /,$p')"
 	{
 		if [[ -f "$vendor/README.md" ]] && grep -q '^## Themes' "$vendor/README.md"; then
 			sed '/^## Themes/,$d' "$vendor/README.md"
@@ -632,30 +658,31 @@ if (( ${#wanted[@]} == 0 )); then
 		fi
 
 		printf '## Themes\n\n'
-		printf 'Regenerate with `cicd/utility/vendor-themes.bash` - do not hand-edit. Bundled as\n'
-		printf 'mere aggregation: GTK reads them at runtime, nothing is linked into nemo. Each\n'
-		printf "theme keeps its own \`COPYING\`. Our own Luna and Aero icon sets are not here -\n"
-		printf 'they are first-party art in `assets/icons`, built by `gen-icon-theme.py`.\n\n'
-		printf '| Theme | Kind | Style | Upstream | Commit |\n'
-		printf '| :-- | :-- | :-- | :-- | :-- |\n'
+		printf 'Regenerate with `cicd/utility/vendor-themes.bash` - do not hand-edit the table. Bundled as mere aggregation: GTK reads them at runtime, nothing is linked into nemo. Each theme keeps its own `COPYING`. Our own Windows-look icon sets are not here - Luna, Aero, Metro and Mica are first-party art in `assets/icons`, built by `gen-icon-theme.py`. Nothing Windows-styled is vendored as icons: every such set that circulates draws blue folders, and Windows folders are yellow.\n\n'
 
 		## Driven off what is on disk rather than off the catalog, so a dark
 		## half that exists only as another record's counterpart still gets a
-		## row, and nothing gets two.
-		for kind in themes icons; do
-			for dir in "$vendor/$kind"/*/; do
-				[[ -d "$dir" ]] || continue
-				name="$(basename "$dir")"
-				meta="$(fRecordFor "$kind" "$name" || true)"
-				[[ -n "$meta" ]] || continue
-				IFS='|' read -r style url ref <<< "$meta"
-				key="$(printf '%s' "$url" | tr -c 'A-Za-z0-9' '_')"
-				sha="$(git -C "$tmp/$key" rev-parse HEAD 2>/dev/null || echo "$ref")"
-				printf '| `%s` | %s | %s | %s | `%s` |\n' \
-					"$name" "$([[ "$kind" == themes ]] && echo Widget || echo Icon)" \
-					"$style" "$url" "$sha"
+		## row, and nothing gets two. Padded so the columns line up in a text
+		## editor too, with no trailing pipe.
+		{
+			printf 'Theme\tKind\tStyle\tUpstream\tCommit\n'
+			for kind in themes icons; do
+				for dir in "$vendor/$kind"/*/; do
+					[[ -d "$dir" ]] || continue
+					name="$(basename "$dir")"
+					meta="$(fRecordFor "$kind" "$name" || true)"
+					[[ -n "$meta" ]] || continue
+					IFS='|' read -r style url ref <<< "$meta"
+					key="$(printf '%s' "$url" | tr -c 'A-Za-z0-9' '_')"
+					sha="$(git -C "$tmp/$key" rev-parse HEAD 2>/dev/null || echo "$ref")"
+					printf '`%s`\t%s\t%s\t%s\t`%s`\n' \
+						"$name" "$([[ "$kind" == themes ]] && echo Widget || echo Icon)" \
+						"$style" "$url" "$sha"
+				done
 			done
-		done
+		} | fMdTable
+
+		[[ -z "$handTail" ]] || printf '\n%s\n' "$handTail"
 	} > "$vendor/README.md.new"
 	mv -f "$vendor/README.md.new" "$vendor/README.md"
 fi
