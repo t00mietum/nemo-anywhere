@@ -160,6 +160,10 @@ fEcho_Force(){ fEcho_ResetBlankCounter; fEcho "$*"; }
 _letterbox="••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"
 fSection(){ fEcho_Clean; fEcho_Clean "${_letterbox}"; fEcho "$*"; }
 fDie(){ { fEcho_Force "FAILED: $*"; } >&2; exit 1; }
+## Git that talks to the remote goes through gitsby where it is installed, so the
+## fetch and pull use the key and account this repo belongs to. A fresh clone
+## without it gets plain git.
+fGit(){ if command -v gitsby >/dev/null 2>&1; then gitsby raw git "$@"; else git "$@"; fi; }
 ## True if a running process is executing the given binary (its own exe, not a
 ## substring match), so an in-use dogfood copy isn't pruned. Checks /proc/*/exe.
 in_use(){
@@ -238,7 +242,7 @@ remote_sync(){
 		fEcho_Clean "no upstream for $(git rev-parse --abbrev-ref HEAD); nothing to sync"
 		return 0
 	fi
-	if ! git fetch --quiet 2>/dev/null; then
+	if ! fGit fetch --quiet 2>/dev/null; then
 		fEcho "WARNING: git fetch failed (offline?); continuing with the local tree"
 		return 0
 	fi
@@ -260,7 +264,7 @@ remote_sync(){
 		git stash push --include-untracked -m "auto-stash" >/dev/null && stashed=1
 	fi
 	fEcho_Clean "git pull --ff-only ..."
-	git pull --ff-only
+	fGit pull --ff-only
 	if ((stashed)); then
 		fEcho_Clean "git stash pop ..."
 		## A conflicting pop leaves the stash held and the tree half-merged. Say
@@ -318,7 +322,7 @@ if declare -p TOOL_PINS &>/dev/null; then
 		if [[ -z "$have" ]]; then
 			fEcho "WARNING: ${pin_name} not found (pinned ${pin_ver})"
 		elif [[ "$have" != "$pin_ver" ]]; then
-			fEcho "WARNING: ${pin_name} is ${have}, pinned ${pin_ver} (cargo install ${pin_name} --version ${pin_ver} --locked, or update the pin)"
+			fEcho "WARNING: ${pin_name} is ${have}, pinned ${pin_ver} (install that version, or update the pin in config.bash)"
 		fi
 	done
 fi

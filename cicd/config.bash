@@ -61,17 +61,12 @@ DOCKER_RUN="${_cfgdir}/utility/docker-run.bash"
 FMT_CMD=()
 FMT_CHECK_CMD=()
 
-## Pinned helper-tool versions the engine warns on when drifted. NOT READY - unset.
-## NEEDS: pins for whatever C-side tools the pipeline ends up depending on (meson,
-## ninja, a formatter). The cargo tool pins below don't apply.
-#	Rust-era original (reference only):
-#	TOOL_PINS=(
-#		"cargo-deny|0.19.9|cargo deny --version"
-#		"cargo-zigbuild|0.23.0|cargo-zigbuild --version"
-#		"cargo-deb|3.7.0|cargo-deb --version"
-#		"cargo-generate-rpm|0.21.0|cargo-generate-rpm --version"
-#		"makensis|3.11|makensis -VERSION"
-#	)
+## Pinned versions of the tools that run on the host, which the engine warns on
+## when they drift. Only cppcheck runs there. meson, ninja, gcc and clang run in
+## the build containers, and the image pins those.
+TOOL_PINS=(
+	"cppcheck|2.17.1|cppcheck --version"
+)
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
