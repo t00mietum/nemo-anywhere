@@ -61,11 +61,11 @@
 
 ## Why
 
-Nemo is one of the best file managers made to date. Fast, sane, powerful, and it respects how you actually work.
+Nemo is one of the best file managers going. Fast, sane, powerful.
 
-There is one catch. It belongs to the Cinnamon desktop. If you run anything else, you get it with strings attached - or not at all.
+There's just one catch. It's part of the Linux Cinnamon desktop.
 
-This project cuts the strings:
+This project removes the Cinammon (and even Linux) dependency:
 
 - It takes Nemo as-is, from the source.
 
@@ -86,13 +86,13 @@ That means, in order:
 
 - **Windows**: A real native build, not a compatibility shim.
 
-- **BSD**: Should need little beyond a compile, but nobody has done one yet.
+- **BSD**
 
-- **macOS**: Later. Nothing in the code should stand in the way, but it has not been tried.
+- **macOS**: Later. Nothing in the code should stand in the way, but it hasn't been tried yet.
 
 One codebase. "For Windows" and friends are just labels on builds, not separate projects.
 
-It is opinionated. It manages files, period, and does not try to solve every problem around them. What it does do is carry more of the file management you need built in, on every platform, so nothing depends on a third-party program, plugin or extension that only exists on one of them. If you want a file manager that grows into a media browser or a desktop shell, this is not the one.
+It is opinionated. It manages files and folders. It does more of the file management you need, built in, on every platform, so nothing depends on third-party programs, plugins or extensions that only exists on one of them.
 
 This is an independent, unofficial hard fork of [linuxmint/nemo](https://github.com/linuxmint/nemo), taken at the 6.6.4 release. It is not affiliated with, endorsed by, or supported by Linux Mint, the Cinnamon team, or GNOME.
 
@@ -112,10 +112,6 @@ Everything that makes Nemo worth porting:
 
 - Proper bookmarks.
 
-- A deep bench of configuration options.
-
-- An extension system with a real API.
-
 - Copies use near-instant and near-zero-size CoW copies automatically, if the underlying filesystem allows it.
 
 ## What this fork adds or enhances
@@ -128,13 +124,15 @@ Everything that makes Nemo worth porting:
 	- Same idea as an AppImage or a Flatpak, without the runtime or the sandbox.
 	- On Linux it stays a small folder that uses the GTK3 your distro already has, because that is what a Linux user expects and it keeps the download tiny.
 
-- Every window is its own process. One window falling over leaves the rest alone, and two versions can run side by side.
+- Every instance is its own process. If one crashes for some reason, the rest keep going.
+
+- Integrated - and more advanced - archive handling. No more third-party GUI application dependencies that don't feel integrated, don't support the archive format's best options, etc.
 
 - A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
 
-- A large delete, or one nobody clearly asked for, still prompts even with confirmation turned off. A delete with no click or keystroke behind it counts as nobody asking.
+- A large delete, or one generated with no user input, prompts even with confirmation turned off.
 
-- Trash and delete write down what they did: how many items, which folder, the first name in the batch, and what set it off.
+- Trash and delete operations record what they did: how many items, which folder, the first name in the batch, and what set it off.
 
 - Search results can be grouped under the folder they came from. A flat list of thirty files all called `notes.txt` tells you nothing; a row per folder with the matches under it tells you where to look. One toggle in the search bar, and the same results either way.
 
@@ -145,8 +143,6 @@ Everything that makes Nemo worth porting:
 - What a platform cannot do is hidden or grayed out rather than failing when clicked. No "Make Link" on Windows, no permissions tab where there are no permissions.
 
 - Releases can be checked. Each one is reproducible from the commit it was built at, and published with checksums.
-
-- Stays Nemo. Same code lineage, GPL intact.
 
 ## Status
 
