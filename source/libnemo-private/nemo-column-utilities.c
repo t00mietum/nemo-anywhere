@@ -115,9 +115,6 @@ get_builtin_columns (void)
 					       "unbounded", TRUE,
 					       NULL));
 
-#ifndef G_OS_WIN32
-	/* GIO has no display name for an owner on Windows, so these would be
-	 * empty there. */
 	columns = g_list_append (columns,
 				 g_object_new (NEMO_TYPE_COLUMN,
 					       "name", "owner_name",
@@ -134,7 +131,6 @@ get_builtin_columns (void)
 					       "description", _("The user name and display name of the file's owner."),
 					       "unbounded", TRUE,
 					       NULL));
-#endif
 
 #ifdef G_OS_WIN32
 	columns = g_list_append (columns,

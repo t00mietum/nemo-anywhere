@@ -416,7 +416,7 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - The list view scrolls sideways before it crushes a column, and remembers a width dragged by hand. The whole rule is under [List view column widths](#list-view-column-widths).
 
-- The column roster earns its defaults. Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Owner shows the user name alone, by default on Windows too, where the platform reports a file's real owner. Owner name and Owner - name are offered everywhere else; Windows reports no display name, so they would stay empty there. Permissions source - whether a file's permissions come from its folder, from the file itself, or both - is offered on Windows and off by default.
+- The column roster earns its defaults. Ext shows by default just right of Name, without the dot, and stays blank when the tail after a dot is not really an extension. Owner shows the user name alone, by default on Windows too, where the platform reports a file's real owner. Owner name and Owner - name are offered everywhere. Windows reports no display name, so there it is looked up for local accounts only; a domain account shows none. Permissions source - whether a file's permissions come from its folder, from the file itself, or both - is offered on Windows and off by default.
 
 - Extensions can add context-menu items, list columns, property pages and file attributes. Nothing in the interface depends on one being present.
 

@@ -96,7 +96,7 @@ static const char *const deflist__favorites_root_metadata[] = { NULL };
 static const char *const deflist_icon_view_captions[] = { "none", "size", "date_modified", NULL };
 static const char *const deflist_icon_view_text_ellipsis_limit[] = { "3", NULL };
 #ifdef G_OS_WIN32
-static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "permissions_source", NULL };
+static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "owner_name", "owner_and_name", "permissions_source", NULL };
 static const char *const deflist_list_view_default_visible_columns[] = { "name", "size", "extension", "type", "date_modified", "owner", NULL };
 #else
 static const char *const deflist_list_view_default_column_order[] = { "name", "where", "size", "extension", "type", "date_modified", "owner", "owner_name", "owner_and_name", "group", "permissions", NULL };

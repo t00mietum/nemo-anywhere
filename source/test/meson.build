@@ -624,7 +624,7 @@ test('Owner columns test',
   executable('test-nemo-owner-columns',
     [ 'test-nemo-owner-columns.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch, win_shell ],
   ),
   args: []
 )

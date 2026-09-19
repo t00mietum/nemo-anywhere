@@ -37,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The Windows build carries a set of themes so the app looks like something out of the box: Windows 11, Windows 10, Windows 7, Windows XP and macOS window styles, and nine icon styles including Windows XP and Windows 7 sets drawn for this project. Linux keeps using whatever the desktop provides.
 - Themes can be dropped in on any platform. Put a GTK theme folder in `themes`, or an icon theme in `icons`, beside the settings file and it shows up in the lists.
 - A small panel while Windows starts the app, saying what it is doing, so a launch that takes a moment does not look like nothing happened. It goes away the instant the real window has drawn.
-- Two more owner columns for the list view, off Windows: Owner name, the owner's display name, and Owner - name, which shows both. Windows has no display name to show.
+- Two more owner columns for the list view: Owner name, the owner's display name, and Owner - name, which shows both. On Windows the name is the local account's full name; a domain account has none.
 - A checkbox under Behavior for whether a rename starts with the extension selected too. On by default, as before.
 - Every other row in the list view can be shaded, from the Display page. Off by default. The shade comes from the theme's `nemo_row_shading` color when it has one, or a faint tint of the text color, and `row-shading-color` in the settings file overrides both.
 

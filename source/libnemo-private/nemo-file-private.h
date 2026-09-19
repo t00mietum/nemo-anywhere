@@ -79,6 +79,8 @@ struct NemoFileDetails
 	/* NemoWin32PermSource, cached for the Permissions source column; 0 means
 	   not read yet, and an info reload clears it back to that. */
 	guint win32_perm_source : 3;
+	/* owner_real is looked up by us on Windows, once per info load. */
+	guint win32_owner_real_read : 1;
 #endif
 
 	time_t atime; /* 0 is unknown */

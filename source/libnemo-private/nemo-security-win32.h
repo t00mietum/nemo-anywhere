@@ -1,6 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 
-/* nemo-security-win32.h - where a file's Windows permissions come from.
+/* nemo-security-win32.h - where a file's Windows permissions come from, and
+   who owns it.
 
    Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
@@ -37,6 +38,10 @@ typedef enum {
 
 /* Never returns NOT_COMPUTED - that value is for callers caching the answer. */
 NemoWin32PermSource nemo_security_win32_permissions_source (const char *path);
+
+/* The full name of the local account that owns path, or NULL when the owner
+   is not a local user or has no full name. */
+char *nemo_security_win32_owner_full_name (const char *path);
 
 G_END_DECLS
 
