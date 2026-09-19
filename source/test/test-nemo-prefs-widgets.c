@@ -30,6 +30,7 @@ static const char * const widget_ids[] = {
 	"views_current_page",
 	"views_current_tab",
 	"list_view_row_shading_checkbutton",
+	"rename_selects_whole_name_checkbutton",
 	NULL
 };
 
