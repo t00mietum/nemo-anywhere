@@ -762,8 +762,11 @@ elif [[ -x "$shots_hook" ]]; then
 fi
 
 ## Re-record the demo video (same gating shape as screenshots: off by default,
-## skipped under --quick, never aborts). The video GFS-rotates into
-## ../private/demo-video/; the README highlight gif lands in assets/demo.gif.
+## skipped under --quick, never aborts). Both recordings GFS-rotate into the
+## demo-video/ directory beside the repo; the README gif also lands in
+## assets/demo.gif. It runs on a private Xvfb, so nothing shows up on whatever
+## display this was started from. It needs the release build, so it goes after
+## stage 5.
 demo_hook="${root}/cicd/utility/demo-video/demo-video.py"
 if ((! ${DEMO_ENABLE:-0})); then
 	fEcho_Clean "demo video disabled"
@@ -771,7 +774,7 @@ elif ((quick)); then
 	fEcho_Clean "demo video skipped (--quick)"
 elif [[ -f "$demo_hook" ]]; then
 	fEcho_Clean "recording demo video ..."
-	if NEMO_BIN="${root}/target/release/nemo-anywhere" python3 "$demo_hook"; then
+	if NEMO_BIN="${root}/${RELEASE_NATIVE_BIN}" python3 "$demo_hook"; then
 		fEcho "OK: demo video"
 	else
 		fEcho "WARNING: demo video hook failed (non-fatal)"

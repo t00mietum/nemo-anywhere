@@ -227,6 +227,9 @@ for cand in python3 python; do
 done
 if [[ -n "$PY" ]]; then
 	"$PY" cicd/utility/lint-ui-case.py source
+	## Same reasoning: the demo recorder's settings keys and columns go stale
+	## silently, and nothing C has to change for that to happen.
+	"$PY" cicd/utility/lint-demo-script.py .
 else
 	fEcho "WARNING: UI case SKIPPED: no python" >&2
 fi
