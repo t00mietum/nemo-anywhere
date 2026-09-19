@@ -95,7 +95,7 @@ What the project is trying to be, roughly in priority order:
 	- If not obtained via provided installers or packages: Nothing required to be installed, nothing registered, no repository to add. Installers and distro packages exist for people who want them, but nothing depends on them.
 
 - Make it hard to lose a file by accident. This is where the fork is willing to be less convenient than its ancestors, e.g.:
-	- A drag that moves files says what it is about to do, and waits. (Because accidental mouse drag-an-drops - especially large ones across filesystems - are the bane of GUI file managers.)
+	- A drag that moves files says what it is about to do, and waits. (Because accidental mouse drag-and-drops - especially large ones across filesystems - are the bane of GUI file managers.)
 	- Trash and delete jobs each write a line saying what was taken and what asked for it.
 	- Home, the folders above it and mounted drives are never deleted, and no one job may take most of a home folder.
 	- A copy/move/delete with no keystroke or click behind it, or one over a size threshold, asks first no matter what the preferences say.
@@ -106,7 +106,7 @@ What the project is trying to be, roughly in priority order:
 - Fit each platform natively instead of pretending to be its file manager. Drive letters, the Recycle Bin, shortcuts, UNC paths and file associations are all done the way that platform does them.
 	- Read the system's settings, don't rewrite them. File associations come out of the registry; the app's own overrides stay in the app's own config.
 
-- Minimize dependencies. On Windows, for example, minimize depenedence on Explorer.
+- Minimize dependencies. On Windows, for example, minimize dependence on Explorer.
 
 - Handle natively in own code (and or reliance on optionally-installed CLI tools), far more robustly than Nemo's reliance on external tools - and lack of really good tools:
 	- Archive/extract.
