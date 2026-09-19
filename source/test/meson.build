@@ -629,6 +629,15 @@ test('Path shorten test',
   args: []
 )
 
+test('Path forms test',
+  executable('test-nemo-path-forms',
+    [ 'test-nemo-path-forms.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Window title test',
   executable('test-nemo-window-title',
     [ 'test-nemo-window-title.c' ],

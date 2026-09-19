@@ -271,10 +271,51 @@ sync_tab_visibility (GtkNotebook *gnotebook)
  * minimum. Measured with a layout rather than converted from an average
  * character width, which was out by nearly a factor of two.
  */
-static void
+/* What a tab costs beyond its title: padding, the close button and the gap to
+ * the next tab. Read off neighbors that are on screen, since the theme decides
+ * most of it, and the smallest reading wins so a tab still showing its spinner
+ * does not count. With fewer than two tabs showing, the last reading stands.
+ */
+static int
+tab_chrome_px (GtkNotebook *gnotebook)
+{
+	GtkAllocation here, next;
+	GtkWidget *label, *next_label = NULL;
+	int pages, i, chrome = G_MAXINT;
+
+	pages = gtk_notebook_get_n_pages (gnotebook);
+	for (i = pages - 1; i >= 0; i--) {
+		GtkWidget *tab_label;
+
+		tab_label = gtk_notebook_get_tab_label (gnotebook, gtk_notebook_get_nth_page (gnotebook, i));
+		label = (tab_label != NULL) ? g_object_get_data (G_OBJECT (tab_label), "label") : NULL;
+		if (label == NULL || !gtk_widget_get_mapped (label)) {
+			next_label = NULL;
+			continue;
+		}
+		if (next_label != NULL) {
+			gtk_widget_get_allocation (label, &here);
+			gtk_widget_get_allocation (next_label, &next);
+			chrome = MIN (chrome, ABS (next.x - here.x) - here.width);
+		}
+		next_label = label;
+	}
+
+	if (chrome != G_MAXINT && chrome > 0) {
+		g_object_set_data (G_OBJECT (gnotebook), "tab-chrome", GINT_TO_POINTER (chrome));
+		return chrome;
+	}
+	return GPOINTER_TO_INT (g_object_get_data (G_OBJECT (gnotebook), "tab-chrome"));
+}
+
+static gboolean
 clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation)
 {
-	int min_px, max_px, pages, i;
+	gboolean changed = FALSE;
+	int min_px, max_px, pages, avail, i;
+	gint **widths;
+	guint *form_counts, *chosen;
+	GtkWidget **labels;
 
 	min_px = allocation->width *
 		 CLAMP (nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_TAB_WIDTH_MIN_PERCENT), 0, 100) / 100;
@@ -282,42 +323,114 @@ clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation)
 		 CLAMP (nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_TAB_WIDTH_MAX_PERCENT), 0, 100) / 100;
 	max_px = MAX (max_px, min_px);
 	pages = gtk_notebook_get_n_pages (gnotebook);
+	if (pages == 0) {
+		return FALSE;
+	}
+
+	widths = g_new0 (gint *, pages);
+	form_counts = g_new0 (guint, pages);
+	chosen = g_new0 (guint, pages);
+	labels = g_new0 (GtkWidget *, pages);
+
+	/* A tab showing a path has shorter spellings of it to fall back on when
+	   the row gets crowded; any other title has only itself. */
+	for (i = 0; i < pages; i++) {
+		GtkWidget *tab_label;
+		PangoLayout *layout;
+		gchar **forms;
+		const char *only[] = { NULL, NULL };
+		guint j;
+
+		tab_label = gtk_notebook_get_tab_label (gnotebook, gtk_notebook_get_nth_page (gnotebook, i));
+		labels[i] = (tab_label != NULL) ? g_object_get_data (G_OBJECT (tab_label), "label") : NULL;
+		if (labels[i] == NULL) {
+			form_counts[i] = 1;
+			widths[i] = g_new0 (gint, 1);
+			continue;
+		}
+
+		forms = g_object_get_data (G_OBJECT (labels[i]), "path-forms");
+		if (forms == NULL) {
+			only[0] = gtk_label_get_text (GTK_LABEL (labels[i]));
+			forms = (gchar **) only;
+		}
+		form_counts[i] = g_strv_length (forms);
+		widths[i] = g_new0 (gint, form_counts[i]);
+
+		layout = gtk_widget_create_pango_layout (labels[i], NULL);
+		for (j = 0; j < form_counts[i]; j++) {
+			pango_layout_set_text (layout, forms[j], -1);
+			pango_layout_get_pixel_size (layout, &widths[i][j], NULL);
+		}
+		g_object_unref (layout);
+	}
+
+	avail = allocation->width - pages * tab_chrome_px (gnotebook);
+	nemo_path_forms_fit (pages, (const gint *const *) widths, form_counts,
+			     min_px, max_px, avail, chosen);
 
 	for (i = 0; i < pages; i++) {
-		GtkWidget *page, *tab_label, *label;
-		PangoLayout *layout;
-		const char *text;
-		int text_px, want, current;
+		gchar **forms;
+		int want, current;
 
-		page = gtk_notebook_get_nth_page (gnotebook, i);
-		tab_label = gtk_notebook_get_tab_label (gnotebook, page);
-		if (tab_label == NULL) {
-			continue;
-		}
-		label = g_object_get_data (G_OBJECT (tab_label), "label");
-		if (label == NULL) {
+		if (labels[i] == NULL) {
 			continue;
 		}
 
-		text = gtk_label_get_text (GTK_LABEL (label));
-		layout = gtk_widget_create_pango_layout (label, text);
-		pango_layout_get_pixel_size (layout, &text_px, NULL);
-		g_object_unref (layout);
+		/* Every set here is guarded, because this runs from size-allocate and
+		   each one queues a resize. */
+		forms = g_object_get_data (G_OBJECT (labels[i]), "path-forms");
+		if (forms != NULL &&
+		    g_strcmp0 (gtk_label_get_text (GTK_LABEL (labels[i])), forms[chosen[i]]) != 0) {
+			gtk_label_set_text (GTK_LABEL (labels[i]), forms[chosen[i]]);
+			changed = TRUE;
+		}
 
-		want = CLAMP (text_px, min_px, max_px);
-
-		/* Guarded because this runs from size-allocate and each set queues a resize. */
-		gtk_widget_get_size_request (label, &current, NULL);
+		want = CLAMP (widths[i][chosen[i]], min_px, max_px);
+		gtk_widget_get_size_request (labels[i], &current, NULL);
 		if (current != want) {
-			gtk_widget_set_size_request (label, want, -1);
+			gtk_widget_set_size_request (labels[i], want, -1);
+			changed = TRUE;
 		}
 	}
+
+	for (i = 0; i < pages; i++) {
+		g_free (widths[i]);
+	}
+	g_free (widths);
+	g_free (form_counts);
+	g_free (chosen);
+	g_free (labels);
+
+	return changed;
+}
+
+static void
+remove_source (gpointer id)
+{
+	g_source_remove (GPOINTER_TO_UINT (id));
+}
+
+static gboolean
+relayout_tabs_idle (gpointer user_data)
+{
+	g_object_steal_data (G_OBJECT (user_data), "tab-relayout");
+	gtk_widget_queue_resize (GTK_WIDGET (user_data));
+	return G_SOURCE_REMOVE;
 }
 
 static void
 notebook_size_allocate_cb (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data)
 {
-	clamp_tab_widths (GTK_NOTEBOOK (widget), allocation);
+	/* A resize queued from inside size-allocate can be dropped, which left a
+	   tab showing its new text in its old width. The pass this queues changes
+	   nothing, so it stops there. */
+	if (clamp_tab_widths (GTK_NOTEBOOK (widget), allocation) &&
+	    g_object_get_data (G_OBJECT (widget), "tab-relayout") == NULL) {
+		g_object_set_data_full (G_OBJECT (widget), "tab-relayout",
+					GUINT_TO_POINTER (g_idle_add (relayout_tabs_idle, widget)),
+					remove_source);
+	}
 }
 
 static void
@@ -399,13 +512,24 @@ nemo_notebook_sync_loading (NemoNotebook *notebook,
 	}
 }
 
+/* Windows shells never print a ~, so a path there keeps its drive. */
+static const char *
+home_for_tabs (void)
+{
+#ifdef G_OS_WIN32
+	return NULL;
+#else
+	return g_get_home_dir ();
+#endif
+}
+
 void
 nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 				  NemoWindowSlot *slot)
 {
 	GtkWidget *hbox, *label;
 	GtkAllocation allocation;
-	char *location_name;
+	char *location_name, *path;
 
 	g_return_if_fail (NEMO_IS_NOTEBOOK (notebook));
 	g_return_if_fail (NEMO_IS_WINDOW_SLOT (slot));
@@ -416,7 +540,21 @@ nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 	label = GTK_WIDGET (g_object_get_data (G_OBJECT (hbox), "label"));
 	g_return_if_fail (GTK_IS_WIDGET (label));
 
-	gtk_label_set_text (GTK_LABEL (label), slot->title);
+	path = nemo_compute_title_path_for_location (slot->location);
+	if (path != NULL) {
+		/* A path loses its start rather than the folder's own name when even
+		   its shortest spelling has no room. */
+		g_object_set_data_full (G_OBJECT (label), "path-forms",
+					nemo_path_forms (path, nemo_path_get_display_separator (), home_for_tabs ()),
+					(GDestroyNotify) g_strfreev);
+		gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_START);
+		gtk_label_set_text (GTK_LABEL (label), path);
+		g_free (path);
+	} else {
+		g_object_set_data (G_OBJECT (label), "path-forms", NULL);
+		gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
+		gtk_label_set_text (GTK_LABEL (label), slot->title);
+	}
 
 	gtk_widget_get_allocation (GTK_WIDGET (notebook), &allocation);
 	clamp_tab_widths (GTK_NOTEBOOK (notebook), &allocation);
