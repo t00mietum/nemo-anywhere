@@ -1281,6 +1281,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ When the full path is shown on tabs, and tabs won't all fit in the tab bar:
+	- Opened: 20260918-170700
+	- Closed: 20260918-173500
+	- Condense the pathnames using SilkTerm-like rules.
+	- Folders above the last one drop to their initials first, then an ellipsis eats the middle. The root and the folder's name always stay, and home reads as ~ on Linux.
+	- The widest tab gives up a step first. A path wider than a tab may ever get starts shortened even with room to spare.
+	- This replaces the fixed 52-character cut on tabs only. The window title still uses it.
+
 - ✅ If preferences is too small to show everything, make the scrollbar always visible.
 	- Opened: 20260918-163716
 	- Closed: 20260918-170628

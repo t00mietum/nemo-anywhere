@@ -402,6 +402,8 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - A window holds tabs. Each tab is a slot with its own location, history and view, and navigation, loading state and the busy cursor all belong to the slot, which is why a slow location can only block its own tab.
 
+- A tab is as wide as its title, between two percentages of the tab row. With the full path shown, a path that is too wide, or a row too crowded to fit, gets shorter a step at a time. First the folders above the last one drop to their initials, then the middle gives way to an ellipsis. The root and the folder's own name are always kept, and a path under home reads as ~ on Linux. The widest tab gives up a step first. Past the shortest form the row scrolls, as it always did.
+
 - Places and the tree view are separate panes, and both can be up at once. Each remembers its own width. A window resize leaves Places at the width it was given and shares the change among the tree view and the content panes, each in proportion to what it already had, so a pane at a third of the window stays at a third. Either pane can be turned off by itself, and one button collapses both and puts them back.
 
 - The tree view lists folders only, and a folder with nothing to list has no expander. Whether a folder has any sub-folders is checked in the background before anyone opens it, one folder at a time so that expanding a big folder does not flood the disk. Shares are not checked, since one that is not answering would hold up every folder behind it; they keep an expander until opened. Hidden folders count for the check, so a wrong answer can only leave an expander that goes away once the folder is opened.

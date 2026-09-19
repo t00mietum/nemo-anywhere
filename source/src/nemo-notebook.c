@@ -272,7 +272,7 @@ sync_tab_visibility (GtkNotebook *gnotebook)
  * character width, which was out by nearly a factor of two.
  */
 /* What a tab costs beyond its title: padding, the close button and the gap to
- * the next tab. Read off neighbours that are on screen, since the theme decides
+ * the next tab. Read off neighbors that are on screen, since the theme decides
  * most of it, and the smallest reading wins so a tab still showing its spinner
  * does not count. With fewer than two tabs showing, the last reading stands.
  */
