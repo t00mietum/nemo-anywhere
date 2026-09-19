@@ -126,3 +126,8 @@ notebook > header.top > tabs > tab:not(:checked) + tab:not(:checked),
 notebook > header.bottom > tabs > tab:not(:checked) + tab:not(:checked) {
 	border-left: 1px solid alpha(currentColor, 0.25);
 }
+
+/* Escape parks the list view's cursor on the first row, where it should not show. */
+.nemo-cursor-forgotten {
+	outline-style: none;
+}

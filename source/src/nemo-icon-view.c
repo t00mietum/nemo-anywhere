@@ -2343,7 +2343,7 @@ key_press_event_callback (GtkWidget *widget, GdkEventKey *event, gpointer user_d
 		return FALSE;
 	}
 
-	nemo_view_toggle_selection_stash (NEMO_VIEW (user_data));
+	nemo_icon_container_forget_selection (NEMO_ICON_CONTAINER (widget));
 
 	return TRUE;
 }

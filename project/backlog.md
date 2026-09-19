@@ -67,6 +67,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
+
+- 🔘 For macOS, many actions that require CTRL+[something] in Linux or Windows, would more naturally be Command+[something] in macOS. (E.g. keyboard mod behavior in Finder.) Account for these combo key differences. But don't go overboard, e.g. don't require "Cmd+down arrow" to enter a folder. Keep the current keyboard behavior, just remap the sensible things from Ctrl to Cmd on macOS where it makes sense.
+
+- 🔘 The "expand" Chevron next to folders should more reliably appear when a formerly empty folder gains content, especially after user-initiated actions (like drag and drop contents into a previously empty folder).
+
 - 🔘 Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
 
 - 🔘 Put the delete test guard's compile-time arm back to 0 before the next STABLE release.
@@ -1270,6 +1276,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Row visualization enhancement:
+	- Opened: n/a
+	- Closed: 20260919-125416
+	- Currently, there are two visual indicators showing where the cursor is in a list view:
+		- A row highlight for one or more lines.
+		- An outline showing only one line where the "cursor" is.
+	- When user hits "Esc", the row highlight goes away, correctly (per recent requirement). But the subtle outline remains.
+	- I think we can do away with this overlapping functionality, by not showing the "cursor" outline.
+		- And when the user hits "Esc", not only is there (correctly) no indication of where the "cursor" is, it also actually gets "forgotten", so that cursor movement after that starts over at the top. (Similar to entering a new folder for the first time.)
+	- Done. Escape now clears the selection and the cursor, in both the list and the icon views. A second Escape puts nothing back. The next arrow key starts at the top, and a Shift+click starts a new range.
+	- The outline stays in every other case. It is the only sign of the cursor after Ctrl+arrow, which moves it without selecting.
+
 - ✅ Owner name and Owner - name columns on Windows.
 	- Opened: 20260918-175048
 	- Closed: 20260918-184500
@@ -1683,6 +1701,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Both the list and the icon views. Reaching the background menu from the keyboard is the point.
 	- A rename or a stretch in progress still gets Escape first.
 	- What was put aside is dropped on leaving the folder, so Escape in a new one has nothing to restore.
+	- Since 20260919, Escape no longer puts anything back. See "Row visualization enhancement".
 
 - ✅ In find mode the status bar shows the whole path rather than just the name.
 	- Opened: 20260730-112038
