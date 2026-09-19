@@ -78,8 +78,8 @@ SR         = 48000                            # audio mix rate
 BANNER_TTF = "/usr/share/fonts/truetype/lato/Lato-Semibold.ttf"
 BANNER_FG  = "0xFFD866"                       # warm yellow, on the black band above the window
 LEAD_S     = 0.8                              # quiet lead-in kept before the first segment
-TAIL_HOLD_S  = 2.5                            # freeze the final frame this long at the end...
-TAIL_BLACK_S = 1.0                            # ...then a fully black screen this long
+TAIL_HOLD_S  = 2.0                            # freeze the final frame this long at the end...
+TAIL_BLACK_S = 0.8                            # ...then a fully black screen this long
 TAIL_EXTRA   = TAIL_HOLD_S + TAIL_BLACK_S
 FOLEY_LAG  = 0.03                             # foley sits this far after the input event
 
@@ -115,9 +115,14 @@ UI_FONT    = "Lato"
 UI_PT      = 10
 
 # Xvfb display. :95 through :99 are claimed by other tooling on the build box,
-# including this project's own headless GUI checks, which a pipeline run could
-# have in flight.
-DEFAULT_DISPLAY = ":94"
+# this project's own headless GUI checks included, and a sister project's demo
+# recorder was found squatting on :94 with no static claim on it anywhere. So
+# the number below is only where the search STARTS: a taken display is stepped
+# over rather than failed on, since a recording that dies because something else
+# got there first is a bad trade for a number nobody can reserve. Pass --display
+# to pin one.
+DEFAULT_DISPLAY = ":93"
+DISPLAY_TRIES   = 6         # how far down from the default to look
 
 # Where the app thinks its home is. The search results' Location column, the
 # breadcrumb and any error dialog all print real paths, so the synthetic home is
@@ -150,6 +155,33 @@ def run_user():
 	# gui-headless.bash names its run folder the same way; USER is unset under
 	# cron and in some ssh contexts
 	return os.environ.get("USER") or pwd.getpwuid(os.getuid()).pw_name
+
+def display_taken(num):
+	"""True if an X server is alive on :num, by the lock file's pid."""
+	lock = Path(f"/tmp/.X{num}-lock")
+	if not lock.exists():
+		return False
+	try:
+		pid = int(lock.read_text().strip())
+	except (ValueError, OSError):
+		return True                            # unreadable: treat as taken
+	try:
+		os.kill(pid, 0)
+	except ProcessLookupError:
+		return False                           # stale lock, nothing holding it
+	except PermissionError:
+		return True                            # somebody else's server
+	return True
+
+def pick_display(wanted, explicit):
+	if explicit or not display_taken(wanted.lstrip(":")):
+		return wanted
+	base = int(wanted.lstrip(":"))
+	for num in range(base - 1, base - DISPLAY_TRIES, -1):
+		if not display_taken(num):
+			log(f"display {wanted} is taken; using :{num}")
+			return f":{num}"
+	raise RuntimeError(f"no free display from {wanted} down {DISPLAY_TRIES}")
 
 def app_prefix():
 	# the app is a relocatable prefix, not one binary: its icons, resources and
@@ -809,7 +841,7 @@ START_SETTINGS = {
 	"state.first-run-done": "true",
 	"appearance.mode": "dark",
 	"window-state.start-with-places": "true",
-	"window-state.start-with-tree": "true",
+	"window-state.start-with-tree": "false",
 	"window-state.start-with-menu-bar": "true",
 	"window-state.start-with-toolbar": "true",
 	"window-state.start-with-status-bar": "true",
@@ -825,7 +857,7 @@ START_SETTINGS = {
 	"preferences.show-hidden-files": "false",
 	"preferences.confirm-drag-move": "true",
 	"preferences.sort-directories-first": "true",
-	"list-view.row-shading": "false",
+	"list-view.row-shading": "true",
 	"search.group-by-folder": "false",
 }
 
@@ -892,35 +924,43 @@ def tree_row(n):
 	return TREE_Y + n * TREE_DY
 
 SUB_ARROW = 181          # expanders one level in
+# the sidebar toggles at the bottom left, in order: places, tree, hide/full
+STATUS_TREE = (40, 426)
+PANE1_X, PANE2_X = 300, 640      # a column in each content pane, with both open
+EMPTY_Y = 390                    # below the last row, so a click selects nothing
 
 def seg_panes(r, t, m):
-	# Places on the left, the folder tree beside it, each at its own width. The
-	# tree is folders only, and Desktop, Downloads and Videos have nothing under
-	# them - so they get no expander, which the scene shows without saying it.
-	with Banner(r, "Places and the folder tree, open together"):
-		m.at(TREE_ARROW, tree_row(0), dur=0.8, settle=0.9)
-		m.at(SUB_ARROW, tree_row(2), settle=0.9)          # Documents
-		m.at(TREE_X, tree_row(2), settle=1.0)
-		time.sleep(0.3)
+	# The window opens with Places alone. The point is that the tree is a SECOND
+	# side pane rather than a replacement for the first, so it goes on with Places
+	# still standing, and comes off again leaving it where it was.
+	with Banner(r, "The folder tree opens beside Places, not instead of it"):
+		time.sleep(0.7)
+		m.at(*STATUS_TREE, dur=0.8, settle=1.1)
+		m.at(TREE_ARROW, tree_row(0), dur=0.7, settle=0.8)    # expand Home
+		time.sleep(0.6)
+		m.at(*STATUS_TREE, dur=0.8, settle=1.0)
+	m.rest()
 
-def seg_columns(r, t, m):
-	# Reports is odt and pdf, so the Ext column has something to say, and the
-	# dates and sizes are wide enough to show the columns taking what they need
-	with Banner(r, "Columns sized to what is in them"):
-		m.double(LIST_X, row(2), settle=1.3)              # Reports
+def seg_dualpane(r, t, m):
+	# same shape as the tree scene: on, a beat to see it, off again. The new pane
+	# is sent somewhere else straight away - left on the same folder as the first,
+	# the split reads as one list drawn twice.
+	with Banner(r, "F3 gives a second content pane"):
+		t.key("F3")
+		time.sleep(1.1)
+		m.double(PANE2_X, row(4), settle=1.1)         # Pictures, in the new pane
+		m.at(PANE1_X, EMPTY_Y, dur=0.7, settle=0.5)   # back to the first pane
+		t.key("F3")
 		time.sleep(1.0)
-	with Banner(r, "Alternate row shading, if wanted"):
-		# changed by writing the settings file, which the app live-reloads - the
-		# same thing a hand edit does, and nothing has to be driven on camera
-		set_cfg(r, {"list-view.row-shading": "true"})
-		time.sleep(1.2)
 
 def seg_pictures(r, t, m):
 	with Banner(r, "Icon view, with thumbnails"):
-		m.at(TREE_X, tree_row(8), dur=0.8, settle=1.2)    # Pictures
-		m.double(LIST_X, row(0), settle=1.4)              # Trips
-		m.at(*VIEW_ICON, dur=0.8, settle=2.0)
+		m.at(*CRUMB_HOME, dur=0.7, settle=0.9)            # back to Home
+		m.double(LIST_X, row(4), settle=1.0)             # Pictures
+		m.double(LIST_X, row(0), settle=1.0)             # Trips
+		m.at(*VIEW_ICON, dur=0.8, settle=1.5)
 
+CRUMB_HOME   = (182, TOOL_Y)     # the leftmost breadcrumb button, always home
 SEARCH_GROUP = (879, 96)     # the group-by-folder toggle in the search bar
 # the context menu opens at the pointer, so this holds as long as the right-click
 # in seg_compress does
@@ -930,22 +970,22 @@ FORMAT_7Z      = (499, 325)      # the 7z row in the list it drops down
 COMPRESS_GO    = (613, 349)
 
 def seg_search(r, t, m):
-	# into Documents first, through the tree rather than the breadcrumb, which
-	# depends on where the previous scene left off. Searching from there spans two
-	# folders, so the grouped result has more than one group to show. A flat list
-	# says nothing about where the matches came from, so it gets a beat to read
-	# before the grouped one replaces it.
-	m.at(TREE_X, tree_row(2), dur=0.8, settle=1.4)
-	m.at(*VIEW_LIST, dur=0.6, settle=1.3)         # back out of the icon view
+	# into Documents first. Searching from there spans two folders, so the grouped
+	# result has more than one group to show. A flat list says nothing about where
+	# the matches came from, so it gets a beat to read before the grouped one
+	# replaces it. The view comes off icons first, or row() means nothing.
+	m.at(*CRUMB_HOME, dur=0.8, settle=1.1)
+	m.at(*VIEW_LIST, dur=0.6, settle=1.2)
+	m.double(LIST_X, row(1), settle=1.3)          # Documents
 	with Banner(r, "Search anywhere under the folder"):
 		m.move(CLIENT_W // 2, row(2), dur=0.5)
 		t.key("ctrl+f")
 		time.sleep(0.9)
 		t.type("report", wpm=135)
 		t.enter()
-		time.sleep(2.3)
+		time.sleep(2.0)
 	with Banner(r, "Or grouped under the folder each came from"):
-		m.at(*SEARCH_GROUP, dur=0.9, settle=2.2)
+		m.at(*SEARCH_GROUP, dur=0.9, settle=1.8)
 
 def seg_compress(r, t, m):
 	# Nothing in the script moves, trashes or deletes a file. The delete test
@@ -954,7 +994,7 @@ def seg_compress(r, t, m):
 	# rather than the drag question the feature is about. Put that scene back
 	# when the guard's compile-time arm goes to 0.
 	t.key("Escape")                               # leave the search
-	time.sleep(1.4)
+	time.sleep(1.1)
 	with Banner(r, "Compress, with no helper program"):
 		m.at(LIST_X, row(3), settle=0.4)          # budget.ods
 		r.xdo("keydown", "ctrl")
@@ -963,24 +1003,24 @@ def seg_compress(r, t, m):
 		time.sleep(0.5)
 		m.rclick()
 		time.sleep(1.2)
-		m.at(*COMPRESS_ITEM, dur=0.8, settle=1.4)
+		m.at(*COMPRESS_ITEM, dur=0.8, settle=1.2)
 		t.type("paperwork", wpm=140)
 		time.sleep(0.6)
 	# the Options expander is deliberately left alone: expanded, the dialog is
 	# taller than a 540px screen and the buttons fall off the bottom
 	with Banner(r, "zip, tar and 7z, written by the app itself"):
-		m.at(*ARCHIVE_FORMAT, dur=0.8, settle=1.6)
-		m.at(*FORMAT_7Z, dur=0.7, settle=1.0)
-		m.at(*COMPRESS_GO, dur=0.7, settle=2.0)
+		m.at(*ARCHIVE_FORMAT, dur=0.8, settle=1.3)
+		m.at(*FORMAT_7Z, dur=0.7, settle=0.8)
+		m.at(*COMPRESS_GO, dur=0.7, settle=1.6)
 
 def seg_outro(r, t, m):
 	with Banner(r, "github.com/t00mietum/nemo-anywhere"):
 		m.rest()
-		time.sleep(2.4)
+		time.sleep(1.6)
 
 _SCRIPT = [
 	("panes",    seg_panes),
-	("columns",  seg_columns),
+	("dualpane", seg_dualpane),
 	("pictures", seg_pictures),
 	("search",   seg_search),
 	("compress", seg_compress),
@@ -1232,6 +1272,17 @@ def encode_gif(rec, work, out_gif, video_end_e):
 
 # The README carries the gif, and GitHub stops animating one much past this.
 GIF_ASSET_MAX_MB = 10
+# The length the backlog asks for. Scene holds drift a little run to run, so this
+# is checked rather than assumed - the trimming that keeps it under is easy to
+# undo by accident while editing a scene.
+GIF_MAX_SECONDS = 60.0
+
+def gif_seconds(path):
+	try:
+		return float(out_of(["ffprobe", "-v", "error", "-show_entries",
+			"format=duration", "-of", "csv=p=0", str(path)]).strip())
+	except (subprocess.CalledProcessError, ValueError):
+		return 0.0
 
 def rotate(out_dir, prefix, ext, no_rotate):
 	if no_rotate:
@@ -1255,8 +1306,11 @@ def place_gif(gif, out_dir, no_rotate, no_asset=False):
 	dst = out_dir / f"nemo-anywhere-demo_{stamp}.gif"
 	shutil.copy2(gif, dst)
 	mb = dst.stat().st_size / (1 << 20)
+	secs = gif_seconds(dst)                   # before the rotate renames it
 	rotate(out_dir, "nemo-anywhere-demo", "gif", no_rotate)
-	log(f"gif: {dst} ({mb:.1f} MiB)")
+	log(f"gif: {dst} ({mb:.1f} MiB, {secs:.1f}s)")
+	if secs > GIF_MAX_SECONDS:
+		log(f"WARNING: gif is {secs:.1f}s (> {GIF_MAX_SECONDS:.0f}); shorten a scene's holds")
 	if no_asset:                              # partial/tuning runs must not clobber it
 		log("gif (README): skipped (--no-asset)")
 	elif mb <= GIF_ASSET_MAX_MB:
@@ -1347,7 +1401,8 @@ def record(args, name, seed):
 
 def main():
 	ap = argparse.ArgumentParser(description="Record the nemo-anywhere demo video + gif.")
-	ap.add_argument("--display", default=os.environ.get("NEMO_DEMO_DISPLAY", DEFAULT_DISPLAY))
+	ap.add_argument("--display", default="",
+		help=f"pin a display; default searches from {DEFAULT_DISPLAY} down")
 	ap.add_argument("--profile", default="video,gif", help="comma list: video,gif")
 	ap.add_argument("--segments", default="", help="comma list; default all")
 	ap.add_argument("--seed", type=int, default=None)
@@ -1360,8 +1415,11 @@ def main():
 		help="write one screenshot of the launched app and stop")
 	args = ap.parse_args()
 
+	explicit = bool(args.display) or bool(os.environ.get("NEMO_DEMO_DISPLAY"))
+	args.display = pick_display(
+		args.display or os.environ.get("NEMO_DEMO_DISPLAY") or DEFAULT_DISPLAY, explicit)
 	seed = args.seed if args.seed is not None else int(time.time()) & 0xFFFF
-	log(f"seed {seed}")
+	log(f"seed {seed}, display {args.display}")
 	names = [p.strip() for p in args.profile.split(",") if p.strip()]
 	for name in names:
 		if name not in PROFILES:
