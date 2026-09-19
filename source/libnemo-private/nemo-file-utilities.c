@@ -101,23 +101,20 @@ nemo_compute_title_for_location (GFile *location)
 	}
 
     if (nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES)) {
-        gchar *uri, *path;
-        file = nemo_file_get (location);
+        gchar *path;
 
-        uri = nemo_file_get_uri (file);
-        path = g_filename_from_uri (uri, NULL, NULL);
-        nemo_path_apply_display_separator (path);
-
+        path = nemo_compute_title_path_for_location (location);
         if (path != NULL) {
             /* The path already ends in the folder's name, so putting the name in
                front of it just says the same thing twice. */
             title = nemo_path_shorten (path, nemo_path_get_display_separator (),
                                        TITLE_PATH_LIMIT);
         } else {
+            gchar *uri = g_file_get_uri (location);
+
             title = g_strdup_printf("%s - %s", builder, uri);
+            g_free (uri);
         }
-        nemo_file_unref (file);
-        g_free (uri);
         g_free (path);
         g_free (builder);
     } else {
@@ -125,6 +122,27 @@ nemo_compute_title_for_location (GFile *location)
         g_free (builder);
     }
     return title;
+}
+
+gchar *
+nemo_compute_title_path_for_location (GFile *location)
+{
+	NemoFile *file;
+	gchar *uri, *path;
+
+	if (location == NULL ||
+	    !nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES)) {
+		return NULL;
+	}
+
+	file = nemo_file_get (location);
+	uri = nemo_file_get_uri (file);
+	path = g_filename_from_uri (uri, NULL, NULL);
+	nemo_path_apply_display_separator (path);
+	nemo_file_unref (file);
+	g_free (uri);
+
+	return path;
 }
 
 /* The window title names the program as well as the folder, so a taskbar button
@@ -2470,6 +2488,224 @@ nemo_path_shorten (const gchar *path,
     g_strfreev (parts);
 
     return g_string_free (out, FALSE);
+}
+
+/* The part of a path no shortening may drop, since it says which drive, share or
+   tree the rest is on. It always ends with the separator. */
+static gchar *
+path_anchor (const gchar *path, gchar separator, const gchar **rest)
+{
+	const gchar *p;
+	int seen;
+
+	/* A share's root is the server and the share together; neither alone is a
+	   place anything opens. */
+	if (path[0] == separator && path[1] == separator && path[2] != '\0') {
+		seen = 0;
+		for (p = path + 2; *p != '\0'; p++) {
+			if (*p == separator && ++seen == 2) {
+				break;
+			}
+		}
+		*rest = (*p == '\0') ? p : p + 1;
+		if (*p == '\0') {
+			return g_strdup_printf ("%s%c", path, separator);
+		}
+		return g_strndup (path, p + 1 - path);
+	}
+
+	if (g_ascii_isalpha (path[0]) && path[1] == ':' && path[2] == separator) {
+		*rest = path + 3;
+		return g_strndup (path, 3);
+	}
+
+	if (path[0] == separator) {
+		*rest = path + 1;
+		return g_strndup (path, 1);
+	}
+
+	*rest = path;
+	return g_strdup ("");
+}
+
+/* A hidden folder keeps the letter after its dot, or every one of them would
+   come out as a bare dot. */
+static gchar *
+path_initial (const gchar *part)
+{
+	const gchar *end;
+
+	end = g_utf8_next_char (part);
+	if (*part == '.' && *end != '\0') {
+		end = g_utf8_next_char (end);
+	}
+	return g_strndup (part, end - part);
+}
+
+static void
+path_forms_add (GPtrArray *forms, gchar *candidate)
+{
+	const gchar *last;
+
+	last = g_ptr_array_index (forms, forms->len - 1);
+	if (g_utf8_strlen (candidate, -1) < g_utf8_strlen (last, -1)) {
+		g_ptr_array_add (forms, candidate);
+	} else {
+		g_free (candidate);
+	}
+}
+
+static gchar *
+path_forms_join (const gchar *anchor, gchar **items, guint count, gchar separator)
+{
+	GString *out;
+	guint i;
+
+	out = g_string_new (anchor);
+	for (i = 0; i < count; i++) {
+		if (i > 0) {
+			g_string_append_c (out, separator);
+		}
+		g_string_append (out, items[i]);
+	}
+	return g_string_free (out, FALSE);
+}
+
+/* Every shortening of a path, longest first, each shorter than the one before.
+   Folders above the last one drop to their initials, then an ellipsis eats the
+   middle one initial at a time, where that is still shorter. The root and the
+   last folder's name survive every step, since those are what tell one tab from
+   another. A path under home reads as ~ once it is being shortened at all. */
+gchar **
+nemo_path_forms (const gchar *path,
+                 gchar        separator,
+                 const gchar *home)
+{
+	GPtrArray *forms;
+	gchar sep[2] = { separator, '\0' };
+	gchar **split, **parts, **items;
+	gchar *anchor;
+	const gchar *rest;
+	gsize home_len;
+	guint count, last, keep, i;
+
+	forms = g_ptr_array_new ();
+	if (path == NULL) {
+		g_ptr_array_add (forms, NULL);
+		return (gchar **) g_ptr_array_free (forms, FALSE);
+	}
+	g_ptr_array_add (forms, g_strdup (path));
+
+	home_len = (home != NULL) ? strlen (home) : 0;
+	while (home_len > 1 && home[home_len - 1] == separator) {
+		home_len--;
+	}
+	if (home_len > 1 && strncmp (path, home, home_len) == 0 &&
+	    (path[home_len] == '\0' || path[home_len] == separator)) {
+		anchor = g_strdup_printf ("~%c", separator);
+		rest = path + home_len;
+		while (*rest == separator) {
+			rest++;
+		}
+	} else {
+		anchor = path_anchor (path, separator, &rest);
+	}
+
+	/* Empty pieces come from doubled or trailing separators. */
+	split = g_strsplit (rest, sep, -1);
+	parts = g_new0 (gchar *, g_strv_length (split) + 1);
+	count = 0;
+	for (i = 0; split[i] != NULL; i++) {
+		if (split[i][0] != '\0') {
+			parts[count++] = split[i];
+		}
+	}
+
+	if (count == 0) {
+		if (anchor[0] == '~') {
+			path_forms_add (forms, g_strdup ("~"));
+		}
+	} else {
+		last = count - 1;
+		path_forms_add (forms, path_forms_join (anchor, parts, count, separator));
+
+		items = g_new0 (gchar *, count + 2);
+		for (i = 0; i < last; i++) {
+			items[i] = path_initial (parts[i]);
+		}
+		items[last] = parts[last];
+		path_forms_add (forms, path_forms_join (anchor, items, count, separator));
+
+		/* An ellipsis costs three characters where an initial costs one, so the
+		   first steps are longer than what they replace and get dropped. */
+		for (keep = last; keep-- > 0;) {
+			gchar *kept[] = { items[keep], items[keep + 1] };
+
+			items[keep] = (gchar *) "...";
+			items[keep + 1] = parts[last];
+			path_forms_add (forms, path_forms_join (anchor, items, keep + 2, separator));
+			items[keep] = kept[0];
+			items[keep + 1] = kept[1];
+		}
+
+		for (i = 0; i < last; i++) {
+			g_free (items[i]);
+		}
+		g_free (items);
+	}
+
+	g_free (parts);
+	g_strfreev (split);
+	g_free (anchor);
+
+	g_ptr_array_add (forms, NULL);
+	return (gchar **) g_ptr_array_free (forms, FALSE);
+}
+
+/* Picks a form for each tab so the row fits in avail. A tab starts at its
+   longest form that fits max_px, then the widest tab that can still get
+   narrower gives up one step at a time, so no tab loses more than it has to.
+   Past that the notebook scrolls, as it always did. */
+void
+nemo_path_forms_fit (guint              count,
+                     const gint *const *widths,
+                     const guint       *form_counts,
+                     gint               min_px,
+                     gint               max_px,
+                     gint               avail,
+                     guint             *chosen)
+{
+	guint i, j, widest;
+	gint total, shown, most;
+
+	for (i = 0; i < count; i++) {
+		chosen[i] = form_counts[i] - 1;
+		for (j = 0; j < form_counts[i]; j++) {
+			if (widths[i][j] <= max_px) {
+				chosen[i] = j;
+				break;
+			}
+		}
+	}
+
+	for (;;) {
+		total = 0;
+		most = -1;
+		widest = 0;
+		for (i = 0; i < count; i++) {
+			shown = CLAMP (widths[i][chosen[i]], min_px, max_px);
+			total += shown;
+			if (chosen[i] + 1 < form_counts[i] &&
+			    widths[i][chosen[i]] > min_px && shown > most) {
+				most = shown;
+				widest = i;
+			}
+		}
+		if (total <= avail || most < 0) {
+			break;
+		}
+		chosen[widest]++;
+	}
 }
 
 void
