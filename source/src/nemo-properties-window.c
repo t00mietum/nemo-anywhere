@@ -1914,7 +1914,7 @@ synch_user_menu (GtkComboBox *combo_box, NemoFile *file)
 		}
 	}
 
-	owner_name = nemo_file_get_string_attribute (file, "owner");
+	owner_name = nemo_file_get_string_attribute (file, "owner_and_name");
 	owner_index = tree_model_get_entry_index (model, 0, owner_name);
 
 	/* If owner wasn't in list, we prepend it (with a separator).
@@ -4196,7 +4196,7 @@ create_simple_permissions (NemoPropertiesWindow *window, GtkGrid *page_grid)
 		/* Static text in this case. */
 		value = attach_value_field (window,
 					    page_grid, GTK_WIDGET (owner_label),
-					    "owner",
+					    "owner_and_name",
 					    INCONSISTENT_STATE_STRING,
 					    FALSE);
 		gtk_label_set_mnemonic_widget (owner_label, value);
@@ -4391,7 +4391,7 @@ create_advanced_permissions (NemoPropertiesWindow *window, GtkGrid *page_grid)
 		value = attach_value_field (window,
 					    page_grid,
 					    GTK_WIDGET (owner_label),
-					    "owner",
+					    "owner_and_name",
 					    INCONSISTENT_STATE_STRING,
 					    FALSE);
 		gtk_label_set_mnemonic_widget (owner_label, value);

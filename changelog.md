@@ -37,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The Windows build carries a set of themes so the app looks like something out of the box: Windows 11, Windows 10, Windows 7, Windows XP and macOS window styles, and nine icon styles including Windows XP and Windows 7 sets drawn for this project. Linux keeps using whatever the desktop provides.
 - Themes can be dropped in on any platform. Put a GTK theme folder in `themes`, or an icon theme in `icons`, beside the settings file and it shows up in the lists.
 - A small panel while Windows starts the app, saying what it is doing, so a launch that takes a moment does not look like nothing happened. It goes away the instant the real window has drawn.
+- Two more owner columns for the list view, off Windows: Owner name, the owner's display name, and Owner - name, which shows both. Windows has no display name to show.
+- Every other row in the list view can be shaded, from the List columns page. Off by default. The shade comes from the theme's `nemo_row_shading` color when it has one, or a faint tint of the text color, and `row-shading-color` in the settings file overrides both.
 
 ### Changed
 
@@ -51,9 +53,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Settings now live where each platform expects them: `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS, `~/.config/nemo-anywhere` on Linux and BSD as before. An existing settings folder is moved to the new place on first run, so nothing is lost. Drop-in themes are unaffected.
 - The single-file Windows build starts far faster. Nearly all of its startup went on unpacking the couple of thousand loose theme and icon files it carried; those now live inside the executable itself. Nothing about how themes are chosen or dropped in changes.
 - The window appears at the size and place you left it as soon as it exists, rather than waiting for the first folder to finish loading.
+- The Owner column shows the user name alone. The name with the display name after it moved to the new Owner - name column.
 
 ### Fixed
 
+- An owner whose account has an empty display name showed as the user name followed by a stray " - ".
 - The bottom scrollbar flashed at every step of a resize, could stay after one when nothing needed it, and now and then strobed along with the vertical one.
 - On Windows, a first start with a fresh roaming profile carried the local data folder (actions, scripts) off into the settings folder, mistaking it for settings left by an older version. Only a folder that holds a settings file is moved now.
 - On Windows the window opened behind whatever you were already looking at, so a launch could look like nothing had happened until you noticed the taskbar button. It comes to the front now.

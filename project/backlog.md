@@ -78,17 +78,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
 	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
 
-- 🔘 Change to username columns (two new columns):
-	- Opened: 20260908-133001
-	- Owner (the short version), with no display name. This is a change to the current column of the same name.
-	- Owner Name (the display version)
-	- Owner - Name (i.e. "[Owner] - [Owner Name]")
-
-- 🔘 Optional alternating row shading
-	- Opened: 20260908-133001
-	- Subtle
-	- Complementary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
-	- Themable, customizable.
+- 🔘 Owner name and Owner - name columns on Windows.
+	- Opened: 20260918-175048
+	- GIO leaves the display name empty there, so both columns are left out on Windows for now. The account's full name would have to be looked up by us.
 
 - 🔘 Cut an RC1 release.
 	- Opened: 20260908-111526
@@ -1280,6 +1272,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Change to username columns (two new columns):
+	- Opened: 20260908-133001
+	- Closed: 20260918-175048
+	- Owner (the short version), with no display name. This is a change to the current column of the same name.
+	- Owner Name (the display version)
+	- Owner - Name (i.e. "[Owner] - [Owner Name]")
+	- Done. The two new columns are left out on Windows, where there is no display name to show. That part is a new open item.
+	- An empty display name no longer shows as a stray " - " after the user name.
+
+- ✅ Optional alternating row shading
+	- Opened: 20260908-133001
+	- Closed: 20260918-175048
+	- Subtle
+	- Complementary to, and non-visually-conflicting with "selected" or "under-mouse highlighted" colors.
+	- Themable, customizable.
+	- Done. A checkbox on the List columns page, off by default. The theme or gtk.css can set `nemo_row_shading`, and `row-shading-color` in the settings file overrides it.
 
 - ✅ When the full path is shown on tabs, and tabs won't all fit in the tab bar:
 	- Opened: 20260918-170700

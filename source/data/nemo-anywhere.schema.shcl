@@ -133,7 +133,7 @@ field: list-view.column-fit-percent
 
 field: list-view.default-column-order
 	type: string-array
-	default: name, where, size, extension, type, date_modified, owner, group, permissions
+	default: name, where, size, extension, type, date_modified, owner, owner_name, owner_and_name, group, permissions
 
 field: list-view.default-visible-columns
 	type: string-array
@@ -148,6 +148,16 @@ field: list-view.enable-folder-expansion
 	type: bool
 	default: true
 	desc: Let a folder be expanded in place to show what is in it
+
+field: list-view.row-shading
+	type: bool
+	default: false
+	desc: Shade every other row
+
+field: list-view.row-shading-color
+	type: string
+	default: 
+	desc: Color of the shaded rows, in any form CSS takes. Empty uses the theme's nemo_row_shading color, or a faint tint of the text color if it has none
 
 field: plugins.disabled-actions
 	type: string-array

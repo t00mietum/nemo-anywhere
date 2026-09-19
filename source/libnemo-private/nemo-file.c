@@ -161,6 +161,8 @@ static GQuark attribute_name_q,
 	attribute_selinux_context_q,
 	attribute_octal_permissions_q,
 	attribute_owner_q,
+	attribute_owner_name_q,
+	attribute_owner_and_name_q,
 	attribute_extension_q,
 	attribute_permissions_source_q,
 	attribute_group_q,
@@ -7056,7 +7058,8 @@ nemo_file_get_owner_as_string (NemoFile *file, gboolean include_real_name)
 		return NULL;
 	}
 
-	if (file->details->owner_real == NULL) {
+	/* An empty GECOS comes through as "", not as no name at all. */
+	if (file->details->owner_real == NULL || file->details->owner_real[0] == '\0') {
 		user_name = g_strdup (file->details->owner);
 	} else if (file->details->owner == NULL) {
 		user_name = g_strdup (file->details->owner_real);
@@ -7070,6 +7073,18 @@ nemo_file_get_owner_as_string (NemoFile *file, gboolean include_real_name)
 	}
 
 	return user_name;
+}
+
+/* The display name alone, or NULL when the system has none. GIO on Windows
+ * never fills it in. */
+char *
+nemo_file_get_owner_real_name (NemoFile *file)
+{
+	if (file->details->owner_real == NULL || file->details->owner_real[0] == '\0') {
+		return NULL;
+	}
+
+	return g_strdup (file->details->owner_real);
 }
 
 static char *
@@ -7316,7 +7331,7 @@ nemo_file_get_deep_directory_count_as_string (NemoFile *file)
  * @attribute_name: The name of the desired attribute. The currently supported
  * set includes "name", "type", "detailed_type", "mime_type", "size", "deep_size", "deep_directory_count",
  * "deep_file_count", "deep_total_count", "date_modified", "date_changed", "date_accessed",
- * "date_permissions", "owner", "extension", "permissions_source", "group", "permissions", "octal_permissions", "uri", "where",
+ * "date_permissions", "owner", "owner_name", "owner_and_name", "extension", "permissions_source", "group", "permissions", "octal_permissions", "uri", "where",
  * "link_target", "volume", "free_space", "selinux_context", "trashed_on", "trashed_orig_path"
  *
  * Returns: Newly allocated string ready to display to the user, or NULL
@@ -7441,6 +7456,12 @@ nemo_file_get_string_attribute_q (NemoFile *file, GQuark attribute_q)
 		return nemo_file_get_octal_permissions_as_string (file);
 	}
 	if (attribute_q == attribute_owner_q) {
+		return nemo_file_get_owner_as_string (file, FALSE);
+	}
+	if (attribute_q == attribute_owner_name_q) {
+		return nemo_file_get_owner_real_name (file);
+	}
+	if (attribute_q == attribute_owner_and_name_q) {
 		return nemo_file_get_owner_as_string (file, TRUE);
 	}
 	if (attribute_q == attribute_group_q) {
@@ -9573,6 +9594,8 @@ nemo_file_class_init (NemoFileClass *class)
 	attribute_selinux_context_q = g_quark_from_static_string ("selinux_context");
 	attribute_octal_permissions_q = g_quark_from_static_string ("octal_permissions");
 	attribute_owner_q = g_quark_from_static_string ("owner");
+	attribute_owner_name_q = g_quark_from_static_string ("owner_name");
+	attribute_owner_and_name_q = g_quark_from_static_string ("owner_and_name");
 	attribute_extension_q = g_quark_from_static_string ("extension");
 	attribute_permissions_source_q = g_quark_from_static_string ("permissions_source");
 	attribute_group_q = g_quark_from_static_string ("group");

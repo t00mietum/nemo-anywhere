@@ -161,6 +161,10 @@ struct NemoListViewDetails {
 
     gboolean overlay_scrolling;
 
+    /* Every other row is tinted with this when row_shading is on. */
+    gboolean row_shading;
+    GdkRGBA row_shading_color;
+
     /* Where the search being shown started from. Group row labels are spelled
      * relative to it. Worked out on the first result and dropped on clear. */
     GFile *search_root;
@@ -2612,6 +2616,84 @@ apply_columns_settings (NemoListView *list_view,
     remeasure_rows (list_view);
 }
 
+/* GTK 3 still has the rules hint but no longer draws it, so the rows are
+ * tinted from here. The renderer leaves its background off a selected row by
+ * itself, and a see-through tint lets the hover highlight show under it. */
+static void
+shade_row (NemoListView    *view,
+           GtkCellRenderer *renderer,
+           GtkTreeModel    *model,
+           GtkTreeIter     *iter)
+{
+    GtkTreePath *path;
+    GdkRectangle area;
+    gint tree_y;
+
+    if (!view->details->row_shading) {
+        g_object_set (renderer, "cell-background-set", FALSE, NULL);
+        return;
+    }
+
+    /* The row's place on screen rather than in the model, so rows an open
+       subfolder adds take their turn like any other. */
+    path = gtk_tree_model_get_path (model, iter);
+    gtk_tree_view_get_background_area (view->details->tree_view, path, NULL, &area);
+    gtk_tree_path_free (path);
+
+    if (area.height <= 0) {
+        g_object_set (renderer, "cell-background-set", FALSE, NULL);
+        return;
+    }
+
+    gtk_tree_view_convert_bin_window_to_tree_coords (view->details->tree_view,
+                                                     0, area.y, NULL, &tree_y);
+
+    if ((tree_y / area.height) % 2 == 1) {
+        g_object_set (renderer, "cell-background-rgba", &view->details->row_shading_color, NULL);
+    } else {
+        g_object_set (renderer, "cell-background-set", FALSE, NULL);
+    }
+}
+
+static void
+shade_row_cell_data_func (GtkTreeViewColumn *column,
+                          GtkCellRenderer   *renderer,
+                          GtkTreeModel      *model,
+                          GtkTreeIter       *iter,
+                          NemoListView      *view)
+{
+    shade_row (view, renderer, model, iter);
+}
+
+/* The setting wins, then a nemo_row_shading color from the theme or the
+ * user's gtk.css, then a faint wash of the text color, which reads on light
+ * and dark themes alike. */
+static void
+row_shading_changed_callback (NemoListView *view)
+{
+    GtkStyleContext *context;
+    char *color_text;
+
+    view->details->row_shading = nemo_config_get_boolean (nemo_list_view_preferences,
+                                                          NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING);
+
+    context = gtk_widget_get_style_context (GTK_WIDGET (view->details->tree_view));
+    color_text = nemo_config_get_string (nemo_list_view_preferences,
+                                         NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING_COLOR);
+
+    if (color_text == NULL || !gdk_rgba_parse (&view->details->row_shading_color, color_text)) {
+        if (!gtk_style_context_lookup_color (context, "nemo_row_shading",
+                                             &view->details->row_shading_color)) {
+            gtk_style_context_get_color (context, gtk_style_context_get_state (context),
+                                         &view->details->row_shading_color);
+            view->details->row_shading_color.alpha = 0.06;
+        }
+    }
+
+    g_free (color_text);
+    gtk_widget_queue_draw (GTK_WIDGET (view->details->tree_view));
+}
+
 static void
 filename_cell_data_func (GtkTreeViewColumn *column,
 			 GtkCellRenderer   *renderer,
@@ -2651,6 +2733,8 @@ filename_cell_data_func (GtkTreeViewColumn *column,
 		      NULL);
 
     g_free (text);
+
+    shade_row (view, renderer, model, iter);
 }
 
 static gboolean
@@ -3699,6 +3783,20 @@ create_and_set_up_tree_view (NemoListView *view)
                               G_CALLBACK (expanders_enabled_changed_cb),
                               view);
 
+    row_shading_changed_callback (view);
+    g_signal_connect_swapped (nemo_list_view_preferences,
+                              "changed::" NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING,
+                              G_CALLBACK (row_shading_changed_callback),
+                              view);
+    g_signal_connect_swapped (nemo_list_view_preferences,
+                              "changed::" NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING_COLOR,
+                              G_CALLBACK (row_shading_changed_callback),
+                              view);
+    /* A theme change brings a new text color, and maybe a nemo_row_shading. */
+    g_signal_connect_swapped (view->details->tree_view, "style-updated",
+                              G_CALLBACK (row_shading_changed_callback),
+                              view);
+
 	view->details->columns = g_hash_table_new_full (g_str_hash,
 							g_str_equal,
 							(GDestroyNotify) g_free,
@@ -3809,7 +3907,6 @@ create_and_set_up_tree_view (NemoListView *view)
                  G_CALLBACK (get_icon_scale_callback), view, 0);
 
 	gtk_tree_selection_set_mode (gtk_tree_view_get_selection (view->details->tree_view), GTK_SELECTION_MULTIPLE);
-	gtk_tree_view_set_rules_hint (view->details->tree_view, TRUE);
 
 	nemo_columns = nemo_get_all_columns ();
 
@@ -3888,6 +3985,9 @@ create_and_set_up_tree_view (NemoListView *view)
 							     cell,
 							     "surface", NEMO_LIST_MODEL_SMALLEST_ICON_COLUMN,
 							     NULL);
+			gtk_tree_view_column_set_cell_data_func (view->details->file_name_column, cell,
+								 (GtkTreeCellDataFunc) shade_row_cell_data_func,
+								 view, NULL);
 
 			cell = gtk_cell_renderer_text_new ();
 			view->details->file_name_cell = (GtkCellRendererText *)cell;
@@ -3942,6 +4042,9 @@ create_and_set_up_tree_view (NemoListView *view)
                                                  "text", column_num,
                                                  "weight", NEMO_LIST_MODEL_TEXT_WEIGHT_COLUMN,
                                                  NULL);
+            gtk_tree_view_column_set_cell_data_func (column, cell,
+                                                     (GtkTreeCellDataFunc) shade_row_cell_data_func,
+                                                     view, NULL);
 
             gtk_tree_view_append_column (view->details->tree_view, column);
             gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
@@ -5522,6 +5625,9 @@ nemo_list_view_finalize (GObject *object)
 					      list_view);
     g_signal_handlers_disconnect_by_func (nemo_list_view_preferences,
                                           expanders_enabled_changed_cb,
+                                          list_view);
+    g_signal_handlers_disconnect_by_func (nemo_list_view_preferences,
+                                          row_shading_changed_callback,
                                           list_view);
 	g_signal_handlers_disconnect_by_func (nemo_list_view_preferences,
 					      column_fit_percent_changed_callback,
