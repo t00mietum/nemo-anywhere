@@ -62,10 +62,23 @@ if ! docker_up; then
 	docker_up || skip_or_die "docker daemon not reachable (try: sudo systemctl start docker)"
 fi
 
-## The built binary lives inside the persistent container; without it there's
-## nothing to build in or smoke-test, so treat a missing box as an env miss too.
-docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$container" \
-	|| skip_or_die "build container '${container}' not found (create it per design.md)"
+## A fresh clone has no build box yet, so the day-to-day one is made on first use,
+## from the same Dockerfile and with the same flags as by hand. Any other name is
+## someone's own box, and a missing one is still an env miss.
+## --init reaps orphans; --ulimit core=0 keeps crash dumps out of the mounted tree.
+if ! docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$container"; then
+	[[ "$container" == "nemo-build" ]] || skip_or_die "build container '${container}' not found"
+	repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+	if ! docker image inspect nemo-build-deps:latest >/dev/null 2>&1; then
+		fEcho "building image nemo-build-deps (first run only, takes a few minutes)"
+		docker build -t nemo-build-deps:latest -f "${repo}/cicd/linux/Dockerfile.dev" "${repo}/cicd/linux/" >/dev/null \
+			|| skip_or_die "could not build image nemo-build-deps"
+	fi
+	fEcho "creating container ${container}"
+	docker run -d --init --ulimit core=0 --shm-size=2g --name "$container" \
+		-v "${repo}:/src" nemo-build-deps:latest sleep infinity >/dev/null \
+		|| skip_or_die "could not create container '${container}'"
+fi
 docker start "$container" >/dev/null 2>&1 || true
 
 ## Real work: its exit code is the genuine result and still gates the push.
