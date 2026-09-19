@@ -1269,6 +1269,23 @@ size_dialog_to_longest_page (GtkBuilder *builder,
 	gtk_window_set_default_size (GTK_WINDOW (dialog), width, height);
 }
 
+/* An overlay scrollbar stays hidden until the pointer is over it, so a page or
+   page list cut off by a small screen looks complete. Classic bars still only
+   show when something does not fit. The sidebar's own scrolled window is an
+   internal child, hence forall. */
+static void
+show_scrollbars_when_needed (GtkWidget *widget,
+			     gpointer   unused)
+{
+	if (GTK_IS_SCROLLED_WINDOW (widget)) {
+		gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW (widget), FALSE);
+	}
+
+	if (GTK_IS_CONTAINER (widget)) {
+		gtk_container_forall (GTK_CONTAINER (widget), show_scrollbars_when_needed, NULL);
+	}
+}
+
 static  void
 nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
                                               GtkWindow   *window,
@@ -1601,6 +1618,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 
 	nemo_prefs_current_folder_setup (builder, dialog, window);
 
+	show_scrollbars_when_needed (dialog, NULL);
 	size_dialog_to_longest_page (builder, dialog, window);
 
 	preferences_dialog = dialog;

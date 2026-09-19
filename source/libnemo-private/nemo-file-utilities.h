@@ -162,4 +162,10 @@ void     nemo_path_apply_separator (gchar *path, gchar separator);
 void     nemo_path_apply_display_separator (gchar *path);
 gchar   *nemo_location_get_display_name (GFile *location);
 gboolean nemo_path_input_is_allowed (const gchar *text);
+
+/* Browsing inside an archive needs the gvfs archive backend. Asked once at
+   startup, so the menu item is either there for the whole run or never. */
+void     nemo_archive_mount_init (void);
+gboolean nemo_archive_mount_supported (void);
+GFile   *nemo_archive_mount_location (GFile *archive);
 #endif /* NEMO_FILE_UTILITIES_H */

@@ -79,6 +79,8 @@
 			<menuitem name="ExtractHere" action="ExtractHere"/>
 			<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
 			<menuitem name="ExtractTo" action="ExtractTo"/>
+		<menuitem name="MountArchive" action="MountArchive"/>
+			<menuitem name="MountArchive" action="MountArchive"/>
 			<menuitem name="Rename" action="Rename"/>
 			<menu action="CopyToMenu">
 				<menuitem name="Copy to next pane" action="Copy to next pane"/>
@@ -208,6 +210,7 @@
 		<menuitem name="ExtractHere" action="ExtractHere"/>
 		<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
 		<menuitem name="ExtractTo" action="ExtractTo"/>
+		<menuitem name="MountArchive" action="MountArchive"/>
 		<menuitem name="Rename" action="Rename"/>
 		<menu name="CopyToMenu" action="CopyToMenu">
 			<menuitem name="Copy to next pane" action="Copy to next pane"/>

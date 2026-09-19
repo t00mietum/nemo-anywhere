@@ -7388,6 +7388,74 @@ action_extract_to_callback (GtkAction *action,
 	gtk_widget_show (dialog);
 }
 
+/* What the gvfs archive backend reads. A split volume is left out, since it
+   only ever sees the one file. */
+static const char *mountable_archive_types[] = {
+	"application/x-7z-compressed",
+	"application/x-cd-image",
+	"application/x-cpio",
+	"application/x-rar",
+	"application/x-rar-compressed",
+	"application/x-7z-compressed-tar",
+	"application/x-bzip-compressed-tar",
+	"application/x-compressed-tar",
+	"application/x-tar",
+	"application/zip",
+	NULL
+};
+
+static gboolean
+selection_is_mountable_archive (GList *selection)
+{
+	NemoFile *file;
+	int i;
+
+	if (selection == NULL || selection->next != NULL ||
+	    !nemo_archive_mount_supported ()) {
+		return FALSE;
+	}
+
+	file = NEMO_FILE (selection->data);
+	if (nemo_file_is_directory (file)) {
+		return FALSE;
+	}
+
+	for (i = 0; mountable_archive_types[i] != NULL; i++) {
+		if (nemo_file_is_mime_type (file, mountable_archive_types[i])) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+/* Opening the archive:// location is enough. The slot mounts anything that is
+   not mounted yet, and shows the error if that fails. */
+static void
+action_mount_archive_callback (GtkAction *action,
+			       gpointer callback_data)
+{
+	NemoView *view = NEMO_VIEW (callback_data);
+	GList *selection;
+	GFile *archive;
+	GFile *location;
+
+	selection = nemo_view_get_selection (view);
+	if (!selection_is_mountable_archive (selection)) {
+		nemo_file_list_free (selection);
+		return;
+	}
+
+	archive = nemo_file_get_location (NEMO_FILE (selection->data));
+	location = nemo_archive_mount_location (archive);
+
+	nemo_window_slot_open_location (view->details->slot, location, 0);
+
+	g_object_unref (location);
+	g_object_unref (archive);
+	nemo_file_list_free (selection);
+}
+
 static void
 move_copy_selection_to_next_pane (NemoView *view,
 				  int copy_action)
@@ -9068,6 +9136,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Extract _to..."), "",
   /* tooltip */                  N_("Unpack the selected archives into a folder you choose"),
 				 G_CALLBACK (action_extract_to_callback) },
+  /* name, stock id */         { NEMO_ACTION_MOUNT_ARCHIVE, "package-x-generic",
+  /* label, accelerator */       N_("Mou_nt archive"), "",
+  /* tooltip */                  N_("Browse the archive's contents without unpacking it"),
+				 G_CALLBACK (action_mount_archive_callback) },
   /* name, stock id */         { "Paste", "edit-paste-symbolic",
   /* label, accelerator */       N_("_Paste"), "<control>V",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command"),
@@ -10980,6 +11052,10 @@ real_update_menus (NemoView *view)
 		gtk_action_set_visible (action, is_archives);
 		gtk_action_set_sensitive (action, is_archives);
 	}
+
+	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_MOUNT_ARCHIVE);
+	gtk_action_set_visible (action, selection_is_mountable_archive (selection));
 
 	real_update_paste_menu (view, selection, selection_count);
 

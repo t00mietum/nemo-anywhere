@@ -626,6 +626,8 @@ nemo_application_startup (GApplication *app)
 	nemo_dpi_win32_init ();
 #endif
 
+	nemo_archive_mount_init ();
+
     /* Run desktop- or main- specific things */
     NEMO_APPLICATION_CLASS (G_OBJECT_GET_CLASS (self))->continue_startup (self);
 
