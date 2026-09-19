@@ -211,9 +211,13 @@ PROFILE_STRICT=0
 PROFILE_WORKLOAD_SCRIPT=""
 PROFILE_WORKLOAD_ARGS=""
 
-## Pre-publish README screenshot refresh + demo video: NOT READY - off.
-## NEEDS: headless screenshot/record hooks for the file-manager UI if wanted later.
+## Pre-publish README screenshot refresh: NOT READY - off.
+## NEEDS: a headless screenshot hook for the file-manager UI if wanted later.
 SHOTS_ENABLE=0
+
+## Demo video + README gif: READY, but off unless --demo is passed. Two recordings
+## take about six minutes and the result only changes when the interface or the
+## demo script does, so it is not worth a full run every time.
 DEMO_ENABLE=0
 
 ## Full-run output is tee'd here (gitignored) so warnings from any stage can be
