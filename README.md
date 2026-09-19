@@ -32,7 +32,12 @@
 <!-- TOC ignore:true -->
 # nemo-anywhere
 
-Nemo, freed from its desktop. A great file manager should run anywhere. This one will.
+<table style="border: none; border-collapse: collapse;">
+	<tr style="border: none; border-collapse: collapse;">
+		<td style="border: none; border-collapse: collapse;"><img src="assets/logo.png" alt="Logo" width="160"/></td>
+		<td style="border: none;">Nemo, freed from its desktop. A great file manager should run anywhere. This one will.</td>
+	</tr>
+</table>
 
 <!-- TOC ignore:true -->
 ## Table of contents
