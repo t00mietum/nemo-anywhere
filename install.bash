@@ -15,11 +15,11 @@
 ##	  bash <(curl -fsSL https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.bash) [options]
 ##	    --release dev|stable    which release to take (default: stable)
 ##	    --target  user|system   where to install (default: user)
-##	    --arch    x64|amd64|arm64
-##	                            override the detected architecture
 ##	    --from    PATH|URL      install this archive instead of a release
 ##	    --uninstall             remove an existing install
 ##	    -y, --yes               don't ask before making changes
+##	    --version               print the installer's version
+##	  Options take their value as the next word or after an equals sign.
 ##	  Installs to ~/.local/share/nemo-anywhere (user) or /opt/nemo-anywhere
 ##	  (system, via sudo). Run with --uninstall to reverse it.
 ##	History: At bottom of script.
@@ -33,6 +33,7 @@
 set -Eeuo pipefail
 
 REPO="t00mietum/nemo-anywhere"
+INSTALLER_VERSION="1.1.0"
 APP_NAME="Nemo Anywhere"
 EXE_NAME="nemo-anywhere"
 
@@ -63,12 +64,14 @@ fHelp(){
 
 		    --release dev|stable    which release to take (default: stable)
 		    --target  user|system   where to install (default: user)
-		    --arch    x64|amd64|arm64
-		                            override the detected architecture
 		    --from    PATH|URL      install this archive instead of a release
 		    --uninstall             remove an existing install
 		    -y, --yes               don't ask before making changes
+		    --version               the installer's version
 		    -h, --help              this text
+
+		  The OS and architecture are detected. With no stable release yet,
+		  stable takes the newest prerelease and says so in the plan.
 
 		  User install goes to \${XDG_DATA_HOME:-~/.local/share}/${EXE_NAME}, with a
 		  launcher in ~/.local/share/applications and ${EXE_NAME} on PATH via
@@ -85,27 +88,26 @@ fHelp(){
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Arguments
 
-release="stable"; target="user"; arch=""; from=""; do_uninstall=0; assume_yes=0
+release="stable"; target="user"; from=""; do_uninstall=0; assume_yes=0
+## A "shift 2" with no value after the option shifts nothing, and the loop
+## would never end, so a missing value is caught here instead.
+fNeedValue(){ [[ -n "${2:-}" ]] || fDie "$1 needs a value (try --help)"; }
 while (($#)); do case "$1" in
-	--release) release="${2:-}"; shift 2 ;;
-	--target)  target="${2:-}";  shift 2 ;;
-	--arch)    arch="${2:-}";    shift 2 ;;
-	--from)    from="${2:-}";    shift 2 ;;
+	--release=*) release="${1#*=}"; shift ;;
+	--target=*)  target="${1#*=}";  shift ;;
+	--from=*)    from="${1#*=}";    shift ;;
+	--release) fNeedValue "$@"; release="$2"; shift 2 ;;
+	--target)  fNeedValue "$@"; target="$2";  shift 2 ;;
+	--from)    fNeedValue "$@"; from="$2";    shift 2 ;;
 	--uninstall) do_uninstall=1; shift ;;
 	-y|--yes)  assume_yes=1; shift ;;
+	--version) echo "${APP_NAME} installer ${INSTALLER_VERSION}"; exit 0 ;;
 	-h|--help) fHelp; exit 0 ;;
 	*) fDie "unknown option: $1 (try --help)" ;;
 esac; done
 
 [[ "$release" == "stable" || "$release" == "dev" ]] || fDie "--release must be dev or stable"
 [[ "$target"  == "user"   || "$target"  == "system" ]] || fDie "--target must be user or system"
-
-case "$(echo "${arch}" | tr '[:upper:]' '[:lower:]')" in
-	"")                 arch="" ;;
-	x64|amd64|x86_64)   arch="x86_64" ;;
-	arm64|aarch64)      arch="arm64" ;;
-	*) fDie "--arch must be x64, amd64 or arm64" ;;
-esac
 
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -118,11 +120,11 @@ case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
 	*) fDie "unsupported OS: $(uname -s)" ;;
 esac
 
-if [[ -z "$arch" ]]; then case "$(uname -m)" in
+case "$(uname -m)" in
 	x86_64|amd64)  arch="x86_64" ;;
 	aarch64|arm64) arch="arm64" ;;
-	*) fDie "unsupported architecture: $(uname -m) (override with --arch)" ;;
-esac; fi
+	*) fDie "unsupported architecture: $(uname -m)" ;;
+esac
 
 ## GUI package layout: the whole prefix in one dir, reached by a desktop
 ## launcher and a symlink on PATH (a file manager gets started both ways).
@@ -187,17 +189,43 @@ fJsonValues(){ ## field < json
 	{ grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" || true; } | sed 's/.*"\([^"]*\)"$/\1/'
 }
 
-## stable = the newest non-prerelease; dev = the newest release of any kind.
-## Prints nothing when there is no such release - the caller reports that, since
-## dying inside a command substitution only kills the subshell.
+## Tags in, "sortkey<TAB>tag" out. Numbers are zero-padded so a plain sort gets
+## 1.10 above 1.9, and a release sorts above its own prereleases, which sort -V
+## gets backwards. Plain awk and sort, since macOS has no sort -V anyway.
+fVersionKeys(){
+	awk '{
+		tag = $0; ver = tag; sub(/^v/, "", ver)
+		pre = ""; dash = index(ver, "-")
+		if (dash) { pre = substr(ver, dash + 1); ver = substr(ver, 1, dash - 1) }
+		n = split(ver, part, ".")
+		key = ""
+		for (i = 1; i <= 3; i++) key = key sprintf("%06d.", (i <= n ? part[i] + 0 : 0))
+		if (pre == "") { key = key "1" } else {
+			padded = ""
+			while (match(pre, /[0-9]+/)) {
+				padded = padded substr(pre, 1, RSTART - 1) sprintf("%06d", substr(pre, RSTART, RLENGTH) + 0)
+				pre = substr(pre, RSTART + RLENGTH)
+			}
+			key = key "0" padded pre
+		}
+		printf "%s\t%s\n", key, tag
+	}'
+}
+
+## stable = the newest release with no prerelease part, or the newest prerelease
+## when nothing stable exists yet; dev = the newest of any kind. Ranked by
+## version rather than by the order the API lists them in, and never through
+## releases/latest, which 404s on a repo that has only prereleases.
+## Prints nothing when there is no release at all - the caller reports that,
+## since dying inside a command substitution only kills the subshell.
 fResolveTag(){
-	local api="https://api.github.com/repos/${REPO}" json
-	if [[ "$release" == "stable" ]]; then
-		json="$(fFetchText "${api}/releases/latest" 2>/dev/null || true)"
-	else
-		json="$(fFetchText "${api}/releases?per_page=10" 2>/dev/null || true)"
-	fi
-	printf '%s' "$json" | fJsonValues tag_name | head -1 || true
+	local json tags newest stable
+	json="$(fFetchText "https://api.github.com/repos/${REPO}/releases?per_page=100" 2>/dev/null || true)"
+	tags="$(printf '%s' "$json" | fJsonValues tag_name || true)"
+	[[ -n "$tags" ]] || return 0
+	newest="$(printf '%s\n' "$tags" | fVersionKeys | LC_ALL=C sort -r | head -1 | cut -f2 || true)"
+	stable="$(printf '%s\n' "$tags" | grep -v -- '-' | fVersionKeys | LC_ALL=C sort -r | head -1 | cut -f2 || true)"
+	if [[ "$release" == "stable" && -n "$stable" ]]; then echo "$stable"; else echo "$newest"; fi
 }
 
 ## Write the desktop launcher, preferring the one shipped in the prefix and
@@ -299,14 +327,16 @@ if [[ -n "$from" ]]; then
 	## Display only: a conventionally named archive still tells us its version.
 	## Stop at the platform, not at the first dash: a prerelease version has its
 	## own dashes (1.0.0-beta1) and cutting there reported it as plain 1.0.0.
-	version="$(printf '%s' "${from##*/}" | sed -n "s/^${EXE_NAME}-\([0-9].*\)-\(linux\|windows\|macos\|freebsd\)-.*/\1/p")"
+	version="$(printf '%s' "${from##*/}" | sed -nE "s/^${EXE_NAME}-([0-9].*)-(linux|bsd|windows|macos)-.*/\1/p")"
 	release_desc="local archive"
 	verify="no checksum (--from)"
 else
 	command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || fDie "need curl or wget to reach the releases page"
 	tag="$(fResolveTag)"
-	[[ -n "$tag" ]] || fDie "no ${release} release published yet for ${REPO}"
+	[[ -n "$tag" ]] || fDie "no release published yet for ${REPO}"
 	version="${tag#v}"
+	release_note=""
+	[[ "$release" == "stable" && "$version" == *-* ]] && release_note="   (no stable release yet, so the newest prerelease)"
 	asset="${EXE_NAME}-${version}-${os}-${arch}.tar.gz"
 	sums_asset="${EXE_NAME}-${version}-sha256sums.txt"
 
@@ -331,7 +361,7 @@ fCheckPrefix
 
 fEcho_Clean ""
 fEcho "Plan"
-fEcho_Clean "Release ...: ${release_desc}"
+fEcho_Clean "Release ...: ${release_desc}${release_note:-}"
 fEcho_Clean "Platform ..: ${os}-${arch}"
 fEcho_Clean "Download ..: ${source_desc}"
 fEcho_Clean "Verify ....: ${verify}"
@@ -441,3 +471,5 @@ fEcho_Clean ""
 ##	History:
 ##		- 2026-07-23 JC: Created (unix half of the one-liner install; Windows is
 ##		  install.ps1).
+##		- 2026-09-19 JC: Dropped --arch (always detected), added --version and
+##		  --opt=value, and stable now falls back to the newest prerelease.

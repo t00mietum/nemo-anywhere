@@ -6,8 +6,8 @@
 ##		  Fetches a release build, verifies its checksum, and installs it as a
 ##		  self-contained folder plus a menu entry and a name on PATH.
 ##		- Full parity with install.bash - same options, same plan, same result.
-##		  Either script alone does the whole job; this one needs PowerShell 7,
-##		  install.bash needs nothing but a shell.
+##		  Either script alone does the whole job. This one runs on Windows
+##		  PowerShell 5.1 or PowerShell 7; install.bash needs nothing but a shell.
 ##		- Idempotent: reinstalling replaces the folder in place, and -Uninstall
 ##		  removes exactly what was installed. Nothing is touched before the plan
 ##		  is printed and confirmed.
@@ -15,11 +15,11 @@
 ##		& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1'))) [options]
 ##			-Release dev|stable     which release to take (default: stable)
 ##			-Target  user|system    where to install (default: user)
-##			-Arch    x64|amd64|arm64
-##			                        override the detected architecture
 ##			-From    PATH|URL       install this archive instead of a release
 ##			-Uninstall              remove an existing install
 ##			-Yes                    don't ask before making changes
+##			-Version                print the installer's version
+##			-Help                   list these options
 ##		Windows installs to %LOCALAPPDATA%\Programs\Nemo Anywhere (user) or
 ##		C:\Program Files\Nemo Anywhere (system, needs an elevated shell). Unix
 ##		installs to ~/.local/share/nemo-anywhere (user) or /opt/nemo-anywhere
@@ -46,15 +46,12 @@
 
 .PARAMETER Release
 	Which release to take: stable (the latest full release) or dev (the newest
-	release including prereleases). Defaults to stable.
+	release including prereleases). Defaults to stable. With no stable release
+	yet, stable takes the newest prerelease and says so in the plan.
 
 .PARAMETER Target
 	user installs for the current account only and needs no elevation. system
 	installs for everyone and does need it. Defaults to user.
-
-.PARAMETER Arch
-	Override the detected architecture. x64, amd64 and x86_64 mean the same
-	thing; so do arm64 and aarch64.
 
 .PARAMETER From
 	Install this archive - a path or a URL - instead of fetching a release.
@@ -65,6 +62,13 @@
 
 .PARAMETER Yes
 	Proceed without asking. Required when nothing is there to answer the prompt.
+
+.PARAMETER Version
+	Print the installer's version and exit.
+
+.PARAMETER Help
+	List the options and exit. Get-Help cannot reach a script run as a one-liner,
+	so this is the way to see them there.
 
 .EXAMPLE
 	& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))
@@ -85,10 +89,11 @@
 param(
 	[ValidateSet("dev", "stable")][string]$Release = "stable",
 	[ValidateSet("user", "system")][string]$Target = "user",
-	[ValidateSet("x64", "amd64", "x86_64", "arm64", "aarch64")][string]$Arch = "",
 	[string]$From = "",
 	[switch]$Uninstall,
-	[switch]$Yes
+	[switch]$Yes,
+	[switch]$Version,
+	[switch]$Help
 )
 
 
@@ -96,6 +101,7 @@ param(
 # Configuration
 
 $Repo    = "t00mietum/nemo-anywhere"
+$InstallerVersion = "1.1.0"
 $AppName = "Nemo Anywhere"
 $ExeName = "nemo-anywhere"
 
@@ -136,20 +142,62 @@ function fConfirm {
 	}
 }
 
-## stable = the newest non-prerelease; dev = the newest release of any kind.
+function fHelp {
+	fEcho_Clean ""
+	fEcho_Clean "${AppName} installer."
+	fEcho_Clean ""
+	fEcho_Clean "  & ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/${Repo}/main/install.ps1'))) [options]"
+	fEcho_Clean ""
+	fEcho_Clean "    -Release dev|stable     which release to take (default: stable)"
+	fEcho_Clean "    -Target  user|system    where to install (default: user)"
+	fEcho_Clean "    -From    PATH|URL       install this archive instead of a release"
+	fEcho_Clean "    -Uninstall              remove an existing install"
+	fEcho_Clean "    -Yes                    don't ask before making changes"
+	fEcho_Clean "    -Version                the installer's version"
+	fEcho_Clean "    -Help                   this text"
+	fEcho_Clean ""
+	fEcho_Clean "  The OS and architecture are detected. With no stable release yet,"
+	fEcho_Clean "  stable takes the newest prerelease and says so in the plan."
+	fEcho_Clean ""
+}
+
+## Same key as install.bash: numbers zero-padded so 1.10 sorts above 1.9, and a
+## release above its own prereleases. [version] can't parse a prerelease part.
+function fVersionKey {
+	param([string]$Tag)
+	$ver = $Tag -replace '^v', ''
+	$pre = ""
+	$dash = $ver.IndexOf('-')
+	if ($dash -ge 0) { $pre = $ver.Substring($dash + 1); $ver = $ver.Substring(0, $dash) }
+	$parts = @($ver.Split('.')) + @('0', '0', '0')
+	$key = ""
+	for ($i = 0; $i -lt 3; $i++) {
+		$num = 0
+		[void][int]::TryParse($parts[$i], [ref]$num)
+		$key += "{0:D6}." -f $num
+	}
+	if (-not $pre) { return "${key}1" }
+	$padded = [regex]::Replace($pre, '[0-9]+', { param($m) "{0:D6}" -f [int64]$m.Value })
+	return "${key}0${padded}"
+}
+
+## stable = the newest release with no prerelease part, or the newest prerelease
+## when nothing stable exists yet; dev = the newest of any kind. Ranked by
+## version rather than by the order the API lists them in, and never through
+## releases/latest, which 404s on a repo that has only prereleases.
 function fResolveTag {
-	$api = "https://api.github.com/repos/${Repo}"
 	try {
-		$info = if ($Release -eq "stable") {
-			Invoke-RestMethod -Uri "${api}/releases/latest" -UseBasicParsing
-		} else {
-			Invoke-RestMethod -Uri "${api}/releases?per_page=10" -UseBasicParsing | Select-Object -First 1
-		}
-		if (-not $info) { return $null }
-		return $info.tag_name
+		## Assigned first: irm passes a JSON array down the pipe as one object.
+		$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${Repo}/releases?per_page=100" -UseBasicParsing
 	} catch {
 		return $null
 	}
+	$tags = @(foreach ($rel in @($releases)) { if ($rel.tag_name) { [string]$rel.tag_name } })
+	if ($tags.Count -eq 0) { return $null }
+	$ranked = @($tags | Sort-Object -Descending -Property { fVersionKey $_ })
+	$stable = @($ranked | Where-Object { -not $_.Contains('-') })
+	if ($Release -eq "stable" -and $stable.Count -gt 0) { return $stable[0] }
+	return $ranked[0]
 }
 
 
@@ -361,6 +409,9 @@ $ProgressPreference    = "SilentlyContinue"   ## Invoke-WebRequest is far faster
 ## (the 7.4 default) a non-zero exit would throw before that check is reached.
 $PSNativeCommandUseErrorActionPreference = $false
 
+if ($Help)    { fHelp; exit 0 }
+if ($Version) { fEcho_Clean "${AppName} installer ${InstallerVersion}"; exit 0 }
+
 fEcho_Clean ""
 fEcho_Clean "${AppName} installer"
 
@@ -377,15 +428,12 @@ if ($PSVersionTable.PSEdition -eq "Desktop" -or $IsWindows) {
 	else                            { fFail "unsupported OS: ${uname}" }
 }
 
-## Architecture: detected from the process unless overridden.
-if ($Arch) {
-	$arch = if ($Arch -eq "arm64" -or $Arch -eq "aarch64") { "arm64" } else { "x86_64" }
-} else {
-	$arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-		"X64"   { "x86_64" }
-		"Arm64" { "arm64" }
-		default { fFail "unsupported architecture: $_ (override with -Arch)" }
-	}
+## Architecture: the OS's, not the process's, so a 32-bit shell still gets the
+## right build.
+$arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
+	"X64"   { "x86_64" }
+	"Arm64" { "arm64" }
+	default { fFail "unsupported architecture: $_" }
 }
 
 ## GUI package layout, both platforms: the whole folder in one place, reached by
@@ -526,15 +574,15 @@ if ($From) {
 	## Stop at the platform suffix, not at the first dash - a prerelease version
 	## has one of its own (1.0.0-beta2), and cutting there reported a beta as the
 	## release it precedes.
-	$version      = if ((Split-Path -Leaf $From) -match "^${ExeName}-(.+)-[^-]+-[^-.]+\.(?:zip|tar\.gz|tgz)$") { $Matches[1] } else { "" }
+	$relVersion   = if ((Split-Path -Leaf $From) -match "^${ExeName}-(.+)-[^-]+-[^-.]+\.(?:zip|tar\.gz|tgz)$") { $Matches[1] } else { "" }
 	$releaseDesc  = "local archive"
 	$verifyDesc   = "no checksum (-From)"
 } else {
 	$tag = fResolveTag
-	if (-not $tag) { fFail "no ${Release} release published yet for ${Repo}" }
-	$version    = $tag -replace '^v', ''
-	$asset      = "${ExeName}-${version}-${os}-${arch}.${archiveExt}"
-	$sumsAsset  = "${ExeName}-${version}-sha256sums.txt"
+	if (-not $tag) { fFail "no release published yet for ${Repo}" }
+	$relVersion = $tag -replace '^v', ''
+	$asset      = "${ExeName}-${relVersion}-${os}-${arch}.${archiveExt}"
+	$sumsAsset  = "${ExeName}-${relVersion}-sha256sums.txt"
 
 	try {
 		$tagInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/${Repo}/releases/tags/${tag}" -UseBasicParsing
@@ -555,7 +603,8 @@ if ($From) {
 		fFail "no ${asset} in release ${tag}"
 	}
 	$sourceDesc  = $downloadUrl
-	$releaseDesc = "${Release} ${version}"
+	$releaseDesc = "${Release} ${relVersion}"
+	if ($Release -eq "stable" -and $relVersion.Contains('-')) { $releaseDesc += "   (no stable release yet, so the newest prerelease)" }
 	$verifyDesc  = if ($sumsUrl) { "sha256, against ${sumsAsset}" } else { "UNVERIFIED - release publishes no checksums" }
 }
 
@@ -723,7 +772,7 @@ Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 # Done
 
 fEcho_Clean ""
-fEcho ("Installed {0} {1}" -f $AppName, $version).TrimEnd()
+fEcho ("Installed {0} {1}" -f $AppName, $relVersion).TrimEnd()
 if ($os -eq "windows") {
 	fEcho_Clean "Start it from the Start Menu, or type: ${ExeName}"
 	fEcho_Clean "A new shell is needed before the PATH entry takes effect."
@@ -742,3 +791,5 @@ fEcho_Clean ""
 ##		  off to install.bash on the unix side).
 ##		- 2026-07-23 JC: Now installs on unix itself instead of handing off, so
 ##		  either installer alone covers every platform.
+##		- 2026-09-19 JC: Dropped -Arch (always detected), added -Version and
+##		  -Help, and stable now falls back to the newest prerelease.
