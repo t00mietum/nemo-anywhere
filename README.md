@@ -35,7 +35,7 @@
 <table style="border: none; border-collapse: collapse;">
 	<tr style="border: none; border-collapse: collapse;">
 		<td style="border: none; border-collapse: collapse;"><img src="assets/logo.png" alt="Logo" width="160"/></td>
-		<td style="border: none;">Nemo, freed from its desktop. A great file manager should run anywhere. This one will.</td>
+		<td style="border: none;">The legendary Nemo filemanager, ported to Windows, macOS, and BSD - as well Linux without the Cinnamon dependency. Also with several major new convenience features.</td>
 	</tr>
 </table>
 
