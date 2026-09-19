@@ -37,6 +37,18 @@ case "${1:-}" in
 	*) fDie "unknown option: $1 (try --help)" ;;
 esac
 
+## A fresh clone has none yet, so it is made from cicd/win/Dockerfile on first
+## use, the same way nemo-build is. --init reaps orphans (wine leaves plenty);
+## --ulimit core=0 keeps crash dumps out of the mounted tree.
+if ! docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; then
+	if ! docker image inspect nemo-winbuild-deps:latest >/dev/null 2>&1; then
+		fEcho "building image nemo-winbuild-deps (first run only, takes a while)"
+		docker build -t nemo-winbuild-deps:latest "${ROOT}/cicd/win/" >/dev/null || fDie "could not build image nemo-winbuild-deps"
+	fi
+	fEcho "creating container ${CONTAINER}"
+	docker run -d --init --ulimit core=0 --shm-size=2g --name "$CONTAINER" \
+		-v "${ROOT}:/src" nemo-winbuild-deps:latest sleep infinity >/dev/null || fDie "could not create container '${CONTAINER}'"
+fi
 ## A reboot leaves it stopped, with no restart policy.
 docker exec "$CONTAINER" true 2>/dev/null || docker start "$CONTAINER" >/dev/null 2>&1 || true
 docker exec "$CONTAINER" true 2>/dev/null || fDie "cross-build container '${CONTAINER}' is not running and would not start"
