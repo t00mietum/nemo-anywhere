@@ -8,8 +8,6 @@
 ![Made with](https://img.shields.io/badge/Made%20with-C-1f425f.svg)
 ![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)
 [![Release](https://img.shields.io/github/v/release/t00mietum/nemo-anywhere?include_prereleases&label=release)](https://github.com/t00mietum/nemo-anywhere/releases)
-![Lifecycle](https://img.shields.io/badge/Lifecycle-Beta-yellow)
-![Support](https://img.shields.io/badge/Support-Maintained-brightgreen)
 
 </div>
 <!--
@@ -35,7 +33,7 @@
 <table style="border: none; border-collapse: collapse;">
 	<tr style="border: none; border-collapse: collapse;">
 		<td style="border: none; border-collapse: collapse;"><img src="assets/logo.png" alt="Logo" width="160"/></td>
-		<td style="border: none;">The legendary Nemo file manager, ported to Windows, macOS, and BSD - as well as Linux without the Cinnamon dependency. Also with several major new convenience features.</td>
+		<td style="border: none;">The legendary Nemo file manager, ported to Windows, with BSD and macOS to follow - as well as to Linux without the Cinnamon dependency. Also with several major new convenience features.</td>
 	</tr>
 </table>
 
