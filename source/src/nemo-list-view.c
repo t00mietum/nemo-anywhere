@@ -113,6 +113,10 @@ struct NemoListViewDetails {
 
     gboolean rubber_banding;
 
+	/* Escape leaves the cursor parked on the first row with its outline hidden,
+	   since GTK has no way to take the cursor away. */
+	gboolean cursor_forgotten;
+
 	GHashTable *columns;
 	GtkWidget *column_editor;
 
@@ -493,11 +497,97 @@ expanders_enabled_changed_cb (NemoListView *view)
 }
 
 static void
+remember_cursor (NemoListView *view)
+{
+	if (!view->details->cursor_forgotten) {
+		return;
+	}
+
+	view->details->cursor_forgotten = FALSE;
+	gtk_style_context_remove_class (gtk_widget_get_style_context (GTK_WIDGET (view->details->tree_view)),
+					"nemo-cursor-forgotten");
+}
+
+/* Escape. Nothing is selected and the cursor starts over at the top, as in a
+   folder just opened, with nothing on screen to say where it is. */
+static void
+forget_cursor (NemoListView *view)
+{
+	GtkTreeView *tree_view = view->details->tree_view;
+	GtkTreeSelection *selection = gtk_tree_view_get_selection (tree_view);
+	GtkAdjustment *vadjustment;
+	GtkTreePath *path;
+	gdouble scrolled;
+
+	if (gtk_tree_model_iter_n_children (GTK_TREE_MODEL (view->details->model), NULL) > 0) {
+		/* Setting the cursor selects its row and scrolls to it. Neither is wanted. */
+		vadjustment = gtk_scrollable_get_vadjustment (GTK_SCROLLABLE (tree_view));
+		scrolled = gtk_adjustment_get_value (vadjustment);
+		path = gtk_tree_path_new_first ();
+		gtk_tree_view_set_cursor (tree_view, path, NULL, FALSE);
+		gtk_tree_path_free (path);
+		gtk_adjustment_set_value (vadjustment, scrolled);
+	}
+
+	gtk_tree_selection_unselect_all (selection);
+
+	view->details->cursor_forgotten = TRUE;
+	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (tree_view)),
+				     "nemo-cursor-forgotten");
+}
+
+/* The first up or down key after Escape lands on the top row rather than the one
+   below it. With Ctrl it only shows the cursor there, as Ctrl moves it anyway. */
+static gboolean
+start_cursor_over (NemoListView *view, GdkEventKey *event)
+{
+	GtkTreePath *path;
+
+	switch (event->keyval) {
+	case GDK_KEY_Up:
+	case GDK_KEY_KP_Up:
+	case GDK_KEY_Down:
+	case GDK_KEY_KP_Down:
+	case GDK_KEY_Page_Up:
+	case GDK_KEY_KP_Page_Up:
+	case GDK_KEY_Page_Down:
+	case GDK_KEY_KP_Page_Down:
+	case GDK_KEY_Home:
+	case GDK_KEY_KP_Home:
+		break;
+	default:
+		return FALSE;
+	}
+
+	if ((event->state & GDK_CONTROL_MASK) != 0) {
+		remember_cursor (view);
+	} else {
+		path = gtk_tree_path_new_first ();
+		gtk_tree_view_set_cursor (view->details->tree_view, path, NULL, FALSE);
+		gtk_tree_path_free (path);
+	}
+
+	return TRUE;
+}
+
+static void
+cursor_changed_callback (GtkTreeView *tree_view, gpointer user_data)
+{
+	remember_cursor (NEMO_LIST_VIEW (user_data));
+}
+
+static void
 list_selection_changed_callback (GtkTreeSelection *selection, gpointer user_data)
 {
 	NemoView *view;
 
 	view = NEMO_VIEW (user_data);
+
+	/* Ctrl+A or a rubber band picks rows without moving the cursor. */
+	if (NEMO_LIST_VIEW (view)->details->cursor_forgotten &&
+	    gtk_tree_selection_count_selected_rows (selection) > 0) {
+		remember_cursor (NEMO_LIST_VIEW (view));
+	}
 
 	nemo_view_notify_selection_changed (view);
 }
@@ -1467,6 +1557,11 @@ button_press_callback (GtkWidget *widget, GdkEventButton *event, gpointer callba
 
 	view->details->ignore_button_release = FALSE;
 
+	/* After Escape there is no row for Shift to extend from. */
+	if (view->details->cursor_forgotten) {
+		event->state &= ~GDK_SHIFT_MASK;
+	}
+
 	call_parent = TRUE;
 	if (gtk_tree_view_get_path_at_pos (tree_view, event->x, event->y,
 					   &path, NULL, NULL, NULL)) {
@@ -1809,6 +1904,16 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
         }
     }
 
+	if (NEMO_LIST_VIEW (view)->details->cursor_forgotten) {
+		if (start_cursor_over (NEMO_LIST_VIEW (view), event)) {
+			return GDK_EVENT_STOP;
+		}
+		/* There is no row to open or close. */
+		if (event->keyval == GDK_KEY_Left || event->keyval == GDK_KEY_Right) {
+			return GDK_EVENT_STOP;
+		}
+	}
+
 	switch (event->keyval) {
 	case GDK_KEY_F10:
 		if (event->state & GDK_CONTROL_MASK) {
@@ -1878,7 +1983,7 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
 		}
 		break;
 	case GDK_KEY_Escape:
-		nemo_view_toggle_selection_stash (view);
+		forget_cursor (NEMO_LIST_VIEW (view));
 		handled = TRUE;
 		break;
 
@@ -3844,6 +3949,8 @@ create_and_set_up_tree_view (NemoListView *view)
 	g_signal_connect_object (gtk_tree_view_get_selection (view->details->tree_view),
 				 "changed",
 				 G_CALLBACK (list_selection_changed_callback), view, 0);
+	g_signal_connect_object (view->details->tree_view, "cursor-changed",
+				 G_CALLBACK (cursor_changed_callback), view, 0);
 
     g_signal_connect_object (GTK_WIDGET (view->details->tree_view), "query-tooltip",
                              G_CALLBACK (query_tooltip_callback), view, 0);
@@ -4455,6 +4562,7 @@ nemo_list_view_clear (NemoView *view)
 	   dragged there does not carry over. */
 	forget_samples (list_view);
 	g_hash_table_remove_all (list_view->details->user_widths);
+	remember_cursor (list_view);
 
     g_signal_handlers_unblock_by_func (tree_selection, list_selection_changed_callback, view);
 }

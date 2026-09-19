@@ -6242,6 +6242,18 @@ nemo_icon_container_unselect_all (NemoIconContainer *container)
 	}
 }
 
+/* Escape: nothing selected and no keyboard place kept, so the next arrow key
+   starts over as it would in a folder just opened. */
+void
+nemo_icon_container_forget_selection (NemoIconContainer *container)
+{
+	clear_keyboard_focus (container);
+	clear_keyboard_rubberband_start (container);
+	container->details->range_selection_base_icon = NULL;
+
+	nemo_icon_container_unselect_all (container);
+}
+
 /**
  * nemo_icon_container_get_icon_by_uri:
  * @container: An icon container widget.
