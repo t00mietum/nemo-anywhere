@@ -1273,6 +1273,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Add an option under "Behavior" to include extension on rename (on by default).
+	- Opened: 20260918-181654
+	- Closed: 20260918-182200
+	- The setting was already there, file-only. It now has a checkbox under Behavior, right after the one for click-twice renames. Off selects just the part before the extension.
+
 - ✅ Change to username columns (two new columns):
 	- Opened: 20260908-133001
 	- Closed: 20260918-175048
