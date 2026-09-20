@@ -7000,18 +7000,11 @@ nemo_file_get_permissions_as_string (NemoFile *file)
 static char *
 nemo_file_get_extension_as_string (NemoFile *file)
 {
-	char *name;
-	char *extension;
-
 	if (nemo_file_is_directory (file)) {
 		return NULL;
 	}
 
-	name = nemo_file_get_name (file);
-	extension = nemo_filename_get_extension (name);
-	g_free (name);
-
-	return extension;
+	return nemo_filename_get_extension (nemo_file_peek_name (file));
 }
 
 #ifdef G_OS_WIN32

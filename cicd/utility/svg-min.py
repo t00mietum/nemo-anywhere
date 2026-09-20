@@ -179,17 +179,17 @@ def _shrink_path(data, decimals):
 	is a single token - so the rule that is safe everywhere is the one used, and
 	the few bytes it leaves behind are not worth the risk.
 	"""
-    text = ""
+    parts = []
     for is_command, token in _path_tokens(data):
         if not is_command and NUMBER.fullmatch(token):
             token = _round(token, decimals)
-        if not text:
-            text = token
-        elif is_command or text[-1].isalpha() or token[0] == "-":
-            text += token
+        if not parts:
+            parts.append(token)
+        elif is_command or parts[-1][-1].isalpha() or token[0] == "-":
+            parts.append(token)
         else:
-            text += " " + token
-    return text
+            parts.append(" " + token)
+    return "".join(parts)
 
 
 def _transform_scale(value):

@@ -103,6 +103,15 @@ key_path (const NemoConfigKey *k)
 	return g_strdup_printf ("%s.%s", k->group, k->key);
 }
 
+/* The same path, built once per key and measured once, in key-table order.
+ * Reads happen per icon hover, so the accessors take this instead. */
+typedef struct {
+	const char *s;
+	gsize       len;
+} KeyPath;
+
+static KeyPath *key_paths;
+
 /* Every accessor comes through here, so a linear walk of 168 keys with two
  * string compares each was on the way into every read. */
 static const NemoConfigKey *
@@ -110,29 +119,58 @@ find_key (const char *group, const char *key)
 {
 	static GHashTable *index;
 	static gsize       index_once;
-	char              *path;
+	char               buf[128];
+	char              *path = buf;
+	gint               n;
 	const NemoConfigKey *found;
 
 	if (g_once_init_enter (&index_once)) {
 		const NemoConfigKey *k;
 		GHashTable *t = g_hash_table_new_full (g_str_hash, g_str_equal,
 		                                       g_free, NULL);
+		gsize count = 0, i = 0;
 
 		for (k = nemo_config_keys; k->key != NULL; k++)
-			g_hash_table_insert (t, key_path (k), (gpointer) k);
+			count++;
+		key_paths = g_new0 (KeyPath, count);
+
+		/* The table owns the string; key_paths borrows it. Neither is ever
+		 * freed, since the key table cannot change at runtime. */
+		for (k = nemo_config_keys; k->key != NULL; k++, i++) {
+			char *p = key_path (k);
+
+			key_paths[i].s   = p;
+			key_paths[i].len = strlen (p);
+			g_hash_table_insert (t, p, (gpointer) k);
+		}
 
 		index = t;
 		g_once_init_leave (&index_once, 1);
 	}
 
-	if (group == NULL || *group == '\0')
-		path = g_strdup (key);
-	else
-		path = g_strdup_printf ("%s.%s", group, key);
+	n = (group == NULL || *group == '\0')
+		? g_snprintf (buf, sizeof buf, "%s", key)
+		: g_snprintf (buf, sizeof buf, "%s.%s", group, key);
+
+	/* No declared key comes close to the buffer, but a caller could hand in
+	 * anything, and a truncated path would look up the wrong entry. */
+	if (n >= (gint) sizeof buf)
+		path = (group == NULL || *group == '\0')
+			? g_strdup (key)
+			: g_strdup_printf ("%s.%s", group, key);
 
 	found = g_hash_table_lookup (index, path);
-	g_free (path);
+	if (path != buf)
+		g_free (path);
 	return found;
+}
+
+/* Only valid once find_key() has built the table, which every accessor does
+ * before it has a key to ask about. */
+static const KeyPath *
+key_path_of (const NemoConfigKey *k)
+{
+	return &key_paths[k - nemo_config_keys];
 }
 
 static const NemoConfigKey *
@@ -1027,20 +1065,19 @@ gboolean
 nemo_config_get_boolean (NemoConfigGroup *group, const char *key)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_BOOL);
-	char                *path;
+	const KeyPath       *p;
 	gboolean             fallback, out;
 
 	if (k == NULL)
 		return FALSE;
 
 	fallback = (g_strcmp0 (k->def, "true") == 0);
-	path = key_path (k);
+	p = key_path_of (k);
 
 	g_mutex_lock (&config_lock);
-	out = shcl_get_bool (config_doc, path, strlen (path), fallback) ? TRUE : FALSE;
+	out = shcl_get_bool (config_doc, p->s, p->len, fallback) ? TRUE : FALSE;
 	g_mutex_unlock (&config_lock);
 
-	g_free (path);
 	return out;
 }
 
@@ -1048,19 +1085,18 @@ gint64
 nemo_config_get_int64 (NemoConfigGroup *group, const char *key)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_INT);
-	char                *path;
+	const KeyPath       *p;
 	gint64               out;
 
 	if (k == NULL)
 		return 0;
 
-	path = key_path (k);
+	p = key_path_of (k);
 	g_mutex_lock (&config_lock);
-	out = shcl_get_int (config_doc, path, strlen (path),
+	out = shcl_get_int (config_doc, p->s, p->len,
 	                    k->def ? g_ascii_strtoll (k->def, NULL, 10) : 0);
 	g_mutex_unlock (&config_lock);
 
-	g_free (path);
 	return out;
 }
 
@@ -1074,19 +1110,18 @@ gdouble
 nemo_config_get_double (NemoConfigGroup *group, const char *key)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_FLOAT);
-	char                *path;
+	const KeyPath       *p;
 	gdouble              out;
 
 	if (k == NULL)
 		return 0.0;
 
-	path = key_path (k);
+	p = key_path_of (k);
 	g_mutex_lock (&config_lock);
-	out = shcl_get_float (config_doc, path, strlen (path),
+	out = shcl_get_float (config_doc, p->s, p->len,
 	                      k->def ? g_ascii_strtod (k->def, NULL) : 0.0);
 	g_mutex_unlock (&config_lock);
 
-	g_free (path);
 	return out;
 }
 
@@ -1094,15 +1129,16 @@ char *
 nemo_config_get_string (NemoConfigGroup *group, const char *key)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_STRING);
-	char                *path, *out;
+	const KeyPath       *p;
+	char                *out;
 	shcl_read_str        r;
 
 	if (k == NULL)
 		return g_strdup ("");
 
-	path = key_path (k);
+	p = key_path_of (k);
 	g_mutex_lock (&config_lock);
-	r = shcl_read_string (config_doc, path, strlen (path));
+	r = shcl_read_string (config_doc, p->s, p->len);
 	if (r.status == SHCL_GOOD)
 		out = g_strndup (r.value.p, r.value.n);
 	else if (r.status == SHCL_EMPTY)
@@ -1112,7 +1148,6 @@ nemo_config_get_string (NemoConfigGroup *group, const char *key)
 	note_arena_use_locked (r.value.n + 1);
 	g_mutex_unlock (&config_lock);
 
-	g_free (path);
 	return out;
 }
 
@@ -1120,23 +1155,23 @@ char **
 nemo_config_get_strv (NemoConfigGroup *group, const char *key)
 {
 	const NemoConfigKey *k = require_key (group, key, NEMO_CONFIG_STRING_LIST);
-	char                *path;
+	const KeyPath       *p;
 	char               **out;
 	shcl_read_str_arr    r;
 
 	if (k == NULL)
 		return g_new0 (char *, 1);
 
-	path = key_path (k);
+	p = key_path_of (k);
 	g_mutex_lock (&config_lock);
-	r = shcl_read_string_array (config_doc, path, strlen (path));
+	r = shcl_read_string_array (config_doc, p->s, p->len);
 
 	/* SHCL_EMPTY is a real value ("set to nothing"), so only a missing or
 	 * unusable key falls back. MULTIPLE means the key is written twice - easy
 	 * to do by hand, and it used to open the list view with no columns at all. */
 	if (r.status == SHCL_MULTIPLE || r.status == SHCL_BAD_TYPE)
 		g_warning ("nemo-config: '%s' is %s in %s; using the default",
-		           path,
+		           p->s,
 		           r.status == SHCL_MULTIPLE ? "listed more than once" : "not a list",
 		           config_path);
 
@@ -1157,7 +1192,6 @@ nemo_config_get_strv (NemoConfigGroup *group, const char *key)
 	}
 	g_mutex_unlock (&config_lock);
 
-	g_free (path);
 	return out;
 }
 
@@ -1166,21 +1200,21 @@ nemo_config_get_enum (NemoConfigGroup *group, const char *key)
 {
 	const NemoConfigKey       *k = require_key (group, key, NEMO_CONFIG_ENUM);
 	const NemoConfigEnumValue *v;
-	char                      *path, *nick = NULL;
+	const KeyPath             *p;
+	char                      *nick = NULL;
 	shcl_read_str              r;
 	gint                       out = 0;
 
 	if (k == NULL)
 		return 0;
 
-	path = key_path (k);
+	p = key_path_of (k);
 	g_mutex_lock (&config_lock);
-	r = shcl_read_string (config_doc, path, strlen (path));
+	r = shcl_read_string (config_doc, p->s, p->len);
 	if (r.status == SHCL_GOOD)
 		nick = g_strndup (r.value.p, r.value.n);
 	note_arena_use_locked (r.value.n + 1);
 	g_mutex_unlock (&config_lock);
-	g_free (path);
 
 	if (nick == NULL)
 		nick = g_strdup (k->def);

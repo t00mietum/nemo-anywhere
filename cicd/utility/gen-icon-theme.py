@@ -413,7 +413,7 @@ STROKE_GLYPHS = {"grid", "calendar"}
 EVENODD_GLYPHS = {"photo", "film", "letterA", "server"}
 
 
-def glyph(t, name, color, x, y, size, opacity="1"):
+def glyph(name, color, x, y, size, opacity="1"):
     if name not in GLYPHS:
         return ""
     scale = size / 24.0
@@ -434,7 +434,7 @@ def fmt(value):
     return text if text else "0"
 
 
-def band(t, color):
+def band(color):
     """A color band down the left edge of a page, the way office types read."""
     return (
         '<path d="M9 30h29v12a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2z" fill="%s"/>'
@@ -553,14 +553,14 @@ def build(theme_name, theme, out_root):
         defs, body = BASES[base](theme)
         if glyph_name and place:
             x, y, size, opacity = place
-            body += glyph(theme, glyph_name, theme[color], x, y, size, opacity)
+            body += glyph(glyph_name, theme[color], x, y, size, opacity)
         emit(name, context, defs, body)
 
     for name, (color, glyph_name) in OFFICE.items():
         defs, body = base_page(theme)
-        body += band(theme, theme[color])
-        body += glyph(theme, glyph_name, "#FFFFFF", 27.0, 32.0, 14.0, ".95")
-        body += glyph(theme, "lines", theme["paperLine"], 13.0, 12.0, 15.0, ".8")
+        body += band(theme[color])
+        body += glyph(glyph_name, "#FFFFFF", 27.0, 32.0, 14.0, ".95")
+        body += glyph("lines", theme["paperLine"], 13.0, 12.0, 15.0, ".8")
         emit(name, "mimetypes", defs, body)
 
     defs, body = base_bin(theme, full=True)

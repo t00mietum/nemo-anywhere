@@ -294,6 +294,55 @@ check_predicate (void)
 	nemo_archive_options_clear (&options);
 }
 
+/* The same archive rewritten with its folder entries left out. A writer is
+   free to store only the files, and the verify has to read a folder as there
+   when something inside it is. */
+static gboolean
+rewrite_without_directories (const char *src,
+			     const char *dst)
+{
+	struct archive *in  = archive_read_new ();
+	struct archive *out = archive_write_new ();
+	struct archive_entry *entry;
+	gboolean ok = TRUE;
+
+	archive_read_support_format_all (in);
+	archive_read_support_filter_all (in);
+	archive_write_set_format_zip (out);
+
+	if (archive_read_open_filename (in, src, 16384) != ARCHIVE_OK ||
+	    archive_write_open_filename (out, dst) != ARCHIVE_OK) {
+		ok = FALSE;
+	}
+
+	while (ok && archive_read_next_header (in, &entry) == ARCHIVE_OK) {
+		char buffer[8192];
+		la_ssize_t got;
+
+		if (archive_entry_filetype (entry) == AE_IFDIR) {
+			continue;
+		}
+
+		if (archive_write_header (out, entry) != ARCHIVE_OK) {
+			ok = FALSE;
+			break;
+		}
+
+		while ((got = archive_read_data (in, buffer, sizeof buffer)) > 0) {
+			if (archive_write_data (out, buffer, (size_t) got) < 0) {
+				ok = FALSE;
+				break;
+			}
+		}
+	}
+
+	archive_write_close (out);
+	archive_write_free (out);
+	archive_read_free (in);
+
+	return ok;
+}
+
 static void
 check_verify (const char *tmp,
 	      GtkWidget  *window)
@@ -333,6 +382,31 @@ check_verify (const char *tmp,
 	check (nemo_archive_verify (archive, sources, &options,
 				    NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
 	check (reason == NULL);
+
+	/* With the folder entries dropped, "deep" is still in there because
+	   b.txt is, and "empty" cannot be. */
+	{
+		static const char * const kept[] = { "a.txt", "deep", NULL };
+		char  *flat_path = g_build_filename (out, "flat.zip", NULL);
+		GFile *flat = g_file_new_for_path (flat_path);
+		GList *flat_sources = sources_in (dir, kept);
+
+		check (rewrite_without_directories (path, flat_path));
+
+		check (nemo_archive_verify (flat, flat_sources, &options,
+					    NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+		check (reason == NULL);
+
+		check (!nemo_archive_verify (flat, sources, &options,
+					     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+		check (reason != NULL);
+		g_free (reason);
+		reason = NULL;
+
+		g_list_free_full (flat_sources, g_object_unref);
+		g_object_unref (flat);
+		g_free (flat_path);
+	}
 
 	/* A source that changed after the archive was written. */
 	write_file (dir, "a.txt", "alpha and then some");

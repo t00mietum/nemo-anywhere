@@ -223,13 +223,6 @@ nemo_icon_view_destroy (GtkWidget *object)
 	GTK_WIDGET_CLASS (nemo_icon_view_parent_class)->destroy (object);
 }
 
-static void
-sync_directory_monitor_number (NemoIconView *view, NemoFile *file)
-{
-    /* No-op without the desktop shell (per-monitor desktop directories are gone). */
-}
-
-
 static NemoIconContainer *
 get_icon_container (NemoIconView *icon_view)
 {
@@ -259,8 +252,6 @@ real_set_sort_criterion (NemoIconView *icon_view,
 	NemoFile *file;
 
 	file = nemo_view_get_directory_as_file (NEMO_VIEW (icon_view));
-
-    sync_directory_monitor_number (icon_view, file);
 
 	if (clear) {
 		nemo_file_set_metadata (file,
@@ -615,8 +606,6 @@ nemo_icon_view_get_directory_sort_by (NemoIconView *icon_view,
 	default_sort_criterion = get_sort_criterion_by_sort_type (get_default_sort_order (file, NULL));
 	g_return_val_if_fail (default_sort_criterion != NULL, NULL);
 
-    sync_directory_monitor_number (icon_view, file);
-
     return nemo_folder_settings_get (file,
                                      NEMO_METADATA_KEY_ICON_VIEW_SORT_BY,
                                      default_sort_criterion->metadata_text);
@@ -662,8 +651,6 @@ nemo_icon_view_set_directory_sort_by (NemoIconView *icon_view,
 	default_sort_criterion = get_sort_criterion_by_sort_type (get_default_sort_order (file, NULL));
 	g_return_if_fail (default_sort_criterion != NULL);
 
-    sync_directory_monitor_number (icon_view, file);
-
     nemo_folder_settings_set (file,
                               NEMO_METADATA_KEY_ICON_VIEW_SORT_BY,
                               default_sort_criterion->metadata_text,
@@ -682,8 +669,6 @@ nemo_icon_view_get_directory_sort_reversed (NemoIconView *icon_view,
 
 	get_default_sort_order (file, &reversed);
 
-    sync_directory_monitor_number (icon_view, file);
-
     return nemo_folder_settings_get_boolean (file,
                                              NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED,
                                              reversed);
@@ -701,8 +686,6 @@ nemo_icon_view_set_directory_sort_reversed (NemoIconView *icon_view,
 	}
 
 	get_default_sort_order (file, &reversed);
-
-    sync_directory_monitor_number (icon_view, file);
 
     nemo_folder_settings_set_boolean (file,
                                       NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED,
@@ -724,8 +707,6 @@ nemo_icon_view_get_directory_keep_aligned (NemoIconView *icon_view,
 		return FALSE;
 	}
 
-    sync_directory_monitor_number (icon_view, file);
-
     return nemo_file_get_boolean_metadata (file,
                                            NEMO_METADATA_KEY_ICON_VIEW_KEEP_ALIGNED,
                                            get_default_directory_keep_aligned ());
@@ -739,8 +720,6 @@ nemo_icon_view_set_directory_keep_aligned (NemoIconView *icon_view,
 	if (!nemo_icon_view_supports_keep_aligned (icon_view)) {
 		return;
 	}
-
-    sync_directory_monitor_number (icon_view, file);
 
     nemo_file_set_boolean_metadata (file,
                                     NEMO_METADATA_KEY_ICON_VIEW_KEEP_ALIGNED,
@@ -760,8 +739,6 @@ nemo_icon_view_get_directory_auto_layout (NemoIconView *icon_view,
 		return TRUE;
 	}
 
-    sync_directory_monitor_number (icon_view, file);
-
     return nemo_file_get_boolean_metadata (file,
                                            NEMO_METADATA_KEY_ICON_VIEW_AUTO_LAYOUT,
                                            TRUE);
@@ -777,8 +754,6 @@ nemo_icon_view_set_directory_auto_layout (NemoIconView *icon_view,
 		return;
 	}
 
-    sync_directory_monitor_number (icon_view, file);
-
     nemo_file_set_boolean_metadata (file,
                                     NEMO_METADATA_KEY_ICON_VIEW_AUTO_LAYOUT,
                                     TRUE,
@@ -790,8 +765,6 @@ nemo_icon_view_set_directory_horizontal_layout (NemoIconView *icon_view,
                                                 NemoFile     *file,
                                                 gboolean      horizontal)
 {
-    sync_directory_monitor_number (icon_view, file);
-
     nemo_file_set_boolean_metadata (file,
                                     NEMO_METADATA_KEY_DESKTOP_GRID_HORIZONTAL,
                                     FALSE,
@@ -802,8 +775,6 @@ gboolean
 nemo_icon_view_get_directory_horizontal_layout (NemoIconView *icon_view,
                                                 NemoFile     *file)
 {
-    sync_directory_monitor_number (icon_view, file);
-
     return nemo_file_get_boolean_metadata (file,
                                            NEMO_METADATA_KEY_DESKTOP_GRID_HORIZONTAL,
                                            FALSE);
@@ -815,8 +786,6 @@ nemo_icon_view_set_directory_grid_adjusts (NemoIconView *icon_view,
                                            gint          horizontal,
                                            gint          vertical)
 {
-    sync_directory_monitor_number (icon_view, file);
-
     nemo_file_set_desktop_grid_adjusts (file,
                                         NEMO_METADATA_KEY_DESKTOP_GRID_ADJUST,
                                         horizontal, vertical);
@@ -829,8 +798,6 @@ nemo_icon_view_get_directory_grid_adjusts (NemoIconView *icon_view,
                                            gint         *vertical)
 {
     gint h, v;
-
-    sync_directory_monitor_number (icon_view, file);
 
     nemo_file_get_desktop_grid_adjusts (file,
                                         NEMO_METADATA_KEY_DESKTOP_GRID_ADJUST,
@@ -993,8 +960,6 @@ nemo_icon_view_begin_loading (NemoView *view)
 
             level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
-            sync_directory_monitor_number (icon_view, file);
-
             if (icon_view->details->compact) {
                 level = nemo_folder_settings_get_int (file,
                                                       NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
@@ -1114,8 +1079,6 @@ nemo_icon_view_set_zoom_level (NemoIconView *view,
     if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
         nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_level);
     } else {
-        sync_directory_monitor_number (view, nemo_view_get_directory_as_file (NEMO_VIEW (view)));
-
         if (view->details->compact) {
             nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
                                           NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
@@ -1940,8 +1903,6 @@ icon_position_changed_callback (NemoIconContainer *container,
 
 	g_ascii_dtostr (scale_string, sizeof (scale_string), position->scale);
 
-    sync_directory_monitor_number (icon_view, file);
-
 	nemo_file_set_metadata (file, NEMO_METADATA_KEY_ICON_SCALE, "1.0", scale_string);
 }
 
@@ -2123,8 +2084,6 @@ default_zoom_level_changed_callback (gpointer callback_data)
             nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > -1) {
             level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
-            sync_directory_monitor_number (icon_view, file);
-
             if (nemo_icon_view_is_compact (icon_view)) {
                 level = nemo_folder_settings_get_int (file,
                                                       NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
@@ -2273,14 +2232,10 @@ get_stored_layout_timestamp (NemoIconContainer *container,
 
 		file = nemo_directory_get_corresponding_file (directory);
 
-        sync_directory_monitor_number (view, file);
-
         *timestamp = nemo_file_get_time_metadata (file, NEMO_METADATA_KEY_ICON_VIEW_LAYOUT_TIMESTAMP);
 
 		nemo_file_unref (file);
 	} else {
-        sync_directory_monitor_number (view, NEMO_FILE (icon_data));
-
         *timestamp = nemo_file_get_time_metadata (NEMO_FILE (icon_data), NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP);
 	}
 
@@ -2304,15 +2259,11 @@ store_layout_timestamp (NemoIconContainer *container,
 
 		file = nemo_directory_get_corresponding_file (directory);
 
-        sync_directory_monitor_number (view, file);
-
 		nemo_file_set_time_metadata (file,
                                      NEMO_METADATA_KEY_ICON_VIEW_LAYOUT_TIMESTAMP,
                                      (time_t) *timestamp);
 		nemo_file_unref (file);
 	} else {
-        sync_directory_monitor_number (view, NEMO_FILE (icon_data));
-
 		nemo_file_set_time_metadata (NEMO_FILE (icon_data),
                                      NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP,
                                      (time_t) *timestamp);
