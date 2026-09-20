@@ -1227,7 +1227,6 @@ def encode_video(rec, work, out_mp4, video_end_e):
     return out_mp4
 
 GIF_COLORS = 128
-GIF_LOSSY  = 0
 
 def gif_pass(rec, work, out_gif, trim, dur, colors=GIF_COLORS, tail=False):
     vf = vf_chain(rec, work, trim, dur, tail=tail)
@@ -1250,12 +1249,9 @@ def gif_optimize(gif):
         return gif
     before = gif.stat().st_size / (1 << 20)
     opt = gif.with_name(gif.stem + "-opt.gif")
-    cmd = ["gifsicle", "-O3", "--no-warnings", "-o", str(opt), str(gif)]
-    if GIF_LOSSY:
-        cmd.insert(2, f"--lossy={GIF_LOSSY}")
-    run(cmd)
+    run(["gifsicle", "-O3", "--no-warnings", "-o", str(opt), str(gif)])
     after = opt.stat().st_size / (1 << 20)
-    log(f"gifsicle: {before:.1f} -> {after:.1f} MiB (lossy={GIF_LOSSY})")
+    log(f"gifsicle: {before:.1f} -> {after:.1f} MiB")
     return opt
 
 def encode_gif(rec, work, out_gif, video_end_e):

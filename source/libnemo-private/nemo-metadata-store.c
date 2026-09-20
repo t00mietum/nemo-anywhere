@@ -527,8 +527,9 @@ nemo_metadata_store_rename (const char *old_uri,
 	g_mutex_lock (&store_mutex);
 	ensure_loaded ();
 
-	/* This runs once per moved file, so nothing below should cost anything at
-	 * all when there is no metadata to re-key. */
+	/* This runs once per moved file. An empty store is the usual case and
+	 * leaves at once; past that the descendant scan below is one pass over
+	 * the store, which only ever holds folders given settings of their own. */
 	if (g_hash_table_size (store) == 0) {
 		g_mutex_unlock (&store_mutex);
 		return;

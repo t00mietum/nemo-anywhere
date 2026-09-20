@@ -62,6 +62,7 @@ typedef struct {
 	NemoSearchEngineWin32 *engine;
 	GCancellable *cancellable;
 	gchar *folder;
+	gsize folder_len;            /* fixed for the search, and hit_is_wanted runs per row */
 	gchar *sql;
 	NemoSearchNameMatcher *matcher;
 	GHashTable *skip_names;
@@ -449,7 +450,6 @@ hit_is_wanted (IndexSearch *search,
 	       const gchar *path,
 	       guint32      attrs)
 {
-	gsize folder_len = strlen (search->folder);
 	const gchar *rest;
 	gchar **parts;
 	gchar *basename;
@@ -470,7 +470,8 @@ hit_is_wanted (IndexSearch *search,
 		}
 	}
 
-	rest = g_ascii_strncasecmp (path, search->folder, folder_len) == 0 ? path + folder_len : path;
+	rest = g_ascii_strncasecmp (path, search->folder, search->folder_len) == 0
+		? path + search->folder_len : path;
 	while (*rest == '\\' || *rest == '/') {
 		rest++;
 	}
@@ -649,6 +650,7 @@ nemo_search_engine_win32_start (NemoSearchEngine *engine)
 	search->engine = g_object_ref (self);
 	search->cancellable = g_cancellable_new ();
 	search->folder = folder;
+	search->folder_len = strlen (folder);
 	search->sql = nemo_search_win32_build_sql (folder, nemo_query_get_recurse (query),
 						  file_pattern, nemo_query_get_use_file_regex (query),
 						  content);
@@ -661,6 +663,7 @@ nemo_search_engine_win32_start (NemoSearchEngine *engine)
 		if (g_path_is_absolute (skip[i])) {
 			search->skip_paths = g_list_prepend (search->skip_paths, g_strdup (skip[i]));
 		} else {
+			/* cppcheck-suppress leakNoVarFunctionCall ; skip_names owns its keys and frees them */
 			g_hash_table_add (search->skip_names, g_strdup (skip[i]));
 		}
 	}

@@ -45,105 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Code review 20260919.
-	- Opened: 20260919-175254
-	- Style, performance and prose pass over the whole tree, first-party and inherited, aimed at areas the two earlier rounds did not cover. Worst first. Technical detail is kept out of this file. Numbers match the private detail notes.
-	- 🔘 High.
-		- ✅ Item 1. The Windows exe that gets published and signed is a debug build.
-			- Cause: neither the release workflow nor the cross build asks for a release build or for symbols to be stripped, and the project file sets no default, so meson picks debug.
-			- Effect: the shipped exe carries full debug information at 15.7 MB. The Linux release binary beside it is 3.0 MB. Every release tag so far has published one.
-			- Origin: predates the fork's first release lane. Neither earlier round looked at build flags. Confirmed.
-			- Fixed: both Windows lanes and the Linux release lane ask for a release build with symbols stripped. The cross exe went from 15.7 MB to 8.3 MB with no debug sections. A new check reads the flags back out of the exe.
-		- ✅ Item 2. A permanent delete out of the trash can run with no dialog.
-			- Cause: the trash branch of the confirmation is the only one of the three that does not also ask when the count alone warrants it. Move-to-trash and direct delete both do.
-			- Effect: with confirmation off, a delete over a trash address started anywhere but a window goes through silently. The armed test guard hides this in current builds.
-			- Origin: the same gap as the Empty Trash one closed by `dbustrash` on 20260917, in the same file. A regression of that class rather than new ground. Confirmed.
-			- Fixed: the trash branch now asks when the count warrants it, the way its two siblings do. One function holds the decision, with a test over it.
-		- ✅ Item 3. A settings handler outlives the places sidebar.
-			- Cause: the handler is connected to the windows settings group and disconnected from the preferences group, which is a different group, so it is never removed.
-			- Effect: changing the path separator after a window closes calls into a freed sidebar. Live reload makes it reachable.
-			- Origin: introduced with the path separator work; the comment directly above the disconnect describes guarding against exactly this. Confirmed.
-			- Fixed: the handler disconnects from the group it was connected to. A new whole-tree check pairs every connect with its disconnect, reading the group names out of the header, and it found a third site this item did not name.
-		- ✅ Item 4. A damaged spreadsheet can hang the content search helper.
-			- Cause: the shared-string loop trusts a count read from the file and tests its end against the whole stream rather than the current record, while the reader it calls stops advancing once the record runs out.
-			- Effect: a truncated workbook spins up to four billion empty passes. The helper is spawned per file, so one bad file in a folder ties up a core.
-			- Origin: written for the search helpers, never fuzzed. The three fuzz targets cover the settings file, the drag payload and command templates, not these parsers. Confirmed.
-			- Fixed: the loop has to make progress or it stops, with a truncated workbook in the fixtures. The record-end bound suggested above was not taken, because it drops strings split across continuation records.
-	- 🔘 Medium.
-		- ✅ Item 5. No build in the tree uses link-time optimization.
-			- Origin: never set up. Confirmed.
-			- Fixed: on the release lanes. It bought no size, so it stays for what it may buy later.
-		- ✅ Item 6. The Bash linter runs nowhere.
-			- Cause: the lint stage runs the C and Python checkers only. Scripts carry suppression comments for a checker that is never invoked.
-			- Origin: the lint stage grew around the C checks. Confirmed.
-			- Fixed: `cicd/utility/lint.bash` is the lint stage now, and runs shellcheck over the project's own scripts beside the C checks. It is no longer gated on cppcheck, which used to take the whole stage down on a box without it. Fourteen findings fixed; four scripts still turn rules off file-wide, which is filed separately.
-		- ✅ Item 7. Four checks in the suite can never fail.
-			- Cause: one is written so its condition is always true; another compares two searches without first testing that either found anything, so the regression it guards would turn it green.
-			- Origin: spread across the suite's growth. Confirmed.
-			- Fixed: each now checks what its comment says. The link-copy one asks the file system instead of repeating a call it already made, and the network one compares host names, which is what its comment always claimed. The two Windows-only ones still need a run on a real box.
-		- ✅ Item 8. Three tests report success when they could not run.
-			- Cause: they print that they are skipping and then fall through to a success exit rather than the skip exit. A fourth returns the skip code without first reporting failures it already counted.
-			- Origin: predates the rule being written down. Confirmed.
-			- Fixed: all four return 77 on the paths where they skip, and failures already counted are reported before the skip code. Two were watched both ways; the two Windows-only ones still owe that watch on a real box.
-		- ✅ Item 9. One test builds and removes its own scratch tree.
-			- Cause: it is the only test that does not go through the shared helper, and it removes the tree twice by hand. Two runs at once destroy each other.
-			- Origin: written before the helper existed and never moved over. Confirmed.
-			- Fixed: it uses `test_scratch_dir` like the rest of the suite. Twelve copies at once over eight rounds: 24 of 96 failed before, none of 96 after.
-		- ✅ Item 10. A test has the same settings-group mismatch as item 3.
-			- Effect: a later check in the same file fires the handler, which writes through a pointer into a frame that has returned.
-			- Origin: copied from the sidebar code it tests. Confirmed.
-			- Fixed with item 3, and covered by the same whole-tree check.
-		- ✅ Item 11. List view row measurement and row shading both do far more work than they need to.
-			- Cause: measurement is hooked to row changes as well as row arrivals, so it re-runs every time a file's details fill in, rebuilding column and cell lists and reading two style properties each pass. Shading allocates a path and sets a property once per cell per redraw, including when shading is off.
-			- Effect: both sit under the per-file listing cost design.md already flags as the one to watch.
-			- Origin: measurement came with the column width work, shading with `ownerrows`. Confirmed by reading the hookup and the bodies, not measured.
-			- Fixed: the theme sizes and the column list are read once rather than per row, parity is worked out once per row rather than once per cell, and a renderer that already has no background is left alone. The rows look the same as before.
-			- Measured over 20,000 files. Listing did not move, at about 7.8 s of processor time either way. Paging through the folder went from 1.16 s to 1.01 s with shading off, which is the default, and did not move with it on. So the suspects here were real but small, and the listing cost is somewhere else.
-		- ✅ Item 12. The theme vendoring script forks per icon.
-			- Cause: the resolver is called through command substitution up to five times per icon across roughly 3,600 icons. The file's own note two hundred lines above says a substitution there is a fork and that this runs tens of thousands of times, and solves it that way for the scorer.
-			- Origin: the scorer was fixed, the resolver that calls it was not. Confirmed.
-			- Fixed: the resolver answers through a global and returns a status, the way the scorer already did. The link-stub test reads the head of the file itself instead of calling out three times, and the two `dirname` calls and the two branches picking a directory name are gone. That is about twelve forks an icon removed.
-			- New `--self-test` builds a small tree and checks resolution against it: plain name, symbolic name, context filter on and off, both alias forms, the hop limit and a missing name. It runs in the lint stage, since the build container has no git.
-		- ✅ Item 13. A maintainer's home path is baked into test fixtures.
-			- Cause: five lines of one Windows test use a real personal path where the rest of the suite uses a placeholder.
-			- Origin: written with a live path and never anonymized. Confirmed.
-			- Fixed: the five lines say `somebody`. A checked-in `.pyc` holding a build path went with them. New `lint-identity.bash` holds it.
-			- Left alone: this file names a real account in three closed items, which is prose rather than code, so the check does not read it.
-		- ✅ Item 14. Six application sources carry the wrong copyright marker.
-			- Cause: they use the form reserved for the shared helper scripts. Fifteen other first-party files carry no copyright line at all.
-			- Origin: the link and shortcut files were drafted as helpers. Confirmed.
-			- Fixed: all twenty-one carry the project's marker. The same identity check refuses the helper marker under `source/` and refuses any retired marker anywhere.
-	- 🔘 Low.
-		- ✅ Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
-			- Fixed: leading tabs are four spaces, and a run of tab-aligned trailing comments is aligned with spaces instead. The two tables were never at risk - their alignment is relative to a single leading tab, so converting it shifts the whole block and nothing else.
-			- Tabs left in place: inside multi-line string bodies, where they are data, and in the `##` header block every script in the tree shares.
-			- Proof the conversion changed nothing: each file's parse tree was compared before and after, and the four files with tabs inside string literals were redone with those lines held back until it matched.
-			- Three findings that turned up with the checker are fixed too: a one-letter variable, a lambda where a def belongs, and two statements on one line.
-		- ✅ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
-			- Python: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
-			- Bash: `.shellcheckrc` now holds the severity and the sourced-file handling the lint stage used to pass as flags, so an editor sees the same rules. Without it the lint stage reports seventeen findings, so it is doing real work.
-			- PowerShell: new `PSScriptAnalyzerSettings.psd1` and `cicd/utility/lint-powershell.bash`, sixth in the dispatcher. Five rules are off with a reason each; everything else is on. The one finding left is suppressed where it happens, not in the settings file.
-			- C: the two dozen cppcheck suppressions moved out of the command line into `.cppcheck-suppressions`, with the reason for each still beside it. The findings over a 98-file range are the same as before.
-		- ✅ Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
-			- Fixed: those lines now say what was checked and leave out how. design.md and the two style guides keep theirs, since describing the build and test rig is what those files are for.
-			- A check outside the repo holds it, called from the lint stage only when it is there, so a clone without the private tree still lints.
-		- ✅ Item 18. British spellings in comments and prose, including two identifiers.
-			- Fixed: about sixty comment and prose lines, plus the two sets of identifiers - the Windows splash colors and the launcher's status color. The release notes and the README are in it, which is where it was visible.
-			- Inherited lines are left as they are, here and in every check below: most of the tree came from upstream and spells things its own way.
-			- New `cicd/utility/lint-prose.bash` in the lint stage holds this, the banner rule from item 20, and the ASCII rule that goes with it.
-		- ✅ Item 19. Banned verbs in roughly sixty comment lines across C, scripts and Python.
-			- Fixed: sixty-six comment and prose lines, a README heading and its table of contents entry, and three test variables named after one of them.
-			- Held by the same check as item 17, outside the repo for the same reason.
-		- ✅ Item 20. Three competing banner-comment conventions in first-party C, and a prose block at the top of nearly every first-party file. One of those blocks restates a design.md rule that can drift from it.
-			- Fixed: forty-four banners in eleven files. The style guide has said "No banner dividers" all along, so the words stay as plain comments and the rules are gone. A fourth form turned up in the tests.
-			- The bullet-rule form was also the only non-ASCII in first-party C outside the copyright line, so the new check refuses that too.
-			- `nemo-column-layout.h` points at design.md now instead of restating fifteen lines of it.
-			- The other module blocks stay. They say why a file exists, which is what they are for; only the one that copied a rule was a problem.
-		- 🛠️ Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
-			- Done, out of the test-duplication group: the eight hand-rolled tree removals. Seven of them removed the scratch directory the test had just made, which the helper already removes at exit, so they are simply gone. The eighth needed a removal part way through and goes through the helper now. That is 151 lines fewer.
-			- Done, the rest of the test-duplication group. The `check` macro was in sixty-seven files in two spellings and is now one header. Twenty-six tests set the same environment variables by hand to get a throwaway config root and now call one helper. The two 46-line blocks are two small headers. That is 819 lines fewer, and a new check refuses a fresh copy of either.
-			- Left: the other four groups, none of which is about the tests.
-
 - 🔘 Horizontal scrollbar frequently shows up when not needed.
 	- Opened: n/a
 	- Not reproduced as a fault. Driven from 1000 to 1200 wide, growing and shrinking, with overlay scrollbars on and off: the settled state always matched design.md, and the scrollbar appeared only where the combined minimum widths really did exceed the room.
@@ -242,6 +143,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
+	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
@@ -306,6 +208,109 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Code review 20260919.
+	- Opened: 20260919-175254. Closed: 20260920.
+	- Style, performance and prose pass over the whole tree, first-party and inherited, aimed at areas the two earlier rounds did not cover. Worst first. Technical detail is kept out of this file. Numbers match the private detail notes.
+	- ✅ High.
+		- ✅ Item 1. The Windows exe that gets published and signed is a debug build.
+			- Cause: neither the release workflow nor the cross build asks for a release build or for symbols to be stripped, and the project file sets no default, so meson picks debug.
+			- Effect: the shipped exe carries full debug information at 15.7 MB. The Linux release binary beside it is 3.0 MB. Every release tag so far has published one.
+			- Origin: predates the fork's first release lane. Neither earlier round looked at build flags. Confirmed.
+			- Fixed: both Windows lanes and the Linux release lane ask for a release build with symbols stripped. The cross exe went from 15.7 MB to 8.3 MB with no debug sections. A new check reads the flags back out of the exe.
+		- ✅ Item 2. A permanent delete out of the trash can run with no dialog.
+			- Cause: the trash branch of the confirmation is the only one of the three that does not also ask when the count alone warrants it. Move-to-trash and direct delete both do.
+			- Effect: with confirmation off, a delete over a trash address started anywhere but a window goes through silently. The armed test guard hides this in current builds.
+			- Origin: the same gap as the Empty Trash one closed by `dbustrash` on 20260917, in the same file. A regression of that class rather than new ground. Confirmed.
+			- Fixed: the trash branch now asks when the count warrants it, the way its two siblings do. One function holds the decision, with a test over it.
+		- ✅ Item 3. A settings handler outlives the places sidebar.
+			- Cause: the handler is connected to the windows settings group and disconnected from the preferences group, which is a different group, so it is never removed.
+			- Effect: changing the path separator after a window closes calls into a freed sidebar. Live reload makes it reachable.
+			- Origin: introduced with the path separator work; the comment directly above the disconnect describes guarding against exactly this. Confirmed.
+			- Fixed: the handler disconnects from the group it was connected to. A new whole-tree check pairs every connect with its disconnect, reading the group names out of the header, and it found a third site this item did not name.
+		- ✅ Item 4. A damaged spreadsheet can hang the content search helper.
+			- Cause: the shared-string loop trusts a count read from the file and tests its end against the whole stream rather than the current record, while the reader it calls stops advancing once the record runs out.
+			- Effect: a truncated workbook spins up to four billion empty passes. The helper is spawned per file, so one bad file in a folder ties up a core.
+			- Origin: written for the search helpers, never fuzzed. The three fuzz targets cover the settings file, the drag payload and command templates, not these parsers. Confirmed.
+			- Fixed: the loop has to make progress or it stops, with a truncated workbook in the fixtures. The record-end bound suggested above was not taken, because it drops strings split across continuation records.
+	- ✅ Medium.
+		- ✅ Item 5. No build in the tree uses link-time optimization.
+			- Origin: never set up. Confirmed.
+			- Fixed: on the release lanes. It bought no size, so it stays for what it may buy later.
+		- ✅ Item 6. The Bash linter runs nowhere.
+			- Cause: the lint stage runs the C and Python checkers only. Scripts carry suppression comments for a checker that is never invoked.
+			- Origin: the lint stage grew around the C checks. Confirmed.
+			- Fixed: `cicd/utility/lint.bash` is the lint stage now, and runs shellcheck over the project's own scripts beside the C checks. It is no longer gated on cppcheck, which used to take the whole stage down on a box without it. Fourteen findings fixed; four scripts still turn rules off file-wide, which is filed separately.
+		- ✅ Item 7. Four checks in the suite can never fail.
+			- Cause: one is written so its condition is always true; another compares two searches without first testing that either found anything, so the regression it guards would turn it green.
+			- Origin: spread across the suite's growth. Confirmed.
+			- Fixed: each now checks what its comment says. The link-copy one asks the file system instead of repeating a call it already made, and the network one compares host names, which is what its comment always claimed. The two Windows-only ones still need a run on a real box.
+		- ✅ Item 8. Three tests report success when they could not run.
+			- Cause: they print that they are skipping and then fall through to a success exit rather than the skip exit. A fourth returns the skip code without first reporting failures it already counted.
+			- Origin: predates the rule being written down. Confirmed.
+			- Fixed: all four return 77 on the paths where they skip, and failures already counted are reported before the skip code. Two were watched both ways; the two Windows-only ones still owe that watch on a real box.
+		- ✅ Item 9. One test builds and removes its own scratch tree.
+			- Cause: it is the only test that does not go through the shared helper, and it removes the tree twice by hand. Two runs at once destroy each other.
+			- Origin: written before the helper existed and never moved over. Confirmed.
+			- Fixed: it uses `test_scratch_dir` like the rest of the suite. Twelve copies at once over eight rounds: 24 of 96 failed before, none of 96 after.
+		- ✅ Item 10. A test has the same settings-group mismatch as item 3.
+			- Effect: a later check in the same file fires the handler, which writes through a pointer into a frame that has returned.
+			- Origin: copied from the sidebar code it tests. Confirmed.
+			- Fixed with item 3, and covered by the same whole-tree check.
+		- ✅ Item 11. List view row measurement and row shading both do far more work than they need to.
+			- Cause: measurement is hooked to row changes as well as row arrivals, so it re-runs every time a file's details fill in, rebuilding column and cell lists and reading two style properties each pass. Shading allocates a path and sets a property once per cell per redraw, including when shading is off.
+			- Effect: both sit under the per-file listing cost design.md already flags as the one to watch.
+			- Origin: measurement came with the column width work, shading with `ownerrows`. Confirmed by reading the hookup and the bodies, not measured.
+			- Fixed: the theme sizes and the column list are read once rather than per row, parity is worked out once per row rather than once per cell, and a renderer that already has no background is left alone. The rows look the same as before.
+			- Measured over 20,000 files. Listing did not move, at about 7.8 s of processor time either way. Paging through the folder went from 1.16 s to 1.01 s with shading off, which is the default, and did not move with it on. So the suspects here were real but small, and the listing cost is somewhere else.
+		- ✅ Item 12. The theme vendoring script forks per icon.
+			- Cause: the resolver is called through command substitution up to five times per icon across roughly 3,600 icons. The file's own note two hundred lines above says a substitution there is a fork and that this runs tens of thousands of times, and solves it that way for the scorer.
+			- Origin: the scorer was fixed, the resolver that calls it was not. Confirmed.
+			- Fixed: the resolver answers through a global and returns a status, the way the scorer already did. The link-stub test reads the head of the file itself instead of calling out three times, and the two `dirname` calls and the two branches picking a directory name are gone. That is about twelve forks an icon removed.
+			- New `--self-test` builds a small tree and checks resolution against it: plain name, symbolic name, context filter on and off, both alias forms, the hop limit and a missing name. It runs in the lint stage, since the build container has no git.
+		- ✅ Item 13. A maintainer's home path is baked into test fixtures.
+			- Cause: five lines of one Windows test use a real personal path where the rest of the suite uses a placeholder.
+			- Origin: written with a live path and never anonymized. Confirmed.
+			- Fixed: the five lines say `somebody`. A checked-in `.pyc` holding a build path went with them. New `lint-identity.bash` holds it.
+			- Left alone: this file names a real account in three closed items, which is prose rather than code, so the check does not read it.
+		- ✅ Item 14. Six application sources carry the wrong copyright marker.
+			- Cause: they use the form reserved for the shared helper scripts. Fifteen other first-party files carry no copyright line at all.
+			- Origin: the link and shortcut files were drafted as helpers. Confirmed.
+			- Fixed: all twenty-one carry the project's marker. The same identity check refuses the helper marker under `source/` and refuses any retired marker anywhere.
+	- ✅ Low.
+		- ✅ Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
+			- Fixed: leading tabs are four spaces, and a run of tab-aligned trailing comments is aligned with spaces instead. The two tables were never at risk - their alignment is relative to a single leading tab, so converting it shifts the whole block and nothing else.
+			- Tabs left in place: inside multi-line string bodies, where they are data, and in the `##` header block every script in the tree shares.
+			- Proof the conversion changed nothing: each file's parse tree was compared before and after, and the four files with tabs inside string literals were redone with those lines held back until it matched.
+			- Three findings that turned up with the checker are fixed too: a one-letter variable, a lambda where a def belongs, and two statements on one line.
+		- ✅ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
+			- Python: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
+			- Bash: `.shellcheckrc` now holds the severity and the sourced-file handling the lint stage used to pass as flags, so an editor sees the same rules. Without it the lint stage reports seventeen findings, so it is doing real work.
+			- PowerShell: new `PSScriptAnalyzerSettings.psd1` and `cicd/utility/lint-powershell.bash`, sixth in the dispatcher. Five rules are off with a reason each; everything else is on. The one finding left is suppressed where it happens, not in the settings file.
+			- C: the two dozen cppcheck suppressions moved out of the command line into `.cppcheck-suppressions`, with the reason for each still beside it. The findings over a 98-file range are the same as before.
+		- ✅ Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
+			- Fixed: those lines now say what was checked and leave out how. design.md and the two style guides keep theirs, since describing the build and test rig is what those files are for.
+			- A check outside the repo holds it, called from the lint stage only when it is there, so a clone without the private tree still lints.
+		- ✅ Item 18. British spellings in comments and prose, including two identifiers.
+			- Fixed: about sixty comment and prose lines, plus the two sets of identifiers - the Windows splash colors and the launcher's status color. The release notes and the README are in it, which is where it was visible.
+			- Inherited lines are left as they are, here and in every check below: most of the tree came from upstream and spells things its own way.
+			- New `cicd/utility/lint-prose.bash` in the lint stage holds this, the banner rule from item 20, and the ASCII rule that goes with it.
+		- ✅ Item 19. Banned verbs in roughly sixty comment lines across C, scripts and Python.
+			- Fixed: sixty-six comment and prose lines, a README heading and its table of contents entry, and three test variables named after one of them.
+			- Held by the same check as item 17, outside the repo for the same reason.
+		- ✅ Item 20. Three competing banner-comment conventions in first-party C, and a prose block at the top of nearly every first-party file. One of those blocks restates a design.md rule that can drift from it.
+			- Fixed: forty-four banners in eleven files. The style guide has said "No banner dividers" all along, so the words stay as plain comments and the rules are gone. A fourth form turned up in the tests.
+			- The bullet-rule form was also the only non-ASCII in first-party C outside the copyright line, so the new check refuses that too.
+			- `nemo-column-layout.h` points at design.md now instead of restating fifteen lines of it.
+			- The other module blocks stay. They say why a file exists, which is what they are for; only the one that copied a rule was a problem.
+		- ✅ Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
+			- Done, out of the test-duplication group: the eight hand-rolled tree removals. Seven of them removed the scratch directory the test had just made, which the helper already removes at exit, so they are simply gone. The eighth needed a removal part way through and goes through the helper now. That is 151 lines fewer.
+			- Done, the rest of the test-duplication group. The `check` macro was in sixty-seven files in two spellings and is now one header. Twenty-six tests set the same environment variables by hand to get a throwaway config root and now call one helper. The two 46-line blocks are two small headers. That is 819 lines fewer, and a new check refuses a fresh copy of either.
+			- Done, the hoists and the per-row allocation. The settings accessors now take a path built once per key instead of building and measuring it on every read, which is the one that matters: reads happen per icon hover. The Ext column stopped copying the file name to look at it, the Windows index search stopped measuring the search folder once per result row, and the archive check answers "is this folder in there" from a set built while the archive is read rather than by walking every entry again.
+			- Done, the dead parameters and unreachable branches. An empty function and its twenty-one calls are gone, two icon-generator functions no longer take a theme they never look at, a gif option gated on a constant zero is gone, and a wine fallback branch that could never run went with the always-true test in front of it.
+			- Done, the naming: the profiler script carried the Bash `f` prefix into Python and is the only Python file here that did.
+			- Not done, with reasons. Two theme-root scans stay: one is startup, the other is opening the preferences dialog, and the only way to skip them is to cache the scan, which means a theme installed while running goes unseen. The per-key ancestor walk in the folder settings stays: it runs once per folder change, not per file. The metadata store keeps its one pass per moved file, since skipping it needs an index of every ancestor of every key, and the comment that read as a contradiction now says what the code does.
+			- Not done, and dropped: `out` and `result` as the name of the value a function returns, in eleven Windows files. Every one is a short function that declares it, fills it and returns it. That is the clearest use of the name, so there is nothing to fix.
 
 - ✅ The Windows cross link compiles its LTO jobs one at a time.
 	- Opened: 20260919-203000

@@ -896,11 +896,27 @@ normal_archive_path (const char *raw)
 	return out;
 }
 
+/* Every folder an entry sits under. Collected while the listing is read, so
+   that asking whether a folder is in there is a lookup rather than another
+   walk of every entry. */
+static void
+add_ancestors (GHashTable *folders,
+	       const char *name)
+{
+	const char *slash;
+
+	for (slash = strchr (name, '/'); slash != NULL; slash = strchr (slash + 1, '/')) {
+		g_hash_table_add (folders, g_strndup (name, slash - name));
+	}
+}
+
 /* Every entry the archive holds, by path, with its size where one is recorded
-   and -1 where none is. NULL when the file will not open as an archive. */
+   and -1 where none is. NULL when the file will not open as an archive.
+   @folders_out gets the ancestor set, owned by the caller. */
 static GHashTable *
 archive_listing (const char *path,
-		 const char *password)
+		 const char *password,
+		 GHashTable **folders_out)
 {
 	struct archive *a = archive_read_new ();
 	struct archive_entry *entry;
@@ -919,6 +935,7 @@ archive_listing (const char *path,
 	}
 
 	listing = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+	*folders_out = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
 	while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
 		char *name = normal_archive_path (archive_entry_pathname (entry));
@@ -927,6 +944,7 @@ archive_listing (const char *path,
 		*size = archive_entry_size_is_set (entry) ?
 			(gint64) archive_entry_size (entry) : -1;
 
+		add_ancestors (*folders_out, name);
 		g_hash_table_replace (listing, name, size);
 	}
 
@@ -939,25 +957,11 @@ archive_listing (const char *path,
    is under them, so a folder counts as there when anything inside it is. */
 static gboolean
 listing_holds_folder (GHashTable *listing,
+		      GHashTable *folders,
 		      const char *rel_path)
 {
-	GHashTableIter iter;
-	gpointer key;
-	char *prefix;
-	gboolean found = FALSE;
-
-	if (g_hash_table_contains (listing, rel_path)) {
-		return TRUE;
-	}
-
-	prefix = g_strconcat (rel_path, "/", NULL);
-	g_hash_table_iter_init (&iter, listing);
-	while (!found && g_hash_table_iter_next (&iter, &key, NULL)) {
-		found = g_str_has_prefix ((const char *) key, prefix);
-	}
-	g_free (prefix);
-
-	return found;
+	return g_hash_table_contains (listing, rel_path) ||
+	       g_hash_table_contains (folders, rel_path);
 }
 
 /* Whether an archive written this way could be read back at all. Nothing is
@@ -1003,6 +1007,7 @@ nemo_archive_verify (GFile                    *archive_file,
 {
 	VerifyWalk walk = { NULL, NULL, NULL, FALSE, FALSE, TRUE };
 	GHashTable *listing = NULL;
+	GHashTable *folders = NULL;
 	GHashTableIter iter;
 	gpointer key;
 	gpointer value;
@@ -1030,7 +1035,7 @@ nemo_archive_verify (GFile                    *archive_file,
 		goto out;
 	}
 
-	listing = archive_listing (path, options->password);
+	listing = archive_listing (path, options->password, &folders);
 	g_free (path);
 
 	if (listing == NULL) {
@@ -1079,7 +1084,7 @@ nemo_archive_verify (GFile                    *archive_file,
 		gint64 *stored;
 
 		if (item->is_dir) {
-			if (!listing_holds_folder (listing, rel_path)) {
+			if (!listing_holds_folder (listing, folders, rel_path)) {
 				trouble = g_strdup_printf (_("The folder \"%s\" is not in the archive."),
 							   rel_path);
 			}
@@ -1100,6 +1105,7 @@ nemo_archive_verify (GFile                    *archive_file,
 	}
 
 	g_hash_table_destroy (listing);
+	g_hash_table_destroy (folders);
 
  out:
 	if (walk.expected != NULL) {

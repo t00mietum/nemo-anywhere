@@ -11,6 +11,7 @@
 #include <gtk/gtk.h>
 
 #include <libnemo-private/nemo-config.h>
+#include <libnemo-private/nemo-config-keys.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
@@ -431,6 +432,105 @@ test_oversized_file_refused (NemoConfigGroup *prefs)
 	g_free (path);
 }
 
+/* The accessors take an interned "group.key" held in key-table order rather
+   than building the string per read, so a key added or moved out of step with
+   that table would quietly read and write a neighbor's value. Give every key
+   a value of its own, then read the lot back. Runs last: it leaves the whole
+   table set. */
+static void
+test_keys_keep_their_own_values (void)
+{
+	guint i;
+
+	for (i = 0; nemo_config_keys[i].key != NULL; i++) {
+		const NemoConfigKey *k = &nemo_config_keys[i];
+		NemoConfigGroup     *g = nemo_config_get_group (k->group);
+		char                *marker;
+
+		switch (k->type) {
+		case NEMO_CONFIG_BOOL:
+			nemo_config_set_boolean (g, k->key, g_strcmp0 (k->def, "true") != 0);
+			break;
+		case NEMO_CONFIG_INT:
+			nemo_config_set_int64 (g, k->key, 100000 + i);
+			break;
+		case NEMO_CONFIG_FLOAT:
+			nemo_config_set_double (g, k->key, 100000.0 + i);
+			break;
+		case NEMO_CONFIG_STRING:
+			marker = g_strdup_printf ("marker-%u", i);
+			nemo_config_set_string (g, k->key, marker);
+			g_free (marker);
+			break;
+		case NEMO_CONFIG_STRING_LIST: {
+			const char *one[2];
+
+			marker = g_strdup_printf ("marker-%u", i);
+			one[0] = marker;
+			one[1] = NULL;
+			nemo_config_set_strv (g, k->key, one);
+			g_free (marker);
+			break;
+		}
+		case NEMO_CONFIG_ENUM:
+			/* The last nick, so a key whose default is the first one moves. */
+			if (k->enum_values != NULL) {
+				const NemoConfigEnumValue *v;
+
+				for (v = k->enum_values; v[1].nick != NULL; v++)
+					;
+				nemo_config_set_enum (g, k->key, v->value);
+			}
+			break;
+		}
+	}
+
+	nemo_config_flush ();
+
+	for (i = 0; nemo_config_keys[i].key != NULL; i++) {
+		const NemoConfigKey *k = &nemo_config_keys[i];
+		NemoConfigGroup     *g = nemo_config_get_group (k->group);
+		char                *want, *got;
+		char               **list;
+
+		switch (k->type) {
+		case NEMO_CONFIG_BOOL:
+			check (nemo_config_get_boolean (g, k->key) ==
+			       (g_strcmp0 (k->def, "true") != 0));
+			break;
+		case NEMO_CONFIG_INT:
+			check (nemo_config_get_int64 (g, k->key) == (gint64) (100000 + i));
+			break;
+		case NEMO_CONFIG_FLOAT:
+			check (nemo_config_get_double (g, k->key) == 100000.0 + i);
+			break;
+		case NEMO_CONFIG_STRING:
+			want = g_strdup_printf ("marker-%u", i);
+			got  = nemo_config_get_string (g, k->key);
+			check (g_strcmp0 (got, want) == 0);
+			g_free (got);
+			g_free (want);
+			break;
+		case NEMO_CONFIG_STRING_LIST:
+			want = g_strdup_printf ("marker-%u", i);
+			list = nemo_config_get_strv (g, k->key);
+			check (g_strv_length (list) == 1 && g_strcmp0 (list[0], want) == 0);
+			g_strfreev (list);
+			g_free (want);
+			break;
+		case NEMO_CONFIG_ENUM:
+			if (k->enum_values != NULL) {
+				const NemoConfigEnumValue *v;
+
+				for (v = k->enum_values; v[1].nick != NULL; v++)
+					;
+				check (nemo_config_get_enum (g, k->key) == v->value);
+			}
+			break;
+		}
+	}
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -470,6 +570,7 @@ main (int argc, char *argv[])
 	test_unreadable_file_kept (prefs);
 	test_nul_survives_save (window_state);
 	test_oversized_file_refused (prefs);
+	test_keys_keep_their_own_values ();
 
 	nemo_config_shutdown ();
 	g_free (tmp);

@@ -91,17 +91,14 @@ export DISPLAY="${DISPLAY:-:0.0}"
 
 # No explicit target -> open a location that actually exists under wine, so
 # nemo doesn't start in an invalid dir. Z: maps to the unix root, so probe the
-# host path behind each candidate. %USERNAME% under wine defaults to the unix
+# host path behind the candidate. %USERNAME% under wine defaults to the unix
 # login name, so Z:\home\<user> == /home/<user>.
 if [[ -z "$uri" ]]; then
 	winuser="${USER:-$(id -un)}"
-	wineprefix="${WINEPREFIX:-${HOME}/.wine}"
 	if [[ -d "/home/${winuser}" ]]; then
 		uri="file:///Z:/home/${winuser}"
-	elif [[ -d "/" ]]; then
+	else
 		uri="file:///Z:/"
-	elif [[ -d "${wineprefix}/drive_c" ]]; then
-		uri="file:///C:/"
 	fi
 fi
 

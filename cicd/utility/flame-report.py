@@ -25,16 +25,20 @@ SEEN_FILE = ".flame-seen"  # marker basename, kept in the profiling dir - outsid
 
 NAME_RE   = re.compile(r"flame_(\d{8}-\d{6})_\w+\.svg$")
 FRAME_RE  = re.compile(r"<title>(.*?)</title><rect ([^>]*?)/>", re.S)
+##	One flamegraph has tens of thousands of frames, so these are compiled once
+##	rather than rebuilt per frame.
+ATTR_RE   = {k: re.compile(re.escape(k) + r'="([\d.]+)"') for k in ("y", "fg:x", "fg:w")}
+SAMPLES_RE = re.compile(r"\s*\(\d[\d,]* samples.*$")
 
 
-def fSkip(msg):
+def skip(msg):
     ##	2 = environmental skip (no dir / unparseable) - non-fatal, matches the
     ##	cicd profiler stage which treats such things as a warning, not a failure.
     sys.stderr.write(f"flame-report: {msg}\n")
     sys.exit(2)
 
 
-def fNewest(pdir):
+def newest_report(pdir):
     ##	Sort on the timestamp, NOT the role suffix: GFS rotation retags the role
     ##	(frequent -> latest -> hour/day/...) as time passes, but the timestamp in
     ##	the name is stable.
@@ -46,27 +50,25 @@ def fNewest(pdir):
     return best
 
 
-def fParse(path):
+def parse_flamegraph(path):
     text = open(path, encoding="utf-8").read()
     m = re.search(r'total_samples="(\d+)"', text)
     total = int(m.group(1)) if m else 0
     frames = []                                      # each: (name, x, y, w) in raw samples
     for fm in FRAME_RE.finditer(text):
         attrs = fm.group(2)
-        def val(key):
-            vm = re.search(re.escape(key) + r'="([\d.]+)"', attrs)
-            return float(vm.group(1)) if vm else None
-        y, x, w = val("y"), val("fg:x"), val("fg:w")
-        if None in (y, x, w):
+        found = [ATTR_RE[k].search(attrs) for k in ("y", "fg:x", "fg:w")]
+        if None in found:
             continue
-        name = re.sub(r"\s*\(\d[\d,]* samples.*$", "", html.unescape(fm.group(1)))
+        y, x, w = (float(vm.group(1)) for vm in found)
+        name = SAMPLES_RE.sub("", html.unescape(fm.group(1)))
         frames.append((name, x, y, w))
     if not total or not frames:
-        fSkip(f"could not parse a flamegraph out of {path}")
+        skip(f"could not parse a flamegraph out of {path}")
     return total, frames
 
 
-def fAnalyze(total, frames, top):
+def report_busy_time(total, frames, top):
     byY = {}
     for fr in frames:
         byY.setdefault(fr[2], []).append(fr)
@@ -83,7 +85,7 @@ def fAnalyze(total, frames, top):
                 return p
         return None
 
-    def selfW(fr):
+    def self_width(fr):
         return fr[3] - sum(c[3] for c in kids(fr))
 
     ##	Buckets for this app's hot subsystems. Matched on the ancestor chain, so a
@@ -106,7 +108,7 @@ def fAnalyze(total, frames, top):
         name = fr[0]
         byName.setdefault(name, []).append(fr)
         inclBy[name] = inclBy.get(name, 0.0) + fr[3]
-        s = selfW(fr)
+        s = self_width(fr)
         selfBy[name] = selfBy.get(name, 0.0) + s
         if s <= 0:
             continue
@@ -158,7 +160,7 @@ def fAnalyze(total, frames, top):
 
     print(f"caller chains of the top {CHAIN} leaves:")
     for name, v in sorted(selfBy.items(), key=lambda kv: -kv[1])[:CHAIN]:
-        fr = max(byName[name], key=selfW)
+        fr = max(byName[name], key=self_width)
         print(f"  {name}  ({pct(v)} self)")
         cur, depth = parent(fr), 0
         while cur and depth < 12:
@@ -185,16 +187,16 @@ def main():
     if a.file:
         path = a.file
         if not os.path.isfile(path):
-            fSkip(f"no such file: {path}")
+            skip(f"no such file: {path}")
         name = os.path.basename(path)
         m = NAME_RE.match(name)
         ts = m.group(1) if m else ""
     else:
         if not os.path.isdir(a.dir):
-            fSkip(f"no profiling dir: {a.dir}")
-        nb = fNewest(a.dir)
+            skip(f"no profiling dir: {a.dir}")
+        nb = newest_report(a.dir)
         if not nb:
-            fSkip(f"no flamegraphs in {a.dir}")
+            skip(f"no flamegraphs in {a.dir}")
         ts, name = nb
         path = os.path.join(a.dir, name)
 
@@ -209,10 +211,10 @@ def main():
             print(f"SEEN {name}  (nothing newer than {seen})")
             return
 
-    total, frames = fParse(path)
+    total, frames = parse_flamegraph(path)
     print(f"{'NEW' if a.check else 'FLAME'} {name}  ({ts or 'n/a'}, {total} samples)")
     print()
-    fAnalyze(total, frames, a.top)
+    report_busy_time(total, frames, a.top)
 
     if a.check and not a.no_mark and ts:
         try:
