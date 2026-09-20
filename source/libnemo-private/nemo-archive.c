@@ -979,6 +979,20 @@ nemo_archive_can_verify (const NemoArchiveOptions *options)
 		 options->password != NULL && options->password[0] != '\0');
 }
 
+/* Whether the password has to be typed a second time before the job starts.
+   Deleting the originals is the reason: a mistyped password still writes a
+   perfectly good archive, the read-back still passes, and the files still go,
+   leaving an archive nobody can open. Either half on its own is recoverable,
+   so it is only the two together. */
+gboolean
+nemo_archive_should_confirm_password (const NemoArchiveOptions *options)
+{
+	g_return_val_if_fail (options != NULL, FALSE);
+
+	return options->delete_sources &&
+	       options->password != NULL && options->password[0] != '\0';
+}
+
 gboolean
 nemo_archive_verify (GFile                    *archive_file,
 		     GList                    *sources,

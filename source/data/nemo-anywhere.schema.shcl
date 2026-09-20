@@ -43,6 +43,66 @@ field: archive.extract-with-rar
 	default: "{{PROGRAM}} x -y {{PASSWORD}} -- {{SOURCE_ARCHIVE}} {{TARGET_FOLDER_WITH_SEPARATOR}}"
 	desc: Command line rar or unrar is run with to unpack an archive. Empty the line for the built-in one.
 
+field: archive.last-each
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-encrypt-names
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-dedupe
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-follow-links
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-format
+	type: string
+	default: zip
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-level
+	type: int
+	default: 5
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-lock
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-recovery
+	type: bool
+	default: true
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-solid
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-split
+	type: bool
+	default: false
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-split-size
+	type: string
+	default: "2 GiB"
+	desc: What the Compress dialog starts from next time
+
+field: archive.last-store-links
+	type: bool
+	default: true
+	desc: What the Compress dialog starts from next time
+
 field: compact-view.all-columns-have-same-width
 	type: bool
 	default: false

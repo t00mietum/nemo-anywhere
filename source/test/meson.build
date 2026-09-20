@@ -683,6 +683,15 @@ test('Archive options test',
   args: []
 )
 
+test('Archive settings test',
+  executable('test-nemo-archive-settings',
+    [ 'test-nemo-archive-settings.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 # Reads the archives it wrote back with libarchive, so it needs that library.
 test('Archive job test',
   executable('test-nemo-archive-job',

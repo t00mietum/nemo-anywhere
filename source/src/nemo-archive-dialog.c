@@ -34,6 +34,8 @@
 
 #include <eel/eel-stock-dialogs.h>
 #include <libnemo-private/nemo-archive.h>
+#include <libnemo-private/nemo-archive-commands.h>
+#include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
 typedef struct {
@@ -105,6 +107,20 @@ set_row_sensitive (GtkWidget *widget,
 	if (widget != NULL) {
 		gtk_widget_set_sensitive (widget, sensitive);
 	}
+}
+
+static void
+set_check (GtkWidget *widget, NemoConfigGroup *group, const char *key)
+{
+	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget),
+				      nemo_config_get_boolean (group, key));
+}
+
+static void
+save_check (GtkWidget *widget, NemoConfigGroup *group, const char *key)
+{
+	nemo_config_set_boolean (group, key,
+				 gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)));
 }
 
 /* One archive per item, each named after its item. */
@@ -474,6 +490,80 @@ build_options (ArchiveDialog *self,
 				       "there at the same size, nothing is deleted."));
 }
 
+/* What the dialog starts from next time. The password is never written
+   anywhere, and the delete box has to be ticked afresh each time - neither is
+   a setting so much as a decision about one archive. */
+static void
+restore_remembered (ArchiveDialog *self)
+{
+	NemoConfigGroup *group = nemo_config_get_group (NEMO_ARCHIVE_COMMANDS_GROUP);
+	char *split_size;
+
+	if (group == NULL) {
+		return;
+	}
+
+	gtk_range_set_value (GTK_RANGE (self->level_scale),
+			     nemo_config_get_int (group, NEMO_ARCHIVE_STATE_KEY_LEVEL));
+
+	set_check (self->encrypt_names_check, group, NEMO_ARCHIVE_STATE_KEY_ENCRYPT_NAMES);
+	set_check (self->split_check, group, NEMO_ARCHIVE_STATE_KEY_SPLIT);
+	set_check (self->solid_check, group, NEMO_ARCHIVE_STATE_KEY_SOLID);
+	set_check (self->dedupe_check, group, NEMO_ARCHIVE_STATE_KEY_DEDUPE);
+	set_check (self->store_links_check, group, NEMO_ARCHIVE_STATE_KEY_STORE_LINKS);
+	set_check (self->follow_links_check, group, NEMO_ARCHIVE_STATE_KEY_FOLLOW_LINKS);
+	set_check (self->recovery_check, group, NEMO_ARCHIVE_STATE_KEY_RECOVERY);
+	set_check (self->lock_check, group, NEMO_ARCHIVE_STATE_KEY_LOCK);
+
+	/* Ticking a box nothing can act on would just be confusing, so the one
+	   that depends on the selection is only put back where it applies. */
+	if (gtk_widget_get_sensitive (self->each_check)) {
+		set_check (self->each_check, group, NEMO_ARCHIVE_STATE_KEY_EACH);
+	}
+
+	split_size = nemo_config_get_string (group, NEMO_ARCHIVE_STATE_KEY_SPLIT_SIZE);
+	if (split_size != NULL && split_size[0] != '\0') {
+		GtkWidget *entry = gtk_bin_get_child (GTK_BIN (self->split_combo));
+
+		gtk_entry_set_text (GTK_ENTRY (entry), split_size);
+	}
+	g_free (split_size);
+}
+
+static void
+remember_settings (ArchiveDialog *self)
+{
+	NemoConfigGroup *group = nemo_config_get_group (NEMO_ARCHIVE_COMMANDS_GROUP);
+	GtkWidget *entry;
+	const char *id;
+
+	if (group == NULL) {
+		return;
+	}
+
+	id = gtk_combo_box_get_active_id (GTK_COMBO_BOX (self->format_combo));
+	if (id != NULL) {
+		nemo_config_set_string (group, NEMO_ARCHIVE_STATE_KEY_FORMAT, id);
+	}
+
+	nemo_config_set_int (group, NEMO_ARCHIVE_STATE_KEY_LEVEL,
+			     (int) gtk_range_get_value (GTK_RANGE (self->level_scale)));
+
+	save_check (self->encrypt_names_check, group, NEMO_ARCHIVE_STATE_KEY_ENCRYPT_NAMES);
+	save_check (self->split_check, group, NEMO_ARCHIVE_STATE_KEY_SPLIT);
+	save_check (self->solid_check, group, NEMO_ARCHIVE_STATE_KEY_SOLID);
+	save_check (self->dedupe_check, group, NEMO_ARCHIVE_STATE_KEY_DEDUPE);
+	save_check (self->store_links_check, group, NEMO_ARCHIVE_STATE_KEY_STORE_LINKS);
+	save_check (self->follow_links_check, group, NEMO_ARCHIVE_STATE_KEY_FOLLOW_LINKS);
+	save_check (self->recovery_check, group, NEMO_ARCHIVE_STATE_KEY_RECOVERY);
+	save_check (self->lock_check, group, NEMO_ARCHIVE_STATE_KEY_LOCK);
+	save_check (self->each_check, group, NEMO_ARCHIVE_STATE_KEY_EACH);
+
+	entry = gtk_bin_get_child (GTK_BIN (self->split_combo));
+	nemo_config_set_string (group, NEMO_ARCHIVE_STATE_KEY_SPLIT_SIZE,
+				gtk_entry_get_text (GTK_ENTRY (entry)));
+}
+
 static void
 collect_options (ArchiveDialog      *self,
 		 NemoArchiveOptions *options)
@@ -520,6 +610,73 @@ collect_options (ArchiveDialog      *self,
 
 	options->delete_sources = gtk_widget_get_sensitive (self->delete_check) &&
 		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->delete_check));
+}
+
+/* Typed a second time before the originals are deleted. See
+   nemo_archive_should_confirm_password for why only that combination asks. */
+static gboolean
+confirm_password (ArchiveDialog *self,
+		  const char    *password)
+{
+	GtkWidget *dialog;
+	GtkWidget *box;
+	GtkWidget *label;
+	GtkWidget *mismatch;
+	GtkWidget *entry;
+	gboolean   matched = FALSE;
+
+	dialog = gtk_dialog_new_with_buttons (_("Confirm the password"),
+					      GTK_WINDOW (self->dialog),
+					      GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					      _("C_ontinue"), GTK_RESPONSE_OK,
+					      NULL);
+	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_OK);
+
+	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+	gtk_widget_set_margin_start (box, 12);
+	gtk_widget_set_margin_end (box, 12);
+	gtk_widget_set_margin_top (box, 12);
+	gtk_widget_set_margin_bottom (box, 12);
+	gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG (dialog))),
+			    box, TRUE, TRUE, 0);
+
+	label = gtk_label_new (_("The originals go to the trash once the archive checks out, and a "
+				 "password with a typo in it still writes an archive that checks "
+				 "out. Type it again."));
+	gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
+	gtk_label_set_max_width_chars (GTK_LABEL (label), 48);
+	gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+	gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
+
+	entry = gtk_entry_new ();
+	gtk_entry_set_visibility (GTK_ENTRY (entry), FALSE);
+	gtk_entry_set_input_purpose (GTK_ENTRY (entry), GTK_INPUT_PURPOSE_PASSWORD);
+	gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
+	gtk_box_pack_start (GTK_BOX (box), entry, FALSE, FALSE, 0);
+
+	mismatch = gtk_label_new (_("That is not the same password."));
+	gtk_label_set_xalign (GTK_LABEL (mismatch), 0.0);
+	gtk_box_pack_start (GTK_BOX (box), mismatch, FALSE, FALSE, 0);
+
+	gtk_widget_show_all (dialog);
+	gtk_widget_hide (mismatch);
+	gtk_widget_grab_focus (entry);
+
+	while (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_OK) {
+		if (g_strcmp0 (gtk_entry_get_text (GTK_ENTRY (entry)), password) == 0) {
+			matched = TRUE;
+			break;
+		}
+
+		gtk_entry_set_text (GTK_ENTRY (entry), "");
+		gtk_widget_show (mismatch);
+		gtk_widget_grab_focus (entry);
+	}
+
+	gtk_widget_destroy (dialog);
+
+	return matched;
 }
 
 /* Asked once for the lot: with a selection compressed separately there can be
@@ -709,8 +866,24 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 		   rows would silently make the button do nothing. */
 		gtk_widget_set_sensitive (compress_button, FALSE);
 	} else {
+		NemoConfigGroup *group = nemo_config_get_group (NEMO_ARCHIVE_COMMANDS_GROUP);
+		char *format_id = NULL;
+
 		self->compress_button = compress_button;
-		gtk_combo_box_set_active (GTK_COMBO_BOX (self->format_combo), 0);
+
+		/* Everything but the format first, then the format, because
+		   setting it is what works out which of them apply. A format
+		   that is no longer available falls back to the first one. */
+		restore_remembered (self);
+
+		if (group != NULL) {
+			format_id = nemo_config_get_string (group, NEMO_ARCHIVE_STATE_KEY_FORMAT);
+		}
+		if (format_id == NULL ||
+		    !gtk_combo_box_set_active_id (GTK_COMBO_BOX (self->format_combo), format_id)) {
+			gtk_combo_box_set_active (GTK_COMBO_BOX (self->format_combo), 0);
+		}
+		g_free (format_id);
 	}
 
 	gtk_widget_show_all (self->dialog);
@@ -760,6 +933,16 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 		}
 
 		collect_options (self, &options);
+
+		if (nemo_archive_should_confirm_password (&options) &&
+		    !confirm_password (self, options.password)) {
+			nemo_archive_options_clear (&options);
+			g_list_free_full (destinations, g_object_unref);
+			g_object_unref (folder);
+			continue;
+		}
+
+		remember_settings (self);
 
 		gtk_widget_hide (self->dialog);
 
