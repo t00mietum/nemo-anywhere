@@ -5633,7 +5633,8 @@ nemo_file_get_trash_original_file_parent_as_string (NemoFile *file)
 	return NULL;
 }
 
-static const gchar *
+/* Only ever read by a DEBUG line, which is compiled out of a release build. */
+G_GNUC_UNUSED static const gchar *
 nemo_date_type_to_string (NemoDateType type)
 {
     switch (type) {

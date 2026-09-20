@@ -64,12 +64,36 @@ cores="$(nproc 2>/dev/null || echo 2)"
 jobs="${CICD_MAX_JOBS:-$(( cores / 2 ))}"
 (( jobs >= 1 )) || jobs=1
 
+## The build log used to go straight into `tail -1`, which threw away every
+## warning on the way past. This is the one release-flags build that runs on an
+## ordinary pipeline run, so it is where an unused-code warning gets caught: a
+## release build compiles the DEBUG lines out, and anything that exists only for
+## one of them then has no reader. Four of those went unseen until this lane
+## became a release build. Only what ninja recompiles is in the log, which is
+## enough - the commit that adds one compiles the file it is in.
 fBuild(){
-	docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
+	local log unused
+	log="$(mktemp)"
+
+	if ! docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 		set -e
 		if [ -f ${BUILD}/build.ninja ]; then reconf=--reconfigure; else reconf=; fi
 		meson setup \$reconf --cross-file ${CROSS} --buildtype=release -Dstrip=true -Db_lto=true -Db_lto_threads=4 -Dxmp=false ${BUILD} /src/source >/dev/null
-		ninja -C ${BUILD} -j ${jobs}" | tail -1
+		ninja -C ${BUILD} -j ${jobs}" >"$log" 2>&1
+	then
+		tail -40 "$log" >&2
+		rm -f "$log"
+		fDie "cross build failed"
+	fi
+
+	tail -1 "$log"
+
+	unused="$(grep -E 'Wunused-function|Wunused-but-set-variable' "$log" || true)"
+	rm -f "$log"
+	if [[ -n "$unused" ]]; then
+		printf '%s\n' "$unused" >&2
+		fDie "cross build has unused-code warnings"
+	fi
 }
 
 fStamp(){ fPeTimestamp <(docker exec "$CONTAINER" head -c 4096 "${BUILD}/src/nemo-anywhere.exe") ;}
