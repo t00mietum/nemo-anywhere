@@ -72,7 +72,7 @@ jobs="${CICD_MAX_JOBS:-$(( cores / 2 ))}"
 ## became a release build. Only what ninja recompiles is in the log, which is
 ## enough - the commit that adds one compiles the file it is in.
 fBuild(){
-	local log unused
+	local log unused serial
 	log="$(mktemp)"
 
 	if ! docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
@@ -89,10 +89,20 @@ fBuild(){
 	tail -1 "$log"
 
 	unused="$(grep -E 'Wunused-function|Wunused-but-set-variable' "$log" || true)"
+	## gcc's lto-wrapper runs the LTRANS jobs by writing a makefile and calling
+	## make, so with no make on PATH it quietly falls back to one at a time -
+	## 34s against 10s on the exe link here. Same bytes either way, so this is
+	## only ever about time, but a silent fallback is how the container drifted
+	## in the first place.
+	serial="$(grep -m1 'serial compilation of' "$log" || true)"
 	rm -f "$log"
 	if [[ -n "$unused" ]]; then
 		printf '%s\n' "$unused" >&2
 		fDie "cross build has unused-code warnings"
+	fi
+	if [[ -n "$serial" ]]; then
+		printf '%s\n' "$serial" >&2
+		fDie "link-time optimization is running serially - install make in ${CONTAINER}"
 	fi
 }
 
