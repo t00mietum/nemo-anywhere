@@ -7,7 +7,7 @@
 ##		  Docker or wine is involved here. Does NOT touch cicd.bash or config.bash.
 ##		- Stages (fail-fast; any error aborts before the next stage):
 ##		   0. remote sync   (fetch; fast-forward if safely behind; abort if diverged)
-##		   1. lint          (check-only cppcheck over the changed C files)
+##		   1. lint          (check-only: cppcheck over the changed C files, shellcheck over the scripts)
 ##		   2. debug build   (meson setup -Dxmp=false + ninja, MSYS2 mingw64)
 ##		   3. tests         (meson test suite, then a --version smoke of the built exe)
 ##		   4. stage         (self-contained runtime bundle - the packer's input)
@@ -253,12 +253,12 @@ ninja -C $BuildRel -j $jobs
 	fEcho "OK: native build: $exe ($size)"
 }
 
-## Check-only C lint (cppcheck) over the changed files, via the shared bash
-## helper. The script itself warn-skips when cppcheck isn't installed; findings
-## abort. Runs in the mingw64 shell where cppcheck lives.
+## Check-only lints over the changed C files and the project's own scripts, via
+## the shared bash helper. Each checker warn-skips when its tool isn't
+## installed; findings abort. Runs in the mingw64 shell where they live.
 function fLint {
-	fMingw "bash cicd/utility/lint-c.bash"
-	if ($script:MingwRc -ne 0) { fDie "C lint failed (exit $($script:MingwRc))" }
+	fMingw "bash cicd/utility/lint.bash"
+	if ($script:MingwRc -ne 0) { fDie "lint failed (exit $($script:MingwRc))" }
 }
 
 ## Native smoke: run the built exe's --version on real Windows. The extension lib is

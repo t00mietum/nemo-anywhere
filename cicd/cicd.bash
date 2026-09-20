@@ -282,6 +282,7 @@ remote_sync(){
 	fEcho "OK: fast-forwarded ${behind} commit(s) from upstream"
 }
 
+# shellcheck disable=SC2154  ## rc is assigned in the trap body, which shellcheck reads as a plain string.
 trap 'rc=$?; printf "\n[ CICD ABORTED (exit %s) at line %s: %s ]\n" "$rc" "$LINENO" "$BASH_COMMAND" >&2; exit $rc' ERR
 
 ## Gate mode: the local merge gate (what a bare-bones hosted CI would run).
@@ -553,9 +554,11 @@ run_profiler(){
 	gfs_rotate "${profile_dir}" flame svg
 	## Rotation retags this run's file with whatever role it earned, so find it by
 	## its timestamp rather than assuming which one that was.
-	local latest
-	latest="$(ls "${profile_dir}/flame_${stamp}_"*.svg 2>/dev/null | head -1)"
-	[[ -n "$latest" ]] || latest="$out"
+	local latest retagged
+	shopt -s nullglob
+	retagged=("${profile_dir}/flame_${stamp}_"*.svg)
+	shopt -u nullglob
+	latest="${retagged[0]:-$out}"
 	fEcho "OK: flamegraph: ${latest}"
 	fEcho_Clean "open: ${latest}  (in a browser)"
 

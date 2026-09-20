@@ -163,7 +163,7 @@ Where a piece of reasoning is longer than a few lines, it goes at the top of the
 
 ## What the lint gate rejects
 
-`cicd/utility/lint-c.bash` runs cppcheck and a check on user-facing strings. A finding from either fails the gate. Where the tool itself is missing, that step warns and is skipped, so a box without cppcheck or python cannot hard-block a push; `CPPCHECK_STRICT=1` turns the cppcheck miss into a failure.
+`cicd/utility/lint.bash` is the gate's lint stage. It runs `lint-c.bash`, which is cppcheck plus the checks on user-facing strings and on the delete guards, then `lint-bash.bash`, which is shellcheck over the project's own scripts. A finding from any of them fails the gate. Where a tool itself is missing, that step warns and is skipped, so a box without cppcheck, python or shellcheck cannot hard-block a push; `CPPCHECK_STRICT=1` and `SHELLCHECK_STRICT=1` turn those misses into failures.
 
 - `alloca`, and therefore `g_newa`. Use `g_new0` and `g_free` even for three ints.
 
@@ -171,7 +171,9 @@ Where a piece of reasoning is longer than a few lines, it goes at the top of the
 
 - Title case in a user-facing string. Menu items, labels and dialog text are sentence case. A proper noun that trips the check goes in the checker's own list, with its reason.
 
-cppcheck is scoped to the files a change touched, but it lints the whole of each of those files, so touching a large old file can raise findings that were already sitting in it. The string check is whole-tree, because the tree is already clean and a Title Case label pasted in from upstream should be caught wherever it turns up.
+- Any shellcheck finding at all, down to style level. A rule that has to be off carries a `shellcheck disable=` line with its reason, either at the site or in the file's header block, and new ones go at the site so the rest of the file keeps its cover.
+
+cppcheck is scoped to the files a change touched, but it lints the whole of each of those files, so touching a large old file can raise findings that were already sitting in it. The string check is whole-tree, because the tree is already clean and a Title Case label pasted in from upstream should be caught wherever it turns up. shellcheck is whole-tree too, and covers every script written for this project: the `*.bash` files, plus `cicd/hooks/pre-push` and `utility/runfm`, which are named by whatever runs them. The scripts under `source/` are upstream's, and `n8git_backup-and-publish` is a shared copy maintained elsewhere, so neither is linted here.
 
 ## Tests
 

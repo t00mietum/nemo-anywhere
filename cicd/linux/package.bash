@@ -57,7 +57,10 @@ if [[ -z "$tarball" ]]; then
 	candidates=("${OUT}/${SLUG}"-*-linux-*.tar.gz)
 	shopt -u nullglob
 	((${#candidates[@]})) || fDie "no release tarball in cicd/artifacts/release - run cicd/linux/release.bash first"
-	tarball="$(ls -t "${candidates[@]}" | head -1)"
+	tarball="${candidates[0]}"
+	for cand in "${candidates[@]}"; do
+		if [[ "$cand" -nt "$tarball" ]]; then tarball="$cand"; fi
+	done
 fi
 [[ -f "$tarball" ]] || fDie "no such tarball: ${tarball}"
 

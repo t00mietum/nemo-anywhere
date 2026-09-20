@@ -15,7 +15,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 hooksDir="$(git -C "${here}" rev-parse --absolute-git-dir)/hooks"
 mkdir -p "${hooksDir}"
 
-for hook in pre-push; do
+hooks=(pre-push)
+for hook in "${hooks[@]}"; do
 	src="${here}/${hook}"
 	[[ -f "$src" ]] || continue
 	install -m 0755 "$src" "${hooksDir}/${hook}"
