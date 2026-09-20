@@ -83,6 +83,15 @@ test('Empty trash asks test',
   args: []
 )
 
+test('Delete from trash asks test',
+  executable('test-nemo-delete-from-trash',
+    [ 'test-nemo-delete-from-trash.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Favorites test',
   executable('test-nemo-favorites',
     [ 'test-nemo-favorites.c' ],
