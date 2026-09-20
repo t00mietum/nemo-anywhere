@@ -57,6 +57,32 @@ fuzzCommandTemplate = executable('fuzz-command-template',
   link_args: fuzzLinkArgs,
 )
 
+# The three binary Office parsers. Each helper is a program of its own, so the
+# target includes its source whole and renames the main out of the way rather
+# than turning the parser into a library nothing else would use. The zip-of-xml
+# helper is left out: libgsf does the parsing there, and fuzzing it would be
+# fuzzing libgsf.
+fuzzXls = executable('fuzz-xls',
+  [ 'fuzz-xls.c' ] + fuzzDriver,
+  dependencies: [ libgsf, gio, glib ],
+  c_args:    fuzzCArgs,
+  link_args: fuzzLinkArgs,
+)
+
+fuzzPpt = executable('fuzz-ppt',
+  [ 'fuzz-ppt.c' ] + fuzzDriver,
+  dependencies: [ libgsf, gio, glib ],
+  c_args:    fuzzCArgs,
+  link_args: fuzzLinkArgs,
+)
+
+fuzzDoc = executable('fuzz-doc',
+  [ 'fuzz-doc.c' ] + fuzzDriver,
+  dependencies: [ libgsf, gio, glib ],
+  c_args:    fuzzCArgs,
+  link_args: fuzzLinkArgs,
+)
+
 # Listed rather than globbed: a seed earns its place by standing for a case, so
 # adding one is worth a line here saying it was meant.
 fuzzShclCorpus = files(
@@ -88,6 +114,36 @@ fuzzCommandTemplateCorpus = files(
   'corpus/command-template/backslashes',
 )
 
+fuzzXlsCorpus = files(
+  'corpus/xls/empty',
+  'corpus/xls/bof-eof',
+  'corpus/xls/label',
+  'corpus/xls/sst-strings',
+  'corpus/xls/sst-truncated',
+  'corpus/xls/numbers',
+  'corpus/xls/long-record',
+  'corpus/xls/junk',
+)
+
+fuzzPptCorpus = files(
+  'corpus/ppt/empty',
+  'corpus/ppt/text-bytes',
+  'corpus/ppt/text-chars',
+  'corpus/ppt/nested',
+  'corpus/ppt/deep',
+  'corpus/ppt/truncated',
+)
+
+fuzzDocCorpus = files(
+  'corpus/doc/empty',
+  'corpus/doc/short',
+  'corpus/doc/one-piece',
+  'corpus/doc/utf16-piece',
+  'corpus/doc/prop-blob',
+  'corpus/doc/bad-offset',
+  'corpus/doc/truncated',
+)
+
 # Under -Dfuzzing there is no main to hand a file list to; the targets are
 # driven by fuzz.bash instead.
 #
@@ -102,4 +158,7 @@ if not get_option('fuzzing')
   test('Settings parser fuzz corpus test',  fuzzShcl,            args: fuzzShclCorpus,            env: fuzzTestEnv)
   test('Drag payload fuzz corpus test',     fuzzDnd,             args: fuzzDndCorpus,             env: fuzzTestEnv)
   test('Command template fuzz corpus test', fuzzCommandTemplate, args: fuzzCommandTemplateCorpus, env: fuzzTestEnv)
+  test('Workbook fuzz corpus test',         fuzzXls,             args: fuzzXlsCorpus,             env: fuzzTestEnv)
+  test('Presentation fuzz corpus test',     fuzzPpt,             args: fuzzPptCorpus,             env: fuzzTestEnv)
+  test('Word document fuzz corpus test',    fuzzDoc,             args: fuzzDocCorpus,             env: fuzzTestEnv)
 endif
