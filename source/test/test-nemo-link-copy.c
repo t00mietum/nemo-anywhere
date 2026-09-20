@@ -53,37 +53,6 @@ target_of (const char *path, char **target)
 	return ok;
 }
 
-/* Removes a link rather than following it - deleting the contents of what a
-   link points at is not a mistake a test gets to make twice. */
-static void
-remove_tree (const char *path)
-{
-	GDir *dir;
-	const char *name;
-
-	if (kind_of (path) != NEMO_LINK_NONE) {
-		if (g_rmdir (path) != 0) {
-			g_remove (path);
-		}
-		return;
-	}
-
-	dir = g_dir_open (path, 0, NULL);
-	if (dir != NULL) {
-		while ((name = g_dir_read_name (dir)) != NULL) {
-			char *child = g_build_filename (path, name, NULL);
-
-			remove_tree (child);
-			g_free (child);
-		}
-		g_dir_close (dir);
-		g_rmdir (path);
-		return;
-	}
-
-	g_remove (path);
-}
-
 static void
 check_kinds (const char *dir)
 {
@@ -252,7 +221,6 @@ main (int argc, char **argv)
 	check_choice_defaults ();
 	check_destination_support (dir);
 
-	remove_tree (dir);
 	g_free (dir);
 
 	g_printerr ("%d failure(s)\n", failures);

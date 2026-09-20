@@ -139,7 +139,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- The bullet-rule form was also the only non-ASCII in first-party C outside the copyright line, so the new check refuses that too.
 			- `nemo-column-layout.h` points at design.md now instead of restating fifteen lines of it.
 			- The other module blocks stay. They say why a file exists, which is what they are for; only the one that copied a rule was a problem.
-		- 🔘 Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
+		- 🛠️ Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
+			- Done, out of the test-duplication group: the eight hand-rolled tree removals. Seven of them removed the scratch directory the test had just made, which the helper already removes at exit, so they are simply gone. The eighth needed a removal part way through and goes through the helper now. That is 151 lines fewer.
+			- Left: the sixty-odd copies of the `check` macro, the twenty-five copies of the config-root setup, the two identical 46-line blocks, and the other four groups.
 
 - 🔘 Horizontal scrollbar frequently shows up when not needed.
 
@@ -191,11 +193,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- In `cicd-win.ps1`, `install.ps1`, `n8runfm.ps1` and `pack-portable.ps1`. All look like best-effort cleanup, and several would read better as `-ErrorAction SilentlyContinue` on the one call inside.
 	- The rule is off in `PSScriptAnalyzerSettings.psd1` until they are gone through, so it covers nothing today.
 	- Origin: found by the new PowerShell check. Read, not reproduced.
-
-- 🔘 Two archive tests remove a tree without the symlink guard.
-	- Opened: 20260920-150000
-	- The `remove_tree` copies in `test-archive-job.c` and `test-extract-job.c` recurse on whatever the enumeration calls a folder, and `test-archive-job.c` plants a symlink in the same tree. Its target is missing today, so nothing outside has been removed yet.
-	- Origin: written before `nemo_delete_guard_is_real_folder` existed, and test code is not covered by the lint rule that holds it. Read, not reproduced.
 
 ### Features and enhancements
 
@@ -318,6 +315,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Two archive tests remove a tree without the symlink guard.
+	- Opened: 20260920-150000
+	- Closed: 20260920-200000
+	- The `remove_tree` copies in `test-archive-job.c` and `test-extract-job.c` recursed on whatever the enumeration called a folder, and `test-archive-job.c` plants a symlink in the same tree. Its target was missing, so nothing outside had been removed yet.
+	- Six more copies turned up beside them, eight in all, and the one in the delete guard test walked a tree holding a link to the fake home it had just built.
+	- Fixed: all eight are gone. Seven were removing the scratch directory the test made, which the helper already removes at exit under its own guard. The eighth calls the helper's new `test_scratch_remove_tree`, which refuses a path outside a directory this process made and takes a link as a link.
+	- New `test-scratch-guard`, POSIX only, builds a tree with a link pointing out of it and checks that what the link pointed at is still there afterwards. It goes red when both of the helper's guards are taken off; either one alone still holds.
+	- New rule in the C lint: a test may not define a function that calls itself, lists a directory and removes what it finds.
 
 - ✅ Four scripts turn a dozen shellcheck rules off for the whole file.
 	- Opened: 20260920-150000

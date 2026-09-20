@@ -210,6 +210,40 @@ fCheckTreeWalks(){
 }
 fCheckTreeWalks
 
+## Same rule for the suite, narrowed to the shape that can do the damage: a
+## function that calls itself, lists a directory and removes what it finds.
+## The fixtures plant links on purpose, so one of those walking into a link
+## takes out something the test never made. test-scratch.c owns the one guarded
+## walk; everything else goes through it.
+fCheckTestTreeWalks(){
+	local bad
+
+	bad="$(awk '
+		FNR == 1 { fn = "" }
+		FILENAME ~ /test-scratch\.c$/ { next }
+		/^[a-zA-Z_][a-zA-Z0-9_]* *\(/ {
+			fn = $1; sub(/\(.*/, "", fn)
+			walks = 0; removes = 0; recurses = 0; defline = 1
+		}
+		/(nemo_enumerate_children|g_file_enumerate_children|g_dir_open) *\(/ { walks = 1 }
+		/(g_file_delete|g_remove|g_rmdir|g_unlink) *\(/ { removes = 1 }
+		fn != "" && !defline && (index($0, fn "(") > 0 || index($0, fn " (") > 0) { recurses = 1 }
+		/^}/ {
+			if (fn != "" && walks && removes && recurses)
+				print FILENAME ": " fn
+			fn = ""
+		}
+		{ defline = 0 }
+	' source/test/*.c)"
+
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: a test rolls its own tree removal - use test_scratch_remove_tree"
+		printf '%s\n' "$bad"
+		exit 2
+	fi
+}
+fCheckTestTreeWalks
+
 ## Row shading remembers which renderers it has already told they have no
 ## background, so it can skip saying it again on every redraw. That is only
 ## safe while cell_set_plain is the one place the property is turned off. A

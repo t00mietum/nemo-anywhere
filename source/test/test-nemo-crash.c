@@ -350,28 +350,6 @@ written_to (const char *stderr_text)
 	return end != NULL ? g_strndup (start, (gsize) (end - start)) : g_strdup (start);
 }
 
-static void
-remove_tree (const char *path)
-{
-	g_autoptr (GDir) handle = g_dir_open (path, 0, NULL);
-	const char *entry;
-
-	if (handle != NULL) {
-		while ((entry = g_dir_read_name (handle)) != NULL) {
-			g_autofree char *child = g_build_filename (path, entry, NULL);
-
-			if (g_file_test (child, G_FILE_TEST_IS_DIR) &&
-			    !g_file_test (child, G_FILE_TEST_IS_SYMLINK)) {
-				remove_tree (child);
-			} else {
-				g_unlink (child);
-			}
-		}
-	}
-
-	g_rmdir (path);
-}
-
 #ifdef G_OS_WIN32
 #define FAULT_CAUSE "access violation"
 #define ABORT_CAUSE "aborted"
@@ -557,8 +535,6 @@ main (int argc, char *argv[])
 		check (crash_dir != NULL && count_reports (crash_dir) == before);
 	}
 	child_result_clear (&result);
-
-	remove_tree (config_root);
 
 	if (failures == 0) {
 		g_print ("crash reporter: all checks passed\n");

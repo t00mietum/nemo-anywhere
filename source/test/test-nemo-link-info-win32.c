@@ -150,30 +150,6 @@ test_link_to_file_keeps_its_type (const char *file_link)
 	}
 }
 
-static void
-remove_tree (const char *path)
-{
-	GDir *dir = g_dir_open (path, 0, NULL);
-	const char *name;
-
-	if (dir != NULL) {
-		while ((name = g_dir_read_name (dir)) != NULL) {
-			char *child = g_build_filename (path, name, NULL);
-
-			/* a link is removed as itself - never walked into */
-			if (g_file_test (child, G_FILE_TEST_IS_DIR) &&
-			    g_remove (child) != 0) {
-				remove_tree (child);
-			}
-			g_remove (child);
-			g_free (child);
-		}
-		g_dir_close (dir);
-	}
-
-	g_remove (path);
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -208,7 +184,6 @@ main (int argc, char *argv[])
 		test_link_to_file_keeps_its_type (file_link);
 	}
 
-	remove_tree (root);
 	g_free (file_link);
 	g_free (dir_link);
 	g_free (real_file);

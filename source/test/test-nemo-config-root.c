@@ -48,31 +48,6 @@ has_marker (const char *dir, const char *name)
 	return found;
 }
 
-static void
-remove_tree (const char *path)
-{
-	GFile *file = g_file_new_for_path (path);
-	GFileEnumerator *children;
-
-	children = g_file_enumerate_children (file, G_FILE_ATTRIBUTE_STANDARD_NAME,
-					      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
-	if (children != NULL) {
-		GFileInfo *info;
-
-		while ((info = g_file_enumerator_next_file (children, NULL, NULL)) != NULL) {
-			char *child = g_build_filename (path, g_file_info_get_name (info), NULL);
-
-			remove_tree (child);
-			g_free (child);
-			g_object_unref (info);
-		}
-		g_object_unref (children);
-	}
-
-	g_remove (path);
-	g_object_unref (file);
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -133,7 +108,7 @@ main (int argc, char *argv[])
 		check (g_file_test (actions, G_FILE_TEST_IS_DIR));
 		check (!g_file_test (moved, G_FILE_TEST_EXISTS));
 
-		remove_tree (user_dir);
+		check (test_scratch_remove_tree (user_dir));
 		g_free (user_dir);
 		g_free (moved);
 		g_free (actions);

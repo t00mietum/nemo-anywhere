@@ -304,36 +304,6 @@ test_missing_long_path (const char *deep)
 	g_free (missing);
 }
 
-static void
-remove_tree (const char *path)
-{
-	GFile *file = g_file_new_for_path (path);
-	GFileEnumerator *children;
-
-	children = nemo_enumerate_children (file, "standard::name,standard::type",
-					    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
-	if (children != NULL) {
-		GFileInfo *info;
-
-		while ((info = g_file_enumerator_next_file (children, NULL, NULL)) != NULL) {
-			char *child = g_build_filename (path, g_file_info_get_name (info), NULL);
-
-			if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
-				remove_tree (child);
-			} else {
-				g_unlink (child);
-			}
-			g_free (child);
-			g_object_unref (info);
-		}
-		g_file_enumerator_close (children, NULL, NULL);
-		g_object_unref (children);
-	}
-
-	g_object_unref (file);
-	g_rmdir (path);
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -359,7 +329,6 @@ main (int argc, char *argv[])
 
 	test_short_path_matches_glib (root);
 
-	remove_tree (root);
 	g_free (deep);
 	g_free (root);
 
