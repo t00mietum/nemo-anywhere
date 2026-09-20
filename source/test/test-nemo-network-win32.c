@@ -223,11 +223,18 @@ test_live_shares (void)
 		if (target_uri != NULL) {
 			GFile *target = g_file_new_for_uri (target_uri);
 			GFileInfo *reached;
+			char *lowered = g_ascii_strdown (target_uri, -1);
+			char *wanted = g_ascii_strdown (host, -1);
 
 			/* Every share the enumeration offered has to sit under
 			 * the server it was listed beneath, or the uri built for
-			 * it names some other machine entirely. */
-			check (g_file_has_prefix (target, server) == FALSE);
+			 * it names some other machine entirely. The two are not
+			 * comparable as files - the share is network:///HOST and
+			 * its target is a UNC path - so the host name is what is
+			 * checked. */
+			check (strstr (lowered, wanted) != NULL);
+			g_free (lowered);
+			g_free (wanted);
 
 			reached = g_file_query_info (target, "standard::type",
 						     0, NULL, NULL);

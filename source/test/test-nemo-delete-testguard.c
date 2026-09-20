@@ -139,6 +139,11 @@ check_wording (void)
 	text = nemo_delete_testguard_describe_overwrite (a, target);
 	check (strstr (text, "Overwritten") != NULL);
 	check (strstr (text, "Replaced by") != NULL);
+	/* Both names have to be there before anywhere they sit means anything: a
+	   missing one is NULL, and NULL sorts below every real position, so the
+	   ordering checks below would pass on exactly the text they guard against. */
+	check (strstr (text, target_name) != NULL);
+	check (strstr (text, a_name) != NULL);
 	/* The one that is lost is named first, under its own heading. */
 	check (strstr (text, target_name) < strstr (text, "Replaced by"));
 	check (strstr (text, "Replaced by") < strstr (text, a_name));

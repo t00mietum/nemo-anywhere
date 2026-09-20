@@ -62,7 +62,7 @@ int
 main (int argc, char *argv[])
 {
 	char *dir, *to_notepad, *to_folder, *folder;
-	GdkPixbuf *small, *large, *jumbo, *again, *folder_icon;
+	GdkPixbuf *small, *large, *jumbo, *again, *folder_icon, *missing;
 	const int sizes[] = { 16, 32, 48, 256 };
 	int i;
 
@@ -112,14 +112,20 @@ main (int argc, char *argv[])
 	check (folder_icon != NULL && large != NULL && !same_picture (folder_icon, large),
 	       "a shortcut to a folder gets a different picture from one to a program");
 
-	check (nemo_shell_icon_win32_for_path ("Q:\\no\\such\\thing.lnk", 32, 1) == NULL ||
-	       TRUE, "a missing file does not crash");
+	/* The shell may answer a path that is not there with nothing, or with the
+	   generic unknown-file icon, and both are fine. What it may not do is hand
+	   back something that is neither, or an icon at the wrong size. */
+	missing = nemo_shell_icon_win32_for_path ("Q:\\no\\such\\thing.lnk", 32, 1);
+	check (missing == NULL ||
+	       (GDK_IS_PIXBUF (missing) && gdk_pixbuf_get_width (missing) == 32),
+	       "a missing file gets nothing, or a 32-wide icon");
 
 	g_clear_object (&small);
 	g_clear_object (&again);
 	g_clear_object (&large);
 	g_clear_object (&jumbo);
 	g_clear_object (&folder_icon);
+	g_clear_object (&missing);
 
 	g_remove (to_notepad);
 	g_remove (to_folder);

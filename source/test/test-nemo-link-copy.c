@@ -208,10 +208,25 @@ static void
 check_destination_support (const char *dir)
 {
 	guint kinds = nemo_link_kinds_supported (dir);
+	char *real_file = g_build_filename (dir, "support-file", NULL);
+	char *made = g_build_filename (dir, "support-link", NULL);
 
-	check (((kinds & NEMO_LINK_FILE_SYMLINK) != 0) == symlinks);
-	check (((kinds & NEMO_LINK_JUNCTION) != 0) == junctions);
+	check (g_file_set_contents (real_file, "hello", 5, NULL));
+
+	/* Against the file system rather than against what the same call said a
+	   moment ago. A destination that claims a kind it will not take offers the
+	   user a choice the copy then cannot carry out. Only the file symlink is
+	   checked this way: POSIX makes a symlink whatever kind is asked for, so a
+	   junction request here would succeed on a platform that has none. */
+	check (((kinds & NEMO_LINK_FILE_SYMLINK) != 0)
+	       == (nemo_link_create (real_file, made, NULL, NEMO_LINK_FILE_SYMLINK, NULL) != FALSE));
+
 	check (nemo_link_kinds_supported (NULL) == 0);
+
+	g_remove (made);
+	g_remove (real_file);
+	g_free (made);
+	g_free (real_file);
 }
 
 int
