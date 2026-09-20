@@ -4,6 +4,8 @@
 #   - wine (smoke-test the .exe as an exe_wrapper / by hand)
 #   - Xvfb + x11 utils to run the GUI headless under wine and grab a screenshot
 #   - a baked-in MSYS2 GTK3 sysroot at /opt/win-sysroot (see fetch-sysroot.bash)
+#   - make, which nothing here builds with: gcc's lto-wrapper shells out to it
+#     to run the LTRANS jobs in parallel, and without it every link is serial
 # Source tree is mounted at /src (like nemo-build); builds go to /build-win.
 
 FROM debian:trixie
@@ -12,7 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-tools \
-		meson ninja-build pkgconf \
+		meson ninja-build pkgconf make \
 		libglib2.0-dev-bin libglib2.0-bin gettext intltool desktop-file-utils python3 \
 		curl ca-certificates gawk tar zstd xz-utils \
 		wine wine64 \

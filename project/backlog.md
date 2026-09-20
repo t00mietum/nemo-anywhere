@@ -167,11 +167,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
-- 🔘 The Windows cross link compiles its LTO jobs one at a time.
-	- Opened: 20260919-203000
-	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
-	- Origin: came in with link-time optimization on the release lanes. Confirmed.
-
 - 🔘 Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
 	- Opened: 20260920-160000
 	- 20,000 empty files take about 7.8 s of processor time. Cutting the per-row and per-cell work in the list view moved that by nothing at all, so the cost sits below it: file info, the model, or the sort.
@@ -311,6 +306,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The Windows cross link compiles its LTO jobs one at a time.
+	- Opened: 20260919-203000
+	- Closed: 20260920-223000
+	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
+	- Origin: came in with link-time optimization on the release lanes. Confirmed.
+	- Cause: nothing to do with the thread count. gcc runs its link-time jobs by writing a makefile and calling `make`, and the cross container had no `make` in it. With none on the path it falls back to one job at a time and says so.
+	- Fixed: `make` is in the cross image and the running container. The exe link went from 34.2s to 9.9s, and the exe is byte for byte what the serial link produced, so nothing about the shipped artifact changed.
+	- The cross build now refuses a log that carries the fallback warning, and names the container to install it in. The other two containers already had `make`.
 
 - ✅ The content search helpers have no fuzz target.
 	- Opened: 20260919-203000
