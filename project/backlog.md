@@ -45,6 +45,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Re-vendoring the themes today would drop 53 icons.
+	- Opened: 20260920-230000
+	- Four themes were re-vendored while checking the symlink fix: WhiteSur, Colloid, Tela and Qogir. Against what is committed, 53 files go and 36 change. Nothing to do with the fix - the same thing happens with it off, so it is upstream drift since these were last taken.
+	- A dropped name falls through to Adwaita, so this is visible. Whether that is right depends on whether upstream renamed it or stopped drawing it, which needs going through name by name.
+	- The other sixteen themes have not been checked, so the real number is larger.
+	- A refresh is due at some point regardless, since every entry in the catalog but three tracks upstream HEAD.
+
 - 🔘 Horizontal scrollbar frequently shows up when not needed.
 	- Opened: n/a
 	- Not reproduced as a fault. Driven from 1000 to 1200 wide, growing and shrinking, with overlay scrollbars on and off: the settled state always matched design.md, and the scrollbar appeared only where the combined minimum widths really did exceed the room.
@@ -72,13 +79,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260920-160000
 	- 20,000 empty files take about 7.8 s of processor time. Cutting the per-row and per-cell work in the list view moved that by nothing at all, so the cost sits below it: file info, the model, or the sort.
 	- design.md already names this as the number to watch. What is missing is where it goes.
-
-- 🔘 A theme icon that exists only as a symlink is never found.
-	- Opened: 20260920-170000
-	- `vendor-themes.bash` indexes with `find -type f`, which skips symlinks, so nothing under a theme's `links/` directory is ever a candidate on Linux. The resolver has code to follow an alias and the scorer has code to rank one, and neither can run.
-	- Effect: a name upstream draws once and aliases elsewhere is counted missing and falls through to Adwaita. Unknown how many of the 180 names that is.
-	- Fixing it changes what gets vendored, so it means re-running all twenty themes and comparing the output.
-	- Origin: found by the new `--self-test`, which carries the case already. Confirmed.
 
 ### Features and enhancements
 
@@ -203,6 +203,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ A theme icon that exists only as a symlink is never found.
+	- Opened: 20260920-170000. Closed: 20260920.
+	- `vendor-themes.bash` indexed with `find -type f`, which skips symlinks, so nothing under a theme's `links/` directory was ever a candidate on Linux. The resolver has code to follow an alias and the scorer has code to rank one, and neither could run.
+	- Fixed: the index is built with `-xtype f`, which takes a link pointing at a regular file and leaves a dangling one out. The self-test's pinned case is turned around and a dangling-link case is new.
+	- How many of the 180 names it was: none, today. Four themes have a `links/` directory - WhiteSur, Colloid, Tela and Qogir - and re-vendoring each one both ways gives byte-identical output. Every alias in them points at art the index already had under its own name.
+	- So the fix buys nothing on screen right now. It is worth keeping because the alias code can run at all now, and because an upstream that moves a name into `links/` alone would otherwise fall through to Adwaita with nothing to say so.
+	- Tela indexes 16,800 more candidates with this on and the run takes the same 3.4s, so the wider index costs nothing.
 
 - ✅ Fourteen `catch { }` blocks in the PowerShell scripts swallow whatever went wrong.
 	- Opened: 20260920-190000. Closed: 20260920.

@@ -234,7 +234,11 @@ fBuildIndex(){
 			base="${path##*/}"
 			# shellcheck disable=SC2004  ## target is a nameref to an associative array, so $base is a key, not arithmetic.
 			target[$base]="${target[$base]:-}${path}"$'\n'
-		done < <( cd "$repo" && find "$r" -type f \( -name '*.svg' -o -name '*.png' \) -printf '%p\n' )
+		## -xtype, not -type: an alias under links/ is a real symlink on a POSIX
+		## checkout, and -type f skips those, so nothing under links/ was ever a
+		## candidate. -xtype f takes a link that points at a regular file and
+		## leaves a dangling one out, which fResolve could not read anyway.
+		done < <( cd "$repo" && find "$r" -xtype f \( -name '*.svg' -o -name '*.png' \) -printf '%p\n' )
 	done
 }
 
@@ -384,6 +388,9 @@ fSelfTest(){
 	printf '../../scalable/places/folder.svg\n' > "$repo/links/places/alias.svg"
 	## An alias the POSIX way.
 	ln -sf ../../scalable/places/folder.svg "$repo/links/places/reallink.svg"
+	## A link to nothing. Indexing one would put a path in front of fResolve
+	## that it cannot read, and reading it would take the whole run down.
+	ln -sf ../../scalable/places/gone.svg "$repo/links/places/dangling.svg"
 	## Two stubs naming each other. Without the hop limit this never returns.
 	printf 'loop2.svg\n' > "$repo/links/places/loop1.svg"
 	printf 'loop1.svg\n' > "$repo/links/places/loop2.svg"
@@ -406,11 +413,14 @@ fSelfTest(){
 	fResolve "$repo" places "alias.svg" 0 || true
 	fCheck "text stub followed" "$repo/scalable/places/folder.svg" "$resolved_path"
 
-	## A name that exists only as a real symlink resolves to nothing, because
-	## the index is built with find -type f. That is on the backlog; the case
-	## is pinned here so the fix turns this red rather than passing quietly.
-	if fResolve "$repo" places "reallink.svg" 0; then :; fi
-	fCheck "symlink alias is not indexed today" "" "$resolved_path"
+	## A name that exists only as a real symlink. fResolve hands back the link
+	## itself, not its target - the copy that follows reads through it.
+	fResolve "$repo" places "reallink.svg" 0 || true
+	fCheck "symlink alias followed" "$repo/links/places/reallink.svg" "$resolved_path"
+
+	## Read the index rather than the resolver: a dangling name resolves to
+	## nothing either way, so only the index says whether it was a candidate.
+	fCheck "dangling link is not indexed" "" "${iconIndex[dangling.svg]:-}"
 
 	if fResolve "$repo" places "loop1.svg" 0; then
 		fCheck "stub chain stops" "(no answer)" "$resolved_path"
