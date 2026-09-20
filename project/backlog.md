@@ -145,6 +145,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Left: the other four groups, none of which is about the tests.
 
 - 🔘 Horizontal scrollbar frequently shows up when not needed.
+	- Opened: n/a
+	- Not reproduced as a fault. Driven from 1000 to 1200 wide, growing and shrinking, with overlay scrollbars on and off: the settled state always matched design.md, and the scrollbar appeared only where the combined minimum widths really did exceed the room.
+	- What it does show is how little room there is. At the default zoom and column set the minimums are name 134, size 76, ext 55, type 67, date modified 193, owner 79, group 77, permissions 122, so the list needs 803px before anything overflows. Name is the only one that gives: the fixed columns cannot shrink at all, and a minor column whose values are all the same width has a minimum equal to its widest value.
+	- So a 1080-wide window with the Places pane open sits right on the line, and the tree pane open as well scrolls always.
+	- Needs a call before any code changes, since the rule is design.md's and it overrides every other item. Three ways out: give minor columns a floor near the header width so they can ellipsize, drop owner, group and permissions from the shipped default, or leave it and treat the scrollbar as correct.
 
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
@@ -161,11 +166,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
-
-- 🔘 The content search helpers have no fuzz target.
-	- Opened: 20260919-203000
-	- They parse the most hostile input in the tree, and the three existing targets cover the settings file, the drag payload and command templates instead.
-	- Origin: raised while fixing the shared-string loop in the xls helper, which is the kind of fault a target would have found. Confirmed.
 
 - 🔘 The Windows cross link compiles its LTO jobs one at a time.
 	- Opened: 20260919-203000
@@ -311,6 +311,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The content search helpers have no fuzz target.
+	- Opened: 20260919-203000
+	- Closed: 20260920-213000
+	- They parse the most hostile input in the tree, and the three existing targets cover the settings file, the drag payload and command templates instead.
+	- Origin: raised while fixing the shared-string loop in the xls helper, which is the kind of fault a target would have found. Confirmed.
+	- Fixed: three new targets, one each for the workbook records, the presentation records and the Word piece table, with twenty seeds between them. They run under the fuzzer in the pipeline stage and replay their seeds as ordinary tests on every suite run.
+	- The zip-of-xml helper is deliberately left out. libgsf does the parsing there, so a target would be fuzzing libgsf.
 
 - ✅ A release build prints four warnings about unused functions and variables.
 	- Opened: 20260919-203000

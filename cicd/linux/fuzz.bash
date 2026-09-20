@@ -33,6 +33,9 @@ targets=(
 	"fuzz-shcl|shcl"
 	"fuzz-dnd|dnd"
 	"fuzz-command-template|command-template"
+	"fuzz-xls|xls"
+	"fuzz-ppt|ppt"
+	"fuzz-doc|doc"
 )
 
 case "${1:-}" in
