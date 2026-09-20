@@ -3096,7 +3096,7 @@ nemo_view_finalize (GObject *object)
     g_signal_handlers_disconnect_by_func (nemo_preferences,
                           click_to_rename_changed_callback, view);
 #ifdef G_OS_WIN32
-	g_signal_handlers_disconnect_by_func (nemo_preferences,
+	g_signal_handlers_disconnect_by_func (nemo_windows_preferences,
 					      dot_files_preference_changed_callback, view);
 #endif
 	g_signal_handlers_disconnect_by_func (nemo_preferences,
