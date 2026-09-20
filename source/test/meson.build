@@ -566,6 +566,16 @@ test('Search group test',
   args: []
 )
 
+test('List expander test',
+  executable('test-nemo-list-expander',
+    [ 'test-nemo-list-expander.c', '../src/nemo-list-model.c' ],
+    include_directories: [ rootInclude, include_directories('../src') ],
+    dependencies: [ gtk, nemo_private, egg, test_scratch ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('Tree folders test',
   executable('test-nemo-tree-folders',
     [ 'test-nemo-tree-folders.c', '../src/nemo-tree-sidebar-model.c' ],
