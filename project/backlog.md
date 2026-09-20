@@ -166,11 +166,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- They parse the most hostile input in the tree, and the three existing targets cover the settings file, the drag payload and command templates instead.
 	- Origin: raised while fixing the shared-string loop in the xls helper, which is the kind of fault a target would have found. Confirmed.
 
-- 🔘 A release build prints four warnings about unused functions and variables.
-	- Opened: 20260919-203000
-	- From `nemo-file.c` and `nemo-view.c`. Not new: the Linux release lane has always been a release build. The Windows lane only started showing them once it became one.
-	- Origin: predates the release-flags work. Confirmed.
-
 - 🔘 The Windows cross link compiles its LTO jobs one at a time.
 	- Opened: 20260919-203000
 	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
@@ -315,6 +310,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ A release build prints four warnings about unused functions and variables.
+	- Opened: 20260919-203000
+	- Closed: 20260920-210000
+	- From `nemo-file.c` and `nemo-view.c`. Not new: the Linux release lane has always been a release build. The Windows lane only started showing them once it became one.
+	- All four exist only for a debug line, and a release build compiles those out. Three are a window handle the view fetched on every batch of files and on every selection change; that call, and a uri allocation beside it, now happen only when the debug flag is actually on. The fourth is a small function the compiler is now told may go unused.
+	- The cross build used to throw its whole log into `tail -1`, which is why nobody saw these. It reads the log now and refuses an unused-function or unused-variable warning, so this is caught on an ordinary pipeline run rather than at release time.
 
 - ✅ Two archive tests remove a tree without the symlink guard.
 	- Opened: 20260920-150000
