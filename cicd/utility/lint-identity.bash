@@ -18,7 +18,9 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 fEcho(){ echo "[ $* ]"; }
 
-mapfile -t files < <(git ls-files source cicd utility)
+## This file is left out of its own scan: the patterns below name the things
+## being looked for, so it matches itself on every run.
+mapfile -t files < <(git ls-files source cicd utility ':!:cicd/utility/lint-identity.bash')
 
 ## The account names these boxes actually use. A placeholder such as somebody
 ## or someone is what a fixture is supposed to say instead.
@@ -31,7 +33,7 @@ fi
 
 ## The Bubbles marker belongs to the shared helper scripts, which move between
 ## two accounts. Anything under source/ is this project's own.
-bad="$(git ls-files source | xargs -d '\n' grep -ln 'Bubbles' 2>/dev/null || true)"
+bad="$(printf '%s\n' "${files[@]}" | grep '^source/' | xargs -d '\n' grep -ln 'Bubbles' 2>/dev/null || true)"
 if [[ -n "$bad" ]]; then
 	fEcho "FAIL: the shared-helper copyright marker is on an application source"
 	printf '%s\n' "$bad"

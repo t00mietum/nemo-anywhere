@@ -22,5 +22,6 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 bash "${here}/lint-c.bash" "$@"
 bash "${here}/lint-bash.bash"
+bash "${here}/lint-python.bash"
 bash "${here}/lint-identity.bash"
 bash "${here}/vendor-themes.bash" --self-test
