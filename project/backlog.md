@@ -99,7 +99,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- 🔘 Low.
 		- 🔘 Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
 		- 🔘 Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
-		- 🔘 Item 17. This file records how work was verified in fifteen places. Whether the private notes should follow the same rule is undecided and worth settling once.
+		- 🔘 Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
 		- 🔘 Item 18. British spellings in comments and prose, including two identifiers.
 		- 🔘 Item 19. Banned verbs in roughly sixty comment lines across C, scripts and Python.
 		- 🔘 Item 20. Three competing banner-comment conventions in first-party C, and a prose block at the top of nearly every first-party file. One of those blocks restates a design.md rule that can drift from it.

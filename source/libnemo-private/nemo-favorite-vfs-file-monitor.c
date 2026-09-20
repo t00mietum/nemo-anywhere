@@ -2,6 +2,12 @@
  *
  * Adapted from libxapp 2.8.8 (favorite-vfs-file-monitor.c, LGPL-2.1-or-later,
  * © Linux Mint team), relicensed under GPL-2.0 per LGPL-2.1 section 3.
+ *
+ * Upstream disabled some functions with an early return and left the body
+ * compiling. Those bodies are commented out here instead, so the dead code
+ * cannot drift or be read as live. They stay in the file because they are the
+ * reference if the feature is ever turned back on; the reason each one is off
+ * is the comment above its return.
  */
 
 #include "nemo-favorites.h"
@@ -47,15 +53,15 @@ GFile *_nemo_favorite_vfs_file_new_for_info (NemoFavoriteInfo *info);
 //     g_free (new_file_uri);
 // }
 
-static void
-favorite_real_file_changed (GFileMonitor     *rfmonitor,
-                            GFile            *file,
-                            GFile            *other_file,
-                            GFileMonitorEvent event_type,
-                            gpointer          user_data)
-{
-    // Disabled
-    return;
+// static void
+// favorite_real_file_changed (GFileMonitor     *rfmonitor,
+//                             GFile            *file,
+//                             GFile            *other_file,
+//                             GFileMonitorEvent event_type,
+//                             gpointer          user_data)
+// {
+//     // Disabled
+//     return;
 
 //     g_return_if_fail (NEMO_FAVORITE_IS_VFS_FILE_MONITOR (user_data));
 //     NemoFavoriteVfsFileMonitor *monitor = NEMO_FAVORITE_VFS_FILE_MONITOR (user_data);
@@ -136,7 +142,7 @@ favorite_real_file_changed (GFileMonitor     *rfmonitor,
 //         default:
 //             g_warn_if_reached ();
 //     }
-}
+// }
 
 static void
 unmonitor_files (NemoFavoriteVfsFileMonitor *monitor)
@@ -144,13 +150,13 @@ unmonitor_files (NemoFavoriteVfsFileMonitor *monitor)
     /* Disabled. See below */
     return;
 
-    NemoFavoriteVfsFileMonitorPrivate *priv = nemo_favorite_vfs_file_monitor_get_instance_private (monitor);
+//     NemoFavoriteVfsFileMonitorPrivate *priv = nemo_favorite_vfs_file_monitor_get_instance_private (monitor);
 
-    if (priv->file_monitors != NULL)
-    {
-        g_hash_table_destroy (priv->file_monitors);
-        priv->file_monitors = NULL;
-    }
+//     if (priv->file_monitors != NULL)
+//     {
+//         g_hash_table_destroy (priv->file_monitors);
+//         priv->file_monitors = NULL;
+//     }
 }
 
 static void
@@ -161,49 +167,49 @@ monitor_files (NemoFavoriteVfsFileMonitor *monitor)
      * support less integrated apps. */
     return;
 
-    NemoFavoriteVfsFileMonitorPrivate *priv = nemo_favorite_vfs_file_monitor_get_instance_private (monitor);
-    GList *iter;
+//     NemoFavoriteVfsFileMonitorPrivate *priv = nemo_favorite_vfs_file_monitor_get_instance_private (monitor);
+//     GList *iter;
 
-    priv->file_monitors = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                 g_free, (GDestroyNotify) g_object_unref);
+//     priv->file_monitors = g_hash_table_new_full (g_str_hash, g_str_equal,
+//                                                  g_free, (GDestroyNotify) g_object_unref);
 
-    for (iter = priv->infos; iter != NULL; iter = iter->next)
-    {
-        NemoFavoriteInfo *info = (NemoFavoriteInfo *) iter->data;
-        GFileMonitor *real_monitor;
-        GFile *real_file;
-        GError *error;
+//     for (iter = priv->infos; iter != NULL; iter = iter->next)
+//     {
+//         NemoFavoriteInfo *info = (NemoFavoriteInfo *) iter->data;
+//         GFileMonitor *real_monitor;
+//         GFile *real_file;
+//         GError *error;
 
-        g_debug ("Monitoring real file: %s\n", info->uri);
+//         g_debug ("Monitoring real file: %s\n", info->uri);
 
-        error = NULL;
-        real_file = g_file_new_for_uri (info->uri);
-        real_monitor = g_file_monitor (real_file,
-                                       G_FILE_MONITOR_WATCH_MOVES,
-                                       NULL,
-                                       &error);
-        g_object_unref (real_file);
+//         error = NULL;
+//         real_file = g_file_new_for_uri (info->uri);
+//         real_monitor = g_file_monitor (real_file,
+//                                        G_FILE_MONITOR_WATCH_MOVES,
+//                                        NULL,
+//                                        &error);
+//         g_object_unref (real_file);
 
-        if (real_monitor == NULL)
-        {
-            if (error != NULL)
-            {
-                g_warning ("Unable to add file monitor for '%s': %s", info->uri, error->message);
-                g_error_free (error);
-            }
+//         if (real_monitor == NULL)
+//         {
+//             if (error != NULL)
+//             {
+//                 g_warning ("Unable to add file monitor for '%s': %s", info->uri, error->message);
+//                 g_error_free (error);
+//             }
 
-            continue;
-        }
+//             continue;
+//         }
 
-        g_hash_table_insert (priv->file_monitors,
-                             (gpointer) g_strdup (info->uri),
-                             (gpointer) real_monitor);
+//         g_hash_table_insert (priv->file_monitors,
+//                              (gpointer) g_strdup (info->uri),
+//                              (gpointer) real_monitor);
 
-        g_signal_connect (real_monitor,
-                          "changed",
-                          G_CALLBACK (favorite_real_file_changed),
-                          monitor);
-    }
+//         g_signal_connect (real_monitor,
+//                           "changed",
+//                           G_CALLBACK (favorite_real_file_changed),
+//                           monitor);
+//     }
 }
 
 static gint

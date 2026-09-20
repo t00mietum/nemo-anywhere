@@ -3,6 +3,12 @@
  * Adapted from libxapp 2.8.8 (xapp-favorites.c, LGPL-2.1-or-later,
  * © Linux Mint team), relicensed under GPL-2.0 per LGPL-2.1 section 3.
  * Launch/menu helpers dropped; storage moved to the org.nemo-anywhere schema.
+ *
+ * Upstream disabled some functions with an early return and left the body
+ * compiling. Those bodies are commented out here instead, so the dead code
+ * cannot drift or be read as live. They stay in the file because they are the
+ * reference if the feature is ever turned back on; the reason each one is off
+ * is the comment above its return.
  */
 
 #include <config.h>
@@ -208,13 +214,13 @@ queue_changed (NemoFavorites *favorites)
     g_rec_mutex_unlock (&infos_lock);
 }
 
-static void
-sync_metadata_callback (GObject      *source,
-                        GAsyncResult *res,
-                        gpointer      user_data)
-{
-    // Disabled
-    return;
+// static void
+// sync_metadata_callback (GObject      *source,
+//                         GAsyncResult *res,
+//                         gpointer      user_data)
+// {
+//     // Disabled
+//     return;
 
 //     GFile *file;
 //     GError *error;
@@ -250,7 +256,7 @@ sync_metadata_callback (GObject      *source,
 //             g_free (local_path);
 //         }
 //     }
-}
+// }
 
 static void
 sync_file_metadata (NemoFavorites *favorites,
@@ -262,33 +268,33 @@ sync_file_metadata (NemoFavorites *favorites,
      * Also, this only works with local files. */
     return;
 
-    /* borrowed from nemo-vfs-file.c */
-    GFileInfo *info;
-    GFile *file;
+//     /* borrowed from nemo-vfs-file.c */
+//     GFileInfo *info;
+//     GFile *file;
 
-    g_debug ("Sync metadata: %s - Favorite? %d", uri, is_favorite);
+//     g_debug ("Sync metadata: %s - Favorite? %d", uri, is_favorite);
 
-    info = g_file_info_new ();
+//     info = g_file_info_new ();
 
-    if (is_favorite) {
-        g_file_info_set_attribute_string (info, FAVORITE_METADATA_KEY, META_TRUE);
-    } else {
-        /* Unset the key */
-        g_file_info_set_attribute (info, FAVORITE_METADATA_KEY, G_FILE_ATTRIBUTE_TYPE_INVALID, NULL);
-    }
+//     if (is_favorite) {
+//         g_file_info_set_attribute_string (info, FAVORITE_METADATA_KEY, META_TRUE);
+//     } else {
+//         /* Unset the key */
+//         g_file_info_set_attribute (info, FAVORITE_METADATA_KEY, G_FILE_ATTRIBUTE_TYPE_INVALID, NULL);
+//     }
 
-    file = g_file_new_for_uri (uri);
+//     file = g_file_new_for_uri (uri);
 
-    g_file_set_attributes_async (file,
-                                 info,
-                                 0,
-                                 G_PRIORITY_DEFAULT,
-                                 NULL,
-                                 sync_metadata_callback,
-                                 favorites);
+//     g_file_set_attributes_async (file,
+//                                  info,
+//                                  0,
+//                                  G_PRIORITY_DEFAULT,
+//                                  NULL,
+//                                  sync_metadata_callback,
+//                                  favorites);
 
-    g_object_unref (file);
-    g_object_unref (info);
+//     g_object_unref (file);
+//     g_object_unref (info);
 }
 
 static void
@@ -1037,7 +1043,7 @@ nemo_favorites_get_favorites (NemoFavorites       *favorites,
 
     gchar *typestring = mimetypes ? g_strjoinv (", ", (gchar **) mimetypes) : NULL;
     g_debug ("NemoFavorites: get_favorites returning list for mimetype '%s' (%d items)",
-             typestring, g_list_length (ret));
+             typestring != NULL ? typestring : "any", g_list_length (ret));
     g_free (typestring);
 
     return ret;

@@ -19,6 +19,8 @@ How the C in this repo is written, and why. Companion to [design.md](design.md),
 
 - [Layout](#layout)
 
+- [Language and types](#language-and-types)
+
 - [Naming](#naming)
 
 - [Files](#files)
@@ -83,6 +85,22 @@ move_proportionally (const NemoColumnLayoutItem *items,
 		int moved = 0;
 ```
 
+## Language and types
+
+- The build sets no `-std`, so the compiler's default applies - gnu17 on current gcc. The inherited code uses GNU extensions freely, so do not move the tree to a strict `-std=c11` without building all of it first.
+
+- Declare at first use rather than at the top of the function. `-Wno-declaration-after-statement` is passed for exactly that. Initialize at the declaration, and `= {0}` for a struct.
+
+- GLib's type names are what the tree uses: `gint`, `gchar`, `gboolean`, and `gsize` for a size or an index. New code matches its neighbor. Never `int` for a length.
+
+- The silent integer rules catch people out. A signed/unsigned comparison and the usual promotions both compile without a word and both go wrong at the edges. Cast on purpose, or change the type.
+
+- A `static inline` in a header beats a function-like macro. Where a macro is the only way, parenthesize every argument and wrap a multi-statement body in `do { ... } while (0)`.
+
+- Headers are self-contained: a header compiles on its own and includes what it uses, so nothing depends on include order. `<glib.h>` comes before any `G_OS_WIN32` guard, because `windows.h` defines `DELETE`.
+
+- No undefined behavior. The ones that actually turn up in C of this age are strict aliasing, signed overflow and reading past the end of an array. Type-pun through `memcpy`, never a pointer cast. Assume nothing about endianness, char signedness, struct padding or pointer width, and never write a struct to a file as raw bytes.
+
 ## Naming
 
 - Public functions are `nemo_<file>_<verb>`, matching the file they live in.
@@ -134,6 +152,14 @@ Where a piece of reasoning is longer than a few lines, it goes at the top of the
 - GLib allocators abort rather than returning NULL, so a NULL check on `g_new` is dead code.
 
 - Anything asked once per file on every pass of the async file engine must not allocate. `g_file_peek_path` over `g_file_get_path`.
+
+- A function that allocates says who frees the result, in one line in the header. The language cannot express it, so either it is written down or the next reader guesses.
+
+- `goto out` is how cleanup is written here: one label, resources released in reverse order. Around twenty-five files do it, and it is the only sanctioned goto.
+
+- No VLAs and no `alloca`; the lint gate below rejects them. A size is either bounded, and a fixed array covers it, or it is not, and it belongs on the heap.
+
+- Build text with `g_strdup_printf`, `g_strconcat` or `GString`. No `sprintf`, `strcpy` or `strcat`, and `g_snprintf` only with its return checked.
 
 ## What the lint gate rejects
 
