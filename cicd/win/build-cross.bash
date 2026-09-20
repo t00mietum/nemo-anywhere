@@ -89,20 +89,26 @@ fEcho_Clean ""
 fEcho "Cross build (stamped $(date -u -d "@${SOURCE_DATE_EPOCH}" '+%Y-%m-%d %H:%M:%S UTC'))"
 ((clean)) && docker exec "$CONTAINER" rm -rf "$BUILD" || true
 fBuild
-fStrip
 
 ## The stamp is part of the output, but ninja does not know that, so an exe left
 ## over from a build of an earlier commit looks up to date. Drop it and relink.
-## Read after the strip, since that is the file the lane goes on to pack.
+## Read before the strip: the strip writes SOURCE_DATE_EPOCH over whatever is
+## there, so afterwards every exe looks current and this never fires.
 if [[ "$(fStamp)" != "${SOURCE_DATE_EPOCH}" ]]; then
 	fEcho_Clean "restamping (the existing exe is from another commit)"
 	docker exec "$CONTAINER" rm -f "${BUILD}/src/nemo-anywhere.exe"
 	fBuild
-	fStrip
 fi
 
+linked="$(fStamp)"
+[[ "$linked" == "${SOURCE_DATE_EPOCH}" ]] || fDie "the linker stamped the exe ${linked:-nothing}, not ${SOURCE_DATE_EPOCH} - it is ignoring SOURCE_DATE_EPOCH"
+
+fStrip
+
+## Checked again, because the strip rewrites the field and this is the file the
+## lane goes on to pack.
 pe="$(fStamp)"
-[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "the exe is stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the linker or the strip is ignoring SOURCE_DATE_EPOCH"
+[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "the strip left the exe stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - it is ignoring SOURCE_DATE_EPOCH"
 fEcho_Clean "exe stamped ${pe}"
 
 ## Read the exe back rather than trusting the flags above. Copied out first
