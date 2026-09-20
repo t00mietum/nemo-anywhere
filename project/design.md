@@ -467,6 +467,8 @@ This rule has been rewritten several times and will probably move again, so the 
 	- Everything is measured again when the zoom level changes the font or icon size, and when a column is switched on that was not there to be measured while it was hidden.
 	- Samples are thrown away on a folder change. The names in the last folder say nothing about this one.
 
+- Every column is a fixed-width column as far as the toolkit is concerned, whatever class it is in here. The widths above are worked out for the whole row at once and handed over, so there is nothing left for the toolkit to decide. That also lets the list run in fixed-height mode, where the row height is measured once instead of once per row - which is about half of what loading a big folder used to cost. The two go together: leave one column to size itself and the toolkit measures every row again, quietly, and the saving goes away.
+
 - A horizontal scrollbar appears, if there is not enough room because the combined min column widths exceed the displayable area.
 
 - The columns are laid out in the view's own size allocation, for the width the tree view is about to be given, not in the tree view's own. Laying them out from the tree view's allocation draws one frame at the old widths on every step of a resize, which reads as flicker. The difference between the two allocations is learned from the previous one, so the frame where a scrollbar appears or goes is the one case still caught late.
@@ -557,18 +559,20 @@ On Windows the gaps are filled natively rather than by porting gvfs:
 
 No hard budget is set yet. The figures below are where things stand, and a change that makes one of them noticeably worse needs a reason. The profiler stage of the pipeline is where to look first. See [The pipeline](#the-pipeline).
 
-Measured on 2026-09-17 with the Linux release build on a desktop machine. Each is the median of several launches into a folder of empty files, in list view, with no saved settings. `NEMO_BENCHMARK_LOADING` prints the two times.
+Measured on 2026-09-20 with the Linux release build on a desktop machine. Each is the median of several launches into a folder of empty files, in list view, with no saved settings. `NEMO_BENCHMARK_LOADING` prints the two times.
 
 | Folder          | Window up and listed | Settled | Peak memory
 | :---            | :---                 | :---    | :---
-| empty           | 0.4 s                | 0.4 s   | 90 MiB
-| 1,000 files     | 0.6 s                | 0.6 s   | 92 MiB
-| 10,000 files    | 2.9 s                | 4.4 s   | 119 MiB
-| 50,000 files    | 11.4 s               | -       | 270 MiB
+| empty           | 0.4 s                | 0.2 s   | 90 MiB
+| 1,000 files     | 0.6 s                | 0.4 s   | 92 MiB
+| 10,000 files    | 2.0 s                | 1.8 s   | 104 MiB
+| 50,000 files    | 8.4 s                | 8.3 s   | 158 MiB
 
-- "Settled" is when the view has gone idle, with icons and column widths done. The 50,000 case was not timed that far.
+- "Settled" is when the view has gone idle, with icons and column widths done.
 
-- Listing time grows about in step with the file count, at roughly a quarter of a millisecond per file. That is the one to watch. A big download or photo folder is where it is felt.
+- Listing time grows about in step with the file count, at roughly a sixth of a millisecond per file. That is the one to watch. A big download or photo folder is where it is felt.
+
+- The 10,000 and 50,000 rows were about twice these numbers until the list was put into fixed-height mode, which is covered under [List view column widths](#list-view-column-widths). Peak memory came down with them. What is left at this size is measuring each row's text to decide the column widths.
 
 - On Windows the packed exe took 3.4 s to start on 2026-08-19. It had been 14.2 s, nearly all of it the packer handling a couple of thousand small theme files before any of our code ran, until the themes were compiled in.
 
