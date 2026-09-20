@@ -45,6 +45,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Archiving with rar: When "delete after confirm" was set, got an error message: "The original files were kend. The archive could not be read back."
+	- The archive seems to have been created correctly.
+
 - 🔘 Code review 20260919.
 	- Opened: 20260919-175254
 	- Style, performance and prose pass over the whole tree, first-party and inherited, aimed at areas the two earlier rounds did not cover. Worst first. Technical detail is kept out of this file. Numbers match the private detail notes.
@@ -93,10 +96,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Effect: a later check in the same file fires the handler, which writes through a pointer into a frame that has returned.
 			- Origin: copied from the sidebar code it tests. Confirmed.
 			- Fixed with item 3, and covered by the same whole-tree check.
-		- 🔘 Item 11. List view row measurement and row shading both do far more work than they need to.
+		- ✅ Item 11. List view row measurement and row shading both do far more work than they need to.
 			- Cause: measurement is hooked to row changes as well as row arrivals, so it re-runs every time a file's details fill in, rebuilding column and cell lists and reading two style properties each pass. Shading allocates a path and sets a property once per cell per redraw, including when shading is off.
 			- Effect: both sit under the per-file listing cost design.md already flags as the one to watch.
 			- Origin: measurement came with the column width work, shading with `ownerrows`. Confirmed by reading the hookup and the bodies, not measured.
+			- Fixed: the theme sizes and the column list are read once rather than per row, parity is worked out once per row rather than once per cell, and a renderer that already has no background is left alone. The rows look the same as before.
+			- Measured over 20,000 files. Listing did not move, at about 7.8 s of processor time either way. Paging through the folder went from 1.16 s to 1.01 s with shading off, which is the default, and did not move with it on. So the suspects here were real but small, and the listing cost is somewhere else.
 		- 🔘 Item 12. The theme vendoring script forks per icon.
 			- Cause: the resolver is called through command substitution up to five times per icon across roughly 3,600 icons. The file's own note two hundred lines above says a substitution there is a fork and that this runs tens of thousands of times, and solves it that way for the scorer.
 			- Origin: the scorer was fixed, the resolver that calls it was not. Confirmed.
@@ -153,12 +158,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- `cicd.bash`, `config.bash`, `gui-headless.bash` and `include/gfs-rotate.bash` carry a header block of `disable=` lines. Each has a reason, but it applies to a handful of lines and covers every line. Quoting and unused-variable faults anywhere in those four go unseen.
 	- Origin: the headers came from a shared template and predate the checker being run at all. Confirmed by adding a fault to one of them and watching the check stay green.
 
+- 🔘 Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
+	- Opened: 20260920-160000
+	- 20,000 empty files take about 7.8 s of processor time. Cutting the per-row and per-cell work in the list view moved that by nothing at all, so the cost sits below it: file info, the model, or the sort.
+	- design.md already names this as the number to watch. What is missing is where it goes.
+
 - 🔘 Two archive tests remove a tree without the symlink guard.
 	- Opened: 20260920-150000
 	- The `remove_tree` copies in `test-archive-job.c` and `test-extract-job.c` recurse on whatever the enumeration calls a folder, and `test-archive-job.c` plants a symlink in the same tree. Its target is missing today, so nothing outside has been removed yet.
 	- Origin: written before `nemo_delete_guard_is_real_folder` existed, and test code is not covered by the lint rule that holds it. Read, not reproduced.
 
 ### Features and enhancements
+
+- 🔘 Archive:
+	- 🔘 Remember previous settings except for "delete" and password, across sessions.
+	- 🔘 If "delete" is checked AND password set, show an additional simple dialog to confirm the password.
 
 - 🔘 If "show full path in tabs and window" is enabled:
 	- Show the entire path in either one if there's enough room.
