@@ -22,18 +22,10 @@
 #include <windows.h>
 
 #include "test-scratch.h"
+#include "test-check.h"
 
-static int failures = 0;
 static gboolean done = FALSE;
 static void *client;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
 
 static void
 ready (NemoDirectory *directory, GList *files, gpointer data)

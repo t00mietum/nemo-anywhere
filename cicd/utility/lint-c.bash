@@ -244,6 +244,32 @@ fCheckTestTreeWalks(){
 }
 fCheckTestTreeWalks
 
+## Two test helpers that used to be copied instead of shared. The check macro
+## was in the tree in two spellings across sixty-odd files, and twenty-odd
+## tests each set the same three environment variables by hand to get a
+## throwaway config root. A fresh copy of either drifts from the rest.
+fCheckTestHelpers(){
+	local bad
+
+	bad="$(grep -ln '^#define check' source/test/*.c || true)"
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: a test defines its own check macro - include test-check.h"
+		printf '%s\n' "$bad"
+		exit 2
+	fi
+
+	## test-scratch.c is the helper. test-nemo-config-root.c is the one test
+	## about how the config root is picked, so it has to point the variables
+	## at separate directories itself.
+	bad="$(grep -ln 'g_setenv ("XDG_CONFIG_HOME"' source/test/*.c | grep -vE '(test-scratch|test-nemo-config-root)\.c$' || true)"
+	if [[ -n "$bad" ]]; then
+		fEcho "FAIL: a test points the config root by hand - use test_scratch_config_home"
+		printf '%s\n' "$bad"
+		exit 2
+	fi
+}
+fCheckTestHelpers
+
 ## Row shading remembers which renderers it has already told they have no
 ## background, so it can skip saying it again on every redraw. That is only
 ## safe while cell_set_plain is the one place the property is turned off. A

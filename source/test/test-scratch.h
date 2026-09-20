@@ -22,6 +22,15 @@ char *test_scratch_dir_in  (const char  *base,
    nothing is removed and it answers FALSE. */
 gboolean test_scratch_remove_tree (const char *path);
 
+/* Points HOME, APPDATA and XDG_CONFIG_HOME at dir, so a test that reads a
+   preference cannot reach the real one. */
+void  test_scratch_point_config_at (const char *dir);
+
+/* Makes a scratch directory and points the config root at it. Call it before
+   anything that would cache the real config root - GLib caches its XDG answer
+   on first use, and so do we. */
+char *test_scratch_config_home    (const char *tmpl);
+
 /* Removes every directory made so far. Runs on its own at exit. */
 void  test_scratch_cleanup (void);
 

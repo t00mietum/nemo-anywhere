@@ -10,16 +10,7 @@
 #include <gtk/gtk.h>
 
 #include <src/nemo-proportional-paned.h>
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 #define near(got, want) ((got) >= (want) - 1 && (got) <= (want) + 1)
 

@@ -12,16 +12,7 @@
 #include <eel/eel-vfs-extensions.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* One expansion, checked as text. NULL expected means "nothing to expand". */
 static void

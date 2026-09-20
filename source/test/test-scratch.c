@@ -249,3 +249,23 @@ test_scratch_dir_in (const char *base, const char *tmpl, GError **error)
 {
 	return make_in (base, tmpl, error);
 }
+
+void
+test_scratch_point_config_at (const char *dir)
+{
+	g_setenv ("HOME", dir, TRUE);
+	g_setenv ("APPDATA", dir, TRUE);	/* the config root on Windows */
+	g_setenv ("XDG_CONFIG_HOME", dir, TRUE);
+}
+
+char *
+test_scratch_config_home (const char *tmpl)
+{
+	char *dir = make_in (g_get_tmp_dir (), tmpl, NULL);
+
+	g_return_val_if_fail (dir != NULL, NULL);
+
+	test_scratch_point_config_at (dir);
+
+	return dir;
+}

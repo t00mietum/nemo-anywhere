@@ -17,16 +17,7 @@
 #include <libnemo-private/nemo-config.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static guint
 count_args (char **argv)
@@ -352,10 +343,7 @@ main (int argc, char *argv[])
 	check_passthrough ();
 	check_unused ();
 
-	tmp = test_scratch_dir ("nemo-command-template-test-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
-	g_setenv ("APPDATA", tmp, TRUE);		/* the config root on Windows */
-	g_setenv ("HOME", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-command-template-test-XXXXXX");
 
 	gtk_init (&argc, &argv);
 	nemo_config_init ();

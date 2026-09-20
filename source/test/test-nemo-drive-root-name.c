@@ -12,16 +12,7 @@
 #include <libnemo-private/nemo-file-utilities.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* Name of the location @uri points at, or NULL if it is not a drive root. */
 static char *
@@ -52,10 +43,7 @@ main (int argc, char *argv[])
 
 	/* A throwaway config root, or the separator the real user chose decides
 	 * what a drive root is called and the spellings below fail. */
-	tmp = test_scratch_dir ("nemo-drive-root-test-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
-	g_setenv ("APPDATA", tmp, TRUE);
-	g_setenv ("HOME", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-drive-root-test-XXXXXX");
 
 	/* The whole point: a drive root is named by its letter, with the
 	 * trailing separator, so it reads as a path and not as a bare word. */

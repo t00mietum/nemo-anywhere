@@ -16,21 +16,12 @@
 #include <stdlib.h>
 
 #include "test-scratch.h"
+#include "test-check.h"
 
 #define COPY_TIMEOUT_SECONDS 20
 
-static int failures;
 static gboolean copy_finished;
 static gboolean copy_succeeded;
-
-#define check(expr)							\
-	G_STMT_START {							\
-		if (!(expr)) {						\
-			g_printerr ("FAIL %s:%d: %s\n",			\
-				    __FILE__, __LINE__, #expr);		\
-			failures++;					\
-		}							\
-	} G_STMT_END
 
 static void
 copy_done (GHashTable *debuting_uris,

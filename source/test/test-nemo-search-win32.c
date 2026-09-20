@@ -156,12 +156,7 @@ test_live (void)
 int
 main (int argc, char *argv[])
 {
-	char *scratch = test_scratch_dir ("nemo-search-win32-home-XXXXXX", NULL);
-
-	/* Every test that touches a preference points these at a throwaway dir first. */
-	g_setenv ("HOME", scratch, TRUE);
-	g_setenv ("APPDATA", scratch, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
+	char *scratch = test_scratch_config_home ("nemo-search-win32-home-XXXXXX");
 
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();

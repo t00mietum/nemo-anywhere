@@ -13,17 +13,9 @@
 #include <libnemo-private/nemo-file.h>
 
 #include "test-scratch.h"
+#include "test-check.h"
 
-static int failures = 0;
 static int logged = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
 
 static GLogWriterOutput
 counting_writer (GLogLevelFlags   level,

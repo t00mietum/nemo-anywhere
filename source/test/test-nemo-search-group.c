@@ -13,16 +13,7 @@
 #include "nemo-list-model.h"
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static NemoFile *
 file_at (const char *root, const char *relative)
@@ -65,10 +56,7 @@ main (int argc, char *argv[])
 	char *tmp, *name;
 	int name_column;
 
-	tmp = test_scratch_dir ("nemo-search-group-test-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
-	g_setenv ("APPDATA", tmp, TRUE);
-	g_setenv ("HOME", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-search-group-test-XXXXXX");
 
 	gtk_init (&argc, &argv);
 	nemo_global_preferences_init ();

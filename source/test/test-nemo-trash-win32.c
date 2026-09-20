@@ -20,20 +20,11 @@
 
 #include <libnemo-private/nemo-link-win32.h>
 #include <libnemo-private/nemo-trash-win32.h>
-
-static int failures = 0;
+#include "test-check.h"
 
 /* Cleared only when the shell bin itself could not be worked, so a run that
  * proved nothing is reported as a skip rather than a pass. */
 static gboolean real_bin_ran = FALSE;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
 
 static char *trash_files_dir;
 static char *trash_info_dir;
@@ -723,7 +714,6 @@ note_monitor_fired (GFileMonitor *monitor, GFile *file, GFile *other,
 {
 	*(gboolean *) user_data = TRUE;
 }
-
 
 /* A change that leaves the item count untouched still has to reach a watcher.
  * The poll compared counts alone, so an item replaced by another, or one going

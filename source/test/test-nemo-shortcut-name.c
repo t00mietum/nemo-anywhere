@@ -16,16 +16,7 @@
 #include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 typedef struct {
 	GMainLoop *loop;
@@ -148,9 +139,7 @@ main (int argc, char *argv[])
 	/* A test that reads the real config fails on somebody else's machine. */
 	scratch_config = g_build_filename (dir, "config", NULL);
 	g_mkdir_with_parents (scratch_config, 0700);
-	g_setenv ("APPDATA", scratch_config, TRUE);
-	g_setenv ("HOME", scratch_config, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch_config, TRUE);
+	test_scratch_point_config_at (scratch_config);
 
 	/* Only so the icon theme nemo-file hooks on startup has a screen to hang
 	   off; nothing here needs a window. */

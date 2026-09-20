@@ -13,16 +13,7 @@
 #include <libnemo-private/nemo-file.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static int loads = 0;
 static GList *added = NULL;	/* names, owned */
@@ -110,12 +101,7 @@ main (int argc, char **argv)
 	char *scratch, *tmp, *uri;
 	GList *files;
 
-	/* Every test that could reach a preference points these at a throwaway
-	   directory first. */
-	scratch = test_scratch_dir ("nemo-dirmonitor-home-XXXXXX", NULL);
-	g_setenv ("HOME", scratch, TRUE);
-	g_setenv ("APPDATA", scratch, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
+	scratch = test_scratch_config_home ("nemo-dirmonitor-home-XXXXXX");
 
 	gtk_init_check (&argc, &argv);
 

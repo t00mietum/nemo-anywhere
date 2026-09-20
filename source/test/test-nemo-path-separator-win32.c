@@ -14,16 +14,7 @@
 #include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static void
 check_applied (const char *before, const char *want)
@@ -126,10 +117,7 @@ main (int argc, char *argv[])
 {
 	char *tmp;
 
-	tmp = test_scratch_dir ("nemo-separator-test-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
-	g_setenv ("APPDATA", tmp, TRUE);
-	g_setenv ("HOME", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-separator-test-XXXXXX");
 
 	gtk_init (&argc, &argv);
 

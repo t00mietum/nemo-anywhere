@@ -17,16 +17,7 @@
 #include <libnemo-private/nemo-desktop-thumbnail.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 #define HANG_MIME   "application/x-nemo-hang-test"
 #define RELOAD_MIME "application/x-nemo-reload-test"
@@ -281,17 +272,14 @@ main (int argc, char *argv[])
 			g_usleep (G_USEC_PER_SEC);
 	}
 
-	tmp = test_scratch_dir ("nemo-thumbnail-test-XXXXXX", NULL);
-
 	/* Set before any glib call that would cache the real ones. */
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-thumbnail-test-XXXXXX");
 	g_setenv ("XDG_DATA_HOME", tmp, TRUE);
 #ifndef G_OS_WIN32
 	link_mime_database (tmp);
 #endif
 	g_setenv ("XDG_DATA_DIRS", tmp, TRUE);
 	g_setenv ("XDG_CACHE_HOME", tmp, TRUE);
-	g_setenv ("HOME", tmp, TRUE);
 
 	thumbnailers_dir = g_build_filename (tmp, "thumbnailers", NULL);
 	work_dir = g_build_filename (tmp, "files", NULL);

@@ -10,16 +10,7 @@
 #include <unistd.h>
 #include <gtk/gtk.h>
 #include <libnemo-private/nemo-dnd.h>
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* Copy `len` bytes so they end exactly at a page boundary backed by a guard
  * page, so a one-byte over-read segfaults instead of passing silently. */

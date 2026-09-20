@@ -18,16 +18,7 @@
 #include <objidl.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* Which kind of reparse point a path is, or 0 if it is not one. The find data
  * carries the tag in dwReserved0 whenever the reparse attribute is set. */

@@ -671,13 +671,10 @@ int
 main (int argc, char *argv[])
 {
 	GError *error = NULL;
-	char *scratch = test_scratch_dir ("nemo-helpers-home-XXXXXX", NULL);
+	char *scratch = test_scratch_config_home ("nemo-helpers-home-XXXXXX");
 
-	/* Preferences and the user's helper folder both come off these. */
-	g_setenv ("HOME", scratch, TRUE);
-	g_setenv ("APPDATA", scratch, TRUE);
+	/* The user's helper folder comes off these two. */
 	g_setenv ("LOCALAPPDATA", scratch, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
 	g_setenv ("XDG_DATA_HOME", scratch, TRUE);
 
 	gtk_init_check (&argc, &argv);
