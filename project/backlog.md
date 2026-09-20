@@ -144,6 +144,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
 	- Origin: came in with link-time optimization on the release lanes. Confirmed.
 
+- 🔘 Four scripts turn a dozen shellcheck rules off for the whole file.
+	- Opened: 20260920-150000
+	- `cicd.bash`, `config.bash`, `gui-headless.bash` and `include/gfs-rotate.bash` carry a header block of `disable=` lines. Each has a reason, but it applies to a handful of lines and covers every line. Quoting and unused-variable faults anywhere in those four go unseen.
+	- Origin: the headers came from a shared template and predate the checker being run at all. Confirmed by adding a fault to one of them and watching the check stay green.
+
+- 🔘 Two archive tests remove a tree without the symlink guard.
+	- Opened: 20260920-150000
+	- The `remove_tree` copies in `test-archive-job.c` and `test-extract-job.c` recurse on whatever the enumeration calls a folder, and `test-archive-job.c` plants a symlink in the same tree. Its target is missing today, so nothing outside has been removed yet.
+	- Origin: written before `nemo_delete_guard_is_real_folder` existed, and test code is not covered by the lint rule that holds it. Read, not reproduced.
+
 ### Features and enhancements
 
 - 🔘 If "show full path in tabs and window" is enabled:
