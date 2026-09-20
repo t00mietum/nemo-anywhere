@@ -285,7 +285,9 @@ public static extern System.IntPtr SendMessageTimeout(System.IntPtr hWnd, uint M
 		}
 		$ignored = [UIntPtr]::Zero
 		[NemoEnvBroadcast]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [IntPtr]::Zero, "Environment", 2, 5000, [ref]$ignored) | Out-Null
-	} catch { }
+	} catch {
+		fWarn "already-running programs will not see the new PATH until you sign in again"
+	}
 }
 
 function fPathContains {
@@ -650,8 +652,10 @@ if ($From -and (Test-Path -LiteralPath $From)) {
 }
 
 ## A downloaded archive carries a mark-of-the-web that would follow every file
-## out of it and have SmartScreen block the exe. No-op off Windows.
-try { Unblock-File -LiteralPath $archive -ErrorAction Stop } catch { }
+## out of it and have SmartScreen block the exe. The cmdlet is Windows-only.
+if (Get-Command Unblock-File -ErrorAction SilentlyContinue) {
+	Unblock-File -LiteralPath $archive -ErrorAction SilentlyContinue
+}
 
 if (-not $From -and $sumsUrl) {
 	$sumsFile = Join-Path $work "sums.txt"

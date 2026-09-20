@@ -206,17 +206,21 @@ function fMain {
 		## Reap on a size that has stopped moving, not on a fixed grace: the exe
 		## appears as soon as EVB opens it and a fixed wait can cut a large pack
 		## off mid-write.
-		$size = -1
-		try { $size = (Get-Item -LiteralPath $outExe -ErrorAction Stop).Length } catch { }
+		## Not there yet is the normal case for the first few passes.
+		$item = Get-Item -LiteralPath $outExe -ErrorAction SilentlyContinue
+		$size = if ($item) { $item.Length } else { -1 }
 		if ($size -ge 0 -and $size -eq $lastSize) { $stableFor += 3 } else { $stableFor = 0 }
 		$lastSize = $size
 
 		if ($size -gt 0 -and $stableFor -ge 15) {
 			fEcho "output settled at $size bytes; reaping enigmavbconsole (did not self-exit)"
-			try { $proc.Kill() } catch { }
+			try { $proc.Kill() } catch { fEcho "enigmavbconsole had already exited" }
 			break
 		}
-		if ($waited -ge $capSec) { try { $proc.Kill() } catch { }; fDie "enigmavbconsole timed out after ${capSec}s" }
+		if ($waited -ge $capSec) {
+			try { $proc.Kill() } catch { fEcho "enigmavbconsole had already exited" }
+			fDie "enigmavbconsole timed out after ${capSec}s"
+		}
 	}
 	if ($proc.HasExited -and $proc.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $outExe)) {
 		fDie "enigmavbconsole failed (exit $($proc.ExitCode))"

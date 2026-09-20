@@ -175,6 +175,7 @@ $LogDir = Join-Path $Root "cicd\artifacts\lint-win"
 
 $script:WasLastEchoBlank = $false
 $script:Letterbox = "•" * 73
+$script:Transcribing = $false
 
 function fEcho_Clean {
 	param([string]$Msg = "")
@@ -627,9 +628,15 @@ function fMain {
 		if ($m) { $publishMsg = $m }
 	}
 
-	## Start the transcript once past the preflight.
+	## Start the transcript once past the preflight. A run without one is worth
+	## saying out loud, since the log is where a failure gets read afterwards.
 	New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
-	try { Start-Transcript -LiteralPath (Join-Path $LogDir "run_$stamp.log") | Out-Null } catch {}
+	try {
+		Start-Transcript -LiteralPath (Join-Path $LogDir "run_$stamp.log") | Out-Null
+		$script:Transcribing = $true
+	} catch {
+		fWarn "no transcript for this run: $($_.Exception.Message)"
+	}
 
 	## Stage 0: remote sync.
 	fSection "0  Remote sync"
@@ -686,7 +693,7 @@ function fMain {
 try {
 	fMain
 } finally {
-	try { Stop-Transcript | Out-Null } catch {}
+	if ($script:Transcribing) { Stop-Transcript | Out-Null }
 }
 
 

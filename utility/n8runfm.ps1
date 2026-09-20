@@ -474,13 +474,13 @@ function fCopyIfNewer {
 		else                { Copy-Item -LiteralPath $src.FullName -Destination $tmp -Recurse -Force -ErrorAction Stop }
 		## A synced-sourced exe can carry a mark-of-the-web; clear it so the launch
 		## isn't SmartScreen-blocked. Best-effort, and no-op for a prefix dir.
-		if ($PayloadIsFile) { try { Unblock-File -LiteralPath $tmp -ErrorAction SilentlyContinue } catch { } }
+		if ($PayloadIsFile) { Unblock-File -LiteralPath $tmp -ErrorAction SilentlyContinue }
 		Move-Item -LiteralPath $tmp -Destination $dst -Force -ErrorAction Stop
 		$clock.Stop()
 		fItem "ok" "copy" ("done, {0} in {1:n2}s" -f (fHumanSize (fPayloadSize $dst)), $clock.Elapsed.TotalSeconds)
 	} catch {
 		fWarn -Gui "couldn't copy the build ($($_.Exception.Message))"
-		if (Test-Path -LiteralPath $tmp) { try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch { } }
+		Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 	}
 }
 
@@ -502,12 +502,12 @@ function fHeldMatching {
 		$want = (Get-FileHash -LiteralPath $SourceId.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
 	} catch { return $null }
 
+	## An unreadable copy just is not a match - the next one may be. Hold the
+	## result rather than reaching straight for .Hash: under StrictMode a
+	## property read off a failed call throws.
 	foreach ($copy in $candidates) {
-		try {
-			if ((Get-FileHash -LiteralPath $copy.IdFile.FullName -Algorithm SHA256 -ErrorAction Stop).Hash -eq $want) {
-				return $copy
-			}
-		} catch { }
+		$got = Get-FileHash -LiteralPath $copy.IdFile.FullName -Algorithm SHA256 -ErrorAction SilentlyContinue
+		if ($got -and $got.Hash -eq $want) { return $copy }
 	}
 	return $null
 }
@@ -761,10 +761,11 @@ function fDeleteStalePartials {
 	Get-ChildItem -LiteralPath $TargetDir -Force -Filter "${ProgramName}_*.partial" -ErrorAction SilentlyContinue |
 		Where-Object { $_.LastWriteTime -lt $cutoff } |
 		ForEach-Object {
-			try {
-				Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
+			## A partial still held open belongs to a run that is still going.
+			Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+			if (-not (Test-Path -LiteralPath $_.FullName)) {
 				fItem "ok" "cleaned" "stale partial copy: $($_.Name)"
-			} catch { }
+			}
 		}
 }
 
@@ -1337,13 +1338,18 @@ function fGuiShow {
 			$Msg, $Title,
 			[System.Windows.Forms.MessageBoxButtons]::OK,
 			[System.Windows.Forms.MessageBoxIcon]::$Icon) | Out-Null
-	} catch { }
+	} catch {
+		fLog "could not show a message box: $($_.Exception.Message)"
+	}
 }
 
 
 ## Append a timestamped line to the run log. Best-effort: logging must never be the
-## thing that stops a launch.
+## thing that stops a launch, and there is nowhere to report a failed log line to -
+## the console is gone on a shortcut click and fWarn writes here itself.
 function fLog {
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '',
+		Justification = 'Nothing can be reported from inside the logger itself.')]
 	param([string]$Msg)
 	try {
 		Add-Content -LiteralPath $RunLog -Encoding utf8 -Value `
@@ -1360,7 +1366,9 @@ function fTrimLog {
 			$tail = Get-Content -LiteralPath $Path -Tail 500
 			Set-Content -LiteralPath $Path -Value $tail -Encoding utf8
 		}
-	} catch { }
+	} catch {
+		fLog "could not trim the run log: $($_.Exception.Message)"
+	}
 }
 
 

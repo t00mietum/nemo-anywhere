@@ -80,12 +80,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Fixing it changes what gets vendored, so it means re-running all twenty themes and comparing the output.
 	- Origin: found by the new `--self-test`, which carries the case already. Confirmed.
 
-- 🔘 Fourteen `catch { }` blocks in the PowerShell scripts swallow whatever went wrong.
-	- Opened: 20260920-190000
-	- In `cicd-win.ps1`, `install.ps1`, `n8runfm.ps1` and `pack-portable.ps1`. All look like best-effort cleanup, and several would read better as `-ErrorAction SilentlyContinue` on the one call inside.
-	- The rule is off in `PSScriptAnalyzerSettings.psd1` until they are gone through, so it covers nothing today.
-	- Origin: found by the new PowerShell check. Read, not reproduced.
-
 ### Features and enhancements
 
 - 🔘 Icon view:
@@ -144,6 +138,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
 	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
 	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
+	- The dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
@@ -208,6 +203,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Fourteen `catch { }` blocks in the PowerShell scripts swallow whatever went wrong.
+	- Opened: 20260920-190000. Closed: 20260920.
+	- In `cicd-win.ps1`, `install.ps1`, `n8runfm.ps1` and `pack-portable.ps1`. All best-effort cleanup, and several read better as `-ErrorAction SilentlyContinue` on the one call inside.
+	- Fixed: thirteen are gone. Six became an `-ErrorAction` or a plain guard on the call that could fail. Five now say what went wrong, which is the part that was missing: no transcript for the run, a PATH change that running programs will not see, a packer that had already exited, a message box that could not come up, a log that could not be trimmed.
+	- The transcript pair is now a flag rather than a catch each end, so the run no longer tries to stop a transcript that never started.
+	- Left on purpose: the logger's own catch. There is nowhere to report a failed log line, since the console is gone on a shortcut click. Suppressed at that one function with a reason, not in the settings file.
+	- The rule is on in `PSScriptAnalyzerSettings.psd1` now, so a fresh empty catch fails the lint stage.
+	- Found on the way: reaching straight for `.Hash` off a call that may have failed throws under `Set-StrictMode -Version Latest`. The result is held first.
 
 - ✅ Code review 20260919.
 	- Opened: 20260919-175254. Closed: 20260920.

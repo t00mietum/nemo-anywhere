@@ -23,10 +23,5 @@
 		# pack-portable.ps1 that are all read a few lines later. Checked by
 		# hand. (-Quick really is a no-op there, which is its own open item.)
 		'PSReviewUnusedParameter'
-
-		# Fourteen `catch { }` blocks, all best-effort cleanup where there is
-		# nothing useful to say. Whether each one should be an -ErrorAction
-		# instead is on the backlog.
-		'PSAvoidUsingEmptyCatchBlock'
 	)
 }
