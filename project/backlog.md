@@ -121,9 +121,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Three findings that turned up with the checker are fixed too: a one-letter variable, a lambda where a def belongs, and two statements on one line.
 		- ✅ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
 			- Python: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
-			- Bash: `.shellcheckrc` now holds the severity and the sourced-file handling the lint stage used to pass as flags, so an editor sees the same rules. Watched to fail: with the file moved aside, seventeen findings come back.
+			- Bash: `.shellcheckrc` now holds the severity and the sourced-file handling the lint stage used to pass as flags, so an editor sees the same rules. Without it the lint stage reports seventeen findings, so it is doing real work.
 			- PowerShell: new `PSScriptAnalyzerSettings.psd1` and `cicd/utility/lint-powershell.bash`, sixth in the dispatcher. Five rules are off with a reason each; everything else is on. The one finding left is suppressed where it happens, not in the settings file.
-			- C: the two dozen cppcheck suppressions moved out of the command line into `.cppcheck-suppressions`, with the reason for each still beside it. Checked by running both ways over the same 98 files.
+			- C: the two dozen cppcheck suppressions moved out of the command line into `.cppcheck-suppressions`, with the reason for each still beside it. The findings over a 98-file range are the same as before.
 		- ✅ Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
 			- Fixed: those lines now say what was checked and leave out how. design.md and the two style guides keep theirs, since describing the build and test rig is what those files are for.
 			- A check outside the repo holds it, called from the lint stage only when it is there, so a clone without the private tree still lints.

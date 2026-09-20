@@ -41,6 +41,7 @@ mapfile -t files < <(git ls-files '*.ps1' '*.psm1')
 ## -Path takes one file at a time here: handed an array it tries to coerce the
 ## whole thing to a string and fails.
 fEcho "PowerShell lint (PSScriptAnalyzer) over ${#files[@]} script(s)..."
+# shellcheck disable=2016  ## the $ signs below are PowerShell's, and must not be expanded by bash
 PSA_FILES="$(printf '%s\n' "${files[@]}")" pwsh -NoProfile -Command '
 	$settings = Join-Path (Get-Location) "PSScriptAnalyzerSettings.psd1"
 	$found = foreach ($f in ($env:PSA_FILES -split "`n")) {
