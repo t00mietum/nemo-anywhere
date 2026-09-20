@@ -78,9 +78,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 For macOS, many actions that require CTRL+[something] in Linux or Windows, would more naturally be Command+[something] in macOS. (E.g. keyboard mod behavior in Finder.) Account for these combo key differences. But don't go overboard, e.g. don't require "Cmd+down arrow" to enter a folder. Keep the current keyboard behavior, just remap the sensible things from Ctrl to Cmd on macOS where it makes sense.
 	- Opened: 20260919-125440
 
-- 🔘 The "expand" Chevron next to folders should more reliably appear when a formerly empty folder gains content, especially after user-initiated actions (like drag and drop contents into a previously empty folder).
-	- Opened: 20260919-125440
-
 - ✅ Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
 	- Opened: 20260804-230307. Closed: 20260919.
 	- The gif is 58 seconds and 1.6 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
@@ -188,6 +185,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The "expand" Chevron next to folders should more reliably appear when a formerly empty folder gains content, especially after user-initiated actions (like drag and drop contents into a previously empty folder).
+	- Opened: 20260919-125440. Closed: 20260920.
+	- Both views only ever took the expander away. The list view dropped the placeholder row once a folder's item count came back as zero and had no branch for the count going the other way; the tree pane's look-ahead could mark a folder as having no sub-folders but never unmark one, and nothing sent it back to look.
+	- Fixed both ways round. The list view puts the placeholder back when the count rises off zero, and the tree pane looks again whenever a folder it had written off reports a change.
+	- The tree pane's look-ahead now separates "holds nothing at all" from "holds nothing it would show". The first still takes an expander away, but only the second puts one back, so a folder opened with hidden files off and found empty does not have its expander handed back by the next look.
+	- Seen on screen in both panes: a folder copied into a folder that read as empty, which before left no expander on either side.
+	- Only an action the app itself took is covered. A folder changed by something else on the machine is not watched at all - opening it is still the only way that shows up - and that has not changed.
+	- New `test-nemo-list-expander`, and a case in `test-nemo-tree-folders`.
 
 - ✅ A theme change does not send the list back to measure its columns.
 	- Opened: 20260920-234500. Closed: 20260920.

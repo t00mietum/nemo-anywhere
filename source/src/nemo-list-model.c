@@ -1199,6 +1199,14 @@ update_dummy_row (NemoListModel *model,
                 }
             }
         }
+    } else if (!file_entry->search_group && !file_entry->expanding
+               && file_entry->files != NULL
+               && g_sequence_get_length (file_entry->files) == 0) {
+        /* Empty when it was last looked at, and not any more. Nothing watches
+           a folder nobody opened, so an in-app move or copy into it is the
+           only word we get, and without this the expander never comes back. */
+        add_dummy_row (model, file_entry);
+        changed = TRUE;
     }
 
     file_entry->expanding = FALSE;

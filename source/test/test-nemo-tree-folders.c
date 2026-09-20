@@ -11,6 +11,7 @@
 #include <gtk/gtk.h>
 #include <glib/gstdio.h>
 
+#include <libnemo-private/nemo-directory-notify.h>
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
@@ -196,6 +197,8 @@ static gboolean child_settled (void) { return !has_child ("parent/child"); }
 static gboolean late_listed (void) { return iter_for ("empty/late", &(GtkTreeIter){0}); }
 static gboolean hidden_back (void) { return has_child ("hidden-only"); }
 static gboolean secret_listed (void) { return iter_for ("hidden-only/" SECRET, &(GtkTreeIter){0}); }
+static gboolean reprobe_settled (void) { return !has_child ("reprobe"); }
+static gboolean reprobe_back (void) { return has_child ("reprobe"); }
 
 /* A row that says it has children must have some, and the other way round. */
 static void
@@ -241,6 +244,7 @@ main (int argc, char *argv[])
 
 	make_dir ("tree/parent/child");
 	make_dir ("tree/empty");
+	make_dir ("tree/reprobe");
 	make_dir ("tree/files-only");
 	make_hidden_dir ("tree/hidden-only/" SECRET);
 	{
@@ -317,6 +321,26 @@ main (int argc, char *argv[])
 	check (has_child ("empty"));
 	expand ("empty", TRUE);
 	check (wait_for (late_listed));
+
+	/* Same thing with nobody asking. A copy the app made into a folder it had
+	 * already read as empty arrives as an added file, and the tree has to go
+	 * and look at the folder again by itself. */
+	check (wait_for (reprobe_settled));
+	make_dir ("reprobe/child");
+	{
+		char *path = g_build_filename (root_dir, "reprobe", NULL);
+		char *uri = g_filename_to_uri (path, NULL, NULL);
+		NemoFile *folder = nemo_file_get_by_uri (uri);
+
+		/* What the tree is told. The copy itself invalidates the folder's
+		   item count, and the re-read of it comes out here. */
+		nemo_file_changed (folder);
+
+		nemo_file_unref (folder);
+		g_free (uri);
+		g_free (path);
+	}
+	check (wait_for (reprobe_back));
 
 	/* Showing hidden files brings back an expander hidden folders earn. */
 	fm_tree_model_set_show_hidden_files (model, TRUE);

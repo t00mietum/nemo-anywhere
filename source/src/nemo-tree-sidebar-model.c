@@ -904,6 +904,8 @@ typedef struct {
 	GCancellable *cancellable;
 	GFileEnumerator *enumerator;
 	guint seen;
+	gboolean found_any;
+	gboolean found_shown;
 } SubfolderProbe;
 
 static void
@@ -914,8 +916,12 @@ probe_free (SubfolderProbe *probe)
 	g_free (probe);
 }
 
+/* The two answers differ only where hidden files are off and every sub-folder
+   is hidden. Taking the expander away needs the first: a folder that holds
+   nothing at all. Putting one back needs the second, or opening a folder and
+   finding it shows nothing would be undone by the next probe. */
 static void
-probe_done (SubfolderProbe *probe, gboolean has_subfolders)
+probe_done (SubfolderProbe *probe, gboolean has_any, gboolean has_shown)
 {
 	FMTreeModel *model;
 	TreeNode *node;
@@ -927,8 +933,12 @@ probe_done (SubfolderProbe *probe, gboolean has_subfolders)
 	probe_free (probe);
 
 	/* A folder being loaded right now gets its answer from the load. */
-	if (!has_subfolders && node->done_loading_id == 0) {
-		set_no_subfolders (model, node, TRUE);
+	if (node->done_loading_id == 0) {
+		if (!has_any) {
+			set_no_subfolders (model, node, TRUE);
+		} else if (has_shown) {
+			set_no_subfolders (model, node, FALSE);
+		}
 	}
 
 	schedule_subfolder_probe (model);
@@ -940,7 +950,6 @@ probe_files_ready (GObject *source, GAsyncResult *result, gpointer user_data)
 	SubfolderProbe *probe;
 	GList *infos, *l;
 	GError *error;
-	gboolean found;
 	GFileType type;
 
 	probe = user_data;
@@ -955,25 +964,30 @@ probe_files_ready (GObject *source, GAsyncResult *result, gpointer user_data)
 	}
 	if (error != NULL) {
 		g_error_free (error);
-		probe_done (probe, TRUE);
+		probe_done (probe, TRUE, FALSE);
 		return;
 	}
 	if (infos == NULL) {
-		probe_done (probe, FALSE);
+		probe_done (probe, probe->found_any, probe->found_shown);
 		return;
 	}
 
-	found = FALSE;
-	for (l = infos; l != NULL && !found; l = l->next) {
+	for (l = infos; l != NULL && !probe->found_shown; l = l->next) {
 		type = nemo_dir_enum_file_type (l->data);
-		found = type != G_FILE_TYPE_REGULAR && type != G_FILE_TYPE_SPECIAL;
+		if (type != G_FILE_TYPE_REGULAR && type != G_FILE_TYPE_SPECIAL) {
+			probe->found_any = TRUE;
+			if (probe->model->details->show_hidden_files
+			    || !g_file_info_get_is_hidden (l->data)) {
+				probe->found_shown = TRUE;
+			}
+		}
 		probe->seen++;
 	}
 	g_list_free_full (infos, g_object_unref);
 
 	/* A huge folder of plain files is not worth reading to the end. */
-	if (found || probe->seen >= 2000) {
-		probe_done (probe, TRUE);
+	if (probe->found_shown || probe->seen >= 2000) {
+		probe_done (probe, TRUE, probe->found_shown);
 		return;
 	}
 
@@ -998,7 +1012,7 @@ probe_enumerated (GObject *source, GAsyncResult *result, gpointer user_data)
 	}
 	if (probe->enumerator == NULL) {
 		g_clear_error (&error);
-		probe_done (probe, TRUE);
+		probe_done (probe, TRUE, FALSE);
 		return;
 	}
 
@@ -1033,7 +1047,9 @@ probe_next (gpointer user_data)
 	model->details->probe_cancellable = g_object_ref (probe->cancellable);
 
 	location = nemo_file_get_location (node->file);
-	nemo_enumerate_children_async (location, G_FILE_ATTRIBUTE_STANDARD_TYPE,
+	nemo_enumerate_children_async (location,
+				       G_FILE_ATTRIBUTE_STANDARD_TYPE ","
+				       G_FILE_ATTRIBUTE_STANDARD_IS_HIDDEN,
 				       G_FILE_QUERY_INFO_NONE, G_PRIORITY_LOW,
 				       probe->cancellable, probe_enumerated, probe);
 	g_object_unref (location);
@@ -1239,6 +1255,13 @@ update_node (FMTreeModel *model, TreeNode *node)
 	}
 	if (had_directory != has_directory) {
 		report_node_has_child_toggled (model, node);
+	}
+
+	/* Something about this folder moved, very likely its mtime because
+	   something was put in it. Nothing watches a folder nobody opened, so
+	   this is the only chance to ask again. */
+	if (node->no_subfolders && node->done_loading_id == 0) {
+		queue_subfolder_probe (model, node);
 	}
 
 	if (changed) {
