@@ -63,12 +63,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Icon view:
+- 🛠️ Icon view:
 	- Opened: 20260919-083140
 	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
 		- Expose a separate adjustment for image thumnail size. default 320px.
 		- "Mostly images" means at least 2 images and at least half the files in the folder (settled 20260920).
-	- The size slider is jammed too far to the right. Needs proper padding or margin.
+		- Not started. Needs a call first: the icon view sizes by zoom level and the largest of those is 256px, so 320 is either an eighth level or a thumbnail-only size that the zoom no longer sets.
+	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
+		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
