@@ -403,6 +403,20 @@ fCheckStyleRemeasure(){
 }
 fCheckStyleRemeasure
 
+## The zoom slider is the last thing in the status bar, so it needs a margin of
+## its own or the trough runs into the window edge.
+fCheckSliderMargin(){
+	local src='source/src/nemo-statusbar.c'
+
+	[[ -f "$src" ]] || return 0
+
+	if ! grep -q -F 'gtk_widget_set_margin_end (GTK_WIDGET (zoom_slider)' "$src"; then
+		fEcho "FAIL: ${src}: the zoom slider needs a margin at the window edge"
+		exit 2
+	fi
+}
+fCheckSliderMargin
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

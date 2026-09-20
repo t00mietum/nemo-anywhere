@@ -140,6 +140,7 @@ on_slider_changed_cb (GtkWidget *zoom_slider, gpointer user_data)
 }
 
 #define SLIDER_WIDTH 100
+#define SLIDER_END_MARGIN 6
 
 static void
 nemo_status_bar_constructed (GObject *object)
@@ -223,6 +224,10 @@ nemo_status_bar_constructed (GObject *object)
     gtk_widget_show (zoom_slider);
 
     gtk_widget_set_size_request (GTK_WIDGET (zoom_slider), SLIDER_WIDTH, 0);
+
+    /* Last thing in the row, so without this the trough runs into the window
+       edge while the buttons at the other end sit clear of it. */
+    gtk_widget_set_margin_end (GTK_WIDGET (zoom_slider), SLIDER_END_MARGIN);
     gtk_scale_set_draw_value (GTK_SCALE (zoom_slider), FALSE);
     gtk_range_set_increments (GTK_RANGE (zoom_slider), 1.0, 1.0);
     gtk_range_set_round_digits (GTK_RANGE (zoom_slider), 0);
