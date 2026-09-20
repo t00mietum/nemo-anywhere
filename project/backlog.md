@@ -45,13 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Re-vendoring the themes today would drop 53 icons.
-	- Opened: 20260920-230000
-	- Four themes were re-vendored while checking the symlink fix: WhiteSur, Colloid, Tela and Qogir. Against what is committed, 53 files go and 36 change. Nothing to do with the fix - the same thing happens with it off, so it is upstream drift since these were last taken.
-	- A dropped name falls through to Adwaita, so this is visible. Whether that is right depends on whether upstream renamed it or stopped drawing it, which needs going through name by name.
-	- The other sixteen themes have not been checked, so the real number is larger.
-	- A refresh is due at some point regardless, since every entry in the catalog but three tracks upstream HEAD.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -199,6 +192,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Re-vendoring the themes would drop 53 icons.
+	- Opened: 20260920-230000. Closed: 20260920.
+	- Not upstream drift, which is what it was filed as. Two of the four themes are still at the exact commit they were taken from, so nothing upstream could have moved. The vendoring script had stopped finding the aliases.
+	- Cause: every one of Qogir's 17,202 aliases under `links/` points at a sibling name that only exists under `src/`, so each one dangles where it sits. `-type f` skipped them for being symlinks and `-xtype f` skipped them for dangling. Neither is a reason to drop one - what the resolver wants from an alias is the name it points at, and `readlink` gives that whether or not anything is there.
+	- The committed art was right all along. It was taken on a checkout where git wrote the aliases as text files instead of symlinks, which is the one shape the old code could read.
+	- Fixed: the index takes symlinks too, and a link that dangles is followed by name rather than by path. Qogir and Tela now regenerate byte for byte against what is committed. The self-test gained two checks covering it.
+	- Real upstream drift, now that it can be told apart, is three repos and nothing that matters: WhiteSur and Colloid produce identical output, and Adwaita's 139 files differ only in attribute order and path syntax from upstream re-running their own optimizer. Left alone rather than churned.
+
 - ✅ Horizontal scrollbar frequently shows up when not needed.
 	- Opened: n/a. Closed: 20260920.
 	- Settled first: the scrollbar must not appear while anything is left to shrink, so this was a fault rather than the rule being right.
@@ -213,6 +214,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260920-170000. Closed: 20260920.
 	- `vendor-themes.bash` indexed with `find -type f`, which skips symlinks, so nothing under a theme's `links/` directory was ever a candidate on Linux. The resolver has code to follow an alias and the scorer has code to rank one, and neither could run.
 	- Fixed: the index is built with `-xtype f`, which takes a link pointing at a regular file and leaves a dangling one out. The self-test's pinned case is turned around and a dangling-link case is new.
+	- Superseded on 20260920. `-xtype f` was only half of it: nearly every alias upstream writes dangles where it sits, so this left them out too. See the item above.
 	- How many of the 180 names it was: none, today. Four themes have a `links/` directory - WhiteSur, Colloid, Tela and Qogir - and re-vendoring each one both ways gives byte-identical output. Every alias in them points at art the index already had under its own name.
 	- So the fix buys nothing on screen right now. It is worth keeping because the alias code can run at all now, and because an upstream that moves a name into `links/` alone would otherwise fall through to Adwaita with nothing to say so.
 	- Tela indexes 16,800 more candidates with this on and the run takes the same 3.4s, so the wider index costs nothing.
