@@ -20,16 +20,7 @@
 #include <libnemo-private/nemo-config.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* Every key the dialog writes, with the default it should fall back to. */
 static const struct {
@@ -180,10 +171,7 @@ main (int argc, char *argv[])
 {
 	char *tmp;
 
-	tmp = test_scratch_dir ("nemo-archive-settings-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
-	g_setenv ("APPDATA", tmp, TRUE);
-	g_setenv ("HOME", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-archive-settings-XXXXXX");
 
 	g_log_set_always_fatal (G_LOG_LEVEL_CRITICAL);
 	nemo_config_init ();

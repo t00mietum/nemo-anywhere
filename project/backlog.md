@@ -141,7 +141,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- The other module blocks stay. They say why a file exists, which is what they are for; only the one that copied a rule was a problem.
 		- 🛠️ Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
 			- Done, out of the test-duplication group: the eight hand-rolled tree removals. Seven of them removed the scratch directory the test had just made, which the helper already removes at exit, so they are simply gone. The eighth needed a removal part way through and goes through the helper now. That is 151 lines fewer.
-			- Left: the sixty-odd copies of the `check` macro, the twenty-five copies of the config-root setup, the two identical 46-line blocks, and the other four groups.
+			- Done, the rest of the test-duplication group. The `check` macro was in sixty-seven files in two spellings and is now one header. Twenty-six tests set the same environment variables by hand to get a throwaway config root and now call one helper. The two 46-line blocks are two small headers. That is 819 lines fewer, and a new check refuses a fresh copy of either.
+			- Left: the other four groups, none of which is about the tests.
 
 - 🔘 Horizontal scrollbar frequently shows up when not needed.
 

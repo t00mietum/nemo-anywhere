@@ -23,28 +23,11 @@
 #include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
+#include "test-check.h"
 
 #define CHILD_ARMED  0
 #define CHILD_QUIET  1
 #define CHILD_BROKEN 2
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
-
-static void
-point_config_at (const char *dir)
-{
-	g_setenv ("XDG_CONFIG_HOME", dir, TRUE);
-	g_setenv ("APPDATA", dir, TRUE);
-	g_setenv ("HOME", dir, TRUE);
-}
 
 /* "store" writes the setting and stops; "read" reports what arming decided. */
 static int
@@ -177,21 +160,21 @@ main (int argc, char *argv[])
 	if (NEMO_TESTGUARD_ALL_DELETES) {
 		/* The define only ever arms. Neither of the other two can take it
 		   back, and off is all either of them has to say. */
-		point_config_at (store_off);
+		test_scratch_point_config_at (store_off);
 		check (spawn_child (argv[0], "read", NULL) == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", "0") == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", "off") == CHILD_ARMED);
 
-		point_config_at (store_on);
+		test_scratch_point_config_at (store_on);
 		check (spawn_child (argv[0], "store-on", NULL) == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", "0") == CHILD_ARMED);
 	} else {
 		/* Nothing set anywhere. */
-		point_config_at (store_off);
+		test_scratch_point_config_at (store_off);
 		check (spawn_child (argv[0], "read", NULL) == CHILD_QUIET);
 
 		/* The setting on its own. */
-		point_config_at (store_on);
+		test_scratch_point_config_at (store_on);
 		check (spawn_child (argv[0], "store-on", NULL) == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", NULL) == CHILD_ARMED);
 
@@ -199,14 +182,14 @@ main (int argc, char *argv[])
 		check (spawn_child (argv[0], "read", "0") == CHILD_QUIET);
 		check (spawn_child (argv[0], "read", "off") == CHILD_QUIET);
 
-		point_config_at (store_off);
+		test_scratch_point_config_at (store_off);
 		check (spawn_child (argv[0], "store-off", NULL) == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", "1") == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", "YES") == CHILD_ARMED);
 
 		/* A value that is neither is ignored, so the setting still answers. */
 		check (spawn_child (argv[0], "read", "maybe") == CHILD_QUIET);
-		point_config_at (store_on);
+		test_scratch_point_config_at (store_on);
 		check (spawn_child (argv[0], "read", "maybe") == CHILD_ARMED);
 	}
 

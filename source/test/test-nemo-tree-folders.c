@@ -20,16 +20,7 @@
 #endif
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static FMTreeModel *model;
 static GtkTreeModel *sort_model;
@@ -240,10 +231,7 @@ main (int argc, char *argv[])
 	GIcon *icon;
 	char *uri;
 
-	root_dir = test_scratch_dir ("nemo-tree-folders-test-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", root_dir, TRUE);
-	g_setenv ("APPDATA", root_dir, TRUE);
-	g_setenv ("HOME", root_dir, TRUE);
+	root_dir = test_scratch_config_home ("nemo-tree-folders-test-XXXXXX");
 
 	if (!gtk_init_check (&argc, &argv)) {
 		g_printerr ("SKIP no display\n");

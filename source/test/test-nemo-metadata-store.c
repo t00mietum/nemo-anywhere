@@ -11,16 +11,7 @@
 #include <libnemo-private/nemo-metadata-store.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static char *
 info_string (const char *uri, const char *key)
@@ -49,10 +40,8 @@ main (int argc, char *argv[])
 	char **listval;
 	GFileInfo *info;
 
-	tmpdir = test_scratch_dir ("nemo-metastore-test-XXXXXX", NULL);
+	tmpdir = test_scratch_config_home ("nemo-metastore-test-XXXXXX");
 	g_assert (tmpdir != NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmpdir, TRUE);
-	g_setenv ("APPDATA", tmpdir, TRUE);		/* the config root on Windows */
 
 	/* set / read back */
 	nemo_metadata_store_set_string ("file:///tmp/a", "test-key", "hello");

@@ -13,16 +13,7 @@
 #include <libnemo-private/nemo-search-directory.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static int loads = 0;
 
@@ -106,10 +97,7 @@ main (int argc, char *argv[])
 	NemoQuery *query;
 	char *scratch, *dir, *sub, *uri, *search_uri;
 
-	scratch = test_scratch_dir ("nemo-search-folder-home-XXXXXX", NULL);
-	g_setenv ("HOME", scratch, TRUE);
-	g_setenv ("APPDATA", scratch, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
+	scratch = test_scratch_config_home ("nemo-search-folder-home-XXXXXX");
 
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();

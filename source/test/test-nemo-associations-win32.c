@@ -203,11 +203,8 @@ test_names (void)
 int
 main (int argc, char *argv[])
 {
-	char *scratch = test_scratch_dir ("nemo-assoc-home-XXXXXX", NULL);
+	char *scratch = test_scratch_config_home ("nemo-assoc-home-XXXXXX");
 
-	g_setenv ("HOME", scratch, TRUE);
-	g_setenv ("APPDATA", scratch, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
 
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();

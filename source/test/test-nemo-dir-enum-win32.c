@@ -19,17 +19,9 @@
 #include <libnemo-private/nemo-dir-enum.h>
 
 #include "test-scratch.h"
+#include "test-check.h"
 
-static int failures = 0;
 static gboolean skipped = FALSE;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
 
 static const char *entry_names[] = { "alpha.txt", "beta.txt", "gamma.txt", "subdir" };
 

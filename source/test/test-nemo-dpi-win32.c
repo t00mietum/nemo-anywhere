@@ -12,16 +12,7 @@
 #include <glib.h>
 
 #include <src/nemo-dpi-win32.h>
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* gtk-xft-dpi counts in 1024ths of a dot per inch. */
 #define DPI(n) ((n) * 1024)

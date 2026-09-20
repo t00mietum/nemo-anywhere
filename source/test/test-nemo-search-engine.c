@@ -19,16 +19,7 @@
 #include <libnemo-private/nemo-search-engine.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 typedef struct {
 	GList *names;		/* basename of every hit, owned */
@@ -148,10 +139,7 @@ main (int argc, char *argv[])
 	char *scratch, *dir, *sub, *uri;
 	GList *names;
 
-	scratch = test_scratch_dir ("nemo-search-engine-home-XXXXXX", NULL);
-	g_setenv ("HOME", scratch, TRUE);
-	g_setenv ("APPDATA", scratch, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch, TRUE);
+	scratch = test_scratch_config_home ("nemo-search-engine-home-XXXXXX");
 
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();

@@ -17,16 +17,7 @@
 #include "nemo-bookmark-list.h"
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static char *
 bookmarks_path (void)
@@ -312,11 +303,8 @@ main (int argc, char *argv[])
 {
 	char *tmp;
 
-	tmp = test_scratch_dir ("nemo-first-run-test-XXXXXX", NULL);
-	g_setenv ("XDG_CONFIG_HOME", tmp, TRUE);
-	g_setenv ("APPDATA", tmp, TRUE);
+	tmp = test_scratch_config_home ("nemo-first-run-test-XXXXXX");
 	g_setenv ("LOCALAPPDATA", tmp, TRUE);
-	g_setenv ("HOME", tmp, TRUE);
 
 	gtk_init (&argc, &argv);
 	g_log_set_always_fatal (G_LOG_LEVEL_CRITICAL);

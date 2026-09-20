@@ -9,16 +9,7 @@
 #include <gio/gio.h>
 
 #include <libnemo-private/nemo-file-utilities.h>
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 /* Undo both escapes and compare with the archive's own URI. */
 static void

@@ -15,21 +15,12 @@
 #include <string.h>
 
 #include "test-scratch.h"
+#include "test-check.h"
 
 #define EXTRACT_TIMEOUT_SECONDS 30
 
-static int failures;
 static gboolean job_finished;
 static gboolean job_succeeded;
-
-#define check(expr)							\
-	G_STMT_START {							\
-		if (!(expr)) {						\
-			g_printerr ("FAIL %s:%d: %s\n",			\
-				    __FILE__, __LINE__, #expr);		\
-			failures++;					\
-		}							\
-	} G_STMT_END
 
 static void
 extract_done (GFile    *destination_dir,

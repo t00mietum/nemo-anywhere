@@ -17,16 +17,7 @@
 #include <libnemo-private/nemo-metadata-store.h>
 
 #include "test-scratch.h"
-
-static int failures = 0;
-
-#define check(expr) \
-	do { \
-		if (!(expr)) { \
-			g_printerr ("FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-			failures++; \
-		} \
-	} while (0)
+#include "test-check.h"
 
 static void
 drain (void)
@@ -107,9 +98,7 @@ main (int argc, char *argv[])
 
 	scratch_config = g_build_filename (dir, "config", NULL);
 	g_mkdir_with_parents (scratch_config, 0700);
-	g_setenv ("APPDATA", scratch_config, TRUE);
-	g_setenv ("HOME", scratch_config, TRUE);
-	g_setenv ("XDG_CONFIG_HOME", scratch_config, TRUE);
+	test_scratch_point_config_at (scratch_config);
 
 	gtk_init_check (&argc, &argv);
 	nemo_global_preferences_init ();
