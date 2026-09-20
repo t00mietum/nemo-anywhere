@@ -196,21 +196,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 If "show full path in tabs and window" is enabled:
-	- Show the entire path of the current tab, if there's enough room.
-	- Show the entire path in all tabs if there's enough room.
-		- If not, show the entire path in the current tab if there's enough room.
-	- Recalculate the possibilities of both on window resize, and redraw if necessary.
-	- For window and tabs: Prefer full path, then '[beginning part]/[ellipses]/[end part]/', then '/a/b/c/d/' style.
-		- For tabs, use the same shortened form for all non-active tabs. Use own logic loop (but same logic) for fitting the active tab.
-
 - 🔘 Icon view:
 	- Opened: 20260919-083140
 	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
 	- The size slider is jammed too far to the right. Needs proper padding or margin.
-
-- 🔘 Path in window title: Show the whole thing, rather than shortened version, if it will fit.
-	- Opened: 20260919-083140
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
@@ -1457,6 +1446,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ If "show full path in tabs and window" is enabled:
+	- Show the entire path of the current tab, if there's enough room.
+	- Show the entire path in all tabs if there's enough room.
+		- If not, show the entire path in the current tab if there's enough room.
+	- Recalculate the possibilities of both on window resize, and redraw if necessary.
+	- For window and tabs: Prefer full path, then '[beginning part]/[ellipses]/[end part]/', then '/a/b/c/d/' style.
+		- For tabs, use the same shortened form for all non-active tabs. Use own logic loop (but same logic) for fitting the active tab.
+	- Closed: 20260920-180000
+	- Merged with "Path in window title: Show the whole thing, rather than shortened version, if it will fit" (opened 20260919-083140), which asked for the window half of the same thing.
+	- The tab in front is no longer held to the width cap, so it spells its path out whenever the row can spare it. The tabs behind stay capped and take the same step as each other, and they shorten until the one in front fits. It gives way only after they have nothing left.
+	- The order above wins over the one settled on 20260918, which put initials first. Folder names with an ellipsis in the middle now outrank them, so the initials form only turns up on a shallow path where an ellipsis would cost more than the folders it replaces.
+	- The window title had a flat 52-character cut. It measures the path against the window's own width now, less room for the icon and buttons, and works it out again on every resize. A title bar's real width cannot be read, so this is a guess, but it tells a path that obviously fits from one that does not.
+
 - ✅ Archive:
 	- ✅ Remember previous settings except for "delete" and password, across sessions.
 	- ✅ If "delete" is checked AND password set, show an additional simple dialog to confirm the password.
@@ -1532,6 +1534,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Folders above the last one drop to their initials first, then an ellipsis eats the middle. The root and the folder's name always stay, and home reads as ~ on Linux.
 	- The widest tab gives up a step first. A path wider than a tab may ever get starts shortened even with room to spare.
 	- This replaces the fixed 52-character cut on tabs only. The window title still uses it.
+	- Superseded 20260920 by the item above it: initials no longer come first, and the tab in front is no longer capped.
 
 - ✅ If preferences is too small to show everything, make the scrollbar always visible.
 	- Opened: 20260918-163716

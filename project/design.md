@@ -399,7 +399,11 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - A window holds tabs. Each tab is a slot with its own location, history and view, and navigation, loading state and the busy cursor all belong to the slot, which is why a slow location can only block its own tab.
 
-- A tab is as wide as its title, between two percentages of the tab row. With the full path shown, a path that is too wide, or a row too crowded to fit, gets shorter a step at a time. First the folders above the last one drop to their initials, then the middle gives way to an ellipsis. The root and the folder's own name are always kept, and a path under home reads as ~ on Linux. The widest tab gives up a step first. Past the shortest form the row scrolls, as it always did.
+- A tab is as wide as its title, between two percentages of the tab row. With the full path shown, a path too wide for that gets shorter a step at a time: an ellipsis eats the middle a folder at a time, and only when that has run out do the folders above the last one drop to their initials. The root and the folder's own name are always kept, and a path under home reads as ~ on Linux.
+
+- The tab in front is the exception. It is not capped, so it spells its path out whenever the row can spare the width, and the tabs behind it shorten together until it can. They take the same step as each other, so the row reads as one set. Only when they have nothing left to give does the tab in front start shortening too, and past its shortest form the row scrolls, as it always did.
+
+- The window title is the program name and the folder, or the whole path when the full path is shown. A title bar belongs to the window manager and its width cannot be read, so the path is measured against the window's own width less room for the icon and buttons - close enough to tell a path that obviously fits from one that does not. It shortens by the same ladder as a tab, and is worked out again whenever the window is resized.
 
 - Places and the tree view are separate panes, and both can be up at once. Each remembers its own width. A window resize leaves Places at the width it was given and shares the change among the tree view and the content panes, each in proportion to what it already had, so a pane at a third of the window stays at a third. Either pane can be turned off by itself, and one button collapses both and puts them back.
 

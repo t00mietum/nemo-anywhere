@@ -309,7 +309,7 @@ tab_chrome_px (GtkNotebook *gnotebook)
 }
 
 static gboolean
-clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation)
+clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation, int active)
 {
 	gboolean changed = FALSE;
 	int min_px, max_px, pages, avail, i;
@@ -366,8 +366,9 @@ clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation)
 	}
 
 	avail = allocation->width - pages * tab_chrome_px (gnotebook);
+	active = CLAMP (active, 0, pages - 1);
 	nemo_path_forms_fit (pages, (const gint *const *) widths, form_counts,
-			     min_px, max_px, avail, chosen);
+			     active, min_px, max_px, avail, chosen);
 
 	for (i = 0; i < pages; i++) {
 		gchar **forms;
@@ -386,7 +387,10 @@ clamp_tab_widths (GtkNotebook *gnotebook, GtkAllocation *allocation)
 			changed = TRUE;
 		}
 
-		want = CLAMP (widths[i][chosen[i]], min_px, max_px);
+		/* The tab in front keeps whatever its path needs; anything it does not
+		   take is no use to the others, which are already at the cap. */
+		want = (i == active) ? MAX (widths[i][chosen[i]], min_px)
+				     : CLAMP (widths[i][chosen[i]], min_px, max_px);
 		gtk_widget_get_size_request (labels[i], &current, NULL);
 		if (current != want) {
 			gtk_widget_set_size_request (labels[i], want, -1);
@@ -419,13 +423,24 @@ relayout_tabs_idle (gpointer user_data)
 	return G_SOURCE_REMOVE;
 }
 
+/* Refits against whichever tab is in front now. */
+static gboolean
+refit_tabs (GtkNotebook *gnotebook, int active)
+{
+	GtkAllocation allocation;
+
+	gtk_widget_get_allocation (GTK_WIDGET (gnotebook), &allocation);
+	return clamp_tab_widths (gnotebook, &allocation, active);
+}
+
 static void
 notebook_size_allocate_cb (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data)
 {
 	/* A resize queued from inside size-allocate can be dropped, which left a
 	   tab showing its new text in its old width. The pass this queues changes
 	   nothing, so it stops there. */
-	if (clamp_tab_widths (GTK_NOTEBOOK (widget), allocation) &&
+	if (clamp_tab_widths (GTK_NOTEBOOK (widget), allocation,
+			      gtk_notebook_get_current_page (GTK_NOTEBOOK (widget))) &&
 	    g_object_get_data (G_OBJECT (widget), "tab-relayout") == NULL) {
 		g_object_set_data_full (G_OBJECT (widget), "tab-relayout",
 					GUINT_TO_POINTER (g_idle_add (relayout_tabs_idle, widget)),
@@ -433,15 +448,23 @@ notebook_size_allocate_cb (GtkWidget *widget, GtkAllocation *allocation, gpointe
 	}
 }
 
+/* The tab moving to the front is the one allowed to spell out its path, so the
+   row has to be laid out again. page_num is used rather than asking, since the
+   notebook has not finished switching yet. */
+static void
+notebook_switch_page_cb (GtkNotebook *gnotebook, GtkWidget *page, guint page_num,
+			 gpointer user_data)
+{
+	refit_tabs (gnotebook, (int) page_num);
+}
+
 static void
 tab_prefs_changed_cb (NemoConfigGroup *group, const char *key, gpointer user_data)
 {
-	GtkWidget *notebook = GTK_WIDGET (user_data);
-	GtkAllocation allocation;
+	GtkNotebook *gnotebook = GTK_NOTEBOOK (user_data);
 
-	sync_tab_visibility (GTK_NOTEBOOK (notebook));
-	gtk_widget_get_allocation (notebook, &allocation);
-	clamp_tab_widths (GTK_NOTEBOOK (notebook), &allocation);
+	sync_tab_visibility (gnotebook);
+	refit_tabs (gnotebook, gtk_notebook_get_current_page (gnotebook));
 }
 
 static void
@@ -454,6 +477,8 @@ nemo_notebook_init (NemoNotebook *notebook)
 
 	g_signal_connect (notebook, "size-allocate",
 			  G_CALLBACK (notebook_size_allocate_cb), NULL);
+	g_signal_connect (notebook, "switch-page",
+			  G_CALLBACK (notebook_switch_page_cb), NULL);
 	g_signal_connect_object (nemo_preferences, "changed::" NEMO_PREFERENCES_ALWAYS_SHOW_TABS,
 				 G_CALLBACK (tab_prefs_changed_cb), notebook, 0);
 	g_signal_connect_object (nemo_preferences, "changed::" NEMO_PREFERENCES_TAB_WIDTH_MIN_PERCENT,
@@ -512,23 +537,11 @@ nemo_notebook_sync_loading (NemoNotebook *notebook,
 	}
 }
 
-/* Windows shells never print a ~, so a path there keeps its drive. */
-static const char *
-home_for_tabs (void)
-{
-#ifdef G_OS_WIN32
-	return NULL;
-#else
-	return g_get_home_dir ();
-#endif
-}
-
 void
 nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 				  NemoWindowSlot *slot)
 {
 	GtkWidget *hbox, *label;
-	GtkAllocation allocation;
 	char *location_name, *path;
 
 	g_return_if_fail (NEMO_IS_NOTEBOOK (notebook));
@@ -545,7 +558,8 @@ nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 		/* A path loses its start rather than the folder's own name when even
 		   its shortest spelling has no room. */
 		g_object_set_data_full (G_OBJECT (label), "path-forms",
-					nemo_path_forms (path, nemo_path_get_display_separator (), home_for_tabs ()),
+					nemo_path_forms (path, nemo_path_get_display_separator (),
+							 nemo_path_display_home ()),
 					(GDestroyNotify) g_strfreev);
 		gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_START);
 		gtk_label_set_text (GTK_LABEL (label), path);
@@ -556,8 +570,8 @@ nemo_notebook_sync_tab_label (NemoNotebook *notebook,
 		gtk_label_set_text (GTK_LABEL (label), slot->title);
 	}
 
-	gtk_widget_get_allocation (GTK_WIDGET (notebook), &allocation);
-	clamp_tab_widths (GTK_NOTEBOOK (notebook), &allocation);
+	refit_tabs (GTK_NOTEBOOK (notebook),
+		    gtk_notebook_get_current_page (GTK_NOTEBOOK (notebook)));
 
 	if (slot->location != NULL) {
 		/* Set the tooltip on the label's parent (the tab label hbox),

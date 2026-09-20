@@ -149,18 +149,22 @@ gchar *nemo_build_path_list_text (GList *locations, gchar separator);
 
 gchar *nemo_filename_get_extension (const gchar *name);
 
-/* Leave the middle out of a path too long for a title. The separator is the one
-   the path is spelled with; limit is roughly how many characters to aim for. */
-gchar *nemo_path_shorten (const gchar *path, gchar separator, gsize limit);
-
 /* Shorter and shorter spellings of a path for a crowded tab row, longest first.
    home is spelled with the same separator, or NULL for no ~. */
 gchar **nemo_path_forms (const gchar *path, gchar separator, const gchar *home);
 
+/* What nemo_path_forms should be given as home here: the home folder, or NULL
+   on Windows, where no shell prints a ~ and the drive matters. */
+const gchar *nemo_path_display_home (void);
+
+/* Which form fits avail pixels, given one width per form, longest first. */
+guint nemo_path_form_for_width (const gint *widths, guint count, gint avail);
+
 /* Which of each tab's forms to show so the row fits in avail pixels. widths[i]
-   holds the pixel width of each of tab i's forms, longest first. */
+   holds the pixel width of each of tab i's forms, longest first. Tab active is
+   the one in front and is not capped at max_px. */
 void nemo_path_forms_fit (guint count, const gint *const *widths, const guint *form_counts,
-                          gint min_px, gint max_px, gint avail, guint *chosen);
+                          guint active, gint min_px, gint max_px, gint avail, guint *chosen);
 
 /* The path a tab spells out when the full-path preference is on, or NULL when
    it is off or the location has no local path. */

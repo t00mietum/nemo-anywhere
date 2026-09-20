@@ -84,6 +84,9 @@ struct NemoWindowDetails
         int places_width;
         int tree_width;
 
+        /* Window width the title was last fitted to. */
+        int title_width;
+
         gboolean show_places;
         gboolean show_tree;
 
