@@ -296,6 +296,23 @@ fCheckCellPlain(){
 }
 fCheckCellPlain
 
+## The list view works out every column width itself and hands out widths that
+## come to exactly the row. An expanding column lets GTK add more on top, from a
+## share it worked out while the view was wider, and it will not give that back
+## until some width really changes - so the row scrolls sideways while fitting.
+## The places sidebar has its own tree view and is not covered by any of this.
+fCheckColumnExpand(){
+	local src='source/src/nemo-list-view.c'
+
+	[[ -f "$src" ]] || return 0
+
+	if grep -n -F 'gtk_tree_view_column_set_expand' "$src"; then
+		fEcho "FAIL: ${src}: no column expands; the layout owns the widths"
+		exit 2
+	fi
+}
+fCheckColumnExpand
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

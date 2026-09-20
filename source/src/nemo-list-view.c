@@ -155,7 +155,6 @@ struct NemoListViewDetails {
 	guint user_width_settle_id;
 	GHashTable *pending_user_widths;
 	GHashTable *user_widths;
-	gint laid_out_total;
 
 	char *original_name;
 
@@ -3728,7 +3727,6 @@ layout_columns (NemoListView *view,
 	gint *widths;
 	GList *all, *l;
 	gint n_columns = 0;
-	gint name_index = -1;
 	gint percent;
 	gint pad;
 	gint ellipsis;
@@ -3778,9 +3776,6 @@ layout_columns (NemoListView *view,
 
 		columns[i] = column;
 		class = column_class (view, column);
-		if (column == view->details->file_name_column) {
-			name_index = i;
-		}
 
 		samples_measure (samples_for (view, column), percent, &fit, &half, &widest);
 
@@ -3833,13 +3828,6 @@ layout_columns (NemoListView *view,
 
 	nemo_column_layout_distribute (items, n_columns, available, widths);
 
-	/* Name soaks up whatever rounding leaves over, so the row ends flush -
-	   unless it was dragged to a width, which an expanding column would undo. */
-	if (name_index >= 0 &&
-	    gtk_tree_view_column_get_expand (view->details->file_name_column) != items[name_index].grows) {
-		gtk_tree_view_column_set_expand (view->details->file_name_column, items[name_index].grows);
-	}
-
 	view->details->applying_layout = TRUE;
 	for (i = 0; i < n_columns; i++) {
 		if (gtk_tree_view_column_get_fixed_width (columns[i]) != widths[i]) {
@@ -3849,10 +3837,6 @@ layout_columns (NemoListView *view,
 	view->details->applying_layout = FALSE;
 
 	view->details->laid_out_width = available;
-	view->details->laid_out_total = 0;
-	for (i = 0; i < n_columns; i++) {
-		view->details->laid_out_total += widths[i];
-	}
 
 	g_free (items);
 	g_free (columns);
@@ -3966,15 +3950,6 @@ on_size_allocation_changed (GtkWidget    *widget,
        width we set here comes straight back round as another allocation. */
     if (allocation->width != view->details->laid_out_width) {
         view->details->laid_out_width = allocation->width;
-        resize_columns_soon (view);
-    } else if (page_size < upper - 1 &&
-               view->details->laid_out_total > 0 &&
-               view->details->laid_out_total <= allocation->width &&
-               view->details->resize_columns_id == 0) {
-        /* The row we handed out fits, yet the view scrolls: GTK's allocation
-           widened the expanding column behind our back (it does, once, after
-           a resize). Lay it out again; the numbers have not changed, so this
-           settles in one pass. */
         resize_columns_soon (view);
     }
 }
@@ -4198,14 +4173,14 @@ create_and_set_up_tree_view (NemoListView *view)
             /* Widths are worked out for the whole row at once, so every column
              * is fixed and nothing here is left to the tree view. No min-width:
              * it would clamp a width we meant, and the minimums are in the
-             * layout. Name stays the expanding column so a pixel lost to
-             * rounding goes somewhere sensible rather than as a gap after the
-             * last column. */
+             * layout. No expanding column either: the layout already hands the
+             * leftover to Name, and an expanding column let GTK add width on
+             * top of that from a share it had worked out while the view was
+             * wider - which is what put a scrollbar on a row that fit. */
             gtk_tree_view_column_set_sizing (view->details->file_name_column,
                                              GTK_TREE_VIEW_COLUMN_FIXED);
             gtk_tree_view_column_set_min_width (view->details->file_name_column, -1);
             gtk_tree_view_column_set_reorderable (view->details->file_name_column, TRUE);
-            gtk_tree_view_column_set_expand (view->details->file_name_column, TRUE);
             g_signal_connect (view->details->file_name_column, "notify::fixed-width",
                               G_CALLBACK (column_fixed_width_notify), view);
 

@@ -52,13 +52,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The other sixteen themes have not been checked, so the real number is larger.
 	- A refresh is due at some point regardless, since every entry in the catalog but three tracks upstream HEAD.
 
-- 🔘 Horizontal scrollbar frequently shows up when not needed.
-	- Opened: n/a
-	- Not reproduced as a fault. Driven from 1000 to 1200 wide, growing and shrinking, with overlay scrollbars on and off: the settled state always matched design.md, and the scrollbar appeared only where the combined minimum widths really did exceed the room.
-	- What it does show is how little room there is. At the default zoom and column set the minimums are name 134, size 76, ext 55, type 67, date modified 193, owner 79, group 77, permissions 122, so the list needs 803px before anything overflows. Name is the only one that gives: the fixed columns cannot shrink at all, and a minor column whose values are all the same width has a minimum equal to its widest value.
-	- So a 1080-wide window with the Places pane open sits right on the line, and the tree pane open as well scrolls always.
-	- Needs a call before any code changes, since the rule is design.md's and it overrides every other item. Three ways out: give minor columns a floor near the header width so they can ellipsize, drop owner, group and permissions from the shipped default, or leave it and treat the scrollbar as correct.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -85,6 +78,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Icon view:
 	- Opened: 20260919-083140
 	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
+		- Expose a separate adjustment for image thumnail size. default 320px.
+		- "Mostly images" means at least 2 images and at least half the files in the folder (settled 20260920).
 	- The size slider is jammed too far to the right. Needs proper padding or margin.
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
@@ -203,6 +198,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Horizontal scrollbar frequently shows up when not needed.
+	- Opened: n/a. Closed: 20260920.
+	- Settled first: the scrollbar must not appear while anything is left to shrink, so this was a fault rather than the rule being right.
+	- Cause: Name was the tree view's expanding column. The layout hands out widths that come to exactly the row, so there was nothing for GTK to expand into - but GTK kept the share it had worked out while the view was wider, and it hands that back only when some width really changes. Name sat 346px over the width it had been given, which is what the scrollbar was for.
+	- Fixed: no column expands. The layout already gives Name the leftover, so the row still ends flush and GTK has nothing to add.
+	- Why it looked random. Nothing about it needed a resize, which is why driving the window from 1000 to 1200 wide never showed it. It cleared only when a late row happened to change a width, and stayed put otherwise - so the same window could be clean, then carry a scrollbar later with nothing touched.
+	- The earlier attempt at this had the right suspicion and no effect: it laid the columns out again, which arrives at the same numbers, sets no width, and therefore leaves GTK holding the old one. That code is gone.
+	- Also why it never reproduced before: the old probes gave every file the same name, size and date, so no column could grow after the first row and the case could not arise.
+	- `lint-c.bash` now refuses any expanding column in the list view, so this cannot come back quietly.
 
 - ✅ A theme icon that exists only as a symlink is never found.
 	- Opened: 20260920-170000. Closed: 20260920.
