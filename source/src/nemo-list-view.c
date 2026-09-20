@@ -556,7 +556,7 @@ forget_cursor (NemoListView *view)
 				     "nemo-cursor-forgotten");
 }
 
-/* The first up or down key after Escape lands on the top row rather than the one
+/* The first up or down key after Escape goes to the top row rather than the one
    below it. With Ctrl it only shows the cursor there, as Ctrl moves it anyway. */
 static gboolean
 start_cursor_over (NemoListView *view, GdkEventKey *event)
@@ -658,7 +658,7 @@ preview_selected_items (NemoListView *view)
 static void activate_selected_items (NemoListView *view);
 
 /* Proper GSourceFunc: activate_selected_items is void, so casting it to a
- * source func left the timeout's repeat behaviour undefined. Clear the id and
+ * source func left the timeout's repeat behavior undefined. Clear the id and
  * fire once; if still renaming, activate_selected_items re-arms a fresh one. */
 static gboolean
 activate_selected_items_timeout (gpointer data)

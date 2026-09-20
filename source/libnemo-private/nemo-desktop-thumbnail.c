@@ -1310,7 +1310,7 @@ run_thumbnailer_script (const char *command_line)
   if (!g_shell_parse_argv (command_line, NULL, &argv, NULL))
     return FALSE;
 
-  /* Private context so the wait and the timeout land here rather than on
+  /* Private context so the wait and the timeout run here rather than on
    * whatever context this worker thread happens to be running under. */
   context = g_main_context_new ();
   g_main_context_push_thread_default (context);

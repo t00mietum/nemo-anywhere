@@ -1485,7 +1485,7 @@ ask_about_links (CopyMoveJob *copy_job,
 	}
 
 	/* Asked whenever the source holds a link, even where the destination can
-	   take none of them - then every row but the copy is greyed out, and the
+	   take none of them - then every row but the copy is grayed out, and the
 	   answer is at least visible rather than decided quietly. */
 	dest_path = g_file_peek_path (dest);
 	supported = (dest_path != NULL) ? nemo_link_kinds_supported (dest_path) : 0;

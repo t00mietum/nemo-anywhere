@@ -638,7 +638,7 @@ mount_removed_callback (GVolumeMonitor *monitor,
  * Called once the window has somewhere to be, and not before: realising the
  * chrome makes it ask its slot where it is, and a slot with neither a location
  * nor a pending one has no answer. It also has to come after any --geometry has
- * been applied, which is only honoured while the window is still hidden.
+ * been applied, which is only honored while the window is still hidden.
  */
 static void
 show_window_early (NemoWindow *window)
@@ -653,7 +653,7 @@ show_window_early (NemoWindow *window)
 	nemo_splash_note (_("Opening the window"));
 	gtk_widget_show (GTK_WIDGET (window));
 
-	/* Showing a window maps it but does not activate it, so it lands one
+	/* Showing a window maps it but does not activate it, so it sits one
 	 * place behind whatever the user was looking at - which, with a splash
 	 * covering the moment it appears, reads as nothing having opened at all
 	 * until the taskbar button is noticed. Present it, as launching an app
@@ -1079,7 +1079,7 @@ nemo_main_application_local_command_line (GApplication *application,
 
 			/* Clear the live store first so the flush leaves nothing queued,
 			 * then take the file itself - anything hand-written that nemo does
-			 * not recognise is part of "back to defaults" too. */
+			 * not recognize is part of "back to defaults" too. */
 			nemo_config_reset_all ();
 			nemo_config_flush ();
 

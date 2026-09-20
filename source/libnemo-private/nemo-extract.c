@@ -480,9 +480,7 @@ command_backends_for (const char         *name,
 	return count;
 }
 
-/*
- * Job plumbing
- */
+/* The job's own bookkeeping */
 
 static gboolean
 job_cancelled (ExtractJob *job)
@@ -702,7 +700,7 @@ resolve_target (ExtractJob *job,
 			return target;
 		}
 
-		/* A folder landing on a folder is a merge, which is what every
+		/* A folder arriving on a folder is a merge, which is what every
 		   archive with a shared top-level folder expects. */
 		if (entry_is_dir && g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY) {
 			g_object_unref (info);
@@ -778,7 +776,7 @@ note_created (ExtractJob *job,
 
 	job->wrote_anything = TRUE;
 
-	/* Only what lands directly in the folder being unpacked into is news to
+	/* Only what arrives directly in the folder being unpacked into is news to
 	   a view; anything deeper is inside something already reported. */
 	if (parent != NULL && job->current_base != NULL && g_file_equal (parent, job->current_base)) {
 		nemo_file_changes_queue_file_added (file);
@@ -1142,7 +1140,7 @@ extract_with_libarchive (ExtractJob *job,
 			} else if (!job->wrote_anything) {
 				job->maybe_encrypted =
 					looks_like_password_trouble (archive_error_string (a));
-				/* Nothing has landed yet, so a command backend
+				/* Nothing is written yet, so a command backend
 				   can still have a go - which is what covers
 				   rar, and anything else with a header
 				   libarchive can see but not read. */

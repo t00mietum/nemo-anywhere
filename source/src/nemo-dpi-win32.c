@@ -223,7 +223,7 @@ message_filter (GdkXEvent *xevent,
 {
 	MSG *msg = (MSG *) xevent;
 
-	/* Sent when a window lands on a monitor at a different scale, and when
+	/* Sent when a window moves to a monitor at a different scale, and when
 	   the scale of the monitor it is already on is changed. */
 	if (msg->message == WM_DPICHANGED) {
 		recompute_soon ();

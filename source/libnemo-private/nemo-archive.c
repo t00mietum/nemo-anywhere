@@ -247,7 +247,7 @@ nemo_archive_find_command (const char * const *names,
 	}
 
 #ifdef G_OS_WIN32
-	/* Neither installer puts itself on PATH, and both land under Program
+	/* Neither installer puts itself on PATH, and both install under Program
 	   Files, so look there before giving up. */
 	{
 		static const char * const roots[] = { "ProgramW6432", "ProgramFiles", "ProgramFiles(x86)", NULL };
@@ -462,7 +462,7 @@ nemo_archive_pick_backend (NemoArchiveFormat         format,
 
 	needed = required_caps (options);
 
-	/* A preference nothing can honour for this format is dropped before
+	/* A preference nothing can honor for this format is dropped before
 	   matching, so an option left on by default - a recovery record, which
 	   only rar has - does not steer a tar away from the writer that suits
 	   the preferences that ARE available. */

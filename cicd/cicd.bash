@@ -215,7 +215,7 @@ write_sums(){
 ## sweep up whatever happens to be lying around. The publish stage runs a bare
 ## `git add --all`, which cannot tell work in progress from a finished change, so
 ## refuse instead. Gitignored paths (the artifacts dir the run itself writes to)
-## never show up here. --allow-dirty is the one-off way back to the old behaviour.
+## never show up here. --allow-dirty is the one-off way back to the old behavior.
 require_clean_tree_for_publish(){
 	((${#GIT_PUBLISH[@]})) || return 0
 	((allow_dirty)) && return 0
@@ -766,7 +766,7 @@ fi
 
 ## Re-record the demo video (same gating shape as screenshots: off by default,
 ## skipped under --quick, never aborts). Both recordings GFS-rotate into the
-## demo-video/ directory beside the repo; the README gif also lands in
+## demo-video/ directory beside the repo; the README gif is also written to
 ## assets/demo.gif. It runs on a private Xvfb, so nothing shows up on whatever
 ## display this was started from. It needs the release build, so it goes after
 ## stage 5.

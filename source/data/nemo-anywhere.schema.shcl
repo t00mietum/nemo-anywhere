@@ -772,7 +772,7 @@ field: search.search-files-use-regex
 field: search.search-regex-format
 	type: string
 	default: pcre
-	desc: Regex flavour: pcre or javascript
+	desc: Regex flavor: pcre or javascript
 
 field: search.search-reverse-sort
 	type: bool

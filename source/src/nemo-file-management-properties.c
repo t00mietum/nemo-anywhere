@@ -527,7 +527,7 @@ nemo_file_management_properties_dialog_setup_templates_page (GtkBuilder *builder
                         TRUE, TRUE, 0);
 }
 
-/* ---- Appearance page ----
+/* Appearance page.
  *
  * Only the themes drawn for the mode in force are offered, so the two lists
  * change as the mode does. Each row remembers the theme's directory name in a
@@ -691,7 +691,7 @@ create_date_format_menu (GtkBuilder *builder)
 
 #ifdef G_OS_WIN32
 /* A forward slash cannot be refused while it is the separator on screen, so the
-   switch is pinned on and greyed out for as long as it is. */
+   switch is pinned on and grayed out for as long as it is. */
 static void
 path_separator_changed (GtkComboBox *combo_box,
 			GtkWidget   *check)

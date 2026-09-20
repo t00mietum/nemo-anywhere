@@ -87,7 +87,7 @@ def fAnalyze(total, frames, top):
         return fr[3] - sum(c[3] for c in kids(fr))
 
     ##	Buckets for this app's hot subsystems. Matched on the ancestor chain, so a
-    ##	leaf deep inside cairo still lands under drawing. Order matters: waiting is
+    ##	leaf deep inside cairo still counts under drawing. Order matters: waiting is
     ##	tested first because a blocked thread's stack also passes through GLib.
     BUCKETS = [
         ("waiting",   ("poll", "epoll_wait", "g_cond_wait", "futex", "pthread_cond",

@@ -157,7 +157,7 @@ fi
 #	pacman, so without it only the built-in PNG/JPEG loaders work and every SVG -
 #	i.e. all the symbolic toolbar/sidebar icons - fails to load. Generate it with
 #	the mingw query-loaders tool under wine. The tool anchors the loader paths at
-#	the mingw64 prefix (relative), so the cache resolves wherever the tree lands.
+#	the mingw64 prefix (relative), so the cache resolves wherever the tree sits.
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 
 pixLoaders="$SYSROOT/mingw64/lib/gdk-pixbuf-2.0/2.10.0"

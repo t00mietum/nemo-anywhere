@@ -251,9 +251,9 @@ test_move (const char *root, const char *outside, const char *precious, const ch
 {
 	GtkWidget *window;
 	GList *sources;
-	GFile *dest, *landed_gf;
+	GFile *dest, *moved_gf;
 	NemoLinkKind landed_kind;
-	char *base, *other, *link, *landed, *landed_file;
+	char *base, *other, *link, *moved_link, *moved_file;
 
 	base = other_volume (root);
 	if (base == NULL) {
@@ -269,8 +269,8 @@ test_move (const char *root, const char *outside, const char *precious, const ch
 	}
 
 	link = g_build_filename (root, "folder-link", NULL);
-	landed = g_build_filename (other, "folder-link", NULL);
-	landed_file = g_build_filename (landed, "precious.txt", NULL);
+	moved_link = g_build_filename (other, "folder-link", NULL);
+	moved_file = g_build_filename (moved_link, "precious.txt", NULL);
 	check (make_folder_link (outside, link));
 
 	window = test_window_new ("link move test", 5);
@@ -283,21 +283,21 @@ test_move (const char *root, const char *outside, const char *precious, const ch
 	g_object_unref (dest);
 
 	check (!exists (link));
-	check (exists (landed_file));
+	check (exists (moved_file));
 	check (exists (precious));
 	check (exists (deep));
 
-	landed_gf = g_file_new_for_path (landed);
-	landed_kind = nemo_link_kind (landed_gf, NULL);
-	g_object_unref (landed_gf);
+	moved_gf = g_file_new_for_path (moved_link);
+	landed_kind = nemo_link_kind (moved_gf, NULL);
+	g_object_unref (moved_gf);
 #ifdef G_OS_WIN32
 	check (landed_kind == NEMO_LINK_JUNCTION);
 #else
 	check (landed_kind == NEMO_LINK_DIR_SYMLINK);
 #endif
 
-	g_free (landed_file);
-	g_free (landed);
+	g_free (moved_file);
+	g_free (moved_link);
 	g_free (link);
 	g_free (other);
 	g_free (base);

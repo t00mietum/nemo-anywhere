@@ -57,7 +57,7 @@ read_settings (void)
 	return text;
 }
 
-/* --- change signal ------------------------------------------------------- */
+/* change signal */
 
 static int   changed_count;
 static char *changed_key;
@@ -70,7 +70,7 @@ on_changed (NemoConfigGroup *group, const char *key, gpointer data)
 	changed_key = g_strdup (key);
 }
 
-/* --- bind target --------------------------------------------------------- */
+/* bind target */
 
 static void
 test_defaults (NemoConfigGroup *prefs, NemoConfigGroup *list_view)
@@ -347,7 +347,7 @@ test_unreadable_file_kept (NemoConfigGroup *prefs)
 	g_remove (path);
 	g_mkdir (path, 0700);
 
-	/* let the monitor's DELETED/CREATED events land */
+	/* let the monitor's DELETED/CREATED events come through */
 	while (spins++ < 100) {
 		g_main_context_iteration (NULL, FALSE);
 		g_usleep (10000);

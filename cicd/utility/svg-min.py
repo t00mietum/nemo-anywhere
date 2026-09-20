@@ -6,14 +6,14 @@ sodipodi/inkscape namespaces, RDF metadata blocks, and the indentation between
 elements. Removing only those is safe for every renderer, and typically halves
 the file. Nothing that affects rendering is touched: styles, classes, gradient
 ids and xlink references all survive verbatim, which is what keeps GTK's
-symbolic recolouring working.
+symbolic recoloring working.
 
 Past that comes a numeric pass, which is where the rest of the weight is. Icons
 are traced, and a traced path carries coordinates to eight decimal places in a
 box sixteen units wide - four or five digits per number that no renderer can
 act on. Numbers are rounded to a quantum finer than a two-thousandth of the
 viewBox, which is under a tenth of a pixel at any size an icon is ever drawn,
-and re-emitted without the separators SVG does not require. Colours fold to
+and re-emitted without the separators SVG does not require. Colors fold to
 their short form and unreferenced ids go. Elements, attributes that paint,
 classes and every #id anything points at are left exactly as they were.
 
@@ -102,7 +102,7 @@ HEX6 = re.compile(r"#([0-9a-fA-F]{6})\b")
 REFERENCE = re.compile(r"#([A-Za-z_][\w.:-]*)")
 TRANSFORM = re.compile(r"(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)")
 
-COLOUR_ATTRS = ("fill", "stroke", "stop-color", "color", "flood-color",
+COLOR_ATTRS = ("fill", "stroke", "stop-color", "color", "flood-color",
         "lighting-color", "solid-color", "style")
 
 
@@ -247,7 +247,7 @@ def _referenced_ids(root):
     return found
 
 
-def _shorten_colour(text):
+def _shorten_color(text):
     def fold(match):
         digits = match.group(1)
         if digits[0] == digits[1] and digits[2] == digits[3] and digits[4] == digits[5]:
@@ -269,9 +269,9 @@ def _tighten(element, base, keep_ids, scale, is_root):
         if local == "version" and is_root:
             del element.attrib[key]
             continue
-        # A stylesheet's id is how colour-scheme tooling finds the block to
+        # A stylesheet's id is how color-scheme tooling finds the block to
         # rewrite, and nothing in the document points at it, so the reference
-        # scan cannot see that it is load-bearing. Left alone.
+        # scan cannot see that anything needs it. Left alone.
         if (local == "id" and not is_root
             and element.tag.split("}")[-1] != "style"
             and element.attrib[key] not in keep_ids):
@@ -280,8 +280,8 @@ def _tighten(element, base, keep_ids, scale, is_root):
 
         if local in ("d", "points"):
             element.attrib[key] = _shrink_path(element.attrib[key], decimals)
-        elif local in COLOUR_ATTRS:
-            element.attrib[key] = _shorten_colour(element.attrib[key])
+        elif local in COLOR_ATTRS:
+            element.attrib[key] = _shorten_color(element.attrib[key])
 
     for child in element:
         if isinstance(child.tag, str):

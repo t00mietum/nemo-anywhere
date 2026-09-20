@@ -2,7 +2,7 @@
  * a junction to a folder and a symlink to a picture both come back with no
  * content type at all, and the toolkit then hands out its plain file icon. A
  * folder link was drawn as a document because of it. These checks pin that
- * toolkit behaviour - the reason the swap has to exist - and hold a link to a
+ * toolkit behavior - the reason the swap has to exist - and hold a link to a
  * folder to the folder icon.
  */
 

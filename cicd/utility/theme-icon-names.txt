@@ -1,6 +1,6 @@
 ## Every icon name a bundled theme is trimmed down to.
 ##
-## One "<context> <name>" per line. A name ending in -symbolic lands in
+## One "<context> <name>" per line. A name ending in -symbolic goes in
 ## symbolic/<context>, everything else in scalable/<context>. Anything a theme
 ## does not have falls through to Adwaita and then hicolor via Inherits, so a
 ## gap here costs a mismatched glyph, never a missing one.
@@ -106,7 +106,7 @@ emblems emblem-danger
 emblems emblem-personal
 emblems emblem-downloads
 
-## ---- Sidebar and tree (monochrome, recoloured to the foreground) ----
+## ---- Sidebar and tree (monochrome, recolored to the foreground) ----
 places folder-symbolic
 places folder-open-symbolic
 places folder-documents-symbolic

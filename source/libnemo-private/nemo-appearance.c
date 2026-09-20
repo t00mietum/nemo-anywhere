@@ -36,7 +36,7 @@
 #include "nemo-win32-appearance.h"
 #endif
 
-/* Bundled themes land beside the app; drop-ins go in the user's own copy of
+/* Bundled themes sit beside the app; drop-ins go in the user's own copy of
  * the same two folders. Widget themes keep GTK's layout (<root>/themes/<name>/
  * gtk-3.0/gtk.css) so a theme downloaded for any GTK app works unchanged. */
 #define THEME_SUBDIR	"themes"
@@ -80,7 +80,7 @@
 #define APP_ICONS	"/org/nemo/appicons"
 
 /* Under whatever the user picked, in this order - Adwaita stopped drawing the
- * emblems and the colour mimetypes, and the legacy set is where they went. */
+ * emblems and the color mimetypes, and the legacy set is where they went. */
 static const char *fallback_icon_themes[] = { "AdwaitaLegacy", "Adwaita", NULL };
 
 static char           **theme_roots;		/* user first, NULL-terminated */
@@ -106,7 +106,7 @@ static char            *platform_icon_theme;
  * the binary. Reported in the one debug line this box can check a launch by. */
 static const char      *widget_theme_source = "none";
 
-/* ---- Roots ---- */
+/* Roots */
 
 static void
 build_theme_roots (void)
@@ -164,7 +164,7 @@ ensure_user_dirs (void)
 	g_free (user_dir);
 }
 
-/* ---- index.theme reading ---- */
+/* index.theme reading */
 
 static guint
 parse_modes (const char *value)
@@ -231,7 +231,7 @@ variant_sibling (const char *name, const char *word, gboolean capitalize)
 	return out;
 }
 
-/* ---- Enumeration ---- */
+/* Enumeration */
 
 typedef struct {
 	NemoThemeKind kind;
@@ -364,7 +364,7 @@ scan_add (ScanState  *state,
 	g_ptr_array_add (state->order, info);
 }
 
-/* ---- The bundled set, out of the binary ---- */
+/* The bundled set, out of the binary */
 
 static const char *
 catalog_dir (NemoThemeKind kind)
@@ -811,7 +811,7 @@ nemo_appearance_icons_for_widget_theme (const char *widget_name)
 	return out;
 }
 
-/* ---- Applying ---- */
+/* Applying */
 
 /* TRUE once GTK can resolve @name by itself, so we can hand it the name and
  * let its own machinery do the rest. */
@@ -955,7 +955,7 @@ system_prefers_dark (void)
 	return nemo_win32_prefers_dark ();
 #else
 	/* Elsewhere the desktop has already told GTK, so "system" means leaving
-	 * that answer alone. macOS gets its own probe when that target lands. */
+	 * that answer alone. macOS gets its own probe when that target is taken up. */
 	return desktop_dark;
 #endif
 }

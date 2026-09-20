@@ -153,7 +153,7 @@ same_path (const char *a, const char *b)
 }
 
 /* Every field a shortcut carries reads back as written, and an edit of the
- * target and the arguments lands in the file while the rest stays. */
+ * target and the arguments reaches the file while the rest stays. */
 static void
 test_info_round_trip (const char *dir, const char *target)
 {
@@ -234,7 +234,7 @@ main (int argc, char *argv[])
 		char *got = resolved ? long_path (resolved) : NULL;
 
 		check (resolved != NULL);
-		/* Case-insensitive: the shell may normalise the drive/casing. */
+		/* Case-insensitive: the shell may normalize the drive/casing. */
 		check (got != NULL && g_ascii_strcasecmp (got, want) == 0);
 		g_free (resolved);
 		g_free (got);
@@ -325,7 +325,7 @@ main (int argc, char *argv[])
 
 	/* The point of handing the shortcut itself to the shell rather than its
 	 * target: the arguments and the working directory come along. Both are
-	 * checked at once by writing to a relative name - it can only land in the
+	 * checked at once by writing to a relative name - it can only be written in the
 	 * shortcut's working directory. */
 	{
 		const char *shell = g_getenv ("COMSPEC");

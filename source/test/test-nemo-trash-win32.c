@@ -4,7 +4,7 @@
  *
  * The seeded cases need wine, since they write straight into that XDG trash. The
  * rest recycle files of their own through the shell, so they run on either, and a
- * native run is where the recycle-bin behaviour is actually observable: a listed
+ * native run is where the recycle-bin behavior is actually observable: a listed
  * name that keeps its extension, an original location worth restoring to, a 64-bit
  * deletion timestamp, and a uri from outside the bin being refused. */
 
@@ -209,7 +209,7 @@ walk_trash_tree (GFile *dir)
 	return seen;
 }
 
-/* --- a trashed folder must list its contents and delete as a unit --- */
+/* a trashed folder must list its contents and delete as a unit */
 
 static void
 test_trashed_folder (void)
@@ -415,7 +415,7 @@ test_real_bin_roundtrip (void)
 			}
 		}
 
-		/* Formatted from a 64-bit shell timestamp; a truncated one lands
+		/* Formatted from a 64-bit shell timestamp; a truncated one falls
 		 * outside this century rather than merely being wrong. */
 		date = g_file_info_get_attribute_string (info, "trash::deletion-date");
 		check (date != NULL);
@@ -732,7 +732,7 @@ note_monitor_fired (GFileMonitor *monitor, GFile *file, GFile *other,
  * Rewriting a backing file is no good as a stand-in: the shell reports the size
  * it recorded when the item was recycled, not what the file holds now, so that
  * changes nothing it can see. What does move it is one item leaving and a
- * differently-sized one arriving - the count lands back where it started and
+ * differently-sized one arriving - the count comes back to where it started and
  * only the total size says anything happened. Both happen with the main loop
  * parked, so no poll can run in between and catch the count mid-swing. */
 static void
@@ -919,7 +919,7 @@ test_vanished_item_not_healthy (void)
 				/* Not presented as something that can be opened.
 				 * Said outright, not left unset: an absent
 				 * attribute reads as false anyway, so only an
-				 * explicit one shows the case was recognised. */
+				 * explicit one shows the case was recognized. */
 				check (g_file_info_has_attribute (
 					info, G_FILE_ATTRIBUTE_ACCESS_CAN_READ));
 				check (!g_file_info_get_attribute_boolean (

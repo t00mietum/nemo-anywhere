@@ -22,7 +22,7 @@
 
 /* Name, format and folder are the whole dialog until the options expander is
  * opened. What is inside it depends on the format: an option no installed
- * program can honour for that format is shown greyed rather than hidden, so a
+ * program can honor for that format is shown grayed rather than hidden, so a
  * format that gains an option once 7z or rar is installed does not look like a
  * different dialog.
  */
@@ -151,7 +151,7 @@ update_name_validity (ArchiveDialog *self)
 }
 
 /* Everything that depends on the chosen format: which options that format can
-   honour on this box, and the extension on the suggested name. */
+   honor on this box, and the extension on the suggested name. */
 static void
 update_for_format (ArchiveDialog *self)
 {
@@ -847,7 +847,7 @@ nemo_archive_dialog_show (GtkWindow *parent_window,
 	}
 	add_row (grid, row++, _("_Where"), self->folder_button);
 
-	/* Greyed rather than hidden with one item selected: it is the same
+	/* Grayed rather than hidden with one item selected: it is the same
 	   dialog either way, and there is nothing to explain about why it is
 	   not offered. */
 	self->each_check = add_check (grid, row++, _("Compress each item se_parately"), FALSE);

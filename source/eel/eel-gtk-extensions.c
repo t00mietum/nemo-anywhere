@@ -178,7 +178,7 @@ eel_gtk_window_set_initial_geometry (GtkWindow *window,
 		 * means the window's right (or bottom) edge sits N pixels in from
 		 * that screen edge. The parser has already made real_left negative,
 		 * so the sign is applied once here, and the window's own size is
-		 * subtracted - without either, -20-20 landed off-screen and got
+		 * subtracted - without either, -20-20 ended up off-screen and got
 		 * clamped back to the primary monitor's origin.
 		 */
 		if (geometry_flags & (EEL_GDK_X_NEGATIVE | EEL_GDK_Y_NEGATIVE)) {

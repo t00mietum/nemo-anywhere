@@ -1030,7 +1030,7 @@ paste_into_clipboard_received_callback (GtkClipboard     *clipboard,
 
 	view = FM_TREE_VIEW (data);
 
-	/* popup_file can be cleared in idle before this async reply lands. */
+	/* popup_file can be cleared in idle before this async reply arrives. */
 	if (view->details->popup_file != NULL) {
 		directory_uri = nemo_file_get_uri (view->details->popup_file);
 		paste_clipboard_data (view, selection_data, directory_uri);

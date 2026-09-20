@@ -68,7 +68,7 @@ main (int argc, char *argv[])
 	check (g_strcmp0 (name, "K:\\") == 0);
 	g_free (name);
 
-	/* Case is normalised up, so two spellings of one drive cannot show as
+	/* Case is normalized up, so two spellings of one drive cannot show as
 	 * two differently-named places. */
 	name = name_for_uri ("file:///k:/");
 	check (g_strcmp0 (name, "K:\\") == 0);
@@ -93,7 +93,7 @@ main (int argc, char *argv[])
 	check (!is_root_uri ("file://server/share"));
 	check (name_for_uri ("file://server/share") == NULL);
 
-	/* Both separators reach the same place, so both must be recognised -
+	/* Both separators reach the same place, so both must be recognized -
 	 * nemo builds "file:///C:/" itself while a typed path arrives as C:\. */
 	check (is_root_uri ("file:///C:/"));
 	{

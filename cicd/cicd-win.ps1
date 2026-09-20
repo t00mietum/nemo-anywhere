@@ -155,7 +155,7 @@ $PortableExe = Join-Path $Root "cicd\artifacts\win-portable\$ExeName.exe"
 ## The single version source. meson.build carries `version : '6.6.4'` (colon form).
 $VersionManifest = Join-Path $Root "source\meson.build"
 
-## Code signing (optional; all from env so nothing secret lands in the repo). Signing
+## Code signing (optional; all from env so nothing secret is written into the repo). Signing
 ## is a no-op unless a cert is configured, so the unsigned dev flow is never blocked.
 ##   NEMO_SIGN_THUMBPRINT  SHA1 thumbprint of an installed cert (store or token) - preferred
 ##   NEMO_SIGN_PFX (+ _PASSWORD)  a .pfx on disk (testing / self-signed)
@@ -200,7 +200,7 @@ function fToMsysPath {
 }
 
 ## Run a command in the MSYS2 mingw64 login shell, from the repo root. The command's
-## own stdout streams to the console; its exit code lands in $script:MingwRc (NOT the
+## own stdout streams to the console; its exit code goes to $script:MingwRc (NOT the
 ## return value - a function's return is its whole pipeline, so returning the code
 ## would fold the native stdout into it). MSYSTEM=MINGW64 + a login shell give the
 ## mingw64 PATH and codegen tools; CHERE_INVOKING keeps our cd instead of $HOME.

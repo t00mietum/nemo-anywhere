@@ -34,7 +34,7 @@ check_keeps_its_share (void)
 	/* Half stays half. */
 	check (nemo_pane_layout_scale_position (500, 1000, 1280, FLOOR) == 640);
 
-	/* A width that divides into nothing round still lands within a pixel. */
+	/* A width that divides into nothing round still comes within a pixel. */
 	check (nemo_pane_layout_scale_position (240, 1278, 1000, FLOOR) == 188);
 }
 
@@ -74,7 +74,7 @@ check_degenerate_widths (void)
 	check (nemo_pane_layout_scale_position (240, 1000, -5, FLOOR) == 240);
 }
 
-/* Odd inputs land somewhere sane instead of somewhere wild. */
+/* Odd inputs give something sane instead of something wild. */
 static void
 check_out_of_range_position (void)
 {

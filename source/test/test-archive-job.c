@@ -1,5 +1,5 @@
 /* Compressing for real: a folder of items is handed to the job both ways -
- * everything into one archive, and one archive per item - and what lands on
+ * everything into one archive, and one archive per item - and what reaches
  * disk is read back with libarchive. What goes in each archive is the point,
  * so the entry names are checked rather than just the file being there. */
 
@@ -233,7 +233,7 @@ check_each_archive (const char         *source_dir,
 }
 
 /* An archive in the selection keeps its suffix rather than swapping it, or the
-   archive being written would land on the file being read. */
+   archive being written would overwrite the file being read. */
 static void
 check_archive_of_archive (const char *out_dir,
 			  GtkWidget  *window)
@@ -398,7 +398,7 @@ check_verify (const char *tmp,
 	options.encrypt_names = FALSE;
 
 	/* The same four answers straight from the predicate. The Compress dialog
-	   greys its delete box on this, so the rule is checked once here rather
+	   grays its delete box on this, so the rule is checked once here rather
 	   than through a window. */
 	check_predicate ();
 

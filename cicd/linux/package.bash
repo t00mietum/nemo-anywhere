@@ -100,7 +100,7 @@ prefix="${work}/${base}"
 ## Both formats install the same thing, so build the tree once: the whole prefix
 ## under /opt, then the launcher, menu entry and icons in the system locations.
 ## The menu entry's Exec/Icon are rewritten to absolute paths - the tarball's copy
-## points at wherever the folder happened to land, which a package knows for sure.
+## points at wherever the folder happened to end up, which a package knows for sure.
 build_tree(){
 	local root="$1" size src
 	mkdir -p "${root}/opt" "${root}/usr/bin" "${root}/usr/share/applications"

@@ -24,4 +24,12 @@ bash "${here}/lint-c.bash" "$@"
 bash "${here}/lint-bash.bash"
 bash "${here}/lint-python.bash"
 bash "${here}/lint-identity.bash"
+bash "${here}/lint-prose.bash"
 bash "${here}/vendor-themes.bash" --self-test
+
+## The content scrub is kept outside the repo, so a fresh clone without the
+## private tree still lints.
+scrub="$(cd "${here}/../.." && pwd)/../private/hooks/scrub.bash"
+[[ -x "$scrub" ]] && bash "$scrub"
+
+exit 0

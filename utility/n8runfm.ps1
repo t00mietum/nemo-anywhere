@@ -1183,7 +1183,7 @@ function fStartApp {
 	try {
 		$proc = Start-Process @sp
 	} catch {
-		## RunAs throws if UAC is declined; surface it plainly.
+		## RunAs throws if UAC is declined; report it plainly.
 		fFail "launch failed for $Exe ($($_.Exception.Message))"
 	}
 
@@ -1243,14 +1243,14 @@ function fStep {
 
 
 ## One row under a step: a status tag, an optional label column, then free text. Only
-## the tag is coloured - a whole coloured line is a wall of green.
+## the tag is colored - a whole colored line is a wall of green.
 function fItem {
 	param([string]$Status = "-", [string]$Label = "", [string]$Detail = "")
 
 	$script:StepRows++
 	fLog ("{0,-5} {1,-12} {2}" -f $Status, $Label, $Detail).TrimEnd()
 
-	$colour = switch ($Status) {
+	$color = switch ($Status) {
 		"ok"   { "Green" }
 		"skip" { "Yellow" }
 		"warn" { "Yellow" }
@@ -1258,7 +1258,7 @@ function fItem {
 		default { "DarkGray" }
 	}
 	Write-Host "    " -NoNewline
-	Write-Host ("{0,-5}" -f $Status) -NoNewline -ForegroundColor $colour
+	Write-Host ("{0,-5}" -f $Status) -NoNewline -ForegroundColor $color
 	Write-Host (" {0,-12} {1}" -f $Label, $Detail).TrimEnd()
 }
 
@@ -1273,7 +1273,7 @@ function fHumanSize {
 }
 
 
-## Non-fatal problem (and the run log). Pass -Gui to also surface it in the
+## Non-fatal problem (and the run log). Pass -Gui to also show it in the
 ## end-of-run dialog (the shortcut case, where the console flashes shut) - reserved
 ## for real problems (a failed copy), not benign skips (a source that isn't there).
 function fWarn {
@@ -1387,7 +1387,7 @@ function fSelfHealMotw {
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-## Problems worth surfacing at the end (a failed copy etc.), shown in a dialog when
+## Problems worth reporting at the end (a failed copy etc.), shown in a dialog when
 ## launched from a shortcut. Must exist before any fWarn -Gui / fFail can run.
 $script:RunWarnings = @()
 
@@ -1459,7 +1459,7 @@ if ($wantAdmin) { $RunAsAdmin = $true }
 
 fMain -PassArgs $passArgs -NoUpdate:$noUpdate
 
-## Surface any real problems (a failed copy etc.) for the shortcut case.
+## Report any real problems (a failed copy etc.) for the shortcut case.
 if ($script:GuiFeedback -and $script:RunWarnings.Count) {
 	fGuiShow -Icon Warning -Title "Nemo Anywhere dogfood" -Msg (
 		"Launched, but with issues:`n`n - " + ($script:RunWarnings -join "`n - "))
@@ -1487,7 +1487,7 @@ exit 0
 ##		  '<name>_versions' beside a symlink at the fixed name, and is GFS-rotated on
 ##		  every run (hour/day/week/month/year plus the most recent few and the very
 ##		  first build) under a 10/5/1GB budget, replacing the flat seven-day sweep. A
-##		  build already held is recognised by its bytes rather than its date, so a
+##		  build already held is recognized by its bytes rather than its date, so a
 ##		  restamp by the sync layer no longer costs a re-copy. macOS joins Linux and
 ##		  Windows. '--no-update' runs what is held without touching the pool. The
 ##		  desktop entry now runs this launcher rather than a dated copy of the app.
@@ -1503,7 +1503,7 @@ exit 0
 ##		  roots can't wedge on a dead mount.
 ##		- 2026-08-22: Launch opens at a configured startup location (the 0_links
 ##		  folder on either platform) when nothing else was named on the command
-##		  line, so a shortcut click lands somewhere useful instead of the app's
+##		  line, so a shortcut click opens somewhere useful instead of the app's
 ##		  own default.
 ##		- 2026-08-21: Every source is probed now instead of taking the first that
 ##		  answers, and the newest build wins wherever it sits: this box's own repo

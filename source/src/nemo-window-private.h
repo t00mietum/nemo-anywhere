@@ -140,7 +140,7 @@ struct NemoWindowDetails
 #define NEMO_WINDOW_MIN_WIDTH		200
 #define NEMO_WINDOW_MIN_HEIGHT		200
 /* These are the CONTENT area, which is what gtk_window_set_default_size takes.
- * Sized so the whole window - title bar and borders included - lands on
+ * Sized so the whole window - title bar and borders included - fits
  * 1280x720: a Windows frame adds 2px of width and 32px of height.
  */
 #define NEMO_WINDOW_DEFAULT_WIDTH		1278

@@ -299,7 +299,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "search", "search-file-case-sensitive", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "search", "search-files-recursively", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "search", "search-files-use-regex", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
-	{ "search", "search-regex-format", NEMO_CONFIG_STRING, "pcre", NULL, NULL, "Regex flavour: pcre or javascript" },
+	{ "search", "search-regex-format", NEMO_CONFIG_STRING, "pcre", NULL, NULL, "Regex flavor: pcre or javascript" },
 	{ "search", "search-reverse-sort", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "search", "search-skip-folders", NEMO_CONFIG_STRING_LIST, NULL, deflist_search_search_skip_folders, NULL, "Paths or folder names a search never enters" },
 	{ "search", "search-sort-column", NEMO_CONFIG_STRING, "", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },

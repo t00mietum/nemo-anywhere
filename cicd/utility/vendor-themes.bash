@@ -83,7 +83,7 @@ fEcho_Clean(){ echo "$@"; }
 ##	Adwaita is here for the same reason as the rest. The sysroot ships it whole,
 ##	AdwaitaLegacy beside it (1810 png at six sizes) and 33 X11 cursors we cannot
 ##	use on Windows - 2693 files to answer the ~140 names we ask of it. Adwaita
-##	stopped drawing emblems and the colour mimetypes, so the legacy set stays as
+##	stopped drawing emblems and the color mimetypes, so the legacy set stays as
 ##	its own theme behind it, trimmed the same way, for the couple of dozen names
 ##	that live nowhere else.
 
@@ -110,7 +110,7 @@ iconThemes=(
 	"ffflamengo|FF-Flamengo-RJ-BR|Flamengo|light;dark||https://www.opencode.net/felipefacundes/ff-flamengo-rj-br|HEAD|icons||full"
 )
 
-## Widget themes: the whole gtk-3.0 folder, normalised so gtk.css is always at
+## Widget themes: the whole gtk-3.0 folder, normalized so gtk.css is always at
 ## gtk-3.0/gtk.css (upstream may only have a gtk-3.20 variant).
 ##
 ##		id | outName | style | modes | counterpart | url | ref | subdir | layout
@@ -159,7 +159,7 @@ fClone(){
 
 	if [[ -d "$dest/.git" ]]; then
 		## Several themes can come out of one sparse checkout - the six Simply
-		## Circles colours do - and each names only its own directory, so widen
+		## Circles colors do - and each names only its own directory, so widen
 		## the checkout rather than reusing one that is missing the others.
 		if [[ "$fetch" == "sparse" && -n "$roots" && "$roots" != "." ]]; then
 			# shellcheck disable=SC2086  ## roots is a space-separated list; the split is the point.
@@ -310,7 +310,7 @@ fResolve(){
 			[[ -n "$path" ]] || continue
 			## A monochrome glyph is one in a symbolic/ directory or named
 			## <name>-symbolic. Matching "symbolic" anywhere in the path threw
-			## away emblem-symbolic-link, which is a colour emblem for a
+			## away emblem-symbolic-link, which is a color emblem for a
 			## symlink and the one every symlinked file in the view wears.
 			isSymbolic=0
 			[[ "$path" == */symbolic/* || "${path##*/}" == *-symbolic.* ]] && isSymbolic=1
@@ -547,7 +547,7 @@ fBuildIconTheme(){
 		## Not every theme has a symbolic set - Papirus has none at all, only
 		## size buckets - so a miss retries the plain name at a toolbar size.
 		## GTK still treats the installed file as symbolic because of how it is
-		## named, and a flat 16px glyph in the theme's own colours beats
+		## named, and a flat 16px glyph in the theme's own colors beats
 		## dropping the whole toolbar back to Adwaita.
 		if [[ -z "$src" && "$symbolic" == "1" ]]; then
 			if fResolve "$repo" "$ctx" "${name%-symbolic}.svg" 0 small; then
@@ -678,7 +678,7 @@ fBuildWidgetTheme(){
 		cp -f "$base/3.0/gtk-Light.css" "$dest/gtk-3.0/gtk.css"
 		cp -f "$base/3.0/gtk-Dark.css"  "$dest/gtk-3.0/gtk-dark.css"
 	else
-		## Prefer the newest gtk-3.x sheet upstream ships; normalise it to gtk-3.0.
+		## Prefer the newest gtk-3.x sheet upstream ships; normalize it to gtk-3.0.
 		src=""
 		for d in gtk-3.24 gtk-3.22 gtk-3.20 gtk-3.0 3.0; do
 			if [[ -f "$base/$d/gtk.css" ]]; then src="$base/$d"; break; fi

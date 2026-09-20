@@ -112,7 +112,7 @@ name_owner (GDBusConnection *bus)
 	return owner;
 }
 
-/* Poll for the name to land somewhere other than was, up to seconds. */
+/* Poll for the name to move somewhere other than was, up to seconds. */
 static char *
 wait_owner_change (GDBusConnection *bus, const char *was, int seconds)
 {

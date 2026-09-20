@@ -341,7 +341,7 @@ nemo_link_choice_ask (GtkWindow      *parent,
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 
-	/* Say why an option is greyed out, for the two reasons a whole column can
+	/* Say why an option is grayed out, for the two reasons a whole column can
 	   be. Junctions without symlinks is only ever Windows without the
 	   privilege; nothing at all is a file system that keeps no links. */
 	if (is_move && supported == 0) {

@@ -241,7 +241,7 @@ nemo_get_user_config_root (void)
 }
 
 /* Windows and macOS used to keep the config dir wherever GLib's XDG answer
- * landed. Move a dir left there by an older build rather than silently
+ * put it. Move a dir left there by an older build rather than silently
  * starting from defaults; a partial or failed move leaves the old one alone. */
 static void
 migrate_legacy_user_directory (const char *user_directory)
@@ -2228,7 +2228,7 @@ nemo_path_is_network_safe (const gchar *path)
     return nemo_location_is_network_safe (location);
 }
 
-/* Three surfaces used to name a drive root three different ways: gio's display
+/* Three places used to name a drive root three different ways: gio's display
    name is the basename, which is "\" for every drive alike; the volume monitor
    says "(C:) Windows"; and the sidebar built "Windows (C:)" itself. The drive
    letter is the part that identifies it, so that is what all of them show now. */
@@ -2277,7 +2277,7 @@ nemo_get_drive_root_name (GFile *location)
 }
 
 /* One path per line, with the line ending the local shells and editors expect.
-   A path pasted into cmd.exe or notepad has to carry CRLF to land as separate
+   A path pasted into cmd.exe or notepad has to carry CRLF to arrive as separate
    lines. */
 #ifdef G_OS_WIN32
 #define PATH_LIST_SEPARATOR "\r\n"

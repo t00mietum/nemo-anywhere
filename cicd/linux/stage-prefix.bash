@@ -37,7 +37,7 @@ staging="$(mktemp -d)"
 trap 'rm -rf "${staging}"' EXIT
 DESTDIR="${staging}" meson install -C "${BUILD}" >/dev/null
 
-## The configured prefix is wherever bin/<slug> landed under the scratch root; take
+## The configured prefix is wherever bin/<slug> ended up under the scratch root; take
 ## it from the tree rather than assuming, so a re-prefixed build still stages.
 installed="$(find "${staging}" -type f -path "*/bin/${SLUG}" -print -quit)"
 [[ -n "${installed}" ]] || { fEcho "FAILED: meson install produced no bin/${SLUG}"; exit 1; }

@@ -253,8 +253,8 @@ test_uncommenting_takes_effect (NemoConfigGroup *prefs, NemoConfigGroup *menus,
 	g_free (text);
 }
 
-/* SHCL decides which group a run of comments belongs to, and a binding landing
- * in the middle of the list has been seen to bring the rest of it back indented
+/* SHCL decides which group a run of comments belongs to, and a binding written
+ * into the middle of the list has been seen to bring the rest of it back indented
  * under that group. Whatever the indent, it is still the old copy and still has
  * to come off. */
 static void
