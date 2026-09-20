@@ -105,7 +105,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- 🔘 Item 20. Three competing banner-comment conventions in first-party C, and a prose block at the top of nearly every first-party file. One of those blocks restates a design.md rule that can drift from it.
 		- 🔘 Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
 
-- 🔘 Horizontal scrollbar sometimes shows up when not needed.
+- 🔘 Horizontal scrollbar frequently shows up when not needed.
 
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
@@ -124,6 +124,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
+
+- 🔘 If "show full path in tabs and window" is enabled:
+	- Show the entire path in either one if there's enough room.
+	- Recalculate the possibility of both on window resize.
 
 - 🔘 Icon view:
 	- Opened: 20260919-083140
