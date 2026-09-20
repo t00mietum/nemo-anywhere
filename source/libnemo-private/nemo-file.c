@@ -455,7 +455,7 @@ get_metadata_from_info (GFileInfo *info)
 }
 
 /* The store key for a file: its uri, except favorites entries resolve to
- * the real file they point at, so markers land on the target. */
+ * the real file they point at, so markers go on the target. */
 char *
 nemo_file_get_metadata_store_uri (NemoFile *file)
 {

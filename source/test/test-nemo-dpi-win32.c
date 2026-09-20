@@ -41,12 +41,12 @@ static void
 check_fractions (void)
 {
 	/* The cases the whole steps cannot reach. At 125% and 150% the toolkit
-	   scales by 1, so the whole of it lands on the type. */
+	   scales by 1, so the whole of it goes to the type. */
 	check (nemo_dpi_win32_font_dpi (120, 1) == DPI (120));
 	check (nemo_dpi_win32_font_dpi (144, 1) == DPI (144));
 
 	/* And at 175% or 250%, where it scales by 1 or 2, whatever is left over
-	   lands on the type. */
+	   goes to the type. */
 	check (nemo_dpi_win32_font_dpi (168, 1) == DPI (168));
 	check (nemo_dpi_win32_font_dpi (240, 2) == DPI (120));
 }

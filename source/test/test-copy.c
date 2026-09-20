@@ -64,7 +64,7 @@ main (int argc, char* argv[])
 	GtkWidget *window;
 	GList *sources = NULL;
 	GFile *dest;
-	char *tmp, *src_dir, *dst_dir, *src_file, *landed, *contents = NULL;
+	char *tmp, *src_dir, *dst_dir, *src_file, *dest_file, *contents = NULL;
 	guint timeout_id;
 
 	test_init (&argc, &argv);
@@ -97,9 +97,9 @@ main (int argc, char* argv[])
 	check (copy_finished);
 	check (copy_succeeded);
 
-	landed = g_build_filename (dst_dir, "copied.txt", NULL);
-	check (g_file_test (landed, G_FILE_TEST_IS_REGULAR));
-	if (g_file_get_contents (landed, &contents, NULL, NULL)) {
+	dest_file = g_build_filename (dst_dir, "copied.txt", NULL);
+	check (g_file_test (dest_file, G_FILE_TEST_IS_REGULAR));
+	if (g_file_get_contents (dest_file, &contents, NULL, NULL)) {
 		check (g_strcmp0 (contents, "payload") == 0);
 		g_free (contents);
 	} else {
@@ -109,13 +109,13 @@ main (int argc, char* argv[])
 	/* The source is a copy, not a move. */
 	check (g_file_test (src_file, G_FILE_TEST_IS_REGULAR));
 
-	g_remove (landed);
+	g_remove (dest_file);
 	g_remove (src_file);
 	g_rmdir (dst_dir);
 	g_rmdir (src_dir);
 	g_rmdir (tmp);
 
-	g_free (landed);
+	g_free (dest_file);
 	g_free (src_file);
 	g_free (src_dir);
 	g_free (dst_dir);

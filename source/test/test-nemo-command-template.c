@@ -162,7 +162,7 @@ check_refusals (void)
 	char **argv;
 
 	/* Two switches cannot be glued to one argument without silently losing
-	   the second, so it is refused rather than half-honoured. */
+	   the second, so it is refused rather than half-honored. */
 	argv = nemo_command_template_expand ("7z a -x{{PASSWORD}}", tokens, &error);
 	check (argv == NULL);
 	check (g_error_matches (error, NEMO_COMMAND_TEMPLATE_ERROR,

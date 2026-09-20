@@ -10370,7 +10370,7 @@ real_update_location_menu (NemoView *view)
 		gtk_action_set_sensitive (action, !nemo_view_win32_is_elevated ());
 #endif
 
-		/* New folder lands inside this segment, so only offer it for the
+		/* New folder goes inside this segment, so only offer it for the
 		   folder actually on display - an ancestor segment would create
 		   somewhere you can't see. */
 		gboolean is_current_dir = FALSE;
@@ -10882,7 +10882,7 @@ real_update_menus (NemoView *view)
 					      NEMO_ACTION_CREATE_LINK);
 #ifdef G_OS_WIN32
 	/* Windows only lets a program make a symlink with Developer Mode on or when
-	   running elevated, so the item goes grey rather than failing on use. A
+	   running elevated, so the item goes gray rather than failing on use. A
 	   folder is the exception - it gets a junction, which needs no privilege. */
 	gtk_action_set_sensitive (action, can_link_files &&
 				  (nemo_win32_link_symlinks_allowed () ||
@@ -10997,7 +10997,7 @@ real_update_menus (NemoView *view)
 	{
 		/* Shown only when the whole selection is something we could
 		   unpack, so for the ordinary selection holding no archive at
-		   all the items are absent rather than greyed. */
+		   all the items are absent rather than grayed. */
 		gboolean is_archives = selection_is_all_archives (selection);
 
 		action = gtk_action_group_get_action (view->details->dir_action_group,
@@ -11319,7 +11319,7 @@ schedule_pop_up_location_context_menu (NemoView *view,
 	   whenever the file wasn't loaded yet; that fired after the button release with
 	   a stale event, so the menu flashed open and shut and you had to right-click a
 	   second time. INFO is already loaded for path-bar segments, so the core items
-	   are correct; the volume items just stay hidden until the warm-load lands. */
+	   are correct; the volume items just stay hidden until the warm load finishes. */
 	real_pop_up_location_context_menu (view);
 }
 

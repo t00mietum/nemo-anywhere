@@ -1,7 +1,7 @@
 /* The uri algebra of the Windows network:/// backend. Enumeration itself needs a
  * network - and an unreachable host costs the full timeout - so what is checked
  * here is the part that has to hold with no network at all: how a child uri is
- * built, and that two different server/share pairs cannot land on the same uri.
+ * built, and that two different server/share pairs cannot share one uri.
  * Windows-only. */
 
 #include <config.h>

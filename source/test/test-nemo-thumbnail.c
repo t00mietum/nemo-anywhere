@@ -85,7 +85,7 @@ write_image (const char *name, int width, int height)
 	return uri;
 }
 
-/* --- a helper that never exits -------------------------------------------- */
+/* a helper that never exits */
 
 static void
 test_hung_thumbnailer (const char *self)
@@ -127,7 +127,7 @@ test_hung_thumbnailer (const char *self)
 	g_free (entry);
 }
 
-/* --- an image whose short side rounds to zero ----------------------------- */
+/* an image whose short side rounds to zero */
 
 static void
 test_thin_image (void)
@@ -155,7 +155,7 @@ test_thin_image (void)
 	g_object_unref (factory);
 }
 
-/* --- a .thumbnailer that goes bad under the monitor ------------------------ */
+/* a .thumbnailer that goes bad under the monitor */
 
 static void
 test_thumbnailer_reload (void)

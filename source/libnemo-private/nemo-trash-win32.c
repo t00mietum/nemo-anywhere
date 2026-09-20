@@ -79,7 +79,7 @@ trash_item_free (gpointer data)
 	g_free (item);
 }
 
-/* ---- Shell enumeration ---- */
+/* Shell enumeration */
 
 static gboolean
 com_init (void)
@@ -422,7 +422,7 @@ remove_metadata_sibling (const char *real_path)
 	}
 }
 
-/* ---- GFile implementation ---- */
+/* GFile implementation */
 
 #define NEMO_TYPE_TRASH_WIN32_FILE (nemo_trash_win32_file_get_type ())
 #define NEMO_TRASH_WIN32_FILE(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), NEMO_TYPE_TRASH_WIN32_FILE, NemoTrashWin32File))
@@ -495,7 +495,7 @@ path_has_prefix (const char *parent, const char *child)
 }
 
 /* TRUE when real_path lives inside one of the bin's entries. The shell only
- * tracks top-level items, so anything deeper has to be recognised this way.
+ * tracks top-level items, so anything deeper has to be recognized this way.
  * Caller holds items_mutex. */
 static gboolean
 is_inside_item_locked (const char *real_path)
@@ -721,7 +721,7 @@ make_item_info (TrashItem *item)
 	return info;
 }
 
-/* ---- GFile vtable ---- */
+/* GFile vtable */
 
 static GFile *
 trash_file_dup (GFile *file)
@@ -944,7 +944,7 @@ trash_file_query_filesystem_info (GFile *file, const char *attributes,
 	return info;
 }
 
-/* ---- enumerator ---- */
+/* enumerator */
 
 #define NEMO_TYPE_TRASH_WIN32_ENUMERATOR (nemo_trash_win32_enumerator_get_type ())
 #define NEMO_TRASH_WIN32_ENUMERATOR(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), NEMO_TYPE_TRASH_WIN32_ENUMERATOR, NemoTrashWin32Enumerator))
@@ -1095,7 +1095,7 @@ trash_file_enumerate_children (GFile *file, const char *attributes,
 	return G_FILE_ENUMERATOR (enumerator);
 }
 
-/* ---- mutation: delete, restore (move), streams ---- */
+/* mutation: delete, restore (move), streams */
 
 /* A trashed folder goes as a unit. nemo's empty-trash walk deliberately stops
  * recursing at a trash:// item (delete_trash_file, nemo-file-operations.c) since
@@ -1283,7 +1283,7 @@ trash_file_read_fn (GFile *file, GCancellable *cancellable, GError **error)
 	return stream;
 }
 
-/* ---- monitor: poll the bin while anyone is watching ---- */
+/* monitor: poll the bin while anyone is watching */
 
 #define NEMO_TYPE_TRASH_WIN32_MONITOR (nemo_trash_win32_monitor_get_type ())
 #define NEMO_TRASH_WIN32_MONITOR(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), NEMO_TYPE_TRASH_WIN32_MONITOR, NemoTrashWin32Monitor))
@@ -1406,7 +1406,7 @@ trash_file_monitor (GFile *file, GFileMonitorFlags flags,
 	return G_FILE_MONITOR (monitor);
 }
 
-/* ---- plumbing ---- */
+/* Object lifecycle and registration */
 
 static void
 trash_file_finalize (GObject *object)

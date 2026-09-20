@@ -1,4 +1,4 @@
-/* An image nemo can decode itself must be recognised as one on Windows.
+/* An image nemo can decode itself must be recognized as one on Windows.
  *
  * The internal-thumbnail check asks whether gdk-pixbuf can load the file's mime
  * type. On win32 nemo's stored "mime type" is really the extension (".png"), so

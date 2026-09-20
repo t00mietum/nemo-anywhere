@@ -57,7 +57,7 @@ net_item_free (gpointer data)
 	g_free (item);
 }
 
-/* ---- WNet enumeration ---- */
+/* WNet enumeration */
 
 /* Providers nest (provider -> domain -> server); a malformed or looping
  * neighborhood must not recurse forever at 16KB of stack per frame. */
@@ -184,7 +184,7 @@ enum_shares (const char *server_name, DWORD *open_rc)
 	return items;
 }
 
-/* ---- is there a network at all ---- */
+/* is there a network at all */
 
 /* WNetOpenEnum answers NO_ERROR with an empty list on a machine that has no
  * network - measured on a box with no adapters up - so "the neighborhood is
@@ -221,7 +221,7 @@ nemo_network_win32_is_available (void)
 	return available;
 }
 
-/* ---- what a failure says ---- */
+/* what a failure says */
 
 /* One place decides, because the browse and the lookup used to word the same
  * failure differently - a refused share came back reading as a missing one. */
@@ -283,7 +283,7 @@ nemo_network_win32_set_error (GError      **error,
 	}
 }
 
-/* ---- GFile implementation ---- */
+/* GFile implementation */
 
 #define NEMO_TYPE_NETWORK_WIN32_FILE (nemo_network_win32_file_get_type ())
 #define NEMO_NETWORK_WIN32_FILE(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), NEMO_TYPE_NETWORK_WIN32_FILE, NemoNetworkWin32File))
@@ -385,7 +385,7 @@ make_share_info (NetItem *item)
 	return info;
 }
 
-/* ---- GFile vtable ---- */
+/* GFile vtable */
 
 static GFile *
 network_file_dup (GFile *file)
@@ -578,7 +578,7 @@ network_file_query_filesystem_info (GFile *file, const char *attributes,
 	return info;
 }
 
-/* ---- enumerator ---- */
+/* enumerator */
 
 #define NEMO_TYPE_NETWORK_WIN32_ENUMERATOR (nemo_network_win32_enumerator_get_type ())
 #define NEMO_NETWORK_WIN32_ENUMERATOR(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), NEMO_TYPE_NETWORK_WIN32_ENUMERATOR, NemoNetworkWin32Enumerator))
@@ -687,7 +687,7 @@ network_file_enumerate_children (GFile *file, const char *attributes,
 	return G_FILE_ENUMERATOR (enumerator);
 }
 
-/* ---- no-op monitor: the neighborhood refreshes on revisit ---- */
+/* no-op monitor: the neighborhood refreshes on revisit */
 
 #define NEMO_TYPE_NETWORK_WIN32_MONITOR (nemo_network_win32_monitor_get_type ())
 
@@ -727,7 +727,7 @@ network_file_monitor (GFile *file, GFileMonitorFlags flags,
 	return g_object_new (NEMO_TYPE_NETWORK_WIN32_MONITOR, NULL);
 }
 
-/* ---- plumbing ---- */
+/* Object lifecycle and registration */
 
 static void
 network_file_finalize (GObject *object)

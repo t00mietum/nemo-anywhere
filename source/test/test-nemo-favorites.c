@@ -38,7 +38,7 @@ seed (const char *const *entries)
 	nemo_config_set_strv (root_group, "favorites", entries);
 }
 
-/* --- stored entry format -------------------------------------------------- */
+/* stored entry format */
 
 static void
 test_entry_parsing (NemoFavorites *favorites)
@@ -127,7 +127,7 @@ test_dedup_display_names (NemoFavorites *favorites)
 	}
 }
 
-/* --- vfs ------------------------------------------------------------------ */
+/* vfs */
 
 static void
 test_prefix_matches (void)
@@ -262,7 +262,7 @@ test_missing_target (NemoFavorites *favorites)
 	g_object_unref (file);
 }
 
-/* --- teardown ------------------------------------------------------------- */
+/* teardown */
 
 /* Both of these used to unref the config group on the way out, dropping a ref
  * they never took - the store's own ref - so the group was freed while still in
@@ -331,7 +331,7 @@ test_no_callbacks_after_dispose (void)
 		;
 }
 
-/* --- concurrent read ------------------------------------------------------ */
+/* concurrent read */
 
 static gint stress_stop;
 

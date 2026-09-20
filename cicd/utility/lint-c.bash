@@ -12,7 +12,7 @@
 ##	- Then the UI-case check (cicd/utility/lint-ui-case.py), which is whole-tree
 ##	  rather than diff-scoped: the tree is already clean, so there is no legacy
 ##	  noise to drown in, and a Title Case label pasted from upstream is caught
-##	  wherever it lands. A missing python skips it the same way cppcheck does.
+##	  wherever it sits. A missing python skips it the same way cppcheck does.
 ##	- Then the settings-handler check (cicd/utility/lint-pref-handlers.py), also
 ##	  whole-tree, which pairs each disconnect with the connect it belongs to.
 ##	- Runs the same everywhere bash + git + cppcheck exist (Linux host, MSYS2).
@@ -313,11 +313,11 @@ fi
 ## It is not a finding, but --error-exitcode counts it, so any change touching
 ## a large file would fail the gate on it alone.
 ## The per-file entries below are inherited-legacy findings, each confirmed
-## present on dev - they surfaced only because a sweep touched those files.
+## present on dev - they showed up only because a sweep touched those files.
 ## unknownMacro: cppcheck can't expand the EEL self-check X-macro prototype
 ## (nemo-lib-self-check-functions.h), so it fires for any .c that includes it.
 ## The two nemo-dnd.c items are inherited-legacy noise in the gnome-icon-list
-## drag encoder/parser, surfaced only because a change touched that big file.
+## drag encoder/parser, shown only because a change touched that big file.
 ## The nemo-mime-actions.c trio is the same story in the activation code path.
 ## nemo-window-bookmarks.c and nemo-file-undo-operations.c joined that list when
 ## a label sweep touched them: both were confirmed present on dev first, and the

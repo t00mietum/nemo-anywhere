@@ -79,7 +79,7 @@ static gboolean          dark;
 
 #define SCALE(v)	MulDiv ((v), dpi, 96)
 
-/* ---- Colours ---- */
+/* Colors */
 
 /* Read Windows' own light/dark choice. Done here rather than through the
  * appearance code because the splash runs before anything else is up. */
@@ -109,30 +109,30 @@ windows_prefers_dark (void)
 }
 
 static COLORREF
-colour_background (void)
+color_background (void)
 {
 	return dark ? RGB (32, 32, 32) : RGB (250, 250, 250);
 }
 
 static COLORREF
-colour_border (void)
+color_border (void)
 {
 	return dark ? RGB (64, 64, 64) : RGB (208, 208, 208);
 }
 
 static COLORREF
-colour_title (void)
+color_title (void)
 {
 	return dark ? RGB (240, 240, 240) : RGB (28, 28, 28);
 }
 
 static COLORREF
-colour_body (void)
+color_body (void)
 {
 	return dark ? RGB (150, 150, 150) : RGB (110, 110, 110);
 }
 
-/* ---- The log ---- */
+/* The log */
 
 static wchar_t *
 wide_dup (const wchar_t *text)
@@ -199,7 +199,7 @@ free_lines (void)
 	log_count = 0;
 }
 
-/* ---- Painting ---- */
+/* Painting */
 
 static void
 paint (HWND window, HDC target)
@@ -226,11 +226,11 @@ paint (HWND window, HDC target)
 	bitmap = CreateCompatibleBitmap (target, client.right, client.bottom);
 	old_bitmap = (HBITMAP) SelectObject (dc, bitmap);
 
-	brush = CreateSolidBrush (colour_background ());
+	brush = CreateSolidBrush (color_background ());
 	FillRect (dc, &client, brush);
 	DeleteObject (brush);
 
-	pen = CreatePen (PS_SOLID, 1, colour_border ());
+	pen = CreatePen (PS_SOLID, 1, color_border ());
 	old_pen = (HPEN) SelectObject (dc, pen);
 	SelectObject (dc, GetStockObject (NULL_BRUSH));
 	Rectangle (dc, 0, 0, client.right, client.bottom);
@@ -240,7 +240,7 @@ paint (HWND window, HDC target)
 	SetBkMode (dc, TRANSPARENT);
 
 	old_font = (HFONT) SelectObject (dc, font_title);
-	SetTextColor (dc, colour_title ());
+	SetTextColor (dc, color_title ());
 	box.left = SCALE (SPLASH_PAD);
 	box.top = SCALE (SPLASH_PAD);
 	box.right = client.right - SCALE (SPLASH_PAD);
@@ -249,7 +249,7 @@ paint (HWND window, HDC target)
 		   DT_SINGLELINE | DT_LEFT | DT_TOP | DT_NOPREFIX);
 
 	SelectObject (dc, font_body);
-	SetTextColor (dc, colour_body ());
+	SetTextColor (dc, color_body ());
 	box.top = box.bottom;
 	box.bottom = box.top + SCALE (LINE_H);
 	DrawTextW (dc, version_text, -1, &box,
@@ -287,7 +287,7 @@ paint (HWND window, HDC target)
 		box.bottom = row + SCALE (LINE_H);
 
 		/* The last line is the one happening now; the rest have faded back. */
-		SetTextColor (dc, i == shown_count - 1 ? colour_title () : colour_body ());
+		SetTextColor (dc, i == shown_count - 1 ? color_title () : color_body ());
 
 		if (shown[i] != NULL) {
 			DrawTextW (dc, shown[i], -1, &box,
@@ -307,7 +307,7 @@ paint (HWND window, HDC target)
 	DeleteDC (dc);
 }
 
-/* ---- The window ---- */
+/* The window */
 
 static LRESULT CALLBACK
 splash_proc (HWND window, UINT message, WPARAM wparam, LPARAM lparam)
@@ -452,7 +452,7 @@ splash_main (LPVOID data)
 	return 0;
 }
 
-/* ---- What the rest of the program calls ---- */
+/* What the rest of the program calls */
 
 void
 nemo_splash_show (void)

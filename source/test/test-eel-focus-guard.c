@@ -49,7 +49,7 @@ take_keyboard (GtkWidget *window)
 	int i;
 
 	for (i = 0; i < 500 && !gtk_window_has_toplevel_focus (GTK_WINDOW (window)); i++) {
-		/* With no window manager the first ask lands before the window is on
+		/* With no window manager the first ask comes before the window is on
 		 * screen and X drops it, so keep asking. */
 		if (i % 10 == 0 && gtk_widget_get_mapped (window)) {
 			gdk_window_focus (gtk_widget_get_window (window), GDK_CURRENT_TIME);

@@ -70,7 +70,7 @@ main (int argc, char *argv[])
 	GFile *dest;
 	const char *how;
 	char *tmp, *src_dir, *dst_dir;
-	char *real_file, *link_path, *landed, *contents = NULL;
+	char *real_file, *link_path, *dest_file, *contents = NULL;
 	guint timeout_id;
 	gboolean skipped = FALSE;
 
@@ -86,7 +86,7 @@ main (int argc, char *argv[])
 
 	real_file = g_build_filename (src_dir, "payload.txt", NULL);
 	link_path = g_build_filename (src_dir, "pointer", NULL);
-	landed = g_build_filename (dst_dir, "pointer", NULL);
+	dest_file = g_build_filename (dst_dir, "pointer", NULL);
 
 	if (!(nemo_link_kinds_supported (src_dir) & NEMO_LINK_FILE_SYMLINK)) {
 		g_printerr ("note: file symlinks are not permitted here, nothing to check\n");
@@ -116,12 +116,12 @@ main (int argc, char *argv[])
 	check (copy_succeeded);
 
 	if (g_strcmp0 (how, "keep") == 0) {
-		check (kind_of (landed) == NEMO_LINK_FILE_SYMLINK);
+		check (kind_of (dest_file) == NEMO_LINK_FILE_SYMLINK);
 	} else {
 		/* An ordinary file holding the contents. This is what every copy
 		   used to do on Windows whether it was wanted or not. */
-		check (kind_of (landed) == NEMO_LINK_NONE);
-		if (g_file_get_contents (landed, &contents, NULL, NULL)) {
+		check (kind_of (dest_file) == NEMO_LINK_NONE);
+		if (g_file_get_contents (dest_file, &contents, NULL, NULL)) {
 			check (g_strcmp0 (contents, "payload") == 0);
 			g_free (contents);
 		} else {
@@ -136,14 +136,14 @@ main (int argc, char *argv[])
 	g_object_unref (dest);
 
  out:
-	g_remove (landed);
+	g_remove (dest_file);
 	g_remove (link_path);
 	g_remove (real_file);
 	g_rmdir (dst_dir);
 	g_rmdir (src_dir);
 	g_rmdir (tmp);
 
-	g_free (landed);
+	g_free (dest_file);
 	g_free (link_path);
 	g_free (real_file);
 	g_free (dst_dir);

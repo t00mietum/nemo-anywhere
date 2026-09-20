@@ -178,7 +178,7 @@ The repo root holds docs and licenses and little else. The buildable project is 
 
 - `utility/` - standalone helper scripts, actions and the cross-platform launcher.
 
-- `filesystem/` - a tree mirroring where files land on disk, so a drop-in theme folder can be copied straight across.
+- `filesystem/` - a tree mirroring where files go on disk, so a drop-in theme folder can be copied straight across.
 
 - `cicd/` - the local build, release and publish automation. See [Delivery](#delivery).
 

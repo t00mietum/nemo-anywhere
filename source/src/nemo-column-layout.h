@@ -21,19 +21,10 @@
 */
 
 /* Every column has three widths: the least it will ever be, the width it has
- * when the row has room, and the most it grows to. The rule that sets them is
- * design.md's "List view column widths"; what is here only divides the row.
- *
- * Widening, from narrow to wide: once every column has its default width, the
- * columns that can still grow do so together, each in proportion to its size,
- * until each is at its most. What is left after that is shared by the columns
- * that take the surplus (Name and Location), again in proportion.
- *
- * Narrowing: the same thing read the other way, down to the default widths.
- * Below that every column with a smaller minimum gives, in proportion to its
- * size, and when they are spent the row is wider than the window and the view
- * scrolls sideways. A column crushed to nothing tells the user less than a
- * scrollbar does.
+ * when the row has room, and the most it grows to. design.md's "List view
+ * column widths" is the rule that sets them, and the only place it is written
+ * down - restating it here would give two versions to keep in step. This file
+ * only shares the row out between the widths it is given.
  *
  * Nothing but arithmetic lives here, so the rule can be checked without a
  * screen.

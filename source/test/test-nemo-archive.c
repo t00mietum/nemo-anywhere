@@ -396,7 +396,7 @@ check_backends (void)
 
 	/* Storing links, a solid archive and a recovery record are preferences,
 	   not requirements: a plain tar still gets written even with all three
-	   asked for, and by libarchive, which can honour none of them. */
+	   asked for, and by libarchive, which can honor none of them. */
 	options.store_links = TRUE;
 	options.solid = TRUE;
 	options.recovery_record = TRUE;
@@ -420,7 +420,7 @@ check_commands (void)
 	names = g_list_append (names, (gpointer) "a folder");
 
 	/* rar: every option the user asked for has to reach the command line,
-	   or it is silently not honoured. */
+	   or it is silently not honored. */
 	nemo_archive_options_init (&options);
 	options.format = NEMO_ARCHIVE_FORMAT_RAR;
 	options.level = NEMO_ARCHIVE_LEVEL_MAX;

@@ -201,7 +201,7 @@ nemo_notebook_find_tab_num_at_pos (NemoNotebook *notebook,
 }
 
 /* Per notebook, not per process: as a file-static every window shared one flag,
- * and a Ctrl release that landed on a different window (alt-tab away mid-chord,
+ * and a Ctrl release that arrived at a different window (alt-tab away mid-chord,
  * or a second window opened while held) left it stuck on everywhere. */
 #define CTRL_DOWN_KEY "nemo-notebook-ctrl-down"
 

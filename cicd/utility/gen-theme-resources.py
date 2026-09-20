@@ -118,7 +118,7 @@ def main(argv):
                     continue
                 alias = "icontheme/%s/%s" % (name, icon_alias(rel))
                 if alias in seen:
-                    clashes.append("%s: %s and %s both land on %s" % (
+                    clashes.append("%s: %s and %s both resolve to %s" % (
                         name, seen[alias], rel, alias))
                     continue
                 seen[alias] = rel

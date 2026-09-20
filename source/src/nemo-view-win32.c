@@ -272,7 +272,7 @@ nemo_view_win32_open_in_explorer (const gchar *path,
 	}
 
 	/* An item id rather than a command line, so nothing about the name has to
-	   survive being re-split. Needs COM on this thread; already-initialised
+	   survive being re-split. Needs COM on this thread; already-initialized
 	   and a different apartment are both fine to carry on from. */
 	item = ILCreateFromPathW (wpath);
 	g_free (wpath);

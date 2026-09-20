@@ -119,7 +119,7 @@ main (int argc, char *argv[])
 	check (g_strcmp0 (name, "one/two") == 0);
 	g_free (name);
 
-	/* A match filed under its group lands as a child of that row. */
+	/* A match filed under its group shows as a child of that row. */
 	check (nemo_list_model_add_file (model, match_a, group_a));
 	check (nemo_list_model_add_file (model, match_b, group_b));
 

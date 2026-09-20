@@ -50,7 +50,7 @@
 
 - [Why](#why)
 - [Existing features](#existing-features)
-- [What this fork adds or enhances](#what-this-fork-adds-or-enhances)
+- [What this fork adds or improves](#what-this-fork-adds-or-improves)
 - [Status](#status)
 - [Icon themes](#icon-themes)
 - [Installation](#installation)
@@ -75,7 +75,7 @@ This project removes the Cinnamon (and even Linux) dependency:
 
 - Removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
 
-- Removes the heavy desktop integration. Your existing manager is untouched - which can even be original Nemo, they don't conflict. (This is also a big step towards OS portability.)
+- Removes the heavy desktop integration. Your existing manager is untouched - which can even be original Nemo, they don't conflict. (This is also a big step toward OS portability.)
 
 - Shippable everywhere. (At least, desktop OSes.)
 
@@ -118,7 +118,7 @@ Everything that makes Nemo worth porting:
 
 - Copies use near-instant and near-zero-size CoW copies automatically, if the underlying filesystem allows it.
 
-## What this fork adds or enhances
+## What this fork adds or improves
 
 - Runs without Cinnamon. No desktop-drawing baggage, no pulled-in desktop stack.
 
@@ -277,7 +277,7 @@ What a Linux build needs at runtime: GTK 3.24.33 or newer and glibc 2.35 or newe
 
 ## Set up development environment
 
-The reference Linux build happens in a container, so no development packages land on your own machine and the dependency versions are pinned to something known good.
+The reference Linux build happens in a container, so no development packages are installed on your own machine and the dependency versions are pinned to something known good.
 
 You need Docker (or Podman with a Docker alias) and git. Everything else is fetched by the build. The first run builds the container image, which takes a few minutes, and later runs reuse it.
 

@@ -5,17 +5,17 @@ theme-sheet.py answers "is this set drawn correctly" - one sheet per set, as
 many icons as you ask for. This answers a different question: "which of these
 do I want", which needs them all on one page and only enough icons each to tell
 them apart. Four does it - a folder, an open folder, a document and the trash -
-because the folder is what a set is recognised by and the other three show how
+because the folder is what a set is recognized by and the other three show how
 it handles a mimetype, a state and a device-ish object.
 
 Each set is drawn against both backgrounds, side by side, since half of them are
 drawn for a dark desktop and wash out on white.
 
 Every icon is rasterised on its own before being placed, rather than having its
-markup pasted into one big document. Several sets colour themselves through a
+markup pasted into one big document. Several sets color themselves through a
 stylesheet keyed on a class name they all spell the same way (.ColorScheme-Text)
 and reach through currentColor, so pasted together they either all take the last
-set's colour or, once the classes are renamed apart, match no rule at all and
+set's color or, once the classes are renamed apart, match no rule at all and
 come out black. Rendering each file as its own document is how the application
 draws them anyway, so what the sheet shows is what the picker will show.
 
@@ -137,7 +137,7 @@ def build(root, out_svg, scratch):
                          % (slice_x + GAP + n * (ICON + GAP), y0 + GAP,
                         ICON, ICON, data))
 
-        # One label per set, centred across the seam, so the two halves read as
+        # One label per set, centered across the seam, so the two halves read as
         # the same set seen twice rather than as two different sets.
         parts.append('<rect x="%d" y="%d" width="1" height="%d" fill="#0000002c"/>'
                  % (x0 + HALF, y0, ROW_H))

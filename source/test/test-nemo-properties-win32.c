@@ -100,7 +100,7 @@ main (int argc, char *argv[])
 	check (nemo_properties_win32_can_show (files));
 	nemo_file_list_free (files);
 
-	/* Two folders deep is where a search result set lands, and the sheet
+	/* Two folders deep is where a search result set sits, and the sheet
 	 * cannot show it - ours has to. */
 	pair[0] = alpha;
 	pair[1] = deep;

@@ -58,7 +58,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Cause: the trash branch of the confirmation is the only one of the three that does not also ask when the count alone warrants it. Move-to-trash and direct delete both do.
 			- Effect: with confirmation off, a delete over a trash address started anywhere but a window goes through silently. The armed test guard hides this in current builds.
 			- Origin: the same gap as the Empty Trash one closed by `dbustrash` on 20260917, in the same file. A regression of that class rather than new ground. Confirmed.
-			- Fixed: the trash branch now asks when the count warrants it, the way its two siblings do. One function holds the decision, with a test watched to fail.
+			- Fixed: the trash branch now asks when the count warrants it, the way its two siblings do. One function holds the decision, with a test over it.
 		- ✅ Item 3. A settings handler outlives the places sidebar.
 			- Cause: the handler is connected to the windows settings group and disconnected from the preferences group, which is a different group, so it is never removed.
 			- Effect: changing the path separator after a window closes calls into a freed sidebar. Live reload makes it reachable.
@@ -80,7 +80,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- ✅ Item 7. Four checks in the suite can never fail.
 			- Cause: one is written so its condition is always true; another compares two searches without first testing that either found anything, so the regression it guards would turn it green.
 			- Origin: spread across the suite's growth. Confirmed.
-			- Fixed: each now checks what its comment says. The link-copy one asks the file system instead of repeating a call it already made, and the network one compares host names, which is what its comment always claimed. The two Linux ones were watched to fail. The two Windows-only ones still owe that watch on a real box.
+			- Fixed: each now checks what its comment says. The link-copy one asks the file system instead of repeating a call it already made, and the network one compares host names, which is what its comment always claimed. The two Windows-only ones still need a run on a real box.
 		- ✅ Item 8. Three tests report success when they could not run.
 			- Cause: they print that they are skipping and then fall through to a success exit rather than the skip exit. A fourth returns the skip code without first reporting failures it already counted.
 			- Origin: predates the rule being written down. Confirmed.
@@ -103,16 +103,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Cause: the resolver is called through command substitution up to five times per icon across roughly 3,600 icons. The file's own note two hundred lines above says a substitution there is a fork and that this runs tens of thousands of times, and solves it that way for the scorer.
 			- Origin: the scorer was fixed, the resolver that calls it was not. Confirmed.
 			- Fixed: the resolver answers through a global and returns a status, the way the scorer already did. The link-stub test reads the head of the file itself instead of calling out three times, and the two `dirname` calls and the two branches picking a directory name are gone. That is about twelve forks an icon removed.
-			- New `--self-test` builds a small tree and checks resolution against it: plain name, symbolic name, context filter on and off, both alias forms, the hop limit and a missing name. It runs in the lint stage, since the build container has no git. Watched to fail three ways.
+			- New `--self-test` builds a small tree and checks resolution against it: plain name, symbolic name, context filter on and off, both alias forms, the hop limit and a missing name. It runs in the lint stage, since the build container has no git.
 		- ✅ Item 13. A maintainer's home path is baked into test fixtures.
 			- Cause: five lines of one Windows test use a real personal path where the rest of the suite uses a placeholder.
 			- Origin: written with a live path and never anonymized. Confirmed.
-			- Fixed: the five lines say `somebody`. A checked-in `.pyc` holding a build path went with them. New `lint-identity.bash` holds it, watched to fail.
+			- Fixed: the five lines say `somebody`. A checked-in `.pyc` holding a build path went with them. New `lint-identity.bash` holds it.
 			- Left alone: this file names a real account in three closed items, which is prose rather than code, so the check does not read it.
 		- ✅ Item 14. Six application sources carry the wrong copyright marker.
 			- Cause: they use the form reserved for the shared helper scripts. Fifteen other first-party files carry no copyright line at all.
 			- Origin: the link and shortcut files were drafted as helpers. Confirmed.
-			- Fixed: all twenty-one carry the project's marker. The same identity check refuses the helper marker under `source/` and refuses any retired marker anywhere, both watched to fail.
+			- Fixed: all twenty-one carry the project's marker. The same identity check refuses the helper marker under `source/` and refuses any retired marker anywhere.
 	- 🔘 Low.
 		- ✅ Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
 			- Fixed: leading tabs are four spaces, and a run of tab-aligned trailing comments is aligned with spaces instead. The two tables were never at risk - their alignment is relative to a single leading tab, so converting it shifts the whole block and nothing else.
@@ -122,10 +122,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- 🛠️ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
 			- Done: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
 			- Left: PowerShell, Bash and C.
-		- 🔘 Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
-		- 🔘 Item 18. British spellings in comments and prose, including two identifiers.
-		- 🔘 Item 19. Banned verbs in roughly sixty comment lines across C, scripts and Python.
-		- 🔘 Item 20. Three competing banner-comment conventions in first-party C, and a prose block at the top of nearly every first-party file. One of those blocks restates a design.md rule that can drift from it.
+		- ✅ Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
+			- Fixed: those lines now say what was checked and leave out how. design.md and the two style guides keep theirs, since describing the build and test rig is what those files are for.
+			- A check outside the repo holds it, called from the lint stage only when it is there, so a clone without the private tree still lints.
+		- ✅ Item 18. British spellings in comments and prose, including two identifiers.
+			- Fixed: about sixty comment and prose lines, plus the two sets of identifiers - the Windows splash colors and the launcher's status color. The release notes and the README are in it, which is where it was visible.
+			- Inherited lines are left as they are, here and in every check below: most of the tree came from upstream and spells things its own way.
+			- New `cicd/utility/lint-prose.bash` in the lint stage holds this, the banner rule from item 20, and the ASCII rule that goes with it.
+		- ✅ Item 19. Banned verbs in roughly sixty comment lines across C, scripts and Python.
+			- Fixed: sixty-six comment and prose lines, a README heading and its table of contents entry, and three test variables named after one of them.
+			- Held by the same check as item 17, outside the repo for the same reason.
+		- ✅ Item 20. Three competing banner-comment conventions in first-party C, and a prose block at the top of nearly every first-party file. One of those blocks restates a design.md rule that can drift from it.
+			- Fixed: forty-four banners in eleven files. The style guide has said "No banner dividers" all along, so the words stay as plain comments and the rules are gone. A fourth form turned up in the tests.
+			- The bullet-rule form was also the only non-ASCII in first-party C outside the copyright line, so the new check refuses that too.
+			- `nemo-column-layout.h` points at design.md now instead of restating fifteen lines of it.
+			- The other module blocks stay. They say why a file exists, which is what they are for; only the one that copied a rule was a problem.
 		- 🔘 Item 21. Seventy-four smaller items, grouped so none is left unfiled: repeated work that a hoist would remove, allocation on paths that run per file or per row, duplication across the test suite that the shared helpers should absorb, dead parameters and unreachable branches, and naming that reaches for the same few words. Detail is in the private notes.
 
 - 🔘 Horizontal scrollbar frequently shows up when not needed.
@@ -141,7 +152,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: the Windows half, and a second warning logged once per file, are fixed and filed under Done. Whether the Linux host case has the same cause as the Windows one is untested.
 	- Found: what produces that exact pair is a signal connected to a settings group that is not open yet. The group handles are NULL until the settings are read, and about seventy places connect to one. Reproduced on demand by starting with no session bus, which is what leaves the store unopened.
 	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
-	- Not reproduced on the Linux host either, with the current build staged out of the container and run headlessly against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
+	- Not reproduced on the Linux host either, with the current build run against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
 	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
@@ -214,7 +225,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260804-230307. Closed: 20260919.
 	- The gif is 58 seconds and 1.6 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
 	- Six scenes: the window opens with Places alone, then the folder tree opens beside it and closes again; F3 opens a second content pane and closes it; icon view thumbnails; search flat then grouped by folder; and Compress to 7z.
-	- Runs on its own Xvfb with the synthetic home mounted at a generic path, so no account name or working path is on screen.
+	- The synthetic home is mounted at a generic path, so no account name or working path is on screen.
 	- It picks a free display rather than insisting on one number, after a sister project's recorder was found on the one this had claimed.
 	- `cicd.bash --demo` records it. Off by default and skipped on a quick run, since it takes about six minutes and only changes when the interface or the script does.
 	- Note: merged with an older item from 20260804 that asked for about twenty seconds. The lengths above win.
@@ -358,7 +369,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260917-191500
 	- The bus interface that could copy, move and empty the trash came from the Nemo desktop. Nothing here uses it. A move to the trash folder over it was a recycle with no window behind it.
 	- Fixed: the interface is removed. Only the freedesktop one is left, and it shows folders and properties. The instances test now checks the bus has no way to copy, move or empty the trash. Its no-bus test is commented out, since what it tested is gone.
-	- Lint now keeps three lists: which files may start a trash, delete or move job, which bus methods exist, and which files may delete anything directly. The last only touches the app's own files. Each was watched to fail.
+	- Lint now keeps three lists: which files may start a trash, delete or move job, which bus methods exist, and which files may delete anything directly. The last only touches the app's own files.
 	- The rest of the Nemo desktop code, such as the icon view's desktop mode, is dead but deletes nothing. It is on the backlog.
 
 - ✅ Removing a template in Preferences deleted the file outright, with no question and nothing in the log.
@@ -430,13 +441,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260917-204500
 	- A move on one filesystem is a single `g_file_move`, and an overwrite happens inside glib, so neither reaches the delete path the guard sits on.
 	- Fixed: a move job asks once up front, naming the destination and every source that is about to leave where it is. An overwrite asks per file, naming the target whose contents are lost and the source replacing it. Both were watched on screen, with Cancel leaving the files alone.
-	- `lint-c.bash` holds the rule that `G_FILE_COPY_OVERWRITE` cannot be set without the ask above it, and was watched to fail.
+	- `lint-c.bash` holds the rule that `G_FILE_COPY_OVERWRITE` cannot be set without the ask above it.
 
 - ✅ `make_link_copy` deletes without going through the delete guard.
 	- Opened: 20260917-190000
 	- Closed: 20260917-193000
 	- The two `g_file_delete` calls in it, one for an overwritten destination and one for a moved-from link, skipped `file_delete_wrapper` and so never reached `nemo_delete_guard_check`. Every other delete in `nemo-file-operations.c` was already guarded. Found while wiring the delete test guard.
-	- Both go through the wrapper now. `lint-c.bash` holds the rule, and was watched to fail on the old code.
+	- Both go through the wrapper now. `lint-c.bash` holds the rule.
 
 - ✅ Turning hidden files off leaves a "Loading..." row under an open tree folder that holds only hidden folders.
 	- Opened: 20260917-060256
@@ -450,8 +461,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260916-210500
 	- Closed: 20260916-193258
 	- Places is right - it holds the width it was given. The content pane then absorbs the whole change on its own, so at 800px wide it is a 60px sliver beside a 500px tree.
-	- Measured in the build container under openbox, taking one window 1278 -> 1500 -> 800 wide: `sidebar-width` stays 240, and `sidebar-tree-width` reads 480, then 498.
-	- The arithmetic is not the suspect. `test-nemo-pane-layout` covers it and was watched to fail when it was broken. Either the position never reaches the widget, or something puts it back afterwards.
+	- Measured by taking one window 1278 -> 1500 -> 800 wide: `sidebar-width` stays 240, and `sidebar-tree-width` reads 480, then 498.
+	- The arithmetic is not the suspect. `test-nemo-pane-layout` covers it and passes. Either the position never reaches the widget, or something puts it back afterwards.
 	- Tried and rejected: giving the tree the same `set_size_request` floor the places pane carries, on the theory that `shrink=FALSE` was clamping the divider to the tree's natural width. It made no difference, so it was taken back out rather than left in on a guess.
 	- Everything else on "Places and TreeView can both exist at the same time" works. This is the part left.
 	- Fixed: the position was set after GTK had already laid out the panes, so it never took. The divider is now set before the layout, and measured from where it was last placed, so a slow drag of the window edge moves it too. The split view divider gets the same treatment.
@@ -1453,8 +1464,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260920-170000
 	- Done: the Compress dialog writes twelve settings back and starts from them next time. Format, compression level, the volume size, and every box in the Options expander bar the two named above. Also whether items were compressed separately, which is only put back where the selection allows it.
 	- Done: with the delete box ticked and a password set, the password has to be typed a second time before anything starts. Getting it wrong says so and lets another go; cancelling puts the Compress dialog back with everything still filled in.
-	- `nemo_archive_should_confirm_password` is the one place that decides, next to `nemo_archive_can_verify` which decides whether the delete box is offered at all. New `test-nemo-archive-settings` covers the decision, the defaults and a restart, and was watched to fail both ways.
-	- Checked on screen in the container: settings written and read back over two runs, the confirm dialog, a wrong password, cancelling out of it, and a right one going through.
+	- `nemo_archive_should_confirm_password` is the one place that decides, next to `nemo_archive_can_verify` which decides whether the delete box is offered at all. New `test-nemo-archive-settings` covers the decision, the defaults and a restart.
+	- Confirmed end to end: settings written and read back over two runs, the confirm dialog, a wrong password, cancelling out of it, and a right one going through.
 
 - ✅ design.md regrouped: Overview, Architecture, Features, Quality, Building, Delivery, then Open questions.
 	- Opened: 20260919-131209
@@ -1540,7 +1551,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: clearing an extract's staging folder on Windows went into a junction and deleted what it pointed at. Fixed, with a check. The delete job itself has not been checked against a junction yet.
 	- Found: Windows calls a junction a plain folder. Three walks trusted that and would go into one: deleting a folder from the Recycle Bin, replacing a folder on a copy, and a generic empty-trash walk. The first was real. On Windows, taking a recycled folder that held a junction out of the bin deleted what the junction pointed at, and so did a junction recycled on its own. Seen on b29w.
 	- Found: a move to another drive, told to take a link's contents, would have moved them out of the folder the link points at. design.md says moves never follow links, so a move now always takes the link, and the dialog greys out the copy option on a move.
-	- Fixed: one check for "a real folder, not a link", used by every walk that removes things. The delete job asks it too, before it would ever walk into something that would not delete on its own. Lint fails any new walk that does not ask, and was watched to fail on the old code.
+	- Fixed: one check for "a real folder, not a link", used by every walk that removes things. The delete job asks it too, before it would ever walk into something that would not delete on its own. Lint fails any new walk that does not ask.
 	- Tests: a new test runs the real delete and move jobs on a folder holding a folder link, a file link and a shortcut, and checks the target survives. A new Recycle Bin case covers the junction, and failed on the old code on b29w. `.desktop` and `.lnk` files were already removed as plain files.
 	- Not tested yet: a move of a junction to another drive. b29w has one drive. vm925w has two, so the move test runs there when it is back up.
 
@@ -1571,14 +1582,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verifying reads the archive back with the library and walks the selection again, separately from the walk that wrote it. Every file has to be there under the same relative path at the same size. A folder counts as there when anything inside it is, since a writer may leave the folder entries out.
 	- Anything the walk had to pass over - a dangling link, a linked folder the options said not to follow, a socket - means the archive was never offered all of it, so nothing is deleted whatever does read back.
 	- What passes goes through the ordinary trash-or-delete, so it asks again and goes to the trash rather than being gone for good.
-	- New checks in the archive job test cover the clean case and each way one can come up short, and were watched to fail both ways. The accept and the refusal were both checked on screen, including an encrypted archive.
+	- New checks in the archive job test cover the clean case and each way one can come up short. The accept and the refusal were both confirmed, including an encrypted archive.
 
 - ✅ Put in the title, not just the path, but "Nemo Anywhere - 'PATH'".
 	- Opened: n/a
 	- Closed: 20260917-223000
 	- The window title now reads `Nemo Anywhere - 'Documents'`, or the whole path in the quotes when "Show the full path in the title bar and tab bars" is on. The tabs are unchanged, since the window around them already says the program name.
 	- The old title was the folder alone, plus a "- File browser" suffix on the spatial-mode branch. That suffix said what the program name says better, so both branches collapsed into one.
-	- Checked on screen in both preference states, with a regression test that was watched to fail on the old format.
+	- Confirmed in both preference states, with a regression test on the format.
 
 - ✅ Update so (or validate) that List view column widths follow 'design.md's "List view column widths" section. Column width design has been updated several times, and this 'design.md' will be treated as the canonical, precise, complete, conflict-free definition from now on.
 	- Opened: 20260908-133001
@@ -1937,7 +1948,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260902-193949
 	- What works today: a window can be photographed without disturbing anything (it is rendered off-screen, even behind other windows), and most behavior can be driven through the settings file, which is live-reloaded. Clicks and typing reach the app but take the mouse and the focus while they run.
 	- Windows Sandbox is the way: a throwaway Windows built from the host's own image, so no second license, started from a small config file with a shared folder. A logon command inside it runs on its own desktop, which is exactly where the driving script has to be. It keeps no state and cannot reboot, so anything that spans a reboot still wants a Hyper-V guest (Hyper-V is already on; the guest would need an Enterprise evaluation image).
-	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the app, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing logs and screenshots back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
+	- The rig is in: `cicd/win/sandbox.ps1` stages a shared folder with the app, generates the config and launches the sandbox; `sandbox-agent.ps1` runs at logon in there and works through queued job scripts, writing its results back to the share. `cicd/win/gui.ps1` is the window driver both sides use.
 	- `-Dir` takes a whole flattened build instead of the packed exe, so a rebuild can be looked at without packing first. That is the form to use while working.
 	- First run inside is clean: the app came up with its menus, icons and columns, and the first-run bookmark seeding worked on a profile that had never seen it.
 	- Note: split from "Windows: Need to figure out a way to do GUI testing and demo recording", which stays open for demo recording and anything that spans a reboot.
@@ -2807,7 +2818,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260725-153058
 	- Done: the GUI comes up under wine and browses the local drive - sidebar, icon view, per-type icons, item count, free space.
 	- Fixed: startup abort caused by desktop settings schemas that only exist on Cinnamon/GNOME. Bundled neutral fallbacks now cover them (see design.md, "Decisions along the way").
-	- Done: headless GUI smoke test scripted.
+	- Done: GUI smoke test scripted.
 
 - ✅ Map drive letters / roots into the location model.
 	- Opened: 20260718-155447
@@ -2855,7 +2866,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260718-174619
 	- Done: renamed the installed identity only (binaries, service names, settings schema, config/data dirs, menu entries, icons). Internal code identifiers left as-is; no clash.
 	- Done: settings fully isolated from upstream Nemo. Doesn't claim the freedesktop file-manager service when upstream holds it.
-	- Verified: staged install has no filename collisions with upstream. Window runs headless.
+	- Verified: staged install has no filename collisions with upstream. The window comes up with no desktop session.
 
 - ✅ Install nemo-anywhere and upstream Nemo into separate prefixes and confirm both run simultaneously without conflict (real side-by-side runtime proof).
 	- Opened: 20260718-191700

@@ -91,7 +91,7 @@ public static class G {
 		SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0003);
 		SetWindowPos(h, new IntPtr(-2), 0, 0, 0, 0, 0x0003);
 	}
-	/* Two steps: one SetCursorPos from a standing start can land without the
+	/* Two steps: one SetCursorPos from a standing start can arrive without the
 	   motion a tooltip waits for. */
 	public static void Move(int x, int y) {
 		SetCursorPos(x - 40, y - 40);

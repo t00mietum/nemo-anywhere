@@ -2279,7 +2279,7 @@ activation_start_mountables (ActivateParameters *parameters)
 
 #ifdef G_OS_WIN32
 /* Opening a .lnk should do what the shell does. A shortcut to a folder is the
- * one case handled here rather than there, so it lands in the current tab
+ * one case handled here rather than there, so it opens in the current tab
  * instead of a new Explorer window; everything else is handed straight to the
  * shell, which is the only thing that knows about the arguments, working
  * directory and window state the shortcut carries - none of which survive being

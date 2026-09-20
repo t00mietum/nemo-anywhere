@@ -4139,7 +4139,7 @@ handle_popups (NemoIconContainer *container,
 	clear_drag_state (container);
 
 	/* No event: the keyboard asked for this, so the menu has to place itself
-	   rather than land wherever the pointer happens to be sitting. */
+	   rather than sit wherever the pointer happens to be sitting. */
 	g_signal_emit_by_name (container, signal, NULL);
 
 	return TRUE;

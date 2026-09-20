@@ -85,8 +85,7 @@ typedef struct {
 	gboolean over_own;	/* whether the pointer is on one of our windows */
 } DropSource;
 
-/*•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Blocks and formats                                                        */
+/* Blocks and formats */
 
 static HGLOBAL
 block_from (gconstpointer data, gsize len)
@@ -262,8 +261,7 @@ give_up:
 	return block;
 }
 
-/*•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* The data object                                                           */
+/* The data object */
 
 static void
 format_add (DataObject *self, UINT cf, HGLOBAL block)
@@ -533,8 +531,7 @@ static IDataObjectVtbl data_vtbl = {
 	data_enum_advise
 };
 
-/*•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* The drop source                                                           */
+/* The drop source */
 
 static HRESULT STDMETHODCALLTYPE
 source_query_interface (IDropSource *iface, REFIID iid, void **out)
@@ -628,8 +625,7 @@ static IDropSourceVtbl source_vtbl = {
 	source_give_feedback
 };
 
-/*•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* The drag image                                                            */
+/* The drag image */
 
 /* Cairo's ARGB32 is already the byte order and premultiplication a 32-bit dib
  * wants, so the rows copy straight across. */
@@ -744,8 +740,7 @@ attach_drag_image (IDataObject *data, cairo_surface_t *icon, int hot_x, int hot_
 	}
 }
 
-/*•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••*/
-/* Putting it together                                                       */
+/* Putting it together */
 
 /* Local paths for a uri-list payload, or NULL if any line has none - a place
  * only nemo understands cannot be dragged into another program. */

@@ -126,7 +126,7 @@ rm -f "${OUT}/${name}.zip"
 ## zip is the one archiver here that ignores SOURCE_DATE_EPOCH, so the mtimes have
 ## to be set on disk first. -X drops the unix uid/gid and high-precision time extra
 ## fields, and feeding a sorted list fixes the entry order that -r would take from
-## readdir. Note zip's own floor is 1980, so a zero epoch lands there.
+## readdir. Note zip's own floor is 1980, so a zero epoch is clamped to it.
 find "${work}/${name}" -exec touch -h -d "@${SOURCE_DATE_EPOCH}" {} +
 ( cd "$work" && find "${name}" -print | LC_ALL=C sort | zip -qX "${OUT}/${name}.zip" -@ )
 

@@ -31,7 +31,7 @@ com_init (void)
 {
 	HRESULT hr = CoInitializeEx (NULL, COINIT_APARTMENTTHREADED);
 	if (hr == RPC_E_CHANGED_MODE) {
-		/* thread already initialised in another mode - shell link still
+		/* thread already initialized in another mode - shell link still
 		 * works, just don't unbalance the ref count */
 		return FALSE;
 	}

@@ -5,14 +5,14 @@ Four eras, one per Windows generation worth offering: Luna (XP), Aero (7),
 Metro (10) and Mica (11). There is no cleanly-licensed SVG set of any of them -
 what circulates is Microsoft's own shell art extracted and repackaged, which we
 will not ship - so these are ours, drawn here from a shared vocabulary of shapes
-(folder, page, disc, drive, monitor) and glyphs, recoloured per theme. Original
+(folder, page, disc, drive, monitor) and glyphs, recolored per theme. Original
 work, GPL-2.0-only like the rest of the tree, and about a kilobyte an icon.
 
 Folders are yellow in all four, because that is what Windows does and because a
-yellow folder is the one colour that reads on a light background and a dark one
+yellow folder is the one color that reads on a light background and a dark one
 alike. The folder drawing itself differs per era - a chunky outlined one for XP
 and 7, a flat rectangle for 10, a rounded tapered panel for 11 - since the
-folder is the icon people recognise a Windows generation by.
+folder is the icon people recognize a Windows generation by.
 
 Coverage is the visually defining part of the file-manager surface - folders,
 file types, drives. Everything else falls through Inherits to Adwaita, which is
@@ -148,7 +148,7 @@ def grad(gid, top, bottom, x1=0, y1=0, x2=0, y2=1):
 def base_folder(t, open_lid=False):
     """The folder, drawn the way the theme's era drew it.
 
-	This is the icon a Windows generation is recognised by, so it is the one
+	This is the icon a Windows generation is recognized by, so it is the one
 	shape that is not shared: XP and 7 get the chunky outlined folder, 10 the
 	flat rectangle, 11 the rounded panel tapering away from the viewer. The
 	body is 44 wide by 35 tall in every era - shallower than that and it stops
@@ -435,7 +435,7 @@ def fmt(value):
 
 
 def band(t, color):
-    """A colour band down the left edge of a page, the way office types read."""
+    """A color band down the left edge of a page, the way office types read."""
     return (
         '<path d="M9 30h29v12a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2z" fill="%s"/>'
         '<path d="M9 30h29v2.5H9z" fill="#000" opacity=".12"/>' % color
@@ -443,10 +443,10 @@ def band(t, color):
 
 
 # ---------------------------------------------------------------------------
-# The set. name -> (context, base, glyph, glyph colour key, placement)
+# The set. name -> (context, base, glyph, glyph color key, placement)
 #
 # placement: "front" sits on a folder's front panel, "badge" is the lower-right
-# corner of a page, "band" pairs with a coloured office band, "none" is the bare
+# corner of a page, "band" pairs with a colored office band, "none" is the bare
 # shape.
 
 FRONT = (14.0, 22.0, 20.0, ".85")
@@ -454,7 +454,7 @@ BADGE = (24.0, 26.0, 17.0, "1")
 MIDDLE = (12.0, 12.0, 24.0, ".9")
 
 ICONS = [
-    # name, context, base, glyph, colour, placement
+    # name, context, base, glyph, color, placement
     ("folder",                  "places", "folder",      None,       None,     None),
     ("inode-directory",         "places", "folder",      None,       None,     None),
     ("folder-open",             "places", "folder-open", None,       None,     None),
@@ -515,7 +515,7 @@ ICONS = [
     ("network-wireless",        "devices", "drive",   "wave", "accent", BADGE),
 ]
 
-# Office types get a coloured band rather than a badge glyph.
+# Office types get a colored band rather than a badge glyph.
 OFFICE = {
     "x-office-document":     ("accent", "lines"),
     "x-office-spreadsheet":  ("green", "grid"),
@@ -549,16 +549,16 @@ def build(theme_name, theme, out_root):
             handle.write(svg)
         written[name] = (context, defs, body)
 
-    for name, context, base, glyph_name, colour, place in ICONS:
+    for name, context, base, glyph_name, color, place in ICONS:
         defs, body = BASES[base](theme)
         if glyph_name and place:
             x, y, size, opacity = place
-            body += glyph(theme, glyph_name, theme[colour], x, y, size, opacity)
+            body += glyph(theme, glyph_name, theme[color], x, y, size, opacity)
         emit(name, context, defs, body)
 
-    for name, (colour, glyph_name) in OFFICE.items():
+    for name, (color, glyph_name) in OFFICE.items():
         defs, body = base_page(theme)
-        body += band(theme, theme[colour])
+        body += band(theme, theme[color])
         body += glyph(theme, glyph_name, "#FFFFFF", 27.0, 32.0, 14.0, ".95")
         body += glyph(theme, "lines", theme["paperLine"], 13.0, 12.0, 15.0, ".8")
         emit(name, "mimetypes", defs, body)
@@ -584,8 +584,8 @@ def write_index(out_dir, theme_name, theme):
         "Name=%s" % theme_name,
         "Comment=%s" % theme["comment"],
         "X-Nemo-Style=%s" % theme["style"],
-        # Colourful art on either background, and the monochrome half comes from
-        # Adwaita, which GTK recolours to the foreground either way.
+        # Colorful art on either background, and the monochrome half comes from
+        # Adwaita, which GTK recolors to the foreground either way.
         "X-Nemo-Modes=light;dark",
         "Inherits=Adwaita,hicolor",
         "Example=folder",

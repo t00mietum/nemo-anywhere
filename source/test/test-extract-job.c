@@ -1,5 +1,5 @@
 /* Unpacking for real: a zip is written with libarchive, handed to the job, and
- * the folder it lands in is inspected. Covers the two layouts, the paths an
+ * the folder it unpacks into is inspected. Covers the two layouts, the paths an
  * archive can name, and the guard that keeps a hostile one from writing outside
  * the folder that was picked. Collisions are not covered here - every answer to
  * one comes from a dialog, and there is nobody to click it. */
@@ -173,7 +173,7 @@ check_here_layout (const char *tmp,
 	check_contents (one, "first");
 	check_contents (two, "second");
 
-	/* The climbing entry landed inside the folder that was picked, and
+	/* The climbing entry stayed inside the folder that was picked, and
 	   nothing appeared beside it. */
 	escaped = g_build_filename (dest, "escape.txt", NULL);
 	outside = g_build_filename (tmp, "escape.txt", NULL);

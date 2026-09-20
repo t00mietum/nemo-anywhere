@@ -150,7 +150,7 @@ main (int argc, char *argv[])
 	g_object_unref (f);
 
 	/* rename to a windows-reserved name; INVALID_FILENAME has a handler
-	 * in the rename path, anything else would surface as a raw error */
+	 * in the rename path, anything else would come back as a raw error */
 	f = child (base, "renamed.txt");
 	{
 		GFile *renamed = g_file_set_display_name (f, "bad:name.txt", NULL, &error);

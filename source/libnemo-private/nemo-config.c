@@ -92,7 +92,7 @@ static GThread    *config_thread;      /* whoever called init - the UI thread */
 static void schedule_save (const NemoConfigKey *k);
 static void emit_changed  (const char *group, const char *key);
 
-/* ---- Key table ---- */
+/* Key table */
 
 /* "group.key", or bare "key" for the file root. Caller frees. */
 static char *
@@ -162,7 +162,7 @@ require_key (NemoConfigGroup *group, const char *key, NemoConfigType type)
 	return k;
 }
 
-/* ---- Load / save ---- */
+/* Load / save */
 
 static char *
 build_config_path (void)
@@ -276,7 +276,7 @@ note_arena_use_locked (gsize bytes)
 	}
 }
 
-/* ---- Catalog of defaults ---- */
+/* Catalog of defaults */
 
 /* Only changed values are stored, so nothing in the file says what else there
  * is. Everything not set is listed at the end, commented out, with the value
@@ -426,7 +426,7 @@ catalog_entries (void)
 	return entries;
 }
 
-/* The lines the catalog can produce, for recognising a copy already in the
+/* The lines the catalog can produce, for recognizing a copy already in the
  * file. Built from every key, not from the block about to be written: a key
  * set since the last save drops out of the block and its old line still has to
  * come off. Kept in two sets because a description alone is not evidence - the
@@ -653,7 +653,7 @@ schedule_save (const NemoConfigKey *k)
 	save_timeout_id = g_timeout_add_seconds (SAVE_DEBOUNCE_SECONDS, save_now, NULL);
 }
 
-/* ---- Reload on external edit ---- */
+/* Reload on external edit */
 
 /* Snapshot every declared key as text, so an external edit can be turned
  * into the same per-key change signals a set() would have produced. */
@@ -827,7 +827,7 @@ config_file_changed (GFileMonitor      *monitor,
 	g_hash_table_destroy (after);
 }
 
-/* ---- Lifecycle ---- */
+/* Lifecycle */
 
 void
 nemo_config_init (void)
@@ -1018,7 +1018,7 @@ nemo_config_group_init (NemoConfigGroup *self)
 {
 }
 
-/* ---- Reads ---- */
+/* Reads */
 
 /* A missing key falls back to the declared default. An empty one does not:
  * "set to nothing" is a real value, and conflating the two would make an
@@ -1204,7 +1204,7 @@ nemo_config_get_enum (NemoConfigGroup *group, const char *key)
 	return out;
 }
 
-/* ---- Writes ---- */
+/* Writes */
 
 /* Storing a value that equals the default would pin the key: a later change
  * to that default could no longer reach the user. Drop it instead, which
@@ -1599,7 +1599,7 @@ nemo_config_list_keys (NemoConfigGroup *group)
 	return (char **) g_ptr_array_free (out, FALSE);
 }
 
-/* ---- Property binding ---- */
+/* Property binding */
 
 typedef struct {
 	NemoConfigGroup      *group;
