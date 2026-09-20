@@ -5,7 +5,9 @@
  * these fall back to harmless no-ops: no user/group database (empty lists,
  * NULL lookups), never root, chown trivially succeeds. Callers compile
  * unchanged and naturally degrade - the owner/group UI shows nothing and
- * set-owner/set-group operations fail cleanly. */
+ * set-owner/set-group operations fail cleanly.
+ *
+ * Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu) */
 
 #ifndef NEMO_POSIX_COMPAT_H
 #define NEMO_POSIX_COMPAT_H

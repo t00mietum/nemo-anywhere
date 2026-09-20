@@ -99,15 +99,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Origin: measurement came with the column width work, shading with `ownerrows`. Confirmed by reading the hookup and the bodies, not measured.
 			- Fixed: the theme sizes and the column list are read once rather than per row, parity is worked out once per row rather than once per cell, and a renderer that already has no background is left alone. The rows look the same as before.
 			- Measured over 20,000 files. Listing did not move, at about 7.8 s of processor time either way. Paging through the folder went from 1.16 s to 1.01 s with shading off, which is the default, and did not move with it on. So the suspects here were real but small, and the listing cost is somewhere else.
-		- 🔘 Item 12. The theme vendoring script forks per icon.
+		- ✅ Item 12. The theme vendoring script forks per icon.
 			- Cause: the resolver is called through command substitution up to five times per icon across roughly 3,600 icons. The file's own note two hundred lines above says a substitution there is a fork and that this runs tens of thousands of times, and solves it that way for the scorer.
 			- Origin: the scorer was fixed, the resolver that calls it was not. Confirmed.
-		- 🔘 Item 13. A maintainer's home path is baked into test fixtures.
+			- Fixed: the resolver answers through a global and returns a status, the way the scorer already did. The link-stub test reads the head of the file itself instead of calling out three times, and the two `dirname` calls and the two branches picking a directory name are gone. That is about twelve forks an icon removed.
+			- New `--self-test` builds a small tree and checks resolution against it: plain name, symbolic name, context filter on and off, both alias forms, the hop limit and a missing name. It runs in the lint stage, since the build container has no git. Watched to fail three ways.
+		- ✅ Item 13. A maintainer's home path is baked into test fixtures.
 			- Cause: five lines of one Windows test use a real personal path where the rest of the suite uses a placeholder.
 			- Origin: written with a live path and never anonymized. Confirmed.
-		- 🔘 Item 14. Six application sources carry the wrong copyright marker.
+			- Fixed: the five lines say `somebody`. A checked-in `.pyc` holding a build path went with them. New `lint-identity.bash` holds it, watched to fail.
+			- Left alone: this file names a real account in three closed items, which is prose rather than code, so the check does not read it.
+		- ✅ Item 14. Six application sources carry the wrong copyright marker.
 			- Cause: they use the form reserved for the shared helper scripts. Fifteen other first-party files carry no copyright line at all.
 			- Origin: the link and shortcut files were drafted as helpers. Confirmed.
+			- Fixed: all twenty-one carry the project's marker. The same identity check refuses the helper marker under `source/` and refuses any retired marker anywhere, both watched to fail.
 	- 🔘 Low.
 		- 🔘 Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
 		- 🔘 Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
@@ -159,6 +164,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260920-160000
 	- 20,000 empty files take about 7.8 s of processor time. Cutting the per-row and per-cell work in the list view moved that by nothing at all, so the cost sits below it: file info, the model, or the sort.
 	- design.md already names this as the number to watch. What is missing is where it goes.
+
+- 🔘 A theme icon that exists only as a symlink is never found.
+	- Opened: 20260920-170000
+	- `vendor-themes.bash` indexes with `find -type f`, which skips symlinks, so nothing under a theme's `links/` directory is ever a candidate on Linux. The resolver has code to follow an alias and the scorer has code to rank one, and neither can run.
+	- Effect: a name upstream draws once and aliases elsewhere is counted missing and falls through to Adwaita. Unknown how many of the 180 names that is.
+	- Fixing it changes what gets vendored, so it means re-running all twenty themes and comparing the output.
+	- Origin: found by the new `--self-test`, which carries the case already. Confirmed.
 
 - 🔘 Two archive tests remove a tree without the symlink guard.
 	- Opened: 20260920-150000

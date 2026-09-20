@@ -219,6 +219,7 @@ declare -gA iconIndex=()
 declare -gA darkIndex=()
 declare -gi scored=0
 declare -g scoreBias=large
+declare -g resolved_path=""
 
 ## @3 names the array to fill, so a dark overlay gets an index of its own
 ## rather than the light one being rebuilt once per icon.
@@ -289,11 +290,15 @@ fScore(){
 	fi
 }
 
-## Resolve one wanted name to a real file. Echoes an absolute path or nothing.
+## Resolve one wanted name to a real file. Answers through resolved_path and
+## returns 1 when there is nothing, for the same reason fScore does: a command
+## substitution is a fork, and this is called up to six times per icon.
 fResolve(){
 	local repo="$1" ctx="$2" file="$3" wantSymbolic="$4"
-	local pattern best bestScore path isSymbolic hops=0
+	local pattern best bestScore path isSymbolic hops=0 line
 	local -n idx="${6:-iconIndex}"
+
+	resolved_path=""
 
 	scoreBias="${5:-large}"
 
@@ -319,30 +324,128 @@ fResolve(){
 
 		## An alias: a real symlink, or the text file a Windows checkout leaves.
 		if [[ -L "$repo/$best" ]] || fIsLinkStub "$repo/$best"; then
-			(( ++hops > 6 )) && return 1
+			hops=$(( hops + 1 ))
+			(( hops > 6 )) && return 1
 			if [[ -L "$repo/$best" ]] && [[ -f "$repo/$best" ]]; then
-				printf '%s' "$repo/$best"; return 0
+				resolved_path="$repo/$best"; return 0
 			fi
-			file="$(basename "$(tr -d '[:space:]' < "$repo/$best")")"
+			file=""
+			while IFS= read -r line || [[ -n "$line" ]]; do
+				file+="${line//[[:space:]]/}"
+			done < "$repo/$best"
+			file="${file##*/}"
 			[[ -n "$file" ]] || return 1
 			continue
 		fi
 
-		printf '%s' "$repo/$best"
+		resolved_path="$repo/$best"
 		return 0
 	done
 }
 
 ## A checked-out symlink on Windows: one short line naming another file.
+## Called for every icon fResolve settles on, so it reads the head of the file
+## itself rather than paying for stat, grep and tr. A short read of 256 both
+## caps the size and gives the content to test.
 fIsLinkStub(){
-	local f="$1" size
+	local f="$1" head=""
 	[[ -f "$f" ]] || return 1
-	size=$(stat -c%s "$f" 2>/dev/null || echo 999999)
-	(( size > 0 && size < 256 )) || return 1
-	grep -q '<' "$f" && return 1
-	[[ "$(tr -d '[:space:]' < "$f")" == *.svg || "$(tr -d '[:space:]' < "$f")" == *.png ]] || return 1
-	return 0
+	IFS= read -r -N 256 head < "$f" || true
+	(( ${#head} > 0 && ${#head} < 256 )) || return 1
+	[[ "$head" == *'<'* ]] && return 1
+	head="${head//[[:space:]]/}"
+	[[ "$head" == *.svg || "$head" == *.png ]]
 }
+
+#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+## --self-test: resolution against a tree built here, no network and no clone.
+##
+## Worth having because the resolver answers through a global rather than
+## stdout, which is easy to get subtly wrong, and because the only other way to
+## find out is a twenty minute run against twenty upstreams.
+
+fSelfTest(){
+	local repo="$tmp/selftest" fails=0
+
+	fCheck(){
+		local what="$1" want="$2" got="$3"
+		if [[ "$want" == "$got" ]]; then return 0; fi
+		fEcho "FAIL: ${what}: wanted '${want}', got '${got}'"
+		fails=$(( fails + 1 ))
+	}
+
+	mkdir -p "$repo"/{scalable/{places,actions},symbolic/places,links/places,16x16/places}
+	printf '<svg/>\n' > "$repo/scalable/places/folder.svg"
+	printf '<svg/>\n' > "$repo/scalable/actions/eject.svg"
+	printf '<svg/>\n' > "$repo/symbolic/places/folder-symbolic.svg"
+	printf '<svg/>\n' > "$repo/16x16/places/bitmap.png"
+	## An alias the Windows way: a text file holding the relative path its
+	## symlink had, which is what git leaves on a checkout with no symlinks.
+	printf '../../scalable/places/folder.svg\n' > "$repo/links/places/alias.svg"
+	## An alias the POSIX way.
+	ln -sf ../../scalable/places/folder.svg "$repo/links/places/reallink.svg"
+	## Two stubs naming each other. Without the hop limit this never returns.
+	printf 'loop2.svg\n' > "$repo/links/places/loop1.svg"
+	printf 'loop1.svg\n' > "$repo/links/places/loop2.svg"
+
+	fBuildIndex "$repo" "scalable symbolic links 16x16"
+
+	fResolve "$repo" places "folder.svg" 0 || true
+	fCheck "plain name" "$repo/scalable/places/folder.svg" "$resolved_path"
+
+	fResolve "$repo" places "folder-symbolic.svg" 1 || true
+	fCheck "symbolic name" "$repo/symbolic/places/folder-symbolic.svg" "$resolved_path"
+
+	## The context filter really filters: eject is under actions, not places.
+	if fResolve "$repo" places "eject.svg" 0; then
+		fCheck "wrong context" "(no answer)" "$resolved_path"
+	fi
+	fResolve "$repo" any "eject.svg" 0 || true
+	fCheck "any context" "$repo/scalable/actions/eject.svg" "$resolved_path"
+
+	fResolve "$repo" places "alias.svg" 0 || true
+	fCheck "text stub followed" "$repo/scalable/places/folder.svg" "$resolved_path"
+
+	## A name that exists only as a real symlink resolves to nothing, because
+	## the index is built with find -type f. That is on the backlog; the case
+	## is pinned here so the fix turns this red rather than passing quietly.
+	if fResolve "$repo" places "reallink.svg" 0; then :; fi
+	fCheck "symlink alias is not indexed today" "" "$resolved_path"
+
+	if fResolve "$repo" places "loop1.svg" 0; then
+		fCheck "stub chain stops" "(no answer)" "$resolved_path"
+	fi
+
+	if fResolve "$repo" places "nothing.svg" 0; then
+		fCheck "missing name" "(no answer)" "$resolved_path"
+	fi
+	fCheck "missing name clears the answer" "" "$resolved_path"
+
+	fResolve "$repo" places "bitmap.png" 0 || true
+	fCheck "bitmap" "$repo/16x16/places/bitmap.png" "$resolved_path"
+
+	## fIsLinkStub's own edges: real art is not a stub, and neither is a long line.
+	if fIsLinkStub "$repo/scalable/places/folder.svg"; then
+		fCheck "svg is not a stub" "no" "yes"
+	fi
+	printf '%0.sx' {1..300} > "$repo/links/places/toolong.svg"
+	printf '.svg\n' >> "$repo/links/places/toolong.svg"
+	if fIsLinkStub "$repo/links/places/toolong.svg"; then
+		fCheck "long file is not a stub" "no" "yes"
+	fi
+	if ! fIsLinkStub "$repo/links/places/alias.svg"; then
+		fCheck "text stub is a stub" "yes" "no"
+	fi
+
+	if (( fails )); then
+		fEcho "FAILED: vendor-themes self-test: ${fails} problem(s)"
+		exit 1
+	fi
+	fEcho "OK: vendor-themes self-test"
+	exit 0
+}
+
+[[ "${wanted[0]:-}" == "--self-test" ]] && fSelfTest
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Emit index.theme for a finished icon theme directory.
@@ -419,30 +522,26 @@ fBuildIconTheme(){
 	darkStaged="$tmp/stage-$id-dark"
 	rm -rf "$staged" "$darkStaged"
 
-	local found=0 missing=0 darkFound=0 borrowed=0
+	local found=0 missing=0 darkFound=0 borrowed=0 bucket
 	while read -r ctx name; do
 		[[ -z "$ctx" || "$ctx" == \#* ]] && continue
 
 		symbolic=0
-		[[ "$name" == *-symbolic ]] && symbolic=1
+		bucket=scalable
+		if [[ "$name" == *-symbolic ]]; then symbolic=1; bucket=symbolic; fi
 
-		src="$(fResolve "$repo" "$ctx" "$name.svg" "$symbolic" || true)"
-
+		src=""
 		## Themes disagree about which context an icon belongs to - Adwaita
 		## files folder-open under status, inode-directory under mimetypes and
 		## media-eject under actions. The basename is unique enough on its own,
 		## so a context miss retries with the filter off rather than giving up.
-		if [[ -z "$src" ]]; then
-			src="$(fResolve "$repo" any "$name.svg" "$symbolic" || true)"
-		fi
-
+		##
 		## Some names were never redrawn as vector - Adwaita's emblems and the
 		## whole legacy set are bitmap only. Better a bitmap than a hole.
-		if [[ -z "$src" ]]; then
-			src="$(fResolve "$repo" "$ctx" "$name.png" "$symbolic" || true)"
-		fi
-		if [[ -z "$src" ]]; then
-			src="$(fResolve "$repo" any "$name.png" "$symbolic" || true)"
+		if   fResolve "$repo" "$ctx" "$name.svg" "$symbolic"; then src="$resolved_path"
+		elif fResolve "$repo" any    "$name.svg" "$symbolic"; then src="$resolved_path"
+		elif fResolve "$repo" "$ctx" "$name.png" "$symbolic"; then src="$resolved_path"
+		elif fResolve "$repo" any    "$name.png" "$symbolic"; then src="$resolved_path"
 		fi
 
 		## Not every theme has a symbolic set - Papirus has none at all, only
@@ -451,30 +550,33 @@ fBuildIconTheme(){
 		## named, and a flat 16px glyph in the theme's own colours beats
 		## dropping the whole toolbar back to Adwaita.
 		if [[ -z "$src" && "$symbolic" == "1" ]]; then
-			src="$(fResolve "$repo" "$ctx" "${name%-symbolic}.svg" 0 small || true)"
-			[[ -n "$src" ]] && borrowed=$(( borrowed + 1 ))
+			if fResolve "$repo" "$ctx" "${name%-symbolic}.svg" 0 small; then
+				src="$resolved_path"
+				borrowed=$(( borrowed + 1 ))
+			fi
 		fi
 
 		if [[ -z "$src" ]]; then missing=$(( missing + 1 )); continue; fi
 
 		## Keep the source extension: a handful of names exist only as bitmaps
 		## upstream, and a png under an .svg name renders as nothing.
-		out="$staged/$([[ $symbolic == 1 ]] && echo symbolic || echo scalable)/$ctx/$name.${src##*.}"
+		out="$staged/$bucket/$ctx/$name.${src##*.}"
 
-		mkdir -p "$(dirname "$out")"
+		mkdir -p "${out%/*}"
 		cp -f "$src" "$out"
 		found=$(( found + 1 ))
 
 		## The dark half takes only what upstream actually drew differently.
 		if [[ -n "$darkFrom" && -n "$counterpart" ]]; then
+			darkSrc=""
 			if [[ "$darkFrom" == roots:* ]]; then
-				darkSrc="$(fResolve "$repo" any "$name.svg" "$symbolic" large darkIndex || true)"
+				fResolve "$repo" any "$name.svg" "$symbolic" large darkIndex && darkSrc="$resolved_path"
 			else
-				darkSrc="$(fResolve "$repo" "$ctx" "$name${darkFrom#suffix:}.svg" "$symbolic" || true)"
+				fResolve "$repo" "$ctx" "$name${darkFrom#suffix:}.svg" "$symbolic" && darkSrc="$resolved_path"
 			fi
 			if [[ -n "$darkSrc" ]]; then
-				darkOut="$darkStaged/$([[ $symbolic == 1 ]] && echo symbolic || echo scalable)/$ctx/$name.${darkSrc##*.}"
-				mkdir -p "$(dirname "$darkOut")"
+				darkOut="$darkStaged/$bucket/$ctx/$name.${darkSrc##*.}"
+				mkdir -p "${darkOut%/*}"
 				cp -f "$darkSrc" "$darkOut"
 				darkFound=$(( darkFound + 1 ))
 			fi

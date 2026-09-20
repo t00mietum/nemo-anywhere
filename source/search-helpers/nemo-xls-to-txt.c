@@ -2,6 +2,8 @@
  * search. Shared strings, plain labels, formula results, numbers and sheet names
  * are printed; layout and formatting are not.
  *
+ * Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation.

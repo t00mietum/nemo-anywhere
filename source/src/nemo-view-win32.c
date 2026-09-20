@@ -1,6 +1,8 @@
 /* Win32-only helpers for nemo-view. Kept in its own file because <windows.h>
    defines macros (DELETE, ERROR, ...) that collide with enum identifiers in the
-   main nemo-view.c. */
+   main nemo-view.c.
+
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu) */
 
 #include <config.h>
 
