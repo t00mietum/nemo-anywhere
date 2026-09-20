@@ -72,6 +72,7 @@ main (int argc, char *argv[])
 	char *tmp, *src_dir, *dst_dir;
 	char *real_file, *link_path, *landed, *contents = NULL;
 	guint timeout_id;
+	gboolean skipped = FALSE;
 
 	test_init (&argc, &argv);
 
@@ -89,6 +90,7 @@ main (int argc, char *argv[])
 
 	if (!(nemo_link_kinds_supported (src_dir) & NEMO_LINK_FILE_SYMLINK)) {
 		g_printerr ("note: file symlinks are not permitted here, nothing to check\n");
+		skipped = TRUE;
 		goto out;
 	}
 
@@ -148,9 +150,13 @@ main (int argc, char *argv[])
 	g_free (src_dir);
 	g_free (tmp);
 
-	if (failures == 0) {
-		g_print ("link copy job (%s): all checks passed\n", how);
+	if (failures > 0) {
+		return EXIT_FAILURE;
+	}
+	if (skipped) {
+		return 77;
 	}
 
-	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	g_print ("link copy job (%s): all checks passed\n", how);
+	return EXIT_SUCCESS;
 }

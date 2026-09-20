@@ -219,6 +219,9 @@ main (int argc, char *argv[])
 		g_printerr ("%d failure(s)\n", failures);
 		return EXIT_FAILURE;
 	}
+	if (!made_links) {
+		return 77;
+	}
 
 	g_print ("link type: all checks passed\n");
 	return EXIT_SUCCESS;
