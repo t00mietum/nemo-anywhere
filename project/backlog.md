@@ -123,6 +123,33 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
+- 🔘 The content search helpers have no fuzz target.
+	- Opened: 20260919-203000
+	- They parse the most hostile input in the tree, and the three existing targets cover the settings file, the drag payload and command templates instead.
+	- Origin: raised while fixing the shared-string loop in the xls helper, which is the kind of fault a target would have found. Confirmed.
+
+- 🔘 A release build prints four warnings about unused functions and variables.
+	- Opened: 20260919-203000
+	- From `nemo-file.c` and `nemo-view.c`. Not new: the Linux release lane has always been a release build. The Windows lane only started showing them once it became one.
+	- Origin: predates the release-flags work. Confirmed.
+
+- 🔘 The Windows cross link compiles its LTO jobs one at a time.
+	- Opened: 20260919-203000
+	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
+	- Origin: came in with link-time optimization on the release lanes. Confirmed.
+
+- 🔘 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
+	- Opened: 20260919-210000
+	- The sidebar and the view are compiled into the program, and the tests link the two libraries beside it. A fix in either is pinned by reading the source, never by running it.
+	- Probable fix: build the program's sources into a library the executable and the tests both link.
+	- Origin: raised while fixing a settings handler that outlived the sidebar, which is exactly the kind of fault only a teardown test would catch. Confirmed.
+
+- 🔘 The settings-handler check cannot see one of the config groups.
+	- Opened: 20260919-203000
+	- It matches group names ending in "preferences", so `nemo_window_state` is invisible to it and a mismatched disconnect there would pass. The tree is clean today; the three pairs were read by hand.
+	- Probable fix: read the group names out of `nemo-global-preferences.h` rather than matching a pattern.
+	- Origin: came in with the check itself. Confirmed.
+
 ### Features and enhancements
 
 - 🔘 If "show full path in tabs and window" is enabled:
