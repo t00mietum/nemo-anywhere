@@ -71,6 +71,74 @@ convert (const char *helper, const char *file)
 	return out;
 }
 
+/* Same, but gives up after a bound. A converter that never returns is the
+ * failure some of these cases are looking for, and a test that hangs waiting
+ * for one says much less than a test that reports it. */
+typedef struct {
+	GMainLoop  *loop;
+	GSubprocess *proc;
+	char       *out;
+	gboolean    timed_out;
+} BoundedRun;
+
+static void
+bounded_finished (GObject *source, GAsyncResult *result, gpointer data)
+{
+	BoundedRun *run = data;
+
+	g_subprocess_communicate_utf8_finish (G_SUBPROCESS (source), result, &run->out, NULL, NULL);
+	g_main_loop_quit (run->loop);
+}
+
+static gboolean
+bounded_expired (gpointer data)
+{
+	BoundedRun *run = data;
+
+	run->timed_out = TRUE;
+	g_subprocess_force_exit (run->proc);
+	return G_SOURCE_REMOVE;
+}
+
+/* TRUE if the converter finished inside the bound. What it printed goes to
+ * *out, so a case with a bound on it never needs a second, unbounded run. */
+static gboolean
+converts_within (const char *helper, const char *file, guint seconds, char **out)
+{
+	char *exe = helper_path (helper);
+	BoundedRun run = { NULL, NULL, NULL, FALSE };
+	GError *error = NULL;
+	guint timer;
+
+	run.proc = g_subprocess_new (G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_SILENCE,
+				     &error, exe, file, NULL);
+	g_free (exe);
+	if (run.proc == NULL) {
+		g_print ("could not run %s converter: %s\n", helper, error->message);
+		g_error_free (error);
+		return FALSE;
+	}
+
+	run.loop = g_main_loop_new (NULL, FALSE);
+	timer = g_timeout_add_seconds (seconds, bounded_expired, &run);
+	g_subprocess_communicate_utf8_async (run.proc, NULL, NULL, bounded_finished, &run);
+	g_main_loop_run (run.loop);
+
+	if (!run.timed_out) {
+		g_source_remove (timer);
+	}
+	g_main_loop_unref (run.loop);
+	g_object_unref (run.proc);
+
+	if (out != NULL) {
+		*out = run.out != NULL ? run.out : g_strdup ("");
+	} else {
+		g_free (run.out);
+	}
+
+	return !run.timed_out;
+}
+
 static void
 expect (const char *helper, const char *file, const char *const present[], const char *const absent[])
 {
@@ -343,6 +411,62 @@ test_xls (void)
 	g_byte_array_free (wb, TRUE);
 }
 
+/* An SST that says it holds four billion strings and then stops. The count is
+ * read straight off the file, so nothing but the converter's own progress test
+ * keeps it from reading the same exhausted record once per claimed string. The
+ * converter is spawned per file, so one workbook like this in a folder used to
+ * tie up a core for the length of a search. */
+static void
+test_xls_truncated_sst (void)
+{
+	GByteArray *wb = g_byte_array_new ();
+	GByteArray *p;
+	const char *names[] = { "Workbook", NULL };
+	GByteArray *bodies[] = { wb };
+	const char *present[] = { "Xray", NULL };
+	char *path, *out = NULL;
+
+	/* BOF: BIFF8 workbook globals */
+	p = g_byte_array_new ();
+	put16 (p, 0x0600);
+	put16 (p, 0x0005);
+	put32 (p, 0);
+	put32 (p, 0);
+	put32 (p, 0);
+	biff_record (wb, 0x0809, p);
+
+	/* SST: one string, and a claim of 0xFFFFFFFF. Nothing continues it. */
+	p = g_byte_array_new ();
+	put32 (p, 0xFFFFFFFF);
+	put32 (p, 0xFFFFFFFF);
+	put16 (p, 5);
+	g_byte_array_append (p, (const guint8 *) "\x00", 1);
+	put_bytes (p, "Whisk\x79");
+	biff_record (wb, 0x00FC, p);
+
+	/* A record after it, so the converter has to get past the SST to read it. */
+	p = g_byte_array_new ();
+	put16 (p, 0);
+	put16 (p, 0);
+	put16 (p, 0);
+	put16 (p, 4);
+	g_byte_array_append (p, (const guint8 *) "\x00", 1);
+	put_bytes (p, "Xray");
+	biff_record (wb, 0x0204, p);
+
+	p = g_byte_array_new ();
+	biff_record (wb, 0x000A, p);
+
+	path = write_ole ("truncated-sst.xls", names, bodies);
+	check (converts_within ("xls", path, 10, &out),
+	       "a truncated shared-string table does not hang the xls converter");
+	check (strstr (out, present[0]) != NULL,
+	       "the records after a truncated shared-string table are still read");
+	g_free (out);
+	g_free (path);
+	g_byte_array_free (wb, TRUE);
+}
+
 static void
 test_ppt (void)
 {
@@ -567,6 +691,7 @@ main (int argc, char *argv[])
 
 	test_zip_formats ();
 	test_xls ();
+	test_xls_truncated_sst ();
 	test_ppt ();
 	test_doc ();
 	test_engine (scratch);

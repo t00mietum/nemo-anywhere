@@ -250,8 +250,19 @@ parse_biff (const guint8 *data, gsize len, GString *out)
 				biff_u32 (&b);
 				unique = biff_u32 (&b);
 
+				/* The count comes off the file, so it can claim far more
+				   strings than the record holds. biff_string8 leaves pos
+				   alone when the record has run out and no CONTINUE
+				   follows it, so without the progress test a truncated
+				   workbook spins here once per claimed string, up to four
+				   billion times, on a helper spawned per file. */
 				while (unique-- > 0 && b.pos < b.len) {
+					gsize before = b.pos;
+
 					biff_string8 (&b);
+					if (b.pos == before) {
+						break;
+					}
 				}
 			}
 			break;
