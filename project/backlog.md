@@ -45,9 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Archiving with rar: When "delete after confirm" was set, got an error message: "The original files were kend. The archive could not be read back."
-	- The archive seems to have been created correctly.
-
 - 🔘 Code review 20260919.
 	- Opened: 20260919-175254
 	- Style, performance and prose pass over the whole tree, first-party and inherited, aimed at areas the two earlier rounds did not cover. Worst first. Technical detail is kept out of this file. Numbers match the private detail notes.
@@ -175,8 +172,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- 🔘 If "delete" is checked AND password set, show an additional simple dialog to confirm the password.
 
 - 🔘 If "show full path in tabs and window" is enabled:
-	- Show the entire path in either one if there's enough room.
-	- Recalculate the possibility of both on window resize.
+	- Show the entire path of the current tab, if there's enough room.
+	- Show the entire path in all tabs if there's enough room.
+		- If not, show the entire path in the current tab if there's enough room.
+	- Recalculate the possibilities of both on window resize, and redraw if necessary.
+	- For window and tabs: Prefer full path, then '[beginning part]/[ellipses]/[end part]/', then '/a/b/c/d/' style.
+		- For tabs, use the same shortened form for all non-active tabs. Use own logic loop (but same logic) for fitting the active tab.
 
 - 🔘 Icon view:
 	- Opened: 20260919-083140
@@ -300,6 +301,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Archiving with rar: When "delete after confirm" was set, got an error message: "The original files were kend. The archive could not be read back."
+	- The archive seems to have been created correctly.
+	- Opened: 20260920-153000
+	- Closed: 20260920-163000
+	- Cause: with "Encrypt the file names too" ticked, rar is run with `-hp` and 7-Zip with `-mhe=on`, and libarchive will not open either. It refuses before it reads a single name, whatever password it is handed. So the check could never pass and the originals were always kept, on an archive that was in fact fine.
+	- Fixed: `nemo_archive_can_verify` is the one place that decides whether an archive can be read back afterwards. The Compress dialog greys the delete box on it, the same way it already did for a split archive, and the job answers with a sentence that says what the trouble actually is.
+	- Rar with no password and rar with a password both read back and delete as they should; it is only the name encryption that cannot be checked.
 
 - ✅ The settings-handler check cannot see one of the config groups.
 	- Opened: 20260919-203000

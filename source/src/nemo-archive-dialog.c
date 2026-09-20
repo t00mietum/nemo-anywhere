@@ -141,7 +141,9 @@ update_for_format (ArchiveDialog *self)
 {
 	NemoArchiveFormat format = current_format (self);
 	NemoArchiveCaps caps = nemo_archive_format_caps (format);
+	NemoArchiveOptions checkable;
 	gboolean has_password;
+	gboolean hidden_names;
 	gboolean splitting;
 	char *name;
 
@@ -167,9 +169,17 @@ update_for_format (ArchiveDialog *self)
 		    gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->split_check));
 	set_row_sensitive (self->split_combo, splitting);
 
-	/* One volume of a set will not open as an archive, so there is no way to
-	   check the thing before removing what went into it. */
-	set_row_sensitive (self->delete_check, !splitting);
+	/* The box is only offered for an archive that can be checked afterwards,
+	   and nemo_archive_can_verify is the one place that decides. */
+	hidden_names = has_password &&
+		       (caps & NEMO_ARCHIVE_CAP_ENCRYPT_NAMES) != 0 &&
+		       gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->encrypt_names_check));
+	nemo_archive_options_init (&checkable);
+	checkable.split_size = splitting ? 1 : 0;
+	checkable.encrypt_names = hidden_names;
+	checkable.password = hidden_names ? g_strdup ("x") : NULL;
+	set_row_sensitive (self->delete_check, nemo_archive_can_verify (&checkable));
+	nemo_archive_options_clear (&checkable);
 
 	/* Following linked folders is ours, not the format's - except that a
 	   backend storing the links is not descending into them either. */
@@ -432,6 +442,7 @@ build_options (ArchiveDialog *self,
 	g_signal_connect (self->password_entry, "changed", G_CALLBACK (password_changed), self);
 
 	self->encrypt_names_check = add_check (grid, row++, _("Encrypt the _file names too"), FALSE);
+	g_signal_connect (self->encrypt_names_check, "toggled", G_CALLBACK (option_toggled), self);
 
 	self->split_check = add_check (grid, row++, _("Split into _volumes"), FALSE);
 	g_signal_connect (self->split_check, "toggled", G_CALLBACK (option_toggled), self);

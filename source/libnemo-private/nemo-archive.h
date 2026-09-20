@@ -161,6 +161,11 @@ gboolean nemo_archive_parse_size (const char *text,
 				  guint64    *bytes);
 char    *nemo_archive_format_size (guint64 bytes);
 
+/* Whether an archive written with these options can be read back at all, and
+   so whether deleting the originals may be offered for it. A split set and an
+   archive with its names encrypted both answer FALSE. */
+gboolean nemo_archive_can_verify (const NemoArchiveOptions *options);
+
 /* Walks the sources again and reads the archive back, so that nothing may be
    deleted on the strength of the writer saying it went well. Answers TRUE only
    when every file that should have gone in is in there under the same relative
