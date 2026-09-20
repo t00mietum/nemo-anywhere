@@ -210,6 +210,32 @@ fCheckTreeWalks(){
 }
 fCheckTreeWalks
 
+## Row shading remembers which renderers it has already told they have no
+## background, so it can skip saying it again on every redraw. That is only
+## safe while cell_set_plain is the one place the property is turned off. A
+## second writer would leave the memory wrong and the shading with it, quietly.
+fCheckCellPlain(){
+	local src='source/src/nemo-list-view.c'
+	local n
+
+	[[ -f "$src" ]] || return 0
+
+	n="$(grep -c -F '"cell-background-set"' "$src" || true)"
+	if [[ "$n" != 1 ]]; then
+		fEcho "FAIL: ${src}: ${n} writes of cell-background-set, expected the 1 in cell_set_plain"
+		grep -n -F '"cell-background-set"' "$src" || true
+		exit 2
+	fi
+
+	n="$(grep -rl -F '"cell-background' source/src source/libnemo-private source/eel | grep -cv 'nemo-list-view.c' || true)"
+	if [[ "$n" != 0 ]]; then
+		fEcho "FAIL: cell-background is written outside nemo-list-view.c"
+		grep -rn -F '"cell-background' source/src source/libnemo-private source/eel | grep -v 'nemo-list-view.c' || true
+		exit 2
+	fi
+}
+fCheckCellPlain
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

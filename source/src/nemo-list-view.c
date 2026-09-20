@@ -130,6 +130,18 @@ struct NemoListViewDetails {
 	gint column_floor;
 	gint column_pad;
 	gint column_ellipsis;
+
+	/* Theme sizes the measuring needs. Read once and dropped on a style
+	   change, since a style_get is not cheap and this runs per row. */
+	gboolean style_metrics_valid;
+	gint column_separator_px;
+	gint name_indent_base;
+	gint name_indent_step;
+
+	/* The columns, kept rather than copied again for every row measured.
+	   Dropped whenever the tree view says the set has changed. */
+	GList *measure_columns;
+
 	gint laid_out_width;
 	gint own_width;		/* our last allocation, and what the tree view got out of it - */
 	gint tree_inset;	/* so the next one can be laid out before the tree view sees it */
@@ -168,6 +180,14 @@ struct NemoListViewDetails {
     /* Every other row is tinted with this when row_shading is on. */
     gboolean row_shading;
     GdkRGBA row_shading_color;
+
+    /* Parity belongs to the row but is asked for once per cell, so the first
+       cell works it out and the rest of that row reuse it. shade_pass moves
+       whenever the rows might have shifted under us, which retires the answer. */
+    guint shade_pass;
+    guint shade_node_pass;
+    gpointer shade_node;
+    gboolean shade_tint;
 
     /* Where the search being shown started from. Group row labels are spelled
      * relative to it. Worked out on the first result and dropped on clear. */
@@ -2721,9 +2741,39 @@ apply_columns_settings (NemoListView *list_view,
     remeasure_rows (list_view);
 }
 
+static GQuark
+cell_plain_quark (void)
+{
+    static GQuark quark = 0;
+
+    if (G_UNLIKELY (quark == 0)) {
+        quark = g_quark_from_static_string ("nemo-cell-plain");
+    }
+
+    return quark;
+}
+
+/* Telling a renderer it has no background emits a notify whether or not that
+   is news, and with shading off that is every cell of every redraw. Remember
+   what each renderer was last handed instead. */
+static void
+cell_set_plain (GtkCellRenderer *renderer)
+{
+    if (g_object_get_qdata (G_OBJECT (renderer), cell_plain_quark ()) != NULL) {
+        return;
+    }
+
+    g_object_set (renderer, "cell-background-set", FALSE, NULL);
+    g_object_set_qdata (G_OBJECT (renderer), cell_plain_quark (), GINT_TO_POINTER (1));
+}
+
 /* GTK 3 still has the rules hint but no longer draws it, so the rows are
  * tinted from here. The renderer leaves its background off a selected row by
- * itself, and a see-through tint lets the hover highlight show under it. */
+ * itself, and a see-through tint lets the hover highlight show under it.
+ *
+ * Called once per cell, so the parity is worked out for the first cell of a
+ * row and the rest of that row read it back. shade_pass moves at the start of
+ * every redraw and every row measured, which is when a row could have moved. */
 static void
 shade_row (NemoListView    *view,
            GtkCellRenderer *renderer,
@@ -2733,30 +2783,43 @@ shade_row (NemoListView    *view,
     GtkTreePath *path;
     GdkRectangle area;
     gint tree_y;
+    gboolean tint;
 
     if (!view->details->row_shading) {
-        g_object_set (renderer, "cell-background-set", FALSE, NULL);
+        cell_set_plain (renderer);
         return;
     }
 
-    /* The row's place on screen rather than in the model, so rows an open
-       subfolder adds take their turn like any other. */
-    path = gtk_tree_model_get_path (model, iter);
-    gtk_tree_view_get_background_area (view->details->tree_view, path, NULL, &area);
-    gtk_tree_path_free (path);
-
-    if (area.height <= 0) {
-        g_object_set (renderer, "cell-background-set", FALSE, NULL);
-        return;
-    }
-
-    gtk_tree_view_convert_bin_window_to_tree_coords (view->details->tree_view,
-                                                     0, area.y, NULL, &tree_y);
-
-    if ((tree_y / area.height) % 2 == 1) {
-        g_object_set (renderer, "cell-background-rgba", &view->details->row_shading_color, NULL);
+    if (view->details->shade_node == iter->user_data &&
+        view->details->shade_node_pass == view->details->shade_pass) {
+        tint = view->details->shade_tint;
     } else {
-        g_object_set (renderer, "cell-background-set", FALSE, NULL);
+        /* The row's place on screen rather than in the model, so rows an open
+           subfolder adds take their turn like any other. */
+        path = gtk_tree_model_get_path (model, iter);
+        gtk_tree_view_get_background_area (view->details->tree_view, path, NULL, &area);
+        gtk_tree_path_free (path);
+
+        if (area.height <= 0) {
+            cell_set_plain (renderer);
+            return;
+        }
+
+        gtk_tree_view_convert_bin_window_to_tree_coords (view->details->tree_view,
+                                                         0, area.y, NULL, &tree_y);
+
+        tint = (tree_y / area.height) % 2 == 1;
+
+        view->details->shade_node = iter->user_data;
+        view->details->shade_node_pass = view->details->shade_pass;
+        view->details->shade_tint = tint;
+    }
+
+    if (tint) {
+        g_object_set (renderer, "cell-background-rgba", &view->details->row_shading_color, NULL);
+        g_object_set_qdata (G_OBJECT (renderer), cell_plain_quark (), NULL);
+    } else {
+        cell_set_plain (renderer);
     }
 }
 
@@ -2797,6 +2860,28 @@ row_shading_changed_callback (NemoListView *view)
 
     g_free (color_text);
     gtk_widget_queue_draw (GTK_WIDGET (view->details->tree_view));
+}
+
+/* A theme change brings a new text color, maybe a nemo_row_shading, and new
+   values for the sizes the measuring holds on to. */
+static void
+tree_view_style_updated (NemoListView *view)
+{
+    view->details->style_metrics_valid = FALSE;
+
+    row_shading_changed_callback (view);
+}
+
+/* Rows stand still for the length of one redraw, which is how long the parity
+   worked out for a row is good for. */
+static gboolean
+tree_view_draw_callback (GtkWidget    *widget,
+                         cairo_t      *cr,
+                         NemoListView *view)
+{
+    view->details->shade_pass++;
+
+    return FALSE;
 }
 
 static void
@@ -3018,18 +3103,37 @@ column_ellipsis_width (NemoListView *view)
 	return view->details->column_ellipsis;
 }
 
-/* The gap the tree view leaves either side of a cell. Cached with the floor,
-   for the same reason: it only moves with the theme. */
-static gint
-column_separator (NemoListView *view)
+/* The theme sizes measuring a row needs: the gap the tree view leaves either
+   side of a cell, and what one level of expander pushes the name over by.
+   Read once, because a style_get costs real work and a folder load asks for
+   these several times per row per column. Only a theme change moves them. */
+static void
+style_metrics (NemoListView *view)
 {
 	gint separator = 0;
+	gint expander_size = 0;
+
+	if (view->details->style_metrics_valid) {
+		return;
+	}
 
 	gtk_widget_style_get (GTK_WIDGET (view->details->tree_view),
 			      "horizontal-separator", &separator,
+			      "expander-size", &expander_size,
 			      NULL);
 
-	return separator;
+	view->details->column_separator_px = separator;
+	view->details->name_indent_base = separator / 2;
+	view->details->name_indent_step = expander_size + 4;
+	view->details->style_metrics_valid = TRUE;
+}
+
+static gint
+column_separator (NemoListView *view)
+{
+	style_metrics (view);
+
+	return view->details->column_separator_px;
 }
 
 static const char *
@@ -3449,20 +3553,15 @@ static gint
 name_indent_for (NemoListView *view,
 		 GtkTreePath  *path)
 {
-	gint expander_size, horizontal_separator;
-
 	if (path == NULL ||
 	    !gtk_tree_view_get_show_expanders (view->details->tree_view)) {
 		return 0;
 	}
 
-	gtk_widget_style_get (GTK_WIDGET (view->details->tree_view),
-			      "expander-size", &expander_size,
-			      "horizontal-separator", &horizontal_separator,
-			      NULL);
-	expander_size += 4;
+	style_metrics (view);
 
-	return (horizontal_separator / 2) + gtk_tree_path_get_depth (path) * expander_size;
+	return view->details->name_indent_base +
+	       gtk_tree_path_get_depth (path) * view->details->name_indent_step;
 }
 
 /* What this column would want to be to show this row whole - and, when asked,
@@ -3515,6 +3614,25 @@ row_width_for_column (NemoListView      *view,
 	return total + column_separator (view);
 }
 
+/* The columns in order. Kept, because measuring asks for them once per row and
+   the tree view says when the set changes. */
+static GList *
+measure_columns (NemoListView *view)
+{
+	if (view->details->measure_columns == NULL) {
+		view->details->measure_columns =
+			gtk_tree_view_get_columns (view->details->tree_view);
+	}
+
+	return view->details->measure_columns;
+}
+
+static void
+columns_changed_callback (NemoListView *view)
+{
+	g_clear_pointer (&view->details->measure_columns, g_list_free);
+}
+
 /* One row through every visible column, folded into what each has seen. Called
    as rows arrive and as their details fill in, which is a handful of cells at a
    time rather than a walk of the whole folder. */
@@ -3526,18 +3644,20 @@ measure_row (GtkTreeModel *model,
 {
 	NemoListView *view = NEMO_LIST_VIEW (user_data);
 	NemoFile *file = NULL;
-	GList *columns, *l;
+	GList *l;
 	gboolean grew = FALSE;
 
 	if (view->details->tree_view == NULL) {
 		return;
 	}
 
+	/* Setting cell data below runs the shading func, and this is one row, so
+	   whatever it works out there is good for the rest of this call only. */
+	view->details->shade_pass++;
+
 	gtk_tree_model_get (model, iter, NEMO_LIST_MODEL_FILE_COLUMN, &file, -1);
 
-	columns = gtk_tree_view_get_columns (view->details->tree_view);
-
-	for (l = columns; l != NULL; l = l->next) {
+	for (l = measure_columns (view); l != NULL; l = l->next) {
 		GtkTreeViewColumn *column = l->data;
 		gboolean is_name = column == view->details->file_name_column;
 		gboolean by_text = !is_name && column_keeps_every_value (view, column);
@@ -3561,7 +3681,6 @@ measure_row (GtkTreeModel *model,
 		g_free (text);
 	}
 
-	g_list_free (columns);
 	nemo_file_unref (file);
 
 	if (grew) {
@@ -3897,10 +4016,13 @@ create_and_set_up_tree_view (NemoListView *view)
                               "changed::" NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING_COLOR,
                               G_CALLBACK (row_shading_changed_callback),
                               view);
-    /* A theme change brings a new text color, and maybe a nemo_row_shading. */
     g_signal_connect_swapped (view->details->tree_view, "style-updated",
-                              G_CALLBACK (row_shading_changed_callback),
+                              G_CALLBACK (tree_view_style_updated),
                               view);
+    g_signal_connect (view->details->tree_view, "draw",
+                      G_CALLBACK (tree_view_draw_callback), view);
+    g_signal_connect_swapped (view->details->tree_view, "columns-changed",
+                              G_CALLBACK (columns_changed_callback), view);
 
 	view->details->columns = g_hash_table_new_full (g_str_hash,
 							g_str_equal,
@@ -5702,6 +5824,7 @@ nemo_list_view_finalize (GObject *object)
 	}
 
 	g_list_free (list_view->details->cells);
+	g_clear_pointer (&list_view->details->measure_columns, g_list_free);
 	g_hash_table_destroy (list_view->details->columns);
 	g_hash_table_destroy (list_view->details->samples);
 	if (list_view->details->pending_user_widths != NULL) {
