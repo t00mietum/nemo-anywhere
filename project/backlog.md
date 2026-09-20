@@ -68,7 +68,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
 		- Expose a separate adjustment for image thumnail size. default 320px.
 		- "Mostly images" means at least 2 images and at least half the files in the folder (settled 20260920).
-		- Not started. Needs a call first: the icon view sizes by zoom level and the largest of those is 256px, so 320 is either an eighth level or a thumbnail-only size that the zoom no longer sets.
+		- Not started. Settled 20260920: the zoom ladder grows rather than the thumbnail size being split off from it.
+		- The ladder runs past 256 to 640 at the top.
+		- The slider stops between the rungs as well, so a size that is not one of the named levels is reachable by dragging it.
+		- Open, and worth settling before any code: whether the list view shares the new top end (a 640px row is not useful), what a size between two rungs is saved as per folder, and what Zoom In and Zoom Out step by once the slider is finer than they are.
 	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
 		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
 
@@ -77,6 +80,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 For macOS, many actions that require CTRL+[something] in Linux or Windows, would more naturally be Command+[something] in macOS. (E.g. keyboard mod behavior in Finder.) Account for these combo key differences. But don't go overboard, e.g. don't require "Cmd+down arrow" to enter a folder. Keep the current keyboard behavior, just remap the sensible things from Ctrl to Cmd on macOS where it makes sense.
 	- Opened: 20260919-125440
+	- Settled 20260920: write it now rather than wait for a macOS target. There is no way to run it here, so it goes in behind a platform check and stays unverified until there is a machine to try it on.
 
 - ✅ Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
 	- Opened: 20260804-230307. Closed: 20260919.
