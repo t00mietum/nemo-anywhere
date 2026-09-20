@@ -9,15 +9,15 @@
 ##	  workflow, which runs on a release tag and nowhere else. The artifact half
 ##	  reads a built exe and fails on a size only a debug build reaches, so the
 ##	  check sits on the path that makes the file.
-##	- --shipped adds the stricter half: no debug sections at all. It is for the
-##	  staged bundle, not the build directory. meson's -Dstrip=true only runs on
-##	  install and neither lane installs, so stage-native.bash does the stripping
-##	  and calls this on what it wrote. mingw's own static objects carry a little
-##	  debug information even in a release link, so the build directory copy will
-##	  not pass --shipped and is not meant to.
-##	- The artifact half is skipped when no exe is named and none is staged, and
-##	  when objdump cannot be found, the same way lint-c.bash skips a missing
-##	  cppcheck. STRICT=1 turns either skip into a failure.
+##	- --shipped adds the stricter half: no debug sections at all. meson's
+##	  -Dstrip=true only runs on install and neither Windows lane installs, so
+##	  build-cross.bash and stage-native.bash strip what they produce and call
+##	  this on it. mingw's own static objects carry debug information even in a
+##	  release link, so an unstripped exe will not pass --shipped.
+##	- The artifact half is skipped when no exe is named, and when objdump cannot
+##	  be found, the same way lint-c.bash skips a missing cppcheck. STRICT=1 turns
+##	  either skip into a failure. Nothing is looked for by default: the stale
+##	  artifacts of an earlier run are not what a bare run should be judging.
 ##	- Syntax: check-win-build-flags.bash [--shipped] [path-to-exe]
 
 ##	Copyright (c) 2026 Bubbles
@@ -87,16 +87,10 @@ fCheckExe(){
 	fi
 }
 
-fCheckLane 'cicd/win/build-cross.bash' '--buildtype=release' '-Dstrip=true'
-fCheckLane '.github/workflows/release-win.yml' '--buildtype=release' '-Dstrip=true'
-## The Linux lane has always passed both. Checked here so all three stay together.
-fCheckLane 'cicd/linux/release.bash' '--buildtype=release' '-Dstrip=true'
-
-if [[ -z "$exe" ]]; then
-	for candidate in 'cicd/artifacts/cross/nemo-anywhere.exe' 'cicd/artifacts/win-run/nemo-anywhere.exe'; do
-		[[ -f "$candidate" ]] && { exe="$candidate"; break; }
-	done
-fi
+fCheckLane 'cicd/win/build-cross.bash' '--buildtype=release' '-Dstrip=true' '-Db_lto=true'
+fCheckLane '.github/workflows/release-win.yml' '--buildtype=release' '-Dstrip=true' '-Db_lto=true'
+## The Linux lane has always passed the first two. Checked here so all three stay together.
+fCheckLane 'cicd/linux/release.bash' '--buildtype=release' '-Dstrip=true' '-Db_lto=true'
 
 if [[ -n "$exe" && -f "$exe" ]]; then
 	fCheckExe "$exe"

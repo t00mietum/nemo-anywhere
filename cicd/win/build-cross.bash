@@ -24,7 +24,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${HERE}/../.." && pwd)"
 CONTAINER="${NEMO_WIN_CONTAINER:-nemo-winbuild}"
 BUILD="${NEMO_WIN_BUILD:-/build-win}"
-CROSS="${NEMO_WIN_CROSSFILE:-/opt/win64.cross.txt}"
+## Read from the mount, not the copy the image baked in at /opt, which goes stale
+## the moment the file changes and needs an image rebuild to catch up.
+CROSS="${NEMO_WIN_CROSSFILE:-/src/cicd/win/win64.cross.txt}"
 
 # shellcheck source=../utility/include/echo.bash
 source "${ROOT}/cicd/utility/include/echo.bash"
@@ -66,7 +68,7 @@ fBuild(){
 	docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 		set -e
 		if [ -f ${BUILD}/build.ninja ]; then reconf=--reconfigure; else reconf=; fi
-		meson setup \$reconf --cross-file ${CROSS} --buildtype=release -Dstrip=true -Dxmp=false ${BUILD} /src/source >/dev/null
+		meson setup \$reconf --cross-file ${CROSS} --buildtype=release -Dstrip=true -Db_lto=true -Db_lto_threads=4 -Dxmp=false ${BUILD} /src/source >/dev/null
 		ninja -C ${BUILD} -j ${jobs}" | tail -1
 }
 
