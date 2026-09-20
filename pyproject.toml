@@ -1,0 +1,27 @@
+# Config for ruff, which cicd/utility/lint-python.bash runs over the project's
+# own Python. There is no Python package here to build - this file exists only
+# so the checker and the editor agree on one set of rules.
+
+[tool.ruff]
+line-length = 110
+indent-width = 4
+
+# Left out, the same way the Bash check leaves source/ alone: these came with
+# the fork or are generated, so restyling them would only make comparison with
+# upstream harder.
+extend-exclude = [
+	"source/action-layout-editor",
+	"source/data",
+	"source/files",
+	"source/install-scripts",
+	"vendor",
+]
+
+[tool.ruff.lint]
+# Narrow on purpose. W191 and E101 are the indentation rules this config is
+# really for; F and the E7/E9 group are the ones that catch a real mistake.
+# The rest of pycodestyle is whitespace opinion and is not worth the churn.
+select = ["W191", "E101", "E7", "E9", "F"]
+
+[tool.ruff.format]
+indent-style = "space"

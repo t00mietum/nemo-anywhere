@@ -114,8 +114,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Origin: the link and shortcut files were drafted as helpers. Confirmed.
 			- Fixed: all twenty-one carry the project's marker. The same identity check refuses the helper marker under `source/` and refuses any retired marker anywhere, both watched to fail.
 	- 🔘 Low.
-		- 🔘 Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
-		- 🔘 Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
+		- ✅ Item 15. The twelve first-party Python files indent with tabs, where the house style for that language is four spaces. Two of them hold hand-aligned tables that a mechanical conversion would damage.
+			- Fixed: leading tabs are four spaces, and a run of tab-aligned trailing comments is aligned with spaces instead. The two tables were never at risk - their alignment is relative to a single leading tab, so converting it shifts the whole block and nothing else.
+			- Tabs left in place: inside multi-line string bodies, where they are data, and in the `##` header block every script in the tree shares.
+			- Proof the conversion changed nothing: each file's parse tree was compared before and after, and the four files with tabs inside string literals were redone with those lines held back until it matched.
+			- Three findings that turned up with the checker are fixed too: a one-letter variable, a lambda where a def belongs, and two statements on one line.
+		- 🛠️ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
+			- Done: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
+			- Left: PowerShell, Bash and C.
 		- 🔘 Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
 		- 🔘 Item 18. British spellings in comments and prose, including two identifiers.
 		- 🔘 Item 19. Banned verbs in roughly sixty comment lines across C, scripts and Python.

@@ -15,33 +15,33 @@ DIGITS = "0123456789abcdefghjkmnpqrstvwxyz"
 
 
 def stamp():
-	source_date = os.environ.get("SOURCE_DATE_EPOCH")
-	if source_date:
-		try:
-			return int(source_date)
-		except ValueError:
-			pass
+    source_date = os.environ.get("SOURCE_DATE_EPOCH")
+    if source_date:
+        try:
+            return int(source_date)
+        except ValueError:
+            pass
 
-	here = os.path.dirname(os.path.abspath(__file__))
-	try:
-		out = subprocess.run(["git", "log", "-1", "--format=%ct"],
-		                     cwd=here, capture_output=True, text=True, timeout=10)
-		if out.returncode == 0 and out.stdout.strip():
-			return int(out.stdout.strip())
-	except (OSError, ValueError, subprocess.SubprocessError):
-		pass
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        out = subprocess.run(["git", "log", "-1", "--format=%ct"],
+                             cwd=here, capture_output=True, text=True, timeout=10)
+        if out.returncode == 0 and out.stdout.strip():
+            return int(out.stdout.strip())
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
 
-	return int(time.time())
+    return int(time.time())
 
 
 def crockford(n):
-	if n <= 0:
-		return "0"
-	out = ""
-	while n:
-		out = DIGITS[n & 31] + out
-		n >>= 5
-	return out
+    if n <= 0:
+        return "0"
+    out = ""
+    while n:
+        out = DIGITS[n & 31] + out
+        n >>= 5
+    return out
 
 
 sys.stdout.write(crockford((stamp() - EPOCH_2000) // 60))

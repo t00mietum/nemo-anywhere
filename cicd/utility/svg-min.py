@@ -38,13 +38,13 @@ XLINK_NS = "http://www.w3.org/1999/xlink"
 # where the file keeps its own xmlns declaration, but it survives as dead weight
 # and breaks anything that inlines the body into another document.
 DROP_NS = (
-	"sodipodi.sourceforge.net",
-	"inkscape.org/namespaces",
-	"ns.adobe.com/AdobeIllustrator",
-	"22-rdf-syntax-ns#",
-	"purl.org/dc/elements",
-	"creativecommons.org/ns#",
-	"openswatchbook.org/uri",
+    "sodipodi.sourceforge.net",
+    "inkscape.org/namespaces",
+    "ns.adobe.com/AdobeIllustrator",
+    "22-rdf-syntax-ns#",
+    "purl.org/dc/elements",
+    "creativecommons.org/ns#",
+    "openswatchbook.org/uri",
 )
 
 DROP_TAGS = ("metadata", "title", "desc", "foreignObject")
@@ -54,32 +54,32 @@ ET.register_namespace("xlink", XLINK_NS)
 
 
 def _in_dropped_ns(name):
-	if not name.startswith("{"):
-		return False
-	uri = name[1:name.index("}")] if "}" in name else ""
-	return any(fragment in uri for fragment in DROP_NS)
+    if not name.startswith("{"):
+        return False
+    uri = name[1:name.index("}")] if "}" in name else ""
+    return any(fragment in uri for fragment in DROP_NS)
 
 
 def _clean(element):
-	for child in list(element):
-		tag = child.tag
-		if not isinstance(tag, str):		# comment or processing instruction
-			element.remove(child)
-			continue
-		if _in_dropped_ns(tag) or tag.split("}")[-1] in DROP_TAGS:
-			element.remove(child)
-			continue
-		_clean(child)
+    for child in list(element):
+        tag = child.tag
+        if not isinstance(tag, str):  # comment or processing instruction
+            element.remove(child)
+            continue
+        if _in_dropped_ns(tag) or tag.split("}")[-1] in DROP_TAGS:
+            element.remove(child)
+            continue
+        _clean(child)
 
-	for key in list(element.attrib):
-		if _in_dropped_ns(key):
-			del element.attrib[key]
+    for key in list(element.attrib):
+        if _in_dropped_ns(key):
+            del element.attrib[key]
 
-	# Indentation only - a text node that is all whitespace draws nothing.
-	if element.text is not None and element.text.strip() == "":
-		element.text = None
-	if element.tail is not None and element.tail.strip() == "":
-		element.tail = None
+    # Indentation only - a text node that is all whitespace draws nothing.
+    if element.text is not None and element.text.strip() == "":
+        element.text = None
+    if element.tail is not None and element.tail.strip() == "":
+        element.tail = None
 
 
 # ---------------------------------------------------------------------------
@@ -103,23 +103,23 @@ REFERENCE = re.compile(r"#([A-Za-z_][\w.:-]*)")
 TRANSFORM = re.compile(r"(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)")
 
 COLOUR_ATTRS = ("fill", "stroke", "stop-color", "color", "flood-color",
-		"lighting-color", "solid-color", "style")
+        "lighting-color", "solid-color", "style")
 
 
 def _round(text, decimals):
-	"""One number, rounded and spelled as short as SVG allows."""
-	try:
-		value = round(float(text), decimals)
-	except ValueError:
-		return text
-	out = ("%.*f" % (decimals, value)).rstrip("0").rstrip(".")
-	if out in ("", "-", "-0"):
-		return "0"
-	if out.startswith("0."):
-		out = out[1:]
-	elif out.startswith("-0."):
-		out = "-" + out[2:]
-	return out
+    """One number, rounded and spelled as short as SVG allows."""
+    try:
+        value = round(float(text), decimals)
+    except ValueError:
+        return text
+    out = ("%.*f" % (decimals, value)).rstrip("0").rstrip(".")
+    if out in ("", "-", "-0"):
+        return "0"
+    if out.startswith("0."):
+        out = out[1:]
+    elif out.startswith("-0."):
+        out = "-" + out[2:]
+    return out
 
 
 # How many parameters each path command takes, and where an elliptical arc
@@ -128,220 +128,220 @@ def _round(text, decimals):
 # "00", and reading path data as a plain run of numbers swallows one of them and
 # silently reshapes the icon. Adwaita's terminal glyph is drawn exactly that way.
 PATH_ARGS = {"m": 2, "l": 2, "h": 1, "v": 1, "c": 6, "s": 4,
-	     "q": 4, "t": 2, "a": 7, "z": 0}
+         "q": 4, "t": 2, "a": 7, "z": 0}
 ARC_FLAGS = (3, 4)
 
 
 def _path_tokens(data):
-	"""(is_command, text) through the path, arc flags read as single digits."""
-	position = 0
-	command = ""
-	argument = 0
-	length = len(data)
+    """(is_command, text) through the path, arc flags read as single digits."""
+    position = 0
+    command = ""
+    argument = 0
+    length = len(data)
 
-	while position < length:
-		char = data[position]
-		if char in " ,\t\r\n":
-			position += 1
-			continue
-		if char.isalpha():
-			command = char
-			argument = 0
-			position += 1
-			yield True, char
-			# After a moveto the repeats are linetos, which take the same two.
-			continue
+    while position < length:
+        char = data[position]
+        if char in " ,\t\r\n":
+            position += 1
+            continue
+        if char.isalpha():
+            command = char
+            argument = 0
+            position += 1
+            yield True, char
+            # After a moveto the repeats are linetos, which take the same two.
+            continue
 
-		lowered = command.lower()
-		if lowered == "a" and argument % 7 in ARC_FLAGS:
-			yield False, char
-			position += 1
-			argument += 1
-			continue
+        lowered = command.lower()
+        if lowered == "a" and argument % 7 in ARC_FLAGS:
+            yield False, char
+            position += 1
+            argument += 1
+            continue
 
-		match = NUMBER.match(data, position)
-		if match is None:				# not ours to interpret
-			yield False, char
-			position += 1
-			continue
-		yield False, match.group(0)
-		position = match.end()
-		argument += 1
-		if lowered in PATH_ARGS and PATH_ARGS[lowered] and argument >= PATH_ARGS[lowered]:
-			argument = 0
+        match = NUMBER.match(data, position)
+        if match is None:  # not ours to interpret
+            yield False, char
+            position += 1
+            continue
+        yield False, match.group(0)
+        position = match.end()
+        argument += 1
+        if lowered in PATH_ARGS and PATH_ARGS[lowered] and argument >= PATH_ARGS[lowered]:
+            argument = 0
 
 
 def _shrink_path(data, decimals):
-	"""Path data with its numbers rounded and its separators cut to the bone.
+    """Path data with its numbers rounded and its separators cut to the bone.
 
 	Only the space before a minus sign is dropped. A leading dot could be run
 	onto the previous number too, but not after an arc's flags, where the pair
 	is a single token - so the rule that is safe everywhere is the one used, and
 	the few bytes it leaves behind are not worth the risk.
 	"""
-	text = ""
-	for is_command, token in _path_tokens(data):
-		if not is_command and NUMBER.fullmatch(token):
-			token = _round(token, decimals)
-		if not text:
-			text = token
-		elif is_command or text[-1].isalpha() or token[0] == "-":
-			text += token
-		else:
-			text += " " + token
-	return text
+    text = ""
+    for is_command, token in _path_tokens(data):
+        if not is_command and NUMBER.fullmatch(token):
+            token = _round(token, decimals)
+        if not text:
+            text = token
+        elif is_command or text[-1].isalpha() or token[0] == "-":
+            text += token
+        else:
+            text += " " + token
+    return text
 
 
 def _transform_scale(value):
-	"""How much @value magnifies lengths, as one number. 1.0 if it cannot tell."""
-	scale = 1.0
-	for name, args in TRANSFORM.findall(value or ""):
-		numbers = [float(n) for n in NUMBER.findall(args)] or [0.0]
-		if name == "scale":
-			sx = numbers[0]
-			sy = numbers[1] if len(numbers) > 1 else sx
-			scale *= math.sqrt(abs(sx * sy)) or 1.0
-		elif name == "matrix" and len(numbers) >= 4:
-			determinant = abs(numbers[0] * numbers[3] - numbers[1] * numbers[2])
-			scale *= math.sqrt(determinant) or 1.0
-	return scale or 1.0
+    """How much @value magnifies lengths, as one number. 1.0 if it cannot tell."""
+    scale = 1.0
+    for name, args in TRANSFORM.findall(value or ""):
+        numbers = [float(n) for n in NUMBER.findall(args)] or [0.0]
+        if name == "scale":
+            sx = numbers[0]
+            sy = numbers[1] if len(numbers) > 1 else sx
+            scale *= math.sqrt(abs(sx * sy)) or 1.0
+        elif name == "matrix" and len(numbers) >= 4:
+            determinant = abs(numbers[0] * numbers[3] - numbers[1] * numbers[2])
+            scale *= math.sqrt(determinant) or 1.0
+    return scale or 1.0
 
 
 def _base_decimals(root):
-	"""Enough decimals that the quantum is under a 2000th of the viewBox."""
-	box = root.get("viewBox")
-	width = 0.0
-	if box:
-		parts = box.replace(",", " ").split()
-		if len(parts) == 4:
-			try:
-				width = abs(float(parts[2]))
-			except ValueError:
-				width = 0.0
-	if width <= 0:
-		digits = re.match(r"[\d.]+", (root.get("width") or "48").strip())
-		try:
-			width = abs(float(digits.group(0))) if digits else 48.0
-		except ValueError:
-			width = 48.0
-	if width <= 0:
-		width = 48.0
+    """Enough decimals that the quantum is under a 2000th of the viewBox."""
+    box = root.get("viewBox")
+    width = 0.0
+    if box:
+        parts = box.replace(",", " ").split()
+        if len(parts) == 4:
+            try:
+                width = abs(float(parts[2]))
+            except ValueError:
+                width = 0.0
+    if width <= 0:
+        digits = re.match(r"[\d.]+", (root.get("width") or "48").strip())
+        try:
+            width = abs(float(digits.group(0))) if digits else 48.0
+        except ValueError:
+            width = 48.0
+    if width <= 0:
+        width = 48.0
 
-	decimals = 2
-	while decimals < 4 and 10.0 ** decimals < 2000.0 / width:
-		decimals += 1
-	return decimals
+    decimals = 2
+    while decimals < 4 and 10.0 ** decimals < 2000.0 / width:
+        decimals += 1
+    return decimals
 
 
 def _referenced_ids(root):
-	"""Every id something in the document points at, by any of the three ways."""
-	found = set()
-	for element in root.iter():
-		for key, value in element.attrib.items():
-			local = key.split("}")[-1]
-			if local in ("href", "begin", "end") or "url(" in value or value.startswith("#"):
-				found.update(REFERENCE.findall(value))
-		# A stylesheet can select by id, and it is text rather than an attribute.
-		if element.tag.split("}")[-1] == "style" and element.text:
-			found.update(REFERENCE.findall(element.text))
-	return found
+    """Every id something in the document points at, by any of the three ways."""
+    found = set()
+    for element in root.iter():
+        for key, value in element.attrib.items():
+            local = key.split("}")[-1]
+            if local in ("href", "begin", "end") or "url(" in value or value.startswith("#"):
+                found.update(REFERENCE.findall(value))
+        # A stylesheet can select by id, and it is text rather than an attribute.
+        if element.tag.split("}")[-1] == "style" and element.text:
+            found.update(REFERENCE.findall(element.text))
+    return found
 
 
 def _shorten_colour(text):
-	def fold(match):
-		digits = match.group(1)
-		if digits[0] == digits[1] and digits[2] == digits[3] and digits[4] == digits[5]:
-			return "#" + digits[0] + digits[2] + digits[4]
-		return match.group(0)
-	return HEX6.sub(fold, text)
+    def fold(match):
+        digits = match.group(1)
+        if digits[0] == digits[1] and digits[2] == digits[3] and digits[4] == digits[5]:
+            return "#" + digits[0] + digits[2] + digits[4]
+        return match.group(0)
+    return HEX6.sub(fold, text)
 
 
 def _tighten(element, base, keep_ids, scale, is_root):
-	scale *= _transform_scale(element.get("transform"))
-	decimals = base + max(0, int(math.ceil(math.log10(scale))) if scale > 1 else 0)
+    scale *= _transform_scale(element.get("transform"))
+    decimals = base + max(0, int(math.ceil(math.log10(scale))) if scale > 1 else 0)
 
-	for key in list(element.attrib):
-		local = key.split("}")[-1]
+    for key in list(element.attrib):
+        local = key.split("}")[-1]
 
-		if local in DROP_ATTRS and not is_root:
-			del element.attrib[key]
-			continue
-		if local == "version" and is_root:
-			del element.attrib[key]
-			continue
-		# A stylesheet's id is how colour-scheme tooling finds the block to
-		# rewrite, and nothing in the document points at it, so the reference
-		# scan cannot see that it is load-bearing. Left alone.
-		if (local == "id" and not is_root
-		    and element.tag.split("}")[-1] != "style"
-		    and element.attrib[key] not in keep_ids):
-			del element.attrib[key]
-			continue
+        if local in DROP_ATTRS and not is_root:
+            del element.attrib[key]
+            continue
+        if local == "version" and is_root:
+            del element.attrib[key]
+            continue
+        # A stylesheet's id is how colour-scheme tooling finds the block to
+        # rewrite, and nothing in the document points at it, so the reference
+        # scan cannot see that it is load-bearing. Left alone.
+        if (local == "id" and not is_root
+            and element.tag.split("}")[-1] != "style"
+            and element.attrib[key] not in keep_ids):
+            del element.attrib[key]
+            continue
 
-		if local in ("d", "points"):
-			element.attrib[key] = _shrink_path(element.attrib[key], decimals)
-		elif local in COLOUR_ATTRS:
-			element.attrib[key] = _shorten_colour(element.attrib[key])
+        if local in ("d", "points"):
+            element.attrib[key] = _shrink_path(element.attrib[key], decimals)
+        elif local in COLOUR_ATTRS:
+            element.attrib[key] = _shorten_colour(element.attrib[key])
 
-	for child in element:
-		if isinstance(child.tag, str):
-			_tighten(child, base, keep_ids, scale, False)
+    for child in element:
+        if isinstance(child.tag, str):
+            _tighten(child, base, keep_ids, scale, False)
 
 
 def minify(src, dst):
-	tree = ET.parse(src)
-	root = tree.getroot()
-	_clean(root)
-	_tighten(root, _base_decimals(root), _referenced_ids(root), 1.0, True)
+    tree = ET.parse(src)
+    root = tree.getroot()
+    _clean(root)
+    _tighten(root, _base_decimals(root), _referenced_ids(root), 1.0, True)
 
-	out = ET.tostring(root, encoding="unicode")
-	# ET emits the default namespace on every child it cannot attribute; collapse
-	# the redundant redeclarations it leaves behind.
-	out = out.replace(' xmlns:ns0="%s"' % SVG_NS, "")
-	out = re.sub(r"\s+", " ", out)
-	out = out.replace("> <", "><").strip()
+    out = ET.tostring(root, encoding="unicode")
+    # ET emits the default namespace on every child it cannot attribute; collapse
+    # the redundant redeclarations it leaves behind.
+    out = out.replace(' xmlns:ns0="%s"' % SVG_NS, "")
+    out = re.sub(r"\s+", " ", out)
+    out = out.replace("> <", "><").strip()
 
-	with open(dst, "w", encoding="utf-8", newline="\n") as handle:
-		handle.write(out)
+    with open(dst, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(out)
 
 
 def main(argv):
-	if len(argv) == 4 and argv[1] == "--tree":
-		src_root, dst_root = argv[2], argv[3]
-		kept = 0
-		for base, _dirs, files in os.walk(src_root):
-			for name in files:
-				src = os.path.join(base, name)
-				dst = os.path.join(dst_root, os.path.relpath(src, src_root))
-				os.makedirs(os.path.dirname(dst), exist_ok=True)
-				# A few names exist only as bitmaps upstream (Adwaita's
-				# emblems). Nothing to minify - pass them through.
-				if not name.endswith(".svg"):
-					with open(src, "rb") as fh:
-						data = fh.read()
-					with open(dst, "wb") as fh:
-						fh.write(data)
-					kept += 1
-					continue
-				try:
-					minify(src, dst)
-				except Exception:
-					# An SVG we cannot parse still renders; ship it untouched.
-					with open(src, "rb") as fh:
-						data = fh.read()
-					with open(dst, "wb") as fh:
-						fh.write(data)
-				kept += 1
-		print(kept)
-		return 0
+    if len(argv) == 4 and argv[1] == "--tree":
+        src_root, dst_root = argv[2], argv[3]
+        kept = 0
+        for base, _dirs, files in os.walk(src_root):
+            for name in files:
+                src = os.path.join(base, name)
+                dst = os.path.join(dst_root, os.path.relpath(src, src_root))
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                # A few names exist only as bitmaps upstream (Adwaita's
+                # emblems). Nothing to minify - pass them through.
+                if not name.endswith(".svg"):
+                    with open(src, "rb") as fh:
+                        data = fh.read()
+                    with open(dst, "wb") as fh:
+                        fh.write(data)
+                    kept += 1
+                    continue
+                try:
+                    minify(src, dst)
+                except Exception:
+                    # An SVG we cannot parse still renders; ship it untouched.
+                    with open(src, "rb") as fh:
+                        data = fh.read()
+                    with open(dst, "wb") as fh:
+                        fh.write(data)
+                kept += 1
+        print(kept)
+        return 0
 
-	if len(argv) != 3:
-		sys.stderr.write(__doc__)
-		return 2
+    if len(argv) != 3:
+        sys.stderr.write(__doc__)
+        return 2
 
-	minify(argv[1], argv[2])
-	return 0
+    minify(argv[1], argv[2])
+    return 0
 
 
 if __name__ == "__main__":
-	sys.exit(main(sys.argv))
+    sys.exit(main(sys.argv))

@@ -24,27 +24,27 @@ THEME_SIZES = (16, 22, 24, 32, 48, 64, 128, 256)
 
 
 def main(argv):
-	root = argv[1] if len(argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..")
-	root = os.path.abspath(root)
+    root = argv[1] if len(argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..")
+    root = os.path.abspath(root)
 
-	logo = Image.open(os.path.join(root, "assets", "logo.png")).convert("RGBA")
+    logo = Image.open(os.path.join(root, "assets", "logo.png")).convert("RGBA")
 
-	ico = os.path.join(root, "source", "src", "nemo-anywhere.ico")
-	logo.save(ico, format="ICO", sizes=[(s, s) for s in ICO_SIZES])
-	print("[ %s: %d KB ]" % (os.path.basename(ico), os.path.getsize(ico) / 1024))
+    ico = os.path.join(root, "source", "src", "nemo-anywhere.ico")
+    logo.save(ico, format="ICO", sizes=[(s, s) for s in ICO_SIZES])
+    print("[ %s: %d KB ]" % (os.path.basename(ico), os.path.getsize(ico) / 1024))
 
-	apps = os.path.join(root, "source", "data", "icons", "hicolor", "apps")
-	total = 0
-	for size in THEME_SIZES:
-		out_dir = os.path.join(apps, "%dx%d" % (size, size))
-		os.makedirs(out_dir, exist_ok=True)
-		out = os.path.join(out_dir, "nemo-anywhere.png")
-		logo.resize((size, size), Image.LANCZOS).save(out, optimize=True)
-		total += os.path.getsize(out)
-	print("[ hicolor apps: %d sizes, %d KB ]" % (len(THEME_SIZES), total / 1024))
+    apps = os.path.join(root, "source", "data", "icons", "hicolor", "apps")
+    total = 0
+    for size in THEME_SIZES:
+        out_dir = os.path.join(apps, "%dx%d" % (size, size))
+        os.makedirs(out_dir, exist_ok=True)
+        out = os.path.join(out_dir, "nemo-anywhere.png")
+        logo.resize((size, size), Image.LANCZOS).save(out, optimize=True)
+        total += os.path.getsize(out)
+    print("[ hicolor apps: %d sizes, %d KB ]" % (len(THEME_SIZES), total / 1024))
 
-	return 0
+    return 0
 
 
 if __name__ == "__main__":
-	sys.exit(main(sys.argv))
+    sys.exit(main(sys.argv))
