@@ -183,9 +183,18 @@ for candidate in strip x86_64-w64-mingw32-strip llvm-strip; do
 done
 if [[ -n "$strip_cmd" ]]; then
 	nstripped=0
+	## Not an && list: under errexit a failed strip as the last command in the
+	## loop body would end the whole stage with nothing said.
 	for binary in "${DEST}/app/"*.exe; do
-		"$strip_cmd" --strip-debug "$binary" 2>/dev/null && nstripped=$(( nstripped + 1 ))
+		[[ -f "$binary" ]] || continue
+		if "$strip_cmd" --strip-debug "$binary" 2>/dev/null; then
+			nstripped=$(( nstripped + 1 ))
+		else
+			fEcho "FAILED: could not strip ${binary}"
+			exit 1
+		fi
 	done
+	(( nstripped > 0 )) || { fEcho "FAILED: no app exe to strip in ${DEST}/app"; exit 1; }
 	fEcho "stripped ${nstripped} app exe(s) with ${strip_cmd}"
 	bash "${REPO}/cicd/utility/check-win-build-flags.bash" --shipped "${DEST}/app/nemo-anywhere.exe" \
 		|| { fEcho "FAILED: the staged exe is not a stripped release build"; exit 1; }

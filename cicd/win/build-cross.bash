@@ -74,29 +74,36 @@ fBuild(){
 
 fStamp(){ fPeTimestamp <(docker exec "$CONTAINER" head -c 4096 "${BUILD}/src/nemo-anywhere.exe") ;}
 
+## meson's -Dstrip=true only runs on install, and this lane never installs -
+## pack-zip.bash copies the exe straight out of the build directory. So the
+## strip happens here. It has to carry SOURCE_DATE_EPOCH: binutils rewrites the
+## PE Time/Date field when it writes the file, and left to itself it writes the
+## clock, which is what the whole stamp exists to avoid.
+fStrip(){
+	docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" \
+		sh -c "x86_64-w64-mingw32-strip --strip-debug ${BUILD}/src/*.exe ${BUILD}/search-helpers/*.exe" \
+		|| fDie "could not strip the cross-built exes"
+}
+
 fEcho_Clean ""
 fEcho "Cross build (stamped $(date -u -d "@${SOURCE_DATE_EPOCH}" '+%Y-%m-%d %H:%M:%S UTC'))"
 ((clean)) && docker exec "$CONTAINER" rm -rf "$BUILD" || true
 fBuild
+fStrip
 
 ## The stamp is part of the output, but ninja does not know that, so an exe left
 ## over from a build of an earlier commit looks up to date. Drop it and relink.
+## Read after the strip, since that is the file the lane goes on to pack.
 if [[ "$(fStamp)" != "${SOURCE_DATE_EPOCH}" ]]; then
 	fEcho_Clean "restamping (the existing exe is from another commit)"
 	docker exec "$CONTAINER" rm -f "${BUILD}/src/nemo-anywhere.exe"
 	fBuild
+	fStrip
 fi
 
 pe="$(fStamp)"
-[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "linker stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the toolchain is ignoring SOURCE_DATE_EPOCH"
+[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "the exe is stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the linker or the strip is ignoring SOURCE_DATE_EPOCH"
 fEcho_Clean "exe stamped ${pe}"
-
-## meson's -Dstrip=true only runs on install, and this lane never installs -
-## pack-zip.bash copies the exe straight out of the build directory. So the
-## strip happens here, after the stamp check has read the untouched header.
-## mingw's static objects carry debug information even in a release link.
-docker exec "$CONTAINER" sh -c "x86_64-w64-mingw32-strip --strip-debug ${BUILD}/src/*.exe ${BUILD}/search-helpers/*.exe" \
-	|| fDie "could not strip the cross-built exes"
 
 ## Read the exe back rather than trusting the flags above. Copied out first
 ## because the check runs on the host and the exe lives in the container.

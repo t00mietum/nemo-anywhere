@@ -24,43 +24,56 @@ import re
 import sys
 from pathlib import Path
 
-GROUP = r"nemo_[a-z_]*preferences"
+# The group names come from the header that declares them, so a new group is
+# covered the day it is added. Matching a pattern instead missed nemo_window_state,
+# whose name does not end in "preferences".
+GROUPS_HEADER = "libnemo-private/nemo-global-preferences.h"
+DECLARED = re.compile(r"^extern\s+NemoConfigGroup\s*\*\s*(\w+)\s*;", re.MULTILINE)
 
-CONNECT_BY_FUNC = re.compile(
-    r"g_signal_connect\w*\s*\(\s*(" + GROUP + r")\s*,.*?G_CALLBACK\s*\(\s*(\w+)\s*\)",
-    re.DOTALL,
-)
-DISCONNECT_BY_FUNC = re.compile(
-    r"g_signal_handlers_disconnect_by_func\s*\(\s*(" + GROUP + r")\s*,\s*(\w+)\s*,",
-    re.DOTALL,
-)
-CONNECT_TO_ID = re.compile(
-    r"(\w+)\s*=\s*g_signal_connect\w*\s*\(\s*(" + GROUP + r")\s*,",
-    re.DOTALL,
-)
-DISCONNECT_BY_ID = re.compile(
-    r"g_signal_handler_disconnect\s*\(\s*(" + GROUP + r")\s*,\s*(\w+)\s*\)",
-    re.DOTALL,
-)
+
+def groups_pattern(root):
+    header = root / GROUPS_HEADER
+    names = DECLARED.findall(header.read_text(errors="replace")) if header.is_file() else []
+    if not names:
+        raise SystemExit(f"[ FAILED: no config groups declared in {GROUPS_HEADER} ]")
+    return "(?:" + "|".join(sorted(names, key=len, reverse=True)) + ")"
+
+
+
+def patterns(group):
+    return {
+        "connect_by_func": re.compile(
+            r"g_signal_connect\w*\s*\(\s*(" + group + r")\s*,.*?G_CALLBACK\s*\(\s*(\w+)\s*\)",
+            re.DOTALL),
+        "disconnect_by_func": re.compile(
+            r"g_signal_handlers_disconnect_by_func\s*\(\s*(" + group + r")\s*,\s*(\w+)\s*,",
+            re.DOTALL),
+        "connect_to_id": re.compile(
+            r"(\w+)\s*=\s*g_signal_connect\w*\s*\(\s*(" + group + r")\s*,",
+            re.DOTALL),
+        "disconnect_by_id": re.compile(
+            r"g_signal_handler_disconnect\s*\(\s*(" + group + r")\s*,\s*(\w+)\s*\)",
+            re.DOTALL),
+    }
 
 
 def line_of(text, pos):
     return text.count("\n", 0, pos) + 1
 
 
-def check_file(path):
+def check_file(path, pats):
     text = path.read_text(errors="replace")
     problems = []
 
     by_func = {}
-    for match in CONNECT_BY_FUNC.finditer(text):
+    for match in pats["connect_by_func"].finditer(text):
         by_func.setdefault(match.group(2), set()).add(match.group(1))
 
     by_id = {}
-    for match in CONNECT_TO_ID.finditer(text):
+    for match in pats["connect_to_id"].finditer(text):
         by_id.setdefault(match.group(1), set()).add(match.group(2))
 
-    for match in DISCONNECT_BY_FUNC.finditer(text):
+    for match in pats["disconnect_by_func"].finditer(text):
         group, callback = match.group(1), match.group(2)
         connected = by_func.get(callback)
         # No connect in this file means the pair is somewhere else and there is
@@ -72,7 +85,7 @@ def check_file(path):
                  + ", ".join(sorted(connected)))
             )
 
-    for match in DISCONNECT_BY_ID.finditer(text):
+    for match in pats["disconnect_by_id"].finditer(text):
         group, variable = match.group(1), match.group(2)
         connected = by_id.get(variable)
         if connected and group not in connected:
@@ -91,9 +104,10 @@ def main():
         print(f"[ FAILED: {root} is not a directory ]")
         return 1
 
+    pats = patterns(groups_pattern(root))
     failures = 0
     for path in sorted(root.rglob("*.c")):
-        for line, message in check_file(path):
+        for line, message in check_file(path, pats):
             rel = path.relative_to(root.parent)
             print(f"[ FAIL: {rel}:{line}: {message} ]")
             failures += 1
