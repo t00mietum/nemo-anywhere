@@ -185,10 +185,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Archive:
-	- 🔘 Remember previous settings except for "delete" and password, across sessions.
-	- 🔘 If "delete" is checked AND password set, show an additional simple dialog to confirm the password.
-
 - 🔘 If "show full path in tabs and window" is enabled:
 	- Show the entire path of the current tab, if there's enough room.
 	- Show the entire path in all tabs if there's enough room.
@@ -1449,6 +1445,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Archive:
+	- ✅ Remember previous settings except for "delete" and password, across sessions.
+	- ✅ If "delete" is checked AND password set, show an additional simple dialog to confirm the password.
+	- Opened: 20260920-160000
+	- Closed: 20260920-170000
+	- Done: the Compress dialog writes twelve settings back and starts from them next time. Format, compression level, the volume size, and every box in the Options expander bar the two named above. Also whether items were compressed separately, which is only put back where the selection allows it.
+	- Done: with the delete box ticked and a password set, the password has to be typed a second time before anything starts. Getting it wrong says so and lets another go; cancelling puts the Compress dialog back with everything still filled in.
+	- `nemo_archive_should_confirm_password` is the one place that decides, next to `nemo_archive_can_verify` which decides whether the delete box is offered at all. New `test-nemo-archive-settings` covers the decision, the defaults and a restart, and was watched to fail both ways.
+	- Checked on screen in the container: settings written and read back over two runs, the confirm dialog, a wrong password, cancelling out of it, and a right one going through.
 
 - ✅ design.md regrouped: Overview, Architecture, Features, Quality, Building, Delivery, then Open questions.
 	- Opened: 20260919-131209

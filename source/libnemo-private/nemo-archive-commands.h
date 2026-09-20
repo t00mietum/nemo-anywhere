@@ -23,7 +23,10 @@
 /* Kept apart from nemo-archive.h and nemo-extract.h, and free of anything but
  * the strings, so the settings table can include it too - the default a key
  * falls back to and the default the writer runs are then the same text rather
- * than two copies that can drift.
+ * than two copies that can drift. The Compress dialog's remembered settings
+ * are named here for the same reason: the table and the dialog have to agree
+ * on the key, and a typo in one of them would just be a setting that never
+ * takes.
  *
  * The placeholders are documented for users in project/design.md; see
  * nemo-command-template.h for what the braces mean and why they are braces.
@@ -41,6 +44,25 @@
 #define NEMO_ARCHIVE_COMMAND_KEY_RAR "create-with-rar"
 #define NEMO_EXTRACT_COMMAND_KEY_7Z  "extract-with-7z"
 #define NEMO_EXTRACT_COMMAND_KEY_RAR "extract-with-rar"
+
+/* What the Compress dialog starts from next time. Not the password, which is
+   never written anywhere, and not deleting the originals, which has to be
+   asked for each time it is wanted. */
+#define NEMO_ARCHIVE_STATE_KEY_FORMAT       "last-format"
+#define NEMO_ARCHIVE_STATE_KEY_LEVEL        "last-level"
+#define NEMO_ARCHIVE_STATE_KEY_ENCRYPT_NAMES "last-encrypt-names"
+#define NEMO_ARCHIVE_STATE_KEY_SPLIT        "last-split"
+#define NEMO_ARCHIVE_STATE_KEY_SPLIT_SIZE   "last-split-size"
+#define NEMO_ARCHIVE_STATE_KEY_SOLID        "last-solid"
+#define NEMO_ARCHIVE_STATE_KEY_DEDUPE       "last-dedupe"
+#define NEMO_ARCHIVE_STATE_KEY_STORE_LINKS  "last-store-links"
+#define NEMO_ARCHIVE_STATE_KEY_FOLLOW_LINKS "last-follow-links"
+#define NEMO_ARCHIVE_STATE_KEY_RECOVERY     "last-recovery"
+#define NEMO_ARCHIVE_STATE_KEY_LOCK         "last-lock"
+#define NEMO_ARCHIVE_STATE_KEY_EACH         "last-each"
+
+#define NEMO_ARCHIVE_STATE_DEFAULT_FORMAT      "zip"
+#define NEMO_ARCHIVE_STATE_DEFAULT_SPLIT_SIZE  "2 GiB"
 
 /* Worth knowing before editing any of these four:
    -y answers the prompts a program with no console would otherwise wait on
