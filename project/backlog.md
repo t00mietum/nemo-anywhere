@@ -61,12 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
-- 🔘 A theme change does not send the list back to measure its columns.
-	- Opened: 20260920-234500
-	- The handler for it only drops the cached separator and indent sizes. The widths worked out before it stay as they are, so a theme whose font is wider leaves values cut off until something else forces a remeasure - a zoom, or a folder change.
-	- Found while fitting the measuring cache, which is thrown away in the same places the old samples were, so the cache is no worse than what was there. Pre-existing either way.
-	- Careful: the signal fires more often than a theme change does, and remeasuring 50,000 rows on each would cost more than it saves. Needs a test for what actually changed.
-
 ### Features and enhancements
 
 - 🔘 Icon view:
@@ -192,6 +186,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ A theme change does not send the list back to measure its columns.
+	- Opened: 20260920-234500. Closed: 20260920.
+	- The handler for it only dropped the cached separator and indent sizes. Every width worked out before the change stayed, so a theme with a wider font left values cut off until a zoom or a folder change forced a remeasure.
+	- Fixed: the handler keeps the font and the two theme sizes as one string and compares it. Where it moved, every row is measured again; where it did not, nothing happens.
+	- The comparison is the point. That signal also fires for a widget state or a CSS class going on and off, and sending 50,000 rows back on each of those would cost more than the whole cache saves.
+	- Seen on screen at 17pt against the default: before the fix the Size column reads `7.7 ...` and Date modified `2021-02-1...` after the switch; after it, both are whole.
+	- `lint-c.bash` holds both halves - the handler has to remeasure, and it has to gate on what changed.
 
 - ✅ Half of what is left of a big folder load is measuring text for the column widths.
 	- Opened: 20260920-233000. Closed: 20260920.

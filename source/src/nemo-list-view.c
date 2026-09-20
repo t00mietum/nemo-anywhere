@@ -138,6 +138,10 @@ struct NemoListViewDetails {
 	gint name_indent_base;
 	gint name_indent_step;
 
+	/* Everything above plus the font, as one string. A style change that
+	   leaves this alone cannot have changed any width we measured. */
+	char *measure_style_id;
+
 	/* The columns, kept rather than copied again for every row measured.
 	   Dropped whenever the tree view says the set has changed. */
 	GList *measure_columns;
@@ -226,6 +230,7 @@ static GtkTargetList *          source_target_list = NULL;
 static void   resize_columns_soon                            (NemoListView *view);
 static void   forget_samples                                 (NemoListView *view);
 static void   remeasure_rows                                 (NemoListView *view);
+static void   style_metrics                                  (NemoListView *view);
 static GList *nemo_list_view_get_selection                   (NemoView   *view);
 static void   nemo_list_view_update_selection                (NemoView *view);
 static GList *nemo_list_view_get_selection_for_file_transfer (NemoView   *view);
@@ -2861,12 +2866,58 @@ row_shading_changed_callback (NemoListView *view)
     gtk_widget_queue_draw (GTK_WIDGET (view->details->tree_view));
 }
 
+/* What a measured width depends on: the font the cells lay text out in, and
+   the two theme sizes measure_row adds around it. */
+static char *
+measure_style_id (NemoListView *view)
+{
+    GtkStyleContext *context;
+    PangoFontDescription *font = NULL;
+    char *font_text;
+    char *id;
+
+    style_metrics (view);
+
+    context = gtk_widget_get_style_context (GTK_WIDGET (view->details->tree_view));
+    gtk_style_context_get (context, gtk_style_context_get_state (context),
+                           GTK_STYLE_PROPERTY_FONT, &font,
+                           NULL);
+
+    font_text = font != NULL ? pango_font_description_to_string (font) : g_strdup ("");
+
+    id = g_strdup_printf ("%s|%d|%d", font_text,
+                          view->details->column_separator_px,
+                          view->details->name_indent_step);
+
+    g_free (font_text);
+    if (font != NULL) {
+        pango_font_description_free (font);
+    }
+
+    return id;
+}
+
 /* A theme change brings a new text color, maybe a nemo_row_shading, and new
-   values for the sizes the measuring holds on to. */
+   values for the sizes the measuring holds on to. It also fires for things
+   that change nothing we measured - a state change, a CSS class going on or
+   off - and remeasuring 50,000 rows on each of those would cost more than it
+   saves, so the widths only go back for a real change. */
 static void
 tree_view_style_updated (NemoListView *view)
 {
+    char *id;
+
     view->details->style_metrics_valid = FALSE;
+
+    id = measure_style_id (view);
+
+    if (g_strcmp0 (id, view->details->measure_style_id) != 0) {
+        g_free (view->details->measure_style_id);
+        view->details->measure_style_id = id;
+        remeasure_rows (view);
+    } else {
+        g_free (id);
+    }
 
     row_shading_changed_callback (view);
 }
@@ -5866,6 +5917,7 @@ nemo_list_view_finalize (GObject *object)
 
 	g_list_free (list_view->details->cells);
 	g_clear_pointer (&list_view->details->measure_columns, g_list_free);
+	g_free (list_view->details->measure_style_id);
 	g_hash_table_destroy (list_view->details->columns);
 	g_hash_table_destroy (list_view->details->samples);
 	if (list_view->details->pending_user_widths != NULL) {
