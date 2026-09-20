@@ -234,11 +234,13 @@ fBuildIndex(){
 			base="${path##*/}"
 			# shellcheck disable=SC2004  ## target is a nameref to an associative array, so $base is a key, not arithmetic.
 			target[$base]="${target[$base]:-}${path}"$'\n'
-		## -xtype, not -type: an alias under links/ is a real symlink on a POSIX
-		## checkout, and -type f skips those, so nothing under links/ was ever a
-		## candidate. -xtype f takes a link that points at a regular file and
-		## leaves a dangling one out, which fResolve could not read anyway.
-		done < <( cd "$repo" && find "$r" -xtype f \( -name '*.svg' -o -name '*.png' \) -printf '%p\n' )
+		## Symlinks are candidates too. An alias under links/ is a real symlink
+		## on a POSIX checkout, so -type f skips it; and most of them point at a
+		## sibling name that only exists under src/, so they read as dangling
+		## and -xtype f skips them as well. Neither is a reason to drop one:
+		## what fResolve wants from an alias is the name it points at, which
+		## readlink gives whether or not the target sits where it says.
+		done < <( cd "$repo" && find "$r" \( -type f -o -type l \) \( -name '*.svg' -o -name '*.png' \) -printf '%p\n' )
 	done
 }
 
@@ -330,8 +332,17 @@ fResolve(){
 		if [[ -L "$repo/$best" ]] || fIsLinkStub "$repo/$best"; then
 			hops=$(( hops + 1 ))
 			(( hops > 6 )) && return 1
-			if [[ -L "$repo/$best" ]] && [[ -f "$repo/$best" ]]; then
-				resolved_path="$repo/$best"; return 0
+			if [[ -L "$repo/$best" ]]; then
+				## A link that finds a file where it says is the answer, and
+				## the copy downstream reads through it. Otherwise take the
+				## name it points at and look that up instead - upstream writes
+				## these relative to links/ while the art lives under src/, so
+				## most of them point at nothing until the theme is installed.
+				if [[ -f "$repo/$best" ]]; then resolved_path="$repo/$best"; return 0; fi
+				file="$(readlink "$repo/$best")"
+				file="${file##*/}"
+				[[ -n "$file" ]] || return 1
+				continue
 			fi
 			file=""
 			while IFS= read -r line || [[ -n "$line" ]]; do
@@ -388,8 +399,12 @@ fSelfTest(){
 	printf '../../scalable/places/folder.svg\n' > "$repo/links/places/alias.svg"
 	## An alias the POSIX way.
 	ln -sf ../../scalable/places/folder.svg "$repo/links/places/reallink.svg"
-	## A link to nothing. Indexing one would put a path in front of fResolve
-	## that it cannot read, and reading it would take the whole run down.
+	## The shape upstream actually uses: an alias written relative to links/,
+	## naming art that only exists under the real source directory. It dangles
+	## where it sits, so it has to be followed by name rather than by path.
+	printf '<svg/>\n' > "$repo/scalable/places/default-folder-docs.svg"
+	ln -sf default-folder-docs.svg "$repo/links/places/folder-docs.svg"
+	## A link naming something that is nowhere in the tree.
 	ln -sf ../../scalable/places/gone.svg "$repo/links/places/dangling.svg"
 	## Two stubs naming each other. Without the hop limit this never returns.
 	printf 'loop2.svg\n' > "$repo/links/places/loop1.svg"
@@ -418,9 +433,18 @@ fSelfTest(){
 	fResolve "$repo" places "reallink.svg" 0 || true
 	fCheck "symlink alias followed" "$repo/links/places/reallink.svg" "$resolved_path"
 
-	## Read the index rather than the resolver: a dangling name resolves to
-	## nothing either way, so only the index says whether it was a candidate.
-	fCheck "dangling link is not indexed" "" "${iconIndex[dangling.svg]:-}"
+	## An alias that dangles where it sits still has to reach the real art.
+	## This is the case the whole links/ layer turns on: every one of Qogir's
+	## 17,202 aliases is written this way.
+	fResolve "$repo" places "folder-docs.svg" 0 || true
+	fCheck "dangling alias followed by name" "$repo/scalable/places/default-folder-docs.svg" "$resolved_path"
+
+	## Named nothing that exists, so still no answer - but it was a candidate,
+	## which the index says and the resolver cannot.
+	fCheck "link to nothing is indexed" "links/places/dangling.svg"$'\n' "${iconIndex[dangling.svg]:-}"
+	if fResolve "$repo" places "dangling.svg" 0; then
+		fCheck "link to nothing" "(no answer)" "$resolved_path"
+	fi
 
 	if fResolve "$repo" places "loop1.svg" 0; then
 		fCheck "stub chain stops" "(no answer)" "$resolved_path"
