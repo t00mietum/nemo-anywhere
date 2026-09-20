@@ -62,11 +62,8 @@ static void desktop_dir_changed (void);
 static void update_xdg_user_dir (const char *type, const char *path);
 static GFile *nemo_find_file_insensitive_next (GFile *parent, const gchar *name);
 
-/* Roughly what fits a tab before the label starts being cut off anyway. */
-#define TITLE_PATH_LIMIT 52
-
-/* How much of the folder part of a window title survives. Long enough that a
-   deep path with the full-path preference on still reads. */
+/* How much of the folder part of a window title survives. Only reached by a
+   name or a uri; a path is shortened by measurement well before this. */
 #define WINDOW_TITLE_LIMIT 180
 
 char *
@@ -106,9 +103,10 @@ nemo_compute_title_for_location (GFile *location)
         path = nemo_compute_title_path_for_location (location);
         if (path != NULL) {
             /* The path already ends in the folder's name, so putting the name in
-               front of it just says the same thing twice. */
-            title = nemo_path_shorten (path, nemo_path_get_display_separator (),
-                                       TITLE_PATH_LIMIT);
+               front of it just says the same thing twice. It is handed over
+               whole: the title bar and the tabs each shorten it to what they
+               have room for. */
+            title = g_strdup (path);
         } else {
             gchar *uri = g_file_get_uri (location);
 
@@ -2429,67 +2427,6 @@ nemo_path_apply_separator (gchar *path,
 #endif
 }
 
-/* Leave the middle out of a long path. The end says which folder this is and the
-   start says which drive or share it is on; what sits between them is what a
-   title bar has no room for. Anything short enough comes back untouched. */
-gchar *
-nemo_path_shorten (const gchar *path,
-                   gchar        separator,
-                   gsize        limit)
-{
-    gchar sep[2] = { separator, '\0' };
-    gchar **parts;
-    GString *out;
-    guint count, head, tail, i;
-    gsize length;
-
-    if (path == NULL || strlen (path) <= limit) {
-        return g_strdup (path);
-    }
-
-    parts = g_strsplit (path, sep, -1);
-    count = g_strv_length (parts);
-
-    /* Nothing to leave out: the root, one middle component and the two kept at
-       the end is already the shortest form this can take. */
-    if (count < 5) {
-        g_strfreev (parts);
-        return g_strdup (path);
-    }
-
-    tail = count - 2;
-
-    /* The root, the gap marker and the last two components are always in. */
-    length = strlen (parts[0]) + 1 + 3;
-    for (i = tail; i < count; i++) {
-        length += 1 + strlen (parts[i]);
-    }
-
-    head = 1;
-    while (head < tail && length + 1 + strlen (parts[head]) <= limit) {
-        length += 1 + strlen (parts[head]);
-        head++;
-    }
-
-    out = g_string_new (parts[0]);
-    for (i = 1; i < head; i++) {
-        g_string_append_c (out, separator);
-        g_string_append (out, parts[i]);
-    }
-
-    g_string_append_c (out, separator);
-    g_string_append (out, "...");
-
-    for (i = tail; i < count; i++) {
-        g_string_append_c (out, separator);
-        g_string_append (out, parts[i]);
-    }
-
-    g_strfreev (parts);
-
-    return g_string_free (out, FALSE);
-}
-
 /* The part of a path no shortening may drop, since it says which drive, share or
    tree the rest is on. It always ends with the separator. */
 static gchar *
@@ -2572,10 +2509,11 @@ path_forms_join (const gchar *anchor, gchar **items, guint count, gchar separato
 }
 
 /* Every shortening of a path, longest first, each shorter than the one before.
-   Folders above the last one drop to their initials, then an ellipsis eats the
-   middle one initial at a time, where that is still shorter. The root and the
-   last folder's name survive every step, since those are what tell one tab from
-   another. A path under home reads as ~ once it is being shortened at all. */
+   An ellipsis eats the middle a folder at a time, so what is left is still
+   readable; only when that has run out do the folders above the last one drop
+   to their initials. The root and the last folder's name survive every step,
+   since those are what tell one tab from another. A path under home reads as ~
+   once it is being shortened at all. */
 gchar **
 nemo_path_forms (const gchar *path,
                  gchar        separator,
@@ -2629,24 +2567,27 @@ nemo_path_forms (const gchar *path,
 		last = count - 1;
 		path_forms_add (forms, path_forms_join (anchor, parts, count, separator));
 
+		/* The ellipsis stands in for everything between what is kept and the
+		   last folder, so the first steps replace one folder with three
+		   characters and are dropped for being no shorter. */
 		items = g_new0 (gchar *, count + 2);
+		for (i = 0; i < last; i++) {
+			items[i] = parts[i];
+		}
+		for (keep = last; keep-- > 0;) {
+			items[keep] = (gchar *) "...";
+			items[keep + 1] = parts[last];
+			path_forms_add (forms, path_forms_join (anchor, items, keep + 2, separator));
+			items[keep] = parts[keep];
+		}
+
+		/* Initials only get a look in on a shallow path, where an ellipsis costs
+		   more than the folders it would cover. */
 		for (i = 0; i < last; i++) {
 			items[i] = path_initial (parts[i]);
 		}
 		items[last] = parts[last];
 		path_forms_add (forms, path_forms_join (anchor, items, count, separator));
-
-		/* An ellipsis costs three characters where an initial costs one, so the
-		   first steps are longer than what they replace and get dropped. */
-		for (keep = last; keep-- > 0;) {
-			gchar *kept[] = { items[keep], items[keep + 1] };
-
-			items[keep] = (gchar *) "...";
-			items[keep + 1] = parts[last];
-			path_forms_add (forms, path_forms_join (anchor, items, keep + 2, separator));
-			items[keep] = kept[0];
-			items[keep + 1] = kept[1];
-		}
 
 		for (i = 0; i < last; i++) {
 			g_free (items[i]);
@@ -2662,50 +2603,81 @@ nemo_path_forms (const gchar *path,
 	return (gchar **) g_ptr_array_free (forms, FALSE);
 }
 
-/* Picks a form for each tab so the row fits in avail. A tab starts at its
-   longest form that fits max_px, then the widest tab that can still get
-   narrower gives up one step at a time, so no tab loses more than it has to.
-   Past that the notebook scrolls, as it always did. */
+/* Windows shells never print a ~, and the drive a path is on is worth more than
+   the four characters a ~ would save. */
+const gchar *
+nemo_path_display_home (void)
+{
+#ifdef G_OS_WIN32
+	return NULL;
+#else
+	return g_get_home_dir ();
+#endif
+}
+
+/* The longest of a set of forms that fits, or the shortest when none of them
+   does. The forms get shorter as the index rises, so the first hit wins. */
+guint
+nemo_path_form_for_width (const gint *widths, guint count, gint avail)
+{
+	guint i;
+
+	for (i = 0; i < count; i++) {
+		if (widths[i] <= avail) {
+			return i;
+		}
+	}
+	return count - 1;
+}
+
+/* Picks a form for each tab so the row fits in avail. The tab in front shows as
+   much of its path as the row can spare and is not capped, since the others are
+   already as wide as they may get. They shorten together, one step at a time,
+   until it can show the whole path or they have nothing left to give. Past the
+   shortest form the notebook scrolls, as it always did. */
 void
 nemo_path_forms_fit (guint              count,
                      const gint *const *widths,
                      const guint       *form_counts,
+                     guint              active,
                      gint               min_px,
                      gint               max_px,
                      gint               avail,
                      guint             *chosen)
 {
-	guint i, j, widest;
-	gint total, shown, most;
+	guint i, rung = 0;
+	gint others = 0;
 
+	/* They start where the one needing the most shortening first fits the cap,
+	   so the row reads as one set rather than a jumble. */
 	for (i = 0; i < count; i++) {
-		chosen[i] = form_counts[i] - 1;
-		for (j = 0; j < form_counts[i]; j++) {
-			if (widths[i][j] <= max_px) {
-				chosen[i] = j;
-				break;
-			}
+		if (i != active) {
+			rung = MAX (rung, nemo_path_form_for_width (widths[i], form_counts[i], max_px));
 		}
 	}
 
 	for (;;) {
-		total = 0;
-		most = -1;
-		widest = 0;
+		gboolean more = FALSE;
+
+		others = 0;
 		for (i = 0; i < count; i++) {
-			shown = CLAMP (widths[i][chosen[i]], min_px, max_px);
-			total += shown;
-			if (chosen[i] + 1 < form_counts[i] &&
-			    widths[i][chosen[i]] > min_px && shown > most) {
-				most = shown;
-				widest = i;
+			if (i == active) {
+				continue;
+			}
+			chosen[i] = MIN (rung, form_counts[i] - 1);
+			others += CLAMP (widths[i][chosen[i]], min_px, max_px);
+			if (chosen[i] + 1 < form_counts[i] && widths[i][chosen[i]] > min_px) {
+				more = TRUE;
 			}
 		}
-		if (total <= avail || most < 0) {
+		if (!more || others + widths[active][0] <= avail) {
 			break;
 		}
-		chosen[widest]++;
+		rung++;
 	}
+
+	chosen[active] = nemo_path_form_for_width (widths[active], form_counts[active],
+						   MAX (avail - others, min_px));
 }
 
 void

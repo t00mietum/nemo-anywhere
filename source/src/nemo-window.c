@@ -1629,13 +1629,94 @@ nemo_window_sync_menu_bar (NemoWindow *window)
     }
 }
 
+/* Room the title bar gives the text, guessed in line heights: a window icon at
+   one end, three buttons at the other, and padding around both. The bar belongs
+   to the window manager, so nothing can be read off it - this only has to tell a
+   path that obviously fits from one that obviously does not. */
+#define TITLE_BAR_CHROME_LINES 7
+
+/* The whole path when the title bar looks wide enough for it, else the longest
+   spelling of it that does look to fit. Anything that is not a local path - a
+   name, a uri - is left to the old character cut. */
+static char *
+compute_title (NemoWindow *window, NemoWindowSlot *slot)
+{
+	GtkAllocation allocation;
+	PangoLayout *layout;
+	gchar **forms, *path, *title;
+	gint *widths, line;
+	guint count, chosen, i;
+
+	path = nemo_compute_title_path_for_location (slot->location);
+	if (path == NULL) {
+		return nemo_compute_window_title (slot->title);
+	}
+
+	forms = nemo_path_forms (path, nemo_path_get_display_separator (),
+				 nemo_path_display_home ());
+	count = g_strv_length (forms);
+	widths = g_new0 (gint, count);
+
+	layout = gtk_widget_create_pango_layout (GTK_WIDGET (window), NULL);
+	for (i = 0; i < count; i++) {
+		title = nemo_compute_window_title (forms[i]);
+		pango_layout_set_text (layout, title, -1);
+		pango_layout_get_pixel_size (layout, &widths[i], NULL);
+		g_free (title);
+	}
+	pango_layout_set_text (layout, "M", -1);
+	pango_layout_get_pixel_size (layout, NULL, &line);
+	g_object_unref (layout);
+
+	gtk_widget_get_allocation (GTK_WIDGET (window), &allocation);
+	chosen = nemo_path_form_for_width (widths, count,
+					   allocation.width - TITLE_BAR_CHROME_LINES * line);
+	title = nemo_compute_window_title (forms[chosen]);
+
+	g_free (widths);
+	g_strfreev (forms);
+	g_free (path);
+
+	return title;
+}
+
+static void
+set_title (NemoWindow *window, NemoWindowSlot *slot)
+{
+	char *title = compute_title (window, slot);
+
+	if (g_strcmp0 (gtk_window_get_title (GTK_WINDOW (window)), title) != 0) {
+		gtk_window_set_title (GTK_WINDOW (window), title);
+	}
+	g_free (title);
+}
+
+/* A wider window may have room to spell out more of the path, and a narrower one
+   may not. The tabs are left alone here: the notebook fits those against its own
+   allocation. */
+static void
+title_size_allocate_cb (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data)
+{
+	NemoWindow *window = NEMO_WINDOW (widget);
+	NemoWindowSlot *slot;
+
+	if (allocation->width == window->details->title_width) {
+		return;
+	}
+	window->details->title_width = allocation->width;
+
+	slot = nemo_window_get_active_slot (window);
+	if (slot != NULL) {
+		set_title (window, slot);
+	}
+}
+
 void
 nemo_window_sync_title (NemoWindow *window,
 			    NemoWindowSlot *slot)
 {
 	NemoWindowPane *pane;
 	NemoNotebook *notebook;
-	char *window_title;
 
 	if (NEMO_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title != NULL) {
 		NEMO_WINDOW_CLASS (G_OBJECT_GET_CLASS (window))->sync_title (window, slot);
@@ -1644,9 +1725,7 @@ nemo_window_sync_title (NemoWindow *window,
 	}
 
 	if (slot == nemo_window_get_active_slot (window)) {
-		window_title = nemo_compute_window_title (slot->title);
-		gtk_window_set_title (GTK_WINDOW (window), window_title);
-		g_free (window_title);
+		set_title (window, slot);
 	}
 
 	pane = slot->pane;
@@ -2287,6 +2366,9 @@ nemo_window_init (NemoWindow *window)
     window->details->ignore_meta_column_order = NULL;
     window->details->ignore_meta_sort_column = NULL;
     window->details->ignore_meta_sort_direction = SORT_NULL;
+
+	g_signal_connect (window, "size-allocate",
+			  G_CALLBACK (title_size_allocate_cb), NULL);
 
 	/* This makes it possible for GTK+ themes to apply styling that is specific to Nemo
 	 * without affecting other GTK+ applications.

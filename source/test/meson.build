@@ -638,15 +638,6 @@ test('Owner columns test',
   args: []
 )
 
-test('Path shorten test',
-  executable('test-nemo-path-shorten',
-    [ 'test-nemo-path-shorten.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
-  ),
-  args: []
-)
-
 test('Path forms test',
   executable('test-nemo-path-forms',
     [ 'test-nemo-path-forms.c' ],
