@@ -108,7 +108,7 @@ main (int argc, char **argv)
 		g_free (link);
 		g_free (sub);
 		g_free (tmp);
-		return EXIT_SUCCESS;
+		return 77;
 	}
 
 	/* List it the way a view does, and wait for the listing to finish. */

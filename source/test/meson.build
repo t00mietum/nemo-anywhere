@@ -134,7 +134,7 @@ test('Config root test',
   executable('test-nemo-config-root',
     [ 'test-nemo-config-root.c' ],
     include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
     c_args: nemo_definitions,
   ),
   args: []

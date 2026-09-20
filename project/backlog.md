@@ -73,18 +73,22 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- ✅ Item 5. No build in the tree uses link-time optimization.
 			- Origin: never set up. Confirmed.
 			- Fixed: on the release lanes. It bought no size, so it stays for what it may buy later.
-		- 🔘 Item 6. The Bash linter runs nowhere.
+		- ✅ Item 6. The Bash linter runs nowhere.
 			- Cause: the lint stage runs the C and Python checkers only. Scripts carry suppression comments for a checker that is never invoked.
 			- Origin: the lint stage grew around the C checks. Confirmed.
-		- 🔘 Item 7. Four checks in the suite can never fail.
+			- Fixed: `cicd/utility/lint.bash` is the lint stage now, and runs shellcheck over the project's own scripts beside the C checks. It is no longer gated on cppcheck, which used to take the whole stage down on a box without it. Fourteen findings fixed; four scripts still turn rules off file-wide, which is filed separately.
+		- ✅ Item 7. Four checks in the suite can never fail.
 			- Cause: one is written so its condition is always true; another compares two searches without first testing that either found anything, so the regression it guards would turn it green.
 			- Origin: spread across the suite's growth. Confirmed.
-		- 🔘 Item 8. Three tests report success when they could not run.
+			- Fixed: each now checks what its comment says. The link-copy one asks the file system instead of repeating a call it already made, and the network one compares host names, which is what its comment always claimed. The two Linux ones were watched to fail. The two Windows-only ones still owe that watch on a real box.
+		- ✅ Item 8. Three tests report success when they could not run.
 			- Cause: they print that they are skipping and then fall through to a success exit rather than the skip exit. A fourth returns the skip code without first reporting failures it already counted.
 			- Origin: predates the rule being written down. Confirmed.
-		- 🔘 Item 9. One test builds and removes its own scratch tree.
+			- Fixed: all four return 77 on the paths where they skip, and failures already counted are reported before the skip code. Two were watched both ways; the two Windows-only ones still owe that watch on a real box.
+		- ✅ Item 9. One test builds and removes its own scratch tree.
 			- Cause: it is the only test that does not go through the shared helper, and it removes the tree twice by hand. Two runs at once destroy each other.
 			- Origin: written before the helper existed and never moved over. Confirmed.
+			- Fixed: it uses `test_scratch_dir` like the rest of the suite. Twelve copies at once over eight rounds: 24 of 96 failed before, none of 96 after.
 		- ✅ Item 10. A test has the same settings-group mismatch as item 3.
 			- Effect: a later check in the same file fires the handler, which writes through a pointer into a frame that has returned.
 			- Origin: copied from the sidebar code it tests. Confirmed.
@@ -143,6 +147,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-203000
 	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
 	- Origin: came in with link-time optimization on the release lanes. Confirmed.
+
+- 🔘 Four scripts turn a dozen shellcheck rules off for the whole file.
+	- Opened: 20260920-150000
+	- `cicd.bash`, `config.bash`, `gui-headless.bash` and `include/gfs-rotate.bash` carry a header block of `disable=` lines. Each has a reason, but it applies to a handful of lines and covers every line. Quoting and unused-variable faults anywhere in those four go unseen.
+	- Origin: the headers came from a shared template and predate the checker being run at all. Confirmed by adding a fault to one of them and watching the check stay green.
+
+- 🔘 Two archive tests remove a tree without the symlink guard.
+	- Opened: 20260920-150000
+	- The `remove_tree` copies in `test-archive-job.c` and `test-extract-job.c` recurse on whatever the enumeration calls a folder, and `test-archive-job.c` plants a symlink in the same tree. Its target is missing today, so nothing outside has been removed yet.
+	- Origin: written before `nemo_delete_guard_is_real_folder` existed, and test code is not covered by the lint rule that holds it. Read, not reproduced.
 
 ### Features and enhancements
 

@@ -337,12 +337,12 @@ main (int argc, char *argv[])
 	g_free (outside);
 	g_free (root);
 
-	if (res == 77) {
-		return 77;
-	}
 	if (failures > 0) {
 		g_printerr ("%d failure(s)\n", failures);
 		return EXIT_FAILURE;
+	}
+	if (res == 77) {
+		return 77;
 	}
 
 	g_print ("OK\n");

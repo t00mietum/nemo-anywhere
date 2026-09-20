@@ -13,6 +13,8 @@
 
 #include <libnemo-private/nemo-file-utilities.h>
 
+#include "test-scratch.h"
+
 static int failures = 0;
 
 #define check(expr) \
@@ -82,8 +84,8 @@ main (int argc, char *argv[])
 	char *user_dir;
 	const char *root;
 
-	sandbox = g_build_filename (g_get_tmp_dir (), "nemo-config-root-test", NULL);
-	remove_tree (sandbox);
+	sandbox = test_scratch_dir ("nemo-config-root-XXXXXX", NULL);
+	g_assert (sandbox != NULL);
 
 	xdg     = g_build_filename (sandbox, "xdg", NULL);
 	roaming = g_build_filename (sandbox, "roaming", NULL);
@@ -158,7 +160,6 @@ main (int argc, char *argv[])
 	g_free (user_dir);
 	g_free (expected);
 	g_free (legacy);
-	remove_tree (sandbox);
 	g_free (roaming);
 	g_free (xdg);
 	g_free (sandbox);

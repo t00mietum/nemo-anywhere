@@ -45,7 +45,7 @@ die(){ echo "FAILED: $*" >&2; exit 1; }
 ## already bumped on dev (so no commit ever lands directly on main here).
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [[ "$branch" == "main" ]] || die "not on main (on ${branch}); merge dev --no-ff into main first"
-git diff --quiet && git diff --cached --quiet || die "working tree not clean"
+if ! git diff --quiet || ! git diff --cached --quiet; then die "working tree not clean"; fi
 
 ## meson.build form: project('nemo-anywhere', 'c', version : '6.6.4', ...). Grab the
 ## first `version : '...'` (the project version; dep version checks use `>=`, not this).
@@ -79,7 +79,10 @@ fi
 echo ""
 echo "Release ${tag} from $(git rev-parse --short HEAD) on main"
 if ((have_artifacts)); then
-	echo "Artifacts:"; ls -1 "${art_dir}/${EXE_NAME}-${ver}-"* | sed 's/^/  /'
+	shopt -s nullglob
+	arts=("${art_dir}/${EXE_NAME}-${ver}-"*)
+	shopt -u nullglob
+	echo "Artifacts:"; printf '  %s\n' "${arts[@]}"
 else
 	echo "Artifacts: (none - tag-only release; artifact stage not wired yet)"
 fi

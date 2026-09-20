@@ -162,6 +162,7 @@ fClone(){
 		## Circles colours do - and each names only its own directory, so widen
 		## the checkout rather than reusing one that is missing the others.
 		if [[ "$fetch" == "sparse" && -n "$roots" && "$roots" != "." ]]; then
+			# shellcheck disable=SC2086  ## roots is a space-separated list; the split is the point.
 			git -C "$dest" sparse-checkout add $roots >/dev/null 2>&1 || true
 		fi
 		printf '%s' "$dest"; return 0
@@ -180,6 +181,7 @@ fClone(){
 		## Cone mode, deliberately: --no-cone's gitignore-style patterns place
 		## nothing here, and cone mode brings the top-level license files along
 		## with the named directories, which is exactly what we want.
+		# shellcheck disable=SC2086  ## same list, same reason.
 		git -C "$dest" sparse-checkout set $roots > "$log" 2>&1 || { cat "$log" >&2; return 1; }
 	fi
 
@@ -209,7 +211,11 @@ fClone(){
 ## the first cut shelled out for the path scoring and took five and a half
 ## minutes for one theme.
 
+## Both are reached through the namerefs in fBuildIndex and fResolve, which
+## shellcheck cannot follow, so it reads them as never used.
+# shellcheck disable=SC2034
 declare -gA iconIndex=()
+# shellcheck disable=SC2034
 declare -gA darkIndex=()
 declare -gi scored=0
 declare -g scoreBias=large
@@ -225,6 +231,7 @@ fBuildIndex(){
 		[[ -d "$repo/$r" ]] || continue
 		while IFS= read -r path; do
 			base="${path##*/}"
+			# shellcheck disable=SC2004  ## target is a nameref to an associative array, so $base is a key, not arithmetic.
 			target[$base]="${target[$base]:-}${path}"$'\n'
 		done < <( cd "$repo" && find "$r" -type f \( -name '*.svg' -o -name '*.png' \) -printf '%p\n' )
 	done
@@ -403,6 +410,8 @@ fBuildIconTheme(){
 	if [[ "$darkFrom" == roots:* ]]; then
 		fBuildIndex "$repo" "${darkFrom#roots:}" darkIndex
 	else
+		## Read back through the fResolve nameref, so shellcheck sees no use.
+		# shellcheck disable=SC2034
 		darkIndex=()
 	fi
 
@@ -658,6 +667,7 @@ if (( ${#wanted[@]} == 0 )); then
 		fi
 
 		printf '## Themes\n\n'
+		# shellcheck disable=SC2016  ## the backticks are markdown, not a substitution.
 		printf 'Regenerate with `cicd/utility/vendor-themes.bash` - do not hand-edit the table. Bundled as mere aggregation: GTK reads them at runtime, nothing is linked into nemo. Each theme keeps its own `COPYING`. Our own Windows-look icon sets are not here - Luna, Aero, Metro and Mica are first-party art in `assets/icons`, built by `gen-icon-theme.py`. Nothing Windows-styled is vendored as icons: every such set that circulates draws blue folders, and Windows folders are yellow.\n\n'
 
 		## Driven off what is on disk rather than off the catalog, so a dark
@@ -675,6 +685,7 @@ if (( ${#wanted[@]} == 0 )); then
 					IFS='|' read -r style url ref <<< "$meta"
 					key="$(printf '%s' "$url" | tr -c 'A-Za-z0-9' '_')"
 					sha="$(git -C "$tmp/$key" rev-parse HEAD 2>/dev/null || echo "$ref")"
+					# shellcheck disable=SC2016  ## same, in the row format.
 					printf '`%s`\t%s\t%s\t%s\t`%s`\n' \
 						"$name" "$([[ "$kind" == themes ]] && echo Widget || echo Icon)" \
 						"$style" "$url" "$sha"

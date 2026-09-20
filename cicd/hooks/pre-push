@@ -53,7 +53,7 @@ run_gate(){ ((gate_ran)) && return 0; gate_ran=1
 }
 
 ## git feeds "<localref> <localsha> <remoteref> <remotesha>" lines on stdin.
-while read -r localref localsha remoteref remotesha; do
+while read -r _ localsha remoteref remotesha; do
 	[[ "$localsha" == "$z" ]] && continue          # branch delete: skip
 	branch="${remoteref#refs/heads/}"
 	case "$branch" in

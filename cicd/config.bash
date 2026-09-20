@@ -89,11 +89,14 @@ DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" "
 ## down/absent daemon skips-with-warning instead of aborting the gate.
 TEST_CMD=(bash "${DOCKER_RUN}" "tests" "NEMO_TEST_JOBS=${CICD_MAX_JOBS:-2} bash /src/cicd/linux/run-tests.bash")
 
-## Stage 3 (after tests): lints - READY. Check-only cppcheck over the CHANGED C
-## files only (cicd/utility/lint-c.bash); never reformats, never lints the whole
-## inherited tree. A box without cppcheck skips with a warning (probe below).
-LINT_PROBE=(cppcheck --version)
-LINT_CMD=(bash cicd/utility/lint-c.bash)
+## Stage 3 (after tests): lints - READY. cicd/utility/lint.bash runs the C check
+## over the CHANGED C files and shellcheck over the project's own scripts.
+## Nothing is rewritten, and the inherited tree is never linted whole. Each
+## checker warn-skips on a box that lacks its tool, so the probe only has to say
+## that a shell exists - the cppcheck probe that used to sit here took the whole
+## stage down with it, Bash check included.
+LINT_PROBE=(bash --version)
+LINT_CMD=(bash cicd/utility/lint.bash)
 
 ## Stage 3 (after lints): fuzz the parsers that read outside input - READY.
 ## Bounded on purpose: each target gets FUZZ_SECS of search, and the budget
