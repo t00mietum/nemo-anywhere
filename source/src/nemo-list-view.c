@@ -3150,11 +3150,18 @@ column_id (GtkTreeViewColumn *column)
    never shown at less. */
 typedef struct {
 	GHashTable *values;	/* key -> width, or NULL for a column that only needs its widest */
+	GHashTable *measured;	/* cell text -> that cell's natural width; NULL for Name */
 	gint widest;
 	gint fit;		/* cached, -1 once a value has changed */
 	gint half;		/* the same for half the values */
 	gint fit_percent;	/* the share the cached fit was worked out for */
 } ColumnSamples;
+
+/* How many distinct values one column will remember the width of. A type or an
+   owner repeats down the whole folder and needs a handful of entries; a date is
+   nearly all distinct and would otherwise keep one per row for nothing. Past
+   this the column just measures, which is what it did before. */
+#define MEASURED_TEXTS_MAX 2048
 
 static void
 column_samples_free (gpointer data)
@@ -3163,6 +3170,9 @@ column_samples_free (gpointer data)
 
 	if (samples->values != NULL) {
 		g_hash_table_destroy (samples->values);
+	}
+	if (samples->measured != NULL) {
+		g_hash_table_destroy (samples->measured);
 	}
 	g_free (samples);
 }
@@ -3193,9 +3203,21 @@ samples_for (NemoListView      *view,
 
 		if (column == view->details->file_name_column) {
 			samples->values = g_hash_table_new (g_direct_hash, g_direct_equal);
-		} else if (column_keeps_every_value (view, column)) {
-			samples->values = g_hash_table_new_full (g_str_hash, g_str_equal,
-								 g_free, NULL);
+		} else {
+			/* Every column but Name shows one run of text per row, so a value
+			   seen before lays out to the same width. Name is left out: no two
+			   files in a folder share a name, so nothing would ever repeat.
+			   NEMO_MEASURE_NOCACHE turns it off, which is how the widths it
+			   hands back are checked against measuring every row. */
+			if (g_getenv ("NEMO_MEASURE_NOCACHE") == NULL) {
+				samples->measured = g_hash_table_new_full (g_str_hash, g_str_equal,
+									   g_free, NULL);
+			}
+
+			if (column_keeps_every_value (view, column)) {
+				samples->values = g_hash_table_new_full (g_str_hash, g_str_equal,
+									 g_free, NULL);
+			}
 		}
 
 		g_hash_table_insert (view->details->samples, g_strdup (id), samples);
@@ -3208,13 +3230,11 @@ samples_for (NemoListView      *view,
    column that keeps only its widest ignores both. TRUE when something the
    layout reads has changed. */
 static gboolean
-note_sample (NemoListView      *view,
-	     GtkTreeViewColumn *column,
-	     NemoFile          *file,
-	     const char        *text,
-	     gint               width)
+note_sample (ColumnSamples *samples,
+	     NemoFile      *file,
+	     const char    *text,
+	     gint           width)
 {
-	ColumnSamples *samples = samples_for (view, column);
 	gboolean changed = FALSE;
 	gpointer key;
 	gpointer seen;
@@ -3573,10 +3593,12 @@ name_indent_for (NemoListView *view,
 static gint
 row_width_for_column (NemoListView      *view,
 		      GtkTreeViewColumn *column,
+		      ColumnSamples     *samples,
 		      GtkTreeModel      *model,
 		      GtkTreeIter       *iter,
 		      gchar            **text)
 {
+	GHashTable *measured = samples != NULL ? samples->measured : NULL;
 	GList *cells, *c;
 	gint total = 0;
 	gint shown = 0;
@@ -3586,21 +3608,56 @@ row_width_for_column (NemoListView      *view,
 	cells = gtk_cell_layout_get_cells (GTK_CELL_LAYOUT (column));
 
 	for (c = cells; c != NULL; c = c->next) {
+		gchar *cell_text = NULL;
+		gpointer seen = NULL;
+		gboolean may_cache = FALSE;
+		gboolean known = FALSE;
 		gint natural = 0;
 
 		if (!gtk_cell_renderer_get_visible (c->data)) {
 			continue;
 		}
 
-		gtk_cell_renderer_get_preferred_width (c->data,
-						       GTK_WIDGET (view->details->tree_view),
-						       NULL, &natural);
+		/* Name asks for neither, so it does not pay for the copy. */
+		if (GTK_IS_CELL_RENDERER_TEXT (c->data) &&
+		    (measured != NULL || (text != NULL && *text == NULL))) {
+			gint weight = NORMAL_TEXT_WEIGHT;
+
+			g_object_get (c->data, "text", &cell_text, "weight", &weight, NULL);
+
+			/* A file shown in a weight of its own lays out wider or narrower at
+			   the same text, and there are only ever a few, so those are
+			   measured rather than remembered. */
+			may_cache = measured != NULL && cell_text != NULL &&
+				    weight == NORMAL_TEXT_WEIGHT;
+		}
+
+		if (may_cache) {
+			known = g_hash_table_lookup_extended (measured, cell_text, NULL, &seen);
+		}
+
+		if (known) {
+			natural = GPOINTER_TO_INT (seen);
+		} else {
+			gtk_cell_renderer_get_preferred_width (c->data,
+							       GTK_WIDGET (view->details->tree_view),
+							       NULL, &natural);
+
+			if (may_cache && g_hash_table_size (measured) < MEASURED_TEXTS_MAX) {
+				g_hash_table_insert (measured, g_strdup (cell_text),
+						     GINT_TO_POINTER (natural));
+			}
+		}
+
 		total += natural;
 		shown++;
 
-		if (text != NULL && *text == NULL && GTK_IS_CELL_RENDERER_TEXT (c->data)) {
-			g_object_get (c->data, "text", text, NULL);
+		if (text != NULL && *text == NULL && cell_text != NULL) {
+			*text = cell_text;
+			cell_text = NULL;
 		}
+
+		g_free (cell_text);
 	}
 
 	g_list_free (cells);
@@ -3660,6 +3717,7 @@ measure_row (GtkTreeModel *model,
 		GtkTreeViewColumn *column = l->data;
 		gboolean is_name = column == view->details->file_name_column;
 		gboolean by_text = !is_name && column_keeps_every_value (view, column);
+		ColumnSamples *samples;
 		gchar *text = NULL;
 		gint width;
 
@@ -3667,13 +3725,15 @@ measure_row (GtkTreeModel *model,
 			continue;
 		}
 
-		width = row_width_for_column (view, column, model, iter, by_text ? &text : NULL);
+		samples = samples_for (view, column);
+		width = row_width_for_column (view, column, samples, model, iter,
+					      by_text ? &text : NULL);
 
 		if (is_name) {
 			width += name_indent_for (view, path);
 		}
 
-		if (note_sample (view, column, is_name ? file : NULL, text, width)) {
+		if (note_sample (samples, is_name ? file : NULL, text, width)) {
 			grew = TRUE;
 		}
 

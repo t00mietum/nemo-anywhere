@@ -466,6 +466,7 @@ This rule has been rewritten several times and will probably move again, so the 
 	- Rows a subfolder adds count while it is open, and are forgotten when it collapses.
 	- Everything is measured again when the zoom level changes the font or icon size, and when a column is switched on that was not there to be measured while it was hidden.
 	- Samples are thrown away on a folder change. The names in the last folder say nothing about this one.
+	- A column remembers the width it worked out for a piece of text, so a type, an owner or a set of permissions that repeats down the folder is laid out once instead of once a row. Name is left out, since no two files in a folder share a name. A column stops remembering past a couple of thousand distinct values, which is where a date would otherwise keep one entry per row for nothing. The remembered widths go when the samples do.
 
 - Every column is a fixed-width column as far as the toolkit is concerned, whatever class it is in here. The widths above are worked out for the whole row at once and handed over, so there is nothing left for the toolkit to decide. That also lets the list run in fixed-height mode, where the row height is measured once instead of once per row - which is about half of what loading a big folder used to cost. The two go together: leave one column to size itself and the toolkit measures every row again, quietly, and the saving goes away.
 
@@ -563,16 +564,18 @@ Measured on 2026-09-20 with the Linux release build on a desktop machine. Each i
 
 | Folder          | Window up and listed | Settled | Peak memory
 | :---            | :---                 | :---    | :---
-| empty           | 0.4 s                | 0.2 s   | 90 MiB
-| 1,000 files     | 0.6 s                | 0.4 s   | 92 MiB
-| 10,000 files    | 2.0 s                | 1.8 s   | 104 MiB
-| 50,000 files    | 8.4 s                | 8.3 s   | 158 MiB
+| empty           | 0.4 s                | 0.2 s   | 89 MiB
+| 1,000 files     | 0.5 s                | 0.3 s   | 92 MiB
+| 10,000 files    | 1.4 s                | 1.2 s   | 104 MiB
+| 50,000 files    | 5.2 s                | 5.0 s   | 158 MiB
 
 - "Settled" is when the view has gone idle, with icons and column widths done.
 
-- Listing time grows about in step with the file count, at roughly a sixth of a millisecond per file. That is the one to watch. A big download or photo folder is where it is felt.
+- Listing time grows about in step with the file count, at roughly a tenth of a millisecond per file. That is the one to watch. A big download or photo folder is where it is felt.
 
-- The 10,000 and 50,000 rows were about twice these numbers until the list was put into fixed-height mode, which is covered under [List view column widths](#list-view-column-widths). Peak memory came down with them. What is left at this size is measuring each row's text to decide the column widths.
+- The 10,000 and 50,000 rows were about four times these numbers until two changes to the measuring, both covered under [List view column widths](#list-view-column-widths): the list was put into fixed-height mode, and each column now remembers the width of a value it has already laid out. Peak memory came down with the first and did not move with the second.
+
+- What is left at this size is still measuring, but now it is the Name column, where no two values repeat. A folder with varied names, sizes and dates rather than empty files runs about half again as long as the table above.
 
 - On Windows the packed exe took 3.4 s to start on 2026-08-19. It had been 14.2 s, nearly all of it the packer handling a couple of thousand small theme files before any of our code ran, until the themes were compiled in.
 

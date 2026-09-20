@@ -346,6 +346,39 @@ fCheckFixedHeight(){
 }
 fCheckFixedHeight
 
+## The measuring cache in the list view. Each rule below is what keeps a
+## remembered width honest; without one the columns come out wrong or the
+## cache grows per row.
+fCheckMeasureCache(){
+	local src='source/src/nemo-list-view.c'
+	local body
+
+	[[ -f "$src" ]] || return 0
+	grep -q -F 'samples->measured' "$src" || return 0
+
+	body="$(awk '/^row_width_for_column/ { on=1 } on { print } on && /^}/ { exit }' "$src")"
+
+	## Bold and light rows lay out wider or narrower at the same text.
+	if ! grep -q -F 'weight == NORMAL_TEXT_WEIGHT' <<< "$body"; then
+		fEcho "FAIL: ${src}: only a normal-weight cell may reuse a remembered width"
+		exit 2
+	fi
+
+	## Thrown away with the samples, or a zoom leaves widths from the old font.
+	if ! awk '/^column_samples_free/ { on=1 } on { print } on && /^}/ { exit }' "$src" |
+	     grep -q -F 'samples->measured'; then
+		fEcho "FAIL: ${src}: the remembered widths must go when the samples do"
+		exit 2
+	fi
+
+	## A date is nearly all distinct values, so the table needs a ceiling.
+	if ! grep -q -F 'MEASURED_TEXTS_MAX' <<< "$body"; then
+		fEcho "FAIL: ${src}: remembering a width must stop at MEASURED_TEXTS_MAX"
+		exit 2
+	fi
+}
+fCheckMeasureCache
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

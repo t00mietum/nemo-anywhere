@@ -61,11 +61,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
-- 🔘 Half of what is left of a big folder load is measuring text for the column widths.
-	- Opened: 20260920-233000
-	- `measure_row` runs for every row as it arrives and asks each column what it would want to be, which means a full text layout per cell. That is about a third of the load now that the larger cost above it is gone.
-	- Most of those measurements are of text already seen. The minor columns already fold their values by text, so the width for a repeated value could be remembered rather than measured again. Type, permissions, owner and group repeat almost always; dates repeat per day.
-	- Worth measuring against files with varied names and sizes, not the flat ones, or a cache looks better than it is.
+- 🔘 A theme change does not send the list back to measure its columns.
+	- Opened: 20260920-234500
+	- The handler for it only drops the cached separator and indent sizes. The widths worked out before it stay as they are, so a theme whose font is wider leaves values cut off until something else forces a remeasure - a zoom, or a folder change.
+	- Found while fitting the measuring cache, which is thrown away in the same places the old samples were, so the cache is no worse than what was there. Pre-existing either way.
+	- Careful: the signal fires more often than a theme change does, and remeasuring 50,000 rows on each would cost more than it saves. Needs a test for what actually changed.
 
 ### Features and enhancements
 
@@ -192,6 +192,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Half of what is left of a big folder load is measuring text for the column widths.
+	- Opened: 20260920-233000. Closed: 20260920.
+	- Cause: every row asked every column for a full text layout, and most of those layouts were of text the column had already seen. A type, an owner, a group or a set of permissions is the same string down the whole folder.
+	- Fixed: each column remembers the width it worked out for a piece of text and hands it back rather than laying it out again. Name is left out, since no two files in a folder share a name, and a column stops remembering past a couple of thousand distinct values, which is where a date would otherwise keep one entry per row.
+	- A row drawn in its own weight is measured rather than remembered. Bold and light lay out differently at the same text, and there are never many.
+	- 50,000 empty files went from 8.4 s to 5.2 s to show and from 8.9 s to 5.8 s of processor time. Over files whose names, sizes, dates and extensions all vary, the same count went from 11.0 s to 8.4 s. Peak memory did not move.
+	- Nothing about the view changed: the same shots across two window widths and three zoom levels, bold rows among them, come out pixel for pixel identical.
+	- `lint-c.bash` holds the three rules that keep a remembered width honest: only a normal-weight cell may reuse one, they go when the rest of the samples go, and a column stops remembering at a ceiling.
+	- What is left of the measuring is the Name column, where nothing repeats by definition. Not filed - there is no obvious way to measure fewer names while the width rule counts every one of them.
 
 - ✅ Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
 	- Opened: 20260920-160000. Closed: 20260920.
