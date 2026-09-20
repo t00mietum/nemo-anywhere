@@ -119,9 +119,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Tabs left in place: inside multi-line string bodies, where they are data, and in the `##` header block every script in the tree shares.
 			- Proof the conversion changed nothing: each file's parse tree was compared before and after, and the four files with tabs inside string literals were redone with those lines held back until it matched.
 			- Three findings that turned up with the checker are fixed too: a one-letter variable, a lambda where a def belongs, and two statements on one line.
-		- 🛠️ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
-			- Done: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
-			- Left: PowerShell, Bash and C.
+		- ✅ Item 16. There is no configuration for the Python, PowerShell, Bash or C static checkers. The absent C formatter config is a settled decision and is not part of this.
+			- Python: `pyproject.toml` holds a narrow ruff config, and `cicd/utility/lint-python.bash` runs it in the lint stage. It warn-skips a box with no ruff, the way the Bash check does, and `RUFF_STRICT=1` makes the miss fatal. Inherited and generated Python is excluded, the same way `source/` is excluded from the Bash check.
+			- Bash: `.shellcheckrc` now holds the severity and the sourced-file handling the lint stage used to pass as flags, so an editor sees the same rules. Without it the lint stage reports seventeen findings, so it is doing real work.
+			- PowerShell: new `PSScriptAnalyzerSettings.psd1` and `cicd/utility/lint-powershell.bash`, sixth in the dispatcher. Five rules are off with a reason each; everything else is on. The one finding left is suppressed where it happens, not in the settings file.
+			- C: the two dozen cppcheck suppressions moved out of the command line into `.cppcheck-suppressions`, with the reason for each still beside it. The findings over a 98-file range are the same as before.
 		- ✅ Item 17. This file records how work was verified in fifteen places. Settled: the rule covers the public docs, so only these fifteen need the pass.
 			- Fixed: those lines now say what was checked and leave out how. design.md and the two style guides keep theirs, since describing the build and test rig is what those files are for.
 			- A check outside the repo holds it, called from the lint stage only when it is there, so a clone without the private tree still lints.
@@ -172,11 +174,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
 	- Origin: came in with link-time optimization on the release lanes. Confirmed.
 
-- 🔘 Four scripts turn a dozen shellcheck rules off for the whole file.
-	- Opened: 20260920-150000
-	- `cicd.bash`, `config.bash`, `gui-headless.bash` and `include/gfs-rotate.bash` carry a header block of `disable=` lines. Each has a reason, but it applies to a handful of lines and covers every line. Quoting and unused-variable faults anywhere in those four go unseen.
-	- Origin: the headers came from a shared template and predate the checker being run at all. Confirmed by adding a fault to one of them and watching the check stay green.
-
 - 🔘 Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
 	- Opened: 20260920-160000
 	- 20,000 empty files take about 7.8 s of processor time. Cutting the per-row and per-cell work in the list view moved that by nothing at all, so the cost sits below it: file info, the model, or the sort.
@@ -188,6 +185,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Effect: a name upstream draws once and aliases elsewhere is counted missing and falls through to Adwaita. Unknown how many of the 180 names that is.
 	- Fixing it changes what gets vendored, so it means re-running all twenty themes and comparing the output.
 	- Origin: found by the new `--self-test`, which carries the case already. Confirmed.
+
+- 🔘 Fourteen `catch { }` blocks in the PowerShell scripts swallow whatever went wrong.
+	- Opened: 20260920-190000
+	- In `cicd-win.ps1`, `install.ps1`, `n8runfm.ps1` and `pack-portable.ps1`. All look like best-effort cleanup, and several would read better as `-ErrorAction SilentlyContinue` on the one call inside.
+	- The rule is off in `PSScriptAnalyzerSettings.psd1` until they are gone through, so it covers nothing today.
+	- Origin: found by the new PowerShell check. Read, not reproduced.
 
 - 🔘 Two archive tests remove a tree without the symlink guard.
 	- Opened: 20260920-150000
@@ -315,6 +318,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Four scripts turn a dozen shellcheck rules off for the whole file.
+	- Opened: 20260920-150000
+	- Closed: 20260920-190000
+	- `cicd.bash`, `config.bash`, `gui-headless.bash` and `include/gfs-rotate.bash` carried a header block of `disable=` lines from a shared template. Each had a reason, but it applied to a handful of lines and covered every line.
+	- With the blocks taken off, only two rules fired at all. So eleven of the thirteen were dead suppression, and four of them could never have done anything anyway: they start with `##`, which shellcheck reads as prose.
+	- `config.bash` keeps one, the unused-variable rule: it is a settings file and cicd.bash reads every name in it, so the whole file looks write-only. The other three keep none. The three real findings are fixed - two quoted exit codes, and one deliberate word split that now says so at the line.
+	- What the blocks were hiding: two dead variables in `cicd.bash`. `quiet` was set by `-q` and never read, so `-q` was only ever an alias for `-y`; the publish step runs quiet either way. `abs_script` was computed and dropped.
+	- The narrowed check is the regression test - a dead variable in any of the four fails the lint stage now.
 
 - ✅ Archiving with rar: When "delete after confirm" was set, got an error message: "The original files were kend. The archive could not be read back."
 	- The archive seems to have been created correctly.

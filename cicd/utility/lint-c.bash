@@ -304,49 +304,11 @@ if ((${#files[@]} == 0)); then
 	exit 0
 fi
 
-## assertWithSideEffect misfires on the idiomatic g_assert(g_hash_table_...)
-## pattern all over this codebase - not worth per-site suppressions.
-## nullPointerOutOfMemory (and its cross-TU twin ctunullpointerOutOfMemory)
-## assume an allocator can return NULL; glib's abort instead, so every one of
-## these is wrong by construction here.
-## normalCheckLevelMaxBranches just says a big file was analyzed shallowly.
-## It is not a finding, but --error-exitcode counts it, so any change touching
-## a large file would fail the gate on it alone.
-## The per-file entries below are inherited-legacy findings, each confirmed
-## present on dev - they showed up only because a sweep touched those files.
-## unknownMacro: cppcheck can't expand the EEL self-check X-macro prototype
-## (nemo-lib-self-check-functions.h), so it fires for any .c that includes it.
-## The two nemo-dnd.c items are inherited-legacy noise in the gnome-icon-list
-## drag encoder/parser, shown only because a change touched that big file.
-## The nemo-mime-actions.c trio is the same story in the activation code path.
-## nemo-window-bookmarks.c and nemo-file-undo-operations.c joined that list when
-## a label sweep touched them: both were confirmed present on dev first, and the
-## undo-operations pair only shows at all in a whole-program run, never when the
-## file is linted on its own.
 fEcho "C lint (cppcheck, check-only) over ${#files[@]} changed file(s)..."
+## The suppression list is in .cppcheck-suppressions at the repo root, with the
+## reason for each one written beside it. --inline-suppr stays for the handful
+## that belong to a single line rather than a whole file.
 cppcheck --enable=warning,portability --library=gtk --inline-suppr \
-	--suppress=missingInclude --suppress=assertWithSideEffect \
-	--suppress=unknownMacro \
-	--suppress=nullPointerOutOfMemory \
-	--suppress=ctunullpointerOutOfMemory \
-	--suppress=normalCheckLevelMaxBranches \
-	--suppress=invalidPrintfArgType_uint:*nemo-dnd.c \
-	--suppress=nullPointerRedundantCheck:*nemo-dnd.c \
-	--suppress=CastAddressToIntegerAtReturn:*nemo-mime-actions.c \
-	--suppress=uselessAssignmentPtrArg:*nemo-mime-actions.c \
-	--suppress=nullPointerRedundantCheck:*nemo-mime-actions.c \
-	--suppress=memleak:*nemo-thumbnails.c \
-	--suppress=leakNoVarFunctionCall:*nemo-thumbnails.c \
-	--suppress=memleak:*nemo-query-editor.c \
-	--suppress=memleak:*nemo-window-slot.c \
-	--suppress=deallocuse:*nemo-properties-window.c \
-	--suppress=deallocuse:*nemo-icon-view.c \
-	--suppress=nullPointerRedundantCheck:*nemo-icon-view-container.c \
-	--suppress=nullPointer:*nemo-tree-sidebar.c \
-	--suppress=ctunullpointer:*nemo-tree-sidebar.c \
-	--suppress=invalidPrintfArgType_sint:*nemo-icon-canvas-item.c \
-	--suppress=invalidPrintfArgType_sint:*nemo-properties-window.c \
-	--suppress=invalidPrintfArgType_sint:*nemo-window-bookmarks.c \
-	--suppress=memleak:*nemo-file-undo-operations.c \
+	--suppressions-list=.cppcheck-suppressions \
 	--quiet --error-exitcode=2 "${files[@]}"
 fEcho "OK: C lint: no findings"

@@ -1,23 +1,8 @@
 #!/usr/bin/env bash
 
-#  shellcheck disable=1091  ## 'source is valid here, but shellcheck doesn't know the path to it.'
-#  shellcheck disable=2001  ## 'See if you can use ${variable//search/replace} instead.' Complains about good uses of sed.
-#  shellcheck disable=2016  ## 'Expressions don't expand in single quotes, use double quotes for that.' I know, and I often want an explicit '$'.
-#  shellcheck disable=2034  ## 'variable appears unused.' Complains about valid use of variable indirection (e.g. later use of local -n var=$1)
-#  shellcheck disable=2046  ## 'Quote to prevent word-splitting.' (OK for integers.)
-#  shellcheck disable=2086  ## 'Double quote to prevent globbing and word splitting.' (OK for integers.)
-#  shellcheck disable=2119  ## 'Use foo "$@" if function's $1 should mean script's $1.' Confusing and inapplicable.
-#  shellcheck disable=2120  ## 'Foo references arguments, but none are ever passed.' Valid function argument overloading.
-#  shellcheck disable=2128  ## 'Expanding an array without an index only gives the element in the index 0.' False hits on associative arrays.
-#  shellcheck disable=2155  ## 'Declare and assign separately to avoid masking return values.' Cumbersome and unnecessary. For integers it's sometimes required to even come into existence for counters.
-#  shellcheck disable=2162  ## 'read without -r will mangle backslashes.'
-#  shellcheck disable=2178  ## 'Variable was used as an array but is now assigned a string.' False hits on associative arrays with e.g. 'local -n assocArray=$1'.
-#  shellcheck disable=2181  ## 'Check exit code directly, not indirectly with $?.'
-#  shellcheck disable=2317  ## 'Can't reach.' (I.e. an 'exit' is used for debugging - and makes an unusable visual mess.)
-## shellcheck disable=2002  ## 'Useless use of cat.'
-## shellcheck disable=2004  ## '$/${} is unnecessary on arithmetic variables.' Inappropriate complaining?
-## shellcheck disable=2053  ## 'Quote the right-hand sid of = in [[ ]] to prevent glob matching.' Disable for Yoda Notation.
-## shellcheck disable=2143  ## 'Use grep -q instead of echo | grep'
+## The template's file-wide shellcheck header is gone: none of those rules
+## fired here, and while it was up it hid two dead variables. A rule that
+## really needs to be off goes off at the line that needs it, with a reason.
 
 ##	- Purpose: Local CI/CD pipeline. Generic engine, per-project settings live in config.bash.
 ##	  The stage sequence is the enduring shape; the tools that fill each stage are
@@ -37,7 +22,7 @@
 ##	  cicd/cicd.bash [options]
 ##	  Options:
 ##	   -y, --yes           run unattended (no confirm prompt)
-##	   -q, --quiet         quiet + unattended (implies -y); the publish step runs quiet too
+##	   -q, --quiet         same as -y; the publish step runs quiet either way
 ##	   -m, --message MSG   publish hands-off with this commit message (no editor)
 ##	       --msg MSG       alias for --message
 ##	   --no-sync           skip the remote sync stage
@@ -103,10 +88,10 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 fSetSourceDate "${root}"
 
 ## Parse options.
-assume_yes=0; quiet=0; quick=0; gate=0; no_arm=0; no_sync=0; allow_dirty=0; cli_message=""
+assume_yes=0; quick=0; gate=0; no_arm=0; no_sync=0; allow_dirty=0; cli_message=""
 while (($#)); do case "$1" in
 	-y|--yes)                 assume_yes=1; shift ;;
-	-q|--quiet)               quiet=1; assume_yes=1; shift ;;   ## quiet + unattended; publish runs quiet too
+	-q|--quiet)               assume_yes=1; shift ;;            ## publish runs quiet whatever this says
 	--gate)                   gate=1; shift ;;                  ## merge gate only, then exit
 	--no-sync)                no_sync=1; shift ;;
 	--no-fmt)                 FMT_CMD=(); shift ;;
@@ -340,7 +325,6 @@ if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then
 fi
 
 ## Preflight: show the plan with resolved paths, then confirm.
-abs_script="${root}/${PROFILE_WORKLOAD_SCRIPT}"
 profile_dir="$(cd "${root}" && mkdir -p "${PROFILE_OUT_DIR}" 2>/dev/null; cd "${PROFILE_OUT_DIR}" 2>/dev/null && pwd || echo "${root}/${PROFILE_OUT_DIR}")"
 fixed_dest=""; for d in "${DOGFOOD_FIXED_DESTS[@]:-}"; do [[ -d "$d" && -w "$d" ]] && { fixed_dest="$d"; break; }; done
 rot_dest="";   for d in "${DOGFOOD_ROTATING_DESTS[@]:-}"; do [[ -d "$d" && -w "$d" ]] && { rot_dest="$d"; break; }; done
