@@ -4,9 +4,11 @@
 ##	  unlike the C check: every script here was written for this project, so
 ##	  there is no inherited noise to drown in.
 ##	- Anything shellcheck reports fails the stage, notes included. A script that
-##	  needs a rule off carries a `shellcheck disable=` line with its reason.
-##	  Four scripts turn a dozen rules off in a header block; new ones go at the
-##	  site instead, so the rest of the file stays covered.
+##	  needs a rule off carries a `shellcheck disable=` line at the site that
+##	  needs it, with its reason. Note the directive has to start with a single
+##	  '#': a '##' comment reads as prose and is quietly ignored.
+##	- Settings (severity, sourced-file handling) are in .shellcheckrc at the
+##	  repo root, so an editor and this stage see the same rules.
 ##	- A missing shellcheck skips with a warning, so an unprovisioned box can't
 ##	  hard-block a push; SHELLCHECK_STRICT=1 turns that miss into a failure.
 ##	- Syntax: lint-bash.bash
@@ -40,8 +42,6 @@ fi
 mapfile -t files < <(git ls-files '*.bash' ':!:cicd/utility/n8git_backup-and-publish')
 files+=(cicd/hooks/pre-push utility/runfm)
 
-## -x follows sourced files, and without -P shellcheck resolves their relative
-## paths against the working directory rather than the sourcing script.
 fEcho "Bash lint (shellcheck) over ${#files[@]} script(s)..."
-shellcheck -x -P SCRIPTDIR -S style "${files[@]}"
+shellcheck "${files[@]}"
 fEcho "OK: Bash lint: no findings"

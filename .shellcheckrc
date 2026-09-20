@@ -1,0 +1,14 @@
+# Config for shellcheck, which cicd/utility/lint-bash.bash runs over the
+# project's own scripts. It used to pass these as flags, so an editor or a bare
+# `shellcheck foo.bash` saw something different from the lint stage. Now both
+# read this.
+
+# Report everything down to style. Nothing here is big enough to need a quieter
+# setting, and the style findings are the ones that catch a stale variable.
+severity=style
+
+# Follow `source` of a sibling script, and resolve its path against the
+# sourcing script rather than the working directory. Without the second one,
+# every sibling source reports SC1091 - that was half the first run's findings.
+external-sources=true
+source-path=SCRIPTDIR

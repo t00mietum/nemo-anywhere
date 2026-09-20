@@ -1,12 +1,10 @@
 #!/bin/bash
 
-#  shellcheck disable=2001  ## 'See if you can use ${variable//search/replace} instead.' Complains about good uses of sed.
-#  shellcheck disable=2016  ## 'Expressions don't expand in single quotes, use double quotes for that.' I know, and I often want an explicit '$'.
-#  shellcheck disable=2034  ## 'variable appears unused.' Complains about valid use of variable indirection (e.g. later use of local -n var=$1)
-#  shellcheck disable=2046  ## 'Quote to prevent word-splitting.' (OK for integers.)
-#  shellcheck disable=2086  ## 'Double quote to prevent globbing and word splitting.' (OK for integers.)
-#  shellcheck disable=2128  ## 'Expanding an array without an index only gives the element in the index 0.' False hits on associative arrays.
-#  shellcheck disable=2155  ## 'Declare and assign separately to avoid masking return values.' Cumbersome and unnecessary.
+## Every setting below is read by cicd.bash, which sources this file, so
+## shellcheck sees the whole file as write-only. That is the one rule this file
+## can't have on; the rest of the template's header block is gone, since none of
+## it fired and a file-wide block hides real faults.
+# shellcheck disable=2034  ## 'variable appears unused' - see above.
 
 ##	Purpose:
 ##		- Project-specific CI/CD settings for nemo-anywhere. cicd.bash stays generic;
@@ -30,7 +28,7 @@
 
 ## Check if sourced
 declare -i isSourced_t6wqf=0; [[ "${BASH_SOURCE[0]}" == "${0}" ]] || isSourced_t6wqf=1
-((isSourced_t6wqf)) || { echo -e "\nError in $(basename "${BASH_SOURCE[0]}"): This script is meant to be 'sourced' from within another script.\n"; exit ${ERRNUM_MSG_ALREADY_SHOWN:-3}; }
+((isSourced_t6wqf)) || { echo -e "\nError in $(basename "${BASH_SOURCE[0]}"): This script is meant to be 'sourced' from within another script.\n"; exit "${ERRNUM_MSG_ALREADY_SHOWN:-3}"; }
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••

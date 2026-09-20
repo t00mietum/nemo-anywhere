@@ -360,6 +360,11 @@ function fFindSigntool {
 ## build still ships. A missing signtool warns and leaves the exe unsigned; a real
 ## signing error aborts (a half-signed release should not go out).
 function fSignFile {
+	## The password arrives as plaintext from the environment either way. This
+	## turns it into a SecureString to import the cert, which is the safer of
+	## the two ways to hand it to signtool - see the note further down.
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+		'PSAvoidUsingConvertToSecureStringWithPlainText', '')]
 	param([Parameter(Mandatory)][string]$Path)
 	if (-not (fSignConfigured)) { fNote "signing not configured (set NEMO_SIGN_THUMBPRINT or NEMO_SIGN_PFX); leaving exe unsigned"; return }
 	$signtool = fFindSigntool

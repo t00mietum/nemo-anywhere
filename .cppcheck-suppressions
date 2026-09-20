@@ -1,0 +1,56 @@
+# Suppressions for cppcheck, which cicd/utility/lint-c.bash runs over the C
+# files a branch changed. These used to be two dozen --suppress flags on the
+# command line. Same idea as pyproject.toml and .shellcheckrc: the settings sit
+# in a file, so anything else pointed at this tree can use the same list.
+#
+# A suppression that belongs to one line goes in that line's source file as an
+# inline comment instead, which is why --inline-suppr is still passed.
+
+# assertWithSideEffect misfires on the idiomatic g_assert(g_hash_table_...)
+# pattern all over this codebase - not worth per-site suppressions.
+missingInclude
+assertWithSideEffect
+
+# nullPointerOutOfMemory and its cross-TU twin assume an allocator can return
+# NULL; glib's abort instead, so every one of these is wrong by construction.
+nullPointerOutOfMemory
+ctunullpointerOutOfMemory
+
+# Just says a big file was analyzed shallowly. Not a finding, but
+# --error-exitcode counts it, so any change touching a large file would fail
+# the gate on it alone.
+normalCheckLevelMaxBranches
+
+# cppcheck can't expand the EEL self-check X-macro prototype
+# (nemo-lib-self-check-functions.h), so it fires for any .c that includes it.
+unknownMacro
+
+# Everything below is inherited-legacy, each one confirmed present on dev - they
+# showed up only because a sweep touched those files.
+
+# The gnome-icon-list drag encoder and parser.
+invalidPrintfArgType_uint:*nemo-dnd.c
+nullPointerRedundantCheck:*nemo-dnd.c
+
+# The activation code path.
+CastAddressToIntegerAtReturn:*nemo-mime-actions.c
+uselessAssignmentPtrArg:*nemo-mime-actions.c
+nullPointerRedundantCheck:*nemo-mime-actions.c
+
+memleak:*nemo-thumbnails.c
+leakNoVarFunctionCall:*nemo-thumbnails.c
+memleak:*nemo-query-editor.c
+memleak:*nemo-window-slot.c
+deallocuse:*nemo-properties-window.c
+deallocuse:*nemo-icon-view.c
+nullPointerRedundantCheck:*nemo-icon-view-container.c
+nullPointer:*nemo-tree-sidebar.c
+ctunullpointer:*nemo-tree-sidebar.c
+invalidPrintfArgType_sint:*nemo-icon-canvas-item.c
+invalidPrintfArgType_sint:*nemo-properties-window.c
+
+# These two joined the list when a label sweep touched them. Both were confirmed
+# present on dev first, and the undo-operations one only shows at all in a
+# whole-program run, never when the file is linted on its own.
+invalidPrintfArgType_sint:*nemo-window-bookmarks.c
+memleak:*nemo-file-undo-operations.c
