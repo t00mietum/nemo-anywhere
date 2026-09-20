@@ -138,12 +138,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
 	- Origin: came in with link-time optimization on the release lanes. Confirmed.
 
-- 🔘 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
-	- Opened: 20260919-210000
-	- The sidebar and the view are compiled into the program, and the tests link the two libraries beside it. A fix in either is pinned by reading the source, never by running it.
-	- Probable fix: build the program's sources into a library the executable and the tests both link.
-	- Origin: raised while fixing a settings handler that outlived the sidebar, which is exactly the kind of fault only a teardown test would catch. Confirmed.
-
 - 🔘 The settings-handler check cannot see one of the config groups.
 	- Opened: 20260919-203000
 	- It matches group names ending in "preferences", so `nemo_window_state` is invisible to it and a mismatched disconnect there would pass. The tree is clean today; the three pairs were read by hand.
@@ -2856,6 +2850,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Need to think through the UX.
 
 ### Canceled
+
+- 🚫 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
+	- Opened: 20260919-210000
+	- Closed: 20260920-090000
+	- The sidebar and the view are compiled into the program, and the tests link the two libraries beside it. A fix in either is pinned by reading the source, never by running it.
+	- Would have taken moving the program's sources into a library the executable and the tests both link. Declined: the restructure costs more than the class of fault it would catch.
+	- Instead, `cicd/utility/lint-pref-handlers.py` pairs every connect with its disconnect across the whole tree, which covers more sites than a teardown test would and found one the review missed.
 
 - 🚫 Keyboard shortcuts do nothing in the Windows build when run under wine.
 	- Opened: 20260725-172648
