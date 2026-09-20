@@ -49,25 +49,30 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-175254
 	- Style, performance and prose pass over the whole tree, first-party and inherited, aimed at areas the two earlier rounds did not cover. Worst first. Technical detail is kept out of this file. Numbers match the private detail notes.
 	- 🔘 High.
-		- 🔘 Item 1. The Windows exe that gets published and signed is a debug build.
+		- ✅ Item 1. The Windows exe that gets published and signed is a debug build.
 			- Cause: neither the release workflow nor the cross build asks for a release build or for symbols to be stripped, and the project file sets no default, so meson picks debug.
 			- Effect: the shipped exe carries full debug information at 15.7 MB. The Linux release binary beside it is 3.0 MB. Every release tag so far has published one.
 			- Origin: predates the fork's first release lane. Neither earlier round looked at build flags. Confirmed.
-		- 🔘 Item 2. A permanent delete out of the trash can run with no dialog.
+			- Fixed: both Windows lanes and the Linux release lane ask for a release build with symbols stripped. The cross exe went from 15.7 MB to 8.3 MB with no debug sections. A new check reads the flags back out of the exe.
+		- ✅ Item 2. A permanent delete out of the trash can run with no dialog.
 			- Cause: the trash branch of the confirmation is the only one of the three that does not also ask when the count alone warrants it. Move-to-trash and direct delete both do.
 			- Effect: with confirmation off, a delete over a trash address started anywhere but a window goes through silently. The armed test guard hides this in current builds.
 			- Origin: the same gap as the Empty Trash one closed by `dbustrash` on 20260917, in the same file. A regression of that class rather than new ground. Confirmed.
-		- 🔘 Item 3. A settings handler outlives the places sidebar.
+			- Fixed: the trash branch now asks when the count warrants it, the way its two siblings do. One function holds the decision, with a test watched to fail.
+		- ✅ Item 3. A settings handler outlives the places sidebar.
 			- Cause: the handler is connected to the windows settings group and disconnected from the preferences group, which is a different group, so it is never removed.
 			- Effect: changing the path separator after a window closes calls into a freed sidebar. Live reload makes it reachable.
 			- Origin: introduced with the path separator work; the comment directly above the disconnect describes guarding against exactly this. Confirmed.
-		- 🔘 Item 4. A damaged spreadsheet can hang the content search helper.
+			- Fixed: the handler disconnects from the group it was connected to. A new whole-tree check pairs every connect with its disconnect, reading the group names out of the header, and it found a third site this item did not name.
+		- ✅ Item 4. A damaged spreadsheet can hang the content search helper.
 			- Cause: the shared-string loop trusts a count read from the file and tests its end against the whole stream rather than the current record, while the reader it calls stops advancing once the record runs out.
 			- Effect: a truncated workbook spins up to four billion empty passes. The helper is spawned per file, so one bad file in a folder ties up a core.
 			- Origin: written for the search helpers, never fuzzed. The three fuzz targets cover the settings file, the drag payload and command templates, not these parsers. Confirmed.
+			- Fixed: the loop has to make progress or it stops, with a truncated workbook in the fixtures. The record-end bound suggested above was not taken, because it drops strings split across continuation records.
 	- 🔘 Medium.
-		- 🔘 Item 5. No build in the tree uses link-time optimization.
+		- ✅ Item 5. No build in the tree uses link-time optimization.
 			- Origin: never set up. Confirmed.
+			- Fixed: on the release lanes. It bought no size, so it stays for what it may buy later.
 		- 🔘 Item 6. The Bash linter runs nowhere.
 			- Cause: the lint stage runs the C and Python checkers only. Scripts carry suppression comments for a checker that is never invoked.
 			- Origin: the lint stage grew around the C checks. Confirmed.
@@ -80,9 +85,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- 🔘 Item 9. One test builds and removes its own scratch tree.
 			- Cause: it is the only test that does not go through the shared helper, and it removes the tree twice by hand. Two runs at once destroy each other.
 			- Origin: written before the helper existed and never moved over. Confirmed.
-		- 🔘 Item 10. A test has the same settings-group mismatch as item 3.
+		- ✅ Item 10. A test has the same settings-group mismatch as item 3.
 			- Effect: a later check in the same file fires the handler, which writes through a pointer into a frame that has returned.
 			- Origin: copied from the sidebar code it tests. Confirmed.
+			- Fixed with item 3, and covered by the same whole-tree check.
 		- 🔘 Item 11. List view row measurement and row shading both do far more work than they need to.
 			- Cause: measurement is hooked to row changes as well as row arrivals, so it re-runs every time a file's details fill in, rebuilding column and cell lists and reading two style properties each pass. Shading allocates a path and sets a property once per cell per redraw, including when shading is off.
 			- Effect: both sit under the per-file listing cost design.md already flags as the one to watch.
@@ -122,6 +128,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
+
+- 🔘 The content search helpers have no fuzz target.
+	- Opened: 20260919-203000
+	- They parse the most hostile input in the tree, and the three existing targets cover the settings file, the drag payload and command templates instead.
+	- Origin: raised while fixing the shared-string loop in the xls helper, which is the kind of fault a target would have found. Confirmed.
+
+- 🔘 A release build prints four warnings about unused functions and variables.
+	- Opened: 20260919-203000
+	- From `nemo-file.c` and `nemo-view.c`. Not new: the Linux release lane has always been a release build. The Windows lane only started showing them once it became one.
+	- Origin: predates the release-flags work. Confirmed.
+
+- 🔘 The Windows cross link compiles its LTO jobs one at a time.
+	- Opened: 20260919-203000
+	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
+	- Origin: came in with link-time optimization on the release lanes. Confirmed.
 
 ### Features and enhancements
 
@@ -251,6 +272,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The settings-handler check cannot see one of the config groups.
+	- Opened: 20260919-203000
+	- Closed: 20260920-103000
+	- It matched group names ending in "preferences", so `nemo_window_state` was invisible to it and a mismatched disconnect there would have passed.
+	- It reads the group names out of `nemo-global-preferences.h` now, so a group added later is covered the day it is declared.
 
 - ✅ "Mount archive" doesn't seem to do anything.
 	- Opened: 20260918-163716
@@ -2829,6 +2856,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Need to think through the UX.
 
 ### Canceled
+
+- 🚫 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
+	- Opened: 20260919-210000
+	- Closed: 20260920-090000
+	- The sidebar and the view are compiled into the program, and the tests link the two libraries beside it. A fix in either is pinned by reading the source, never by running it.
+	- Would have taken moving the program's sources into a library the executable and the tests both link. Declined: the restructure costs more than the class of fault it would catch.
+	- Instead, `cicd/utility/lint-pref-handlers.py` pairs every connect with its disconnect across the whole tree, which covers more sites than a teardown test would and found one the review missed.
 
 - 🚫 Keyboard shortcuts do nothing in the Windows build when run under wine.
 	- Opened: 20260725-172648

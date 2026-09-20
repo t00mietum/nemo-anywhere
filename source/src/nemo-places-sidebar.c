@@ -4731,7 +4731,7 @@ nemo_places_sidebar_dispose (GObject *object)
 					      reset_menu,
 					      sidebar);
 
-	g_signal_handlers_disconnect_by_func (nemo_preferences,
+	g_signal_handlers_disconnect_by_func (nemo_windows_preferences,
 					      update_places_on_idle,
 					      sidebar);
 

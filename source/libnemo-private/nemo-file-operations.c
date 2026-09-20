@@ -1800,6 +1800,18 @@ nemo_file_operations_empty_trash_asks (gboolean by_user)
 	return should_confirm_trash () || nemo_delete_guard_must_ask (by_user, 0, 0);
 }
 
+/* A permanent delete out of the trash cannot be taken back either, so it asks on
+   the same terms as a direct delete: the preference covers the person's own
+   deletes and nothing else. One that came from somewhere other than a delete
+   command, or one big enough for the many-items setting, still asks. */
+gboolean
+nemo_file_operations_delete_from_trash_asks (gboolean by_user, guint count)
+{
+	return should_confirm_trash ()
+	       || nemo_delete_guard_must_ask (by_user, count,
+					      nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_CONFIRM_MANY_ITEMS));
+}
+
 static gboolean G_GNUC_UNUSED
 confirm_delete_from_trash (CommonJob *job,
 			   GList *files)
@@ -1809,7 +1821,8 @@ confirm_delete_from_trash (CommonJob *job,
 	int response;
 
 	/* Just Say Yes if the preference says not to confirm. */
-	if (!should_confirm_trash ()) {
+	if (!nemo_file_operations_delete_from_trash_asks (!((DeleteJob *) job)->unattended,
+							  g_list_length (files))) {
 		return TRUE;
 	}
 

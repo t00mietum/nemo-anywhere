@@ -13,6 +13,8 @@
 ##	  rather than diff-scoped: the tree is already clean, so there is no legacy
 ##	  noise to drown in, and a Title Case label pasted from upstream is caught
 ##	  wherever it lands. A missing python skips it the same way cppcheck does.
+##	- Then the settings-handler check (cicd/utility/lint-pref-handlers.py), also
+##	  whole-tree, which pairs each disconnect with the connect it belongs to.
 ##	- Runs the same everywhere bash + git + cppcheck exist (Linux host, MSYS2).
 ##	- Syntax: lint-c.bash [base-branch]
 
@@ -230,6 +232,9 @@ if [[ -n "$PY" ]]; then
 	## Same reasoning: the demo recorder's settings keys and columns go stale
 	## silently, and nothing C has to change for that to happen.
 	"$PY" cicd/utility/lint-demo-script.py .
+	## Whole-tree too: a disconnect aimed at the wrong preference group removes
+	## nothing and says nothing, and the handler then runs on a freed object.
+	"$PY" cicd/utility/lint-pref-handlers.py source
 else
 	fEcho "WARNING: UI case SKIPPED: no python" >&2
 fi

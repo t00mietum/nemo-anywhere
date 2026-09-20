@@ -6,8 +6,10 @@
 ##	  of the same commit differ. SOURCE_DATE_EPOCH replaces it with HEAD's commit
 ##	  date, and docker exec does not carry the host environment across, so it has
 ##	  to be handed over here.
-##	- Same meson/ninja invocation the build notes have always used; this only adds
-##	  the stamp and the job cap.
+##	- Release buildtype, same as the Linux release lane. Left off, meson defaults
+##	  to debug, and every exe this lane produced before 20260919 carried DWARF at
+##	  five times the size it needs. cicd/utility/check-win-build-flags.bash holds
+##	  that, and runs below once the exe is linked.
 ##	- Syntax: build-cross.bash [--clean]
 
 ##	Copyright (c) 2026 Bubbles
@@ -22,7 +24,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${HERE}/../.." && pwd)"
 CONTAINER="${NEMO_WIN_CONTAINER:-nemo-winbuild}"
 BUILD="${NEMO_WIN_BUILD:-/build-win}"
-CROSS="${NEMO_WIN_CROSSFILE:-/opt/win64.cross.txt}"
+## Read from the mount, not the copy the image baked in at /opt, which goes stale
+## the moment the file changes and needs an image rebuild to catch up.
+CROSS="${NEMO_WIN_CROSSFILE:-/src/cicd/win/win64.cross.txt}"
 
 # shellcheck source=../utility/include/echo.bash
 source "${ROOT}/cicd/utility/include/echo.bash"
@@ -64,11 +68,22 @@ fBuild(){
 	docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 		set -e
 		if [ -f ${BUILD}/build.ninja ]; then reconf=--reconfigure; else reconf=; fi
-		meson setup \$reconf --cross-file ${CROSS} -Dxmp=false ${BUILD} /src/source >/dev/null
+		meson setup \$reconf --cross-file ${CROSS} --buildtype=release -Dstrip=true -Db_lto=true -Db_lto_threads=4 -Dxmp=false ${BUILD} /src/source >/dev/null
 		ninja -C ${BUILD} -j ${jobs}" | tail -1
 }
 
 fStamp(){ fPeTimestamp <(docker exec "$CONTAINER" head -c 4096 "${BUILD}/src/nemo-anywhere.exe") ;}
+
+## meson's -Dstrip=true only runs on install, and this lane never installs -
+## pack-zip.bash copies the exe straight out of the build directory. So the
+## strip happens here. It has to carry SOURCE_DATE_EPOCH: binutils rewrites the
+## PE Time/Date field when it writes the file, and left to itself it writes the
+## clock, which is what the whole stamp exists to avoid.
+fStrip(){
+	docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" \
+		sh -c "x86_64-w64-mingw32-strip --strip-debug ${BUILD}/src/*.exe ${BUILD}/search-helpers/*.exe" \
+		|| fDie "could not strip the cross-built exes"
+}
 
 fEcho_Clean ""
 fEcho "Cross build (stamped $(date -u -d "@${SOURCE_DATE_EPOCH}" '+%Y-%m-%d %H:%M:%S UTC'))"
@@ -77,15 +92,31 @@ fBuild
 
 ## The stamp is part of the output, but ninja does not know that, so an exe left
 ## over from a build of an earlier commit looks up to date. Drop it and relink.
+## Read before the strip: the strip writes SOURCE_DATE_EPOCH over whatever is
+## there, so afterwards every exe looks current and this never fires.
 if [[ "$(fStamp)" != "${SOURCE_DATE_EPOCH}" ]]; then
 	fEcho_Clean "restamping (the existing exe is from another commit)"
 	docker exec "$CONTAINER" rm -f "${BUILD}/src/nemo-anywhere.exe"
 	fBuild
 fi
 
+linked="$(fStamp)"
+[[ "$linked" == "${SOURCE_DATE_EPOCH}" ]] || fDie "the linker stamped the exe ${linked:-nothing}, not ${SOURCE_DATE_EPOCH} - it is ignoring SOURCE_DATE_EPOCH"
+
+fStrip
+
+## Checked again, because the strip rewrites the field and this is the file the
+## lane goes on to pack.
 pe="$(fStamp)"
-[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "linker stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the toolchain is ignoring SOURCE_DATE_EPOCH"
+[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "the strip left the exe stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - it is ignoring SOURCE_DATE_EPOCH"
 fEcho_Clean "exe stamped ${pe}"
+
+## Read the exe back rather than trusting the flags above. Copied out first
+## because the check runs on the host and the exe lives in the container.
+tmpExe="$(mktemp)"
+trap 'rm -f "${tmpExe}"' EXIT
+docker exec "$CONTAINER" cat "${BUILD}/src/nemo-anywhere.exe" > "$tmpExe"
+bash "${ROOT}/cicd/utility/check-win-build-flags.bash" --shipped "$tmpExe" || fDie "the cross build is not a stripped release build"
 fEcho_Clean ""
 
 

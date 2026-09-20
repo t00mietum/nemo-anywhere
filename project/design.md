@@ -739,6 +739,10 @@ Nothing a build produces takes its timestamp from the clock. Every lane sets `SO
 
 - The Windows exe was the one that actually differed run to run. The linker writes a timestamp into the PE header, and left alone it writes the clock: two clean builds of one commit used to differ in exactly those four bytes.
 
+- The strip rewrites the field too, so whatever strips a shipped exe has to carry the stamp as well as whatever linked it. Both Windows lanes were missed here, one at a time: the linker was given the stamp and the strip that ran after it put the clock back. Whichever step writes the file last is the one that decides.
+
+- Each lane checks the stamp on the file it actually goes on to pack, not on an earlier copy of it. The cross lane checks twice, once after the link and once after the strip, so a failure says which step caused it.
+
 - The linker, `dpkg-deb` and `rpmbuild` read the stamp themselves. `zip` has no such notion, so its input is stamped on disk and fed in sorted order, and `tar` is given the stamp and a sorted order explicitly.
 
 - One script answers what the stamp is, and every lane calls it rather than working it out again. `docker exec` does not carry the host environment into a container, so each lane hands it over explicitly.

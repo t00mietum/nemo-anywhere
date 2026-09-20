@@ -89,7 +89,7 @@ fEcho "Building ${SLUG} ${ver} (linux-${arch})"
 docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 	set -e
 	if [ -d ${BUILD} ]; then reconf=--reconfigure; else reconf=; fi
-	meson setup \$reconf --buildtype=release -Dstrip=true -Dextension_library=static -Dprefix=/opt/${SLUG} ${BUILD} /src/source >/dev/null
+	meson setup \$reconf --buildtype=release -Dstrip=true -Db_lto=true -Db_lto_threads=4 -Dextension_library=static -Dprefix=/opt/${SLUG} ${BUILD} /src/source >/dev/null
 	ninja -C ${BUILD} -j ${jobs}" | tail -1
 
 fEcho_Clean ""

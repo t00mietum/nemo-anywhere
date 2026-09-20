@@ -118,7 +118,7 @@ test_separator_is_fresh_for_later_handlers (void)
 	nemo_config_set_string (nemo_windows_preferences, NEMO_PREFERENCES_PATH_SEPARATOR, "backslash");
 	check (seen == '\\');
 
-	g_signal_handler_disconnect (nemo_preferences, id);
+	g_signal_handler_disconnect (nemo_windows_preferences, id);
 }
 
 int

@@ -30,6 +30,14 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"	# .../github, for ven
 
 fEcho(){ echo "[ $* ]"; }
 
+## The strip below rewrites the PE Time/Date field, and left to itself it writes
+## the clock, so two builds of one tag would differ. The workflow exports this in
+## the build step only, and that is a different shell, so compute it here - which
+## covers the local cicd-win.ps1 path too.
+# shellcheck source=../utility/include/source-date.bash
+source "${REPO}/cicd/utility/include/source-date.bash"
+fSetSourceDate "$REPO"
+
 [[ -f "${BUILD}/src/nemo-anywhere.exe" ]] || { fEcho "FAILED: no exe at ${BUILD}/src/nemo-anywhere.exe"; exit 1; }
 
 fEcho "Staging native runtime -> ${DEST}"
@@ -173,6 +181,41 @@ launcher="${DEST}/nemo-anywhere.vbs"
 	printf '%s\r\n' "sh.CurrentDirectory = base & \"app\""
 	printf '%s\r\n' "sh.Run \"\"\"\" & base & \"app\\nemo-anywhere.exe\"\"\", 1, False"
 } > "$launcher"
+
+## meson's -Dstrip=true only runs on install, and neither Windows lane installs -
+## both copy out of the build directory, which is here. So the shipped exes are
+## stripped here instead. Until 20260919 they went out with full DWARF.
+strip_cmd=""
+for candidate in strip x86_64-w64-mingw32-strip llvm-strip; do
+	command -v "$candidate" >/dev/null 2>&1 && { strip_cmd="$candidate"; break; }
+done
+if [[ -n "$strip_cmd" ]]; then
+	nstripped=0
+	## Not an && list: a failed strip on the right of one is skipped, the count
+	## stays where it was, and the stage goes on to report how many it stripped.
+	## That is how an unstripped exe used to ship.
+	for binary in "${DEST}/app/"*.exe; do
+		[[ -f "$binary" ]] || continue
+		if strip_err="$("$strip_cmd" --strip-debug "$binary" 2>&1)"; then
+			nstripped=$(( nstripped + 1 ))
+		else
+			fEcho "FAILED: could not strip ${binary}: ${strip_err:-no error text}"
+			exit 1
+		fi
+	done
+	(( nstripped > 0 )) || { fEcho "FAILED: no app exe to strip in ${DEST}/app"; exit 1; }
+	fEcho "stripped ${nstripped} app exe(s) with ${strip_cmd}"
+	## The strip is the last thing to write the exe, so this is the stamp that
+	## ships. A miss here means the bundle is not reproducible from its tag.
+	pe="$(fPeTimestamp "${DEST}/app/nemo-anywhere.exe")"
+	[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] \
+		|| { fEcho "FAILED: the staged exe is stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the strip is ignoring SOURCE_DATE_EPOCH"; exit 1; }
+	fEcho "staged exe stamped ${pe}"
+	bash "${REPO}/cicd/utility/check-win-build-flags.bash" --shipped "${DEST}/app/nemo-anywhere.exe" \
+		|| { fEcho "FAILED: the staged exe is not a stripped release build"; exit 1; }
+else
+	fEcho "WARNING: no strip found, so the staged exes keep their debug sections"
+fi
 
 bundle_mb="$(du -sm "${DEST}" 2>/dev/null | cut -f1)"
 fEcho "OK: staged ${ndll} runtime dll(s); bundle ~${bundle_mb} MB -> ${DEST}"
