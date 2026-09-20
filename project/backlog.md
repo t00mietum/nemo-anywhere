@@ -138,12 +138,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The build asks for four threads and every step takes them but the final link, which reports serial compilation of 37 jobs. Two attempts to pass the count through failed.
 	- Origin: came in with link-time optimization on the release lanes. Confirmed.
 
-- 🔘 The settings-handler check cannot see one of the config groups.
-	- Opened: 20260919-203000
-	- It matches group names ending in "preferences", so `nemo_window_state` is invisible to it and a mismatched disconnect there would pass. The tree is clean today; the three pairs were read by hand.
-	- Probable fix: read the group names out of `nemo-global-preferences.h` rather than matching a pattern.
-	- Origin: came in with the check itself. Confirmed.
-
 ### Features and enhancements
 
 - 🔘 If "show full path in tabs and window" is enabled:
@@ -272,6 +266,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The settings-handler check cannot see one of the config groups.
+	- Opened: 20260919-203000
+	- Closed: 20260920-103000
+	- It matched group names ending in "preferences", so `nemo_window_state` was invisible to it and a mismatched disconnect there would have passed.
+	- It reads the group names out of `nemo-global-preferences.h` now, so a group added later is covered the day it is declared.
 
 - ✅ "Mount archive" doesn't seem to do anything.
 	- Opened: 20260918-163716
