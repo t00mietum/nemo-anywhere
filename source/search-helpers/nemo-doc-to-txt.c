@@ -3,6 +3,8 @@
  * one-byte code page text or UTF-16; Word 6 and 95 keep it in one run. Both
  * are read. Headers, footnotes and text boxes come out along with the body.
  *
+ * Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation.

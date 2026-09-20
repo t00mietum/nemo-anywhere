@@ -1,5 +1,7 @@
 /* Win32-only: follow the Windows system light/dark app-theme setting. Isolated
-   from GTK sources so <windows.h>'s macro pollution stays contained. */
+   from GTK sources so <windows.h>'s macro pollution stays contained.
+
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu) */
 
 #ifndef NEMO_WIN32_APPEARANCE_H
 #define NEMO_WIN32_APPEARANCE_H

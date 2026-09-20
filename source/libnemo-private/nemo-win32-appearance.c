@@ -1,5 +1,7 @@
 /* Win32-only: follow the Windows system light/dark app theme. Own file because
-   <windows.h> defines macros (DELETE, ERROR, ...) that collide elsewhere. */
+   <windows.h> defines macros (DELETE, ERROR, ...) that collide elsewhere.
+
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu) */
 
 #include <config.h>
 

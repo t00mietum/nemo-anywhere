@@ -1,5 +1,7 @@
 /* Win32-only helpers for nemo-view, isolated so <windows.h>'s macro pollution
-   (DELETE, ERROR, ...) stays out of the main view sources. */
+   (DELETE, ERROR, ...) stays out of the main view sources.
+
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu) */
 
 #ifndef NEMO_VIEW_WIN32_H
 #define NEMO_VIEW_WIN32_H

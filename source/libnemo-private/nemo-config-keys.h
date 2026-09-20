@@ -1,5 +1,7 @@
 /* Generated from the old gschema - the settings table.
-   Edit this file directly; the gschema it came from is gone. */
+   Edit this file directly; the gschema it came from is gone.
+
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu) */
 
 #ifndef NEMO_CONFIG_KEYS_H
 #define NEMO_CONFIG_KEYS_H

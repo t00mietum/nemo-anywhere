@@ -159,14 +159,14 @@ test_foreign_bookmarks_dropped (void)
 	char *text;
 
 	clear_marker ();
-	write_bookmarks ("file:///home/jim/src\n"
+	write_bookmarks ("file:///home/somebody/src\n"
 	                 "file:///C:/Windows\n"
 	                 "file:///usr/share\n");
 
 	nemo_bookmark_list_first_run_setup ();
 
 	text = read_bookmarks ();
-	check (strstr (text, "file:///home/jim/src") == NULL);
+	check (strstr (text, "file:///home/somebody/src") == NULL);
 	check (strstr (text, "file:///usr/share") == NULL);
 	check (strstr (text, "file:///C:/Windows") != NULL);
 	/* The kept entry is enough - the defaults must not have been added on top. */
@@ -183,12 +183,12 @@ test_all_foreign_falls_back_to_defaults (void)
 	char *documents;
 
 	clear_marker ();
-	write_bookmarks ("file:///home/jim/src\n");
+	write_bookmarks ("file:///home/somebody/src\n");
 
 	nemo_bookmark_list_first_run_setup ();
 
 	text = read_bookmarks ();
-	check (strstr (text, "file:///home/jim/src") == NULL);
+	check (strstr (text, "file:///home/somebody/src") == NULL);
 
 	documents = uri_for (g_get_user_special_dir (G_USER_DIRECTORY_DOCUMENTS));
 	if (documents != NULL) {
@@ -236,7 +236,7 @@ test_foreign_settings_dropped (void)
 {
 	NemoConfigGroup  *terminal = nemo_config_get_group ("terminal");
 	NemoConfigGroup  *search   = nemo_config_get_group ("search");
-	const char *const skip[]   = { "/dev", "/home/jim/big", ".git", NULL };
+	const char *const skip[]   = { "/dev", "/home/somebody/big", ".git", NULL };
 	char             *exec;
 	char            **kept;
 
