@@ -236,6 +236,15 @@ test('Search content test',
 )
 
 if not is_windows
+  test('Scratch guard test',
+    executable('test-scratch-guard',
+      [ 'test-scratch-guard.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ glib, test_scratch ],
+    ),
+    args: []
+  )
+
   test('DnD selection parser test',
     executable('test-nemo-dnd',
       [ 'test-nemo-dnd.c' ],

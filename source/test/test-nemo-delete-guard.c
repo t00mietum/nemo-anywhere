@@ -101,35 +101,6 @@ make_files (const char *dir, const char *prefix, int from, int to)
 	}
 }
 
-/* Not the guard: the scratch folder is above the test's home, so it would refuse. */
-static void
-scrub (const char *path)
-{
-	GStatBuf st;
-
-	if (g_lstat (path, &st) != 0) {
-		return;
-	}
-
-	if (S_ISDIR (st.st_mode)) {
-		GDir *dir = g_dir_open (path, 0, NULL);
-		const char *name;
-
-		while (dir != NULL && (name = g_dir_read_name (dir)) != NULL) {
-			char *child = g_build_filename (path, name, NULL);
-
-			scrub (child);
-			g_free (child);
-		}
-		if (dir != NULL) {
-			g_dir_close (dir);
-		}
-		g_rmdir (path);
-	} else {
-		g_unlink (path);
-	}
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -145,7 +116,6 @@ main (int argc, char *argv[])
 
 	if (g_strcmp0 (g_get_home_dir (), home) != 0) {
 		g_printerr ("SKIP: the home folder was read before HOME could be moved\n");
-		scrub (root);
 		return 77;
 	}
 
@@ -161,7 +131,6 @@ main (int argc, char *argv[])
 	home_link = g_build_filename (root, "home-link", NULL);
 	if (symlink (home, home_link) != 0) {
 		g_printerr ("SKIP: symlink() unavailable\n");
-		scrub (root);
 		return 77;
 	}
 	check (!protected_path (home_link));
@@ -236,8 +205,6 @@ main (int argc, char *argv[])
 	check (nemo_delete_guard_in_grace (now - G_USEC_PER_SEC / 10, now));
 	check (!nemo_delete_guard_in_grace (now - G_USEC_PER_SEC * 5, now));
 	check (!nemo_delete_guard_in_grace (0, now));
-
-	scrub (root);
 
 	g_free (link);
 	g_free (inner);

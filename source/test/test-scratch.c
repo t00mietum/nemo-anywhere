@@ -131,6 +131,52 @@ remove_made (const char *path, const char *base)
 	g_object_unref (file);
 }
 
+/* TRUE while canon sits inside one of the directories this process made. */
+static gboolean
+inside_a_made_dir (const char *canon)
+{
+	guint i;
+
+	for (i = 0; made != NULL && i < made->len; i++) {
+		const char *root = g_ptr_array_index (made, i);
+		gsize len = strlen (root);
+
+		if (strncmp (canon, root, len) == 0 && G_IS_DIR_SEPARATOR (canon[len])) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+gboolean
+test_scratch_remove_tree (const char *path)
+{
+	GFile *file;
+	GFileInfo *info;
+	char *canon;
+	gboolean ok = FALSE;
+
+	canon = g_canonicalize_filename (path, NULL);
+	if (!inside_a_made_dir (canon)) {
+		g_printerr ("scratch: refused to remove %s, it is not in a scratch directory\n", path);
+		g_free (canon);
+		return FALSE;
+	}
+
+	file = g_file_new_for_path (canon);
+	info = g_file_query_info (file, WALK_ATTRIBUTES,
+				  G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, NULL, NULL);
+	if (info != NULL && is_real_dir (info)) {
+		remove_tree (file, device_of (info));
+		ok = !g_file_query_exists (file, NULL);
+	}
+
+	g_clear_object (&info);
+	g_object_unref (file);
+	g_free (canon);
+	return ok;
+}
+
 void
 test_scratch_cleanup (void)
 {

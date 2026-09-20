@@ -210,28 +210,6 @@ check_subfolder_layout (const char *tmp,
 	g_free (dest);
 }
 
-static void
-remove_tree (const char *path)
-{
-	GDir *dir = g_dir_open (path, 0, NULL);
-
-	if (dir != NULL) {
-		const char *name;
-
-		while ((name = g_dir_read_name (dir)) != NULL) {
-			char *child = g_build_filename (path, name, NULL);
-
-			remove_tree (child);
-			g_free (child);
-		}
-
-		g_dir_close (dir);
-		g_rmdir (path);
-	} else {
-		g_remove (path);
-	}
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -252,8 +230,6 @@ main (int argc, char *argv[])
 
 	check_here_layout (tmp, archive_path, window);
 	check_subfolder_layout (tmp, archive_path, window);
-
-	remove_tree (tmp);
 
 	g_free (archive_path);
 	g_free (tmp);

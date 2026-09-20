@@ -461,28 +461,6 @@ check_verify (const char *tmp,
 	g_free (dir);
 }
 
-static void
-remove_tree (const char *path)
-{
-	GDir *dir = g_dir_open (path, 0, NULL);
-
-	if (dir != NULL) {
-		const char *name;
-
-		while ((name = g_dir_read_name (dir)) != NULL) {
-			char *child = g_build_filename (path, name, NULL);
-
-			remove_tree (child);
-			g_free (child);
-		}
-
-		g_dir_close (dir);
-		g_rmdir (path);
-	} else {
-		g_remove (path);
-	}
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -517,8 +495,6 @@ main (int argc, char *argv[])
 	check_each_archive (source_dir, each_dir, names, window);
 	check_archive_of_archive (each_dir, window);
 	check_verify (tmp, window);
-
-	remove_tree (tmp);
 
 	g_free (each_dir);
 	g_free (one_dir);

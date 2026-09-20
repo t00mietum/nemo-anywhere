@@ -16,6 +16,12 @@ char *test_scratch_dir_in  (const char  *base,
 			    const char  *tmpl,
 			    GError     **error);
 
+/* Removes a tree early, for a test that has to reuse the path. Same walk as
+   the exit cleanup: never through a link, never onto another file system. The
+   path has to sit inside a directory this process made through here, or
+   nothing is removed and it answers FALSE. */
+gboolean test_scratch_remove_tree (const char *path);
+
 /* Removes every directory made so far. Runs on its own at exit. */
 void  test_scratch_cleanup (void);
 
