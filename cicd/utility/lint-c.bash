@@ -313,6 +313,39 @@ fCheckColumnExpand(){
 }
 fCheckColumnExpand
 
+## The list view runs in fixed-height mode, which halves what a big folder
+## costs to load. GTK only allows it while every column sizes FIXED, and it
+## goes wrong quietly rather than loudly: a column left to size itself makes
+## the tree view measure every row again, which is the cost being avoided.
+## So the two are pinned together.
+fCheckFixedHeight(){
+	local src='source/src/nemo-list-view.c'
+	local other
+
+	[[ -f "$src" ]] || return 0
+
+	if ! grep -q -F 'gtk_tree_view_set_fixed_height_mode' "$src"; then
+		fEcho "FAIL: ${src}: the list view must ask for fixed-height mode"
+		exit 2
+	fi
+
+	## The call wraps in this file, so read it up to its semicolon rather than
+	## a line at a time.
+	other="$(awk '
+		/gtk_tree_view_column_set_sizing/ { open=1; at=NR; text="" }
+		open { text = text $0 }
+		open && /;/ {
+			if (text !~ /GTK_TREE_VIEW_COLUMN_FIXED/) print at ": " text
+			open=0
+		}' "$src")"
+	if [[ -n "$other" ]]; then
+		echo "$other"
+		fEcho "FAIL: ${src}: every column sizes FIXED, or fixed-height mode is unsafe"
+		exit 2
+	fi
+}
+fCheckFixedHeight
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

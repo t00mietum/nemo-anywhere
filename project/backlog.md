@@ -61,10 +61,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
-- 🔘 Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
-	- Opened: 20260920-160000
-	- 20,000 empty files take about 7.8 s of processor time. Cutting the per-row and per-cell work in the list view moved that by nothing at all, so the cost sits below it: file info, the model, or the sort.
-	- design.md already names this as the number to watch. What is missing is where it goes.
+- 🔘 Half of what is left of a big folder load is measuring text for the column widths.
+	- Opened: 20260920-233000
+	- `measure_row` runs for every row as it arrives and asks each column what it would want to be, which means a full text layout per cell. That is about a third of the load now that the larger cost above it is gone.
+	- Most of those measurements are of text already seen. The minor columns already fold their values by text, so the width for a repeated value could be remembered rather than measured again. Type, permissions, owner and group repeat almost always; dates repeat per day.
+	- Worth measuring against files with varied names and sizes, not the flat ones, or a cache looks better than it is.
 
 ### Features and enhancements
 
@@ -191,6 +192,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
+	- Opened: 20260920-160000. Closed: 20260920.
+	- The earlier reading was wrong. It does sit in the list view - the pass that cut per-row drawing work missed it because the cost is in measuring, not drawing.
+	- Cause: the tree view was measuring every row to find out how tall it is. It only has to do that when a column is left to size itself, and none of ours are - the widths are worked out for the whole row and handed over. So it was redundant work the whole time.
+	- Fixed: the list runs in fixed-height mode, one line. 50,000 empty files went from 11.1 s to 8.4 s to show, from 17.9 s to 8.3 s to settle, and peak memory from 269 MiB to 158 MiB. With varied names and sizes rather than flat ones, 10,000 files went from 3.6 s to 2.0 s of processor time.
+	- Nothing about the view changed: the same shots at every zoom level, and a folder of images at thumbnail size, come out pixel for pixel identical.
+	- `lint-c.bash` pins the two together, since fixed-height mode is only safe while every column sizes FIXED and it fails quietly rather than loudly.
+	- design.md's speed table is remeasured, and what is left is its own item under Bugs.
 
 - ✅ Re-vendoring the themes would drop 53 icons.
 	- Opened: 20260920-230000. Closed: 20260920.

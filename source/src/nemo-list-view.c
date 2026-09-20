@@ -4297,6 +4297,12 @@ create_and_set_up_tree_view (NemoListView *view)
 				default_column_order,
 				default_visible_columns);
 
+	/* Every column above sizes FIXED, so the tree view has no reason to measure
+	 * each row to find its height - and measuring them was about half of what a
+	 * big folder cost to load. Only safe while that stays true, which lint-c
+	 * checks, since a column left to size itself turns it back off quietly. */
+	gtk_tree_view_set_fixed_height_mode (view->details->tree_view, TRUE);
+
 	gtk_widget_show (GTK_WIDGET (view->details->tree_view));
 	gtk_container_add (GTK_CONTAINER (view), GTK_WIDGET (view->details->tree_view));
 
