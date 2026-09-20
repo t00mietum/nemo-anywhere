@@ -379,6 +379,30 @@ fCheckMeasureCache(){
 }
 fCheckMeasureCache
 
+## A theme change can bring a new font, which makes every remembered width
+## wrong. The handler has to send the rows back to be measured - but only on a
+## change that moved something, since style-updated also fires for a state or
+## a CSS class and 50,000 rows is not free.
+fCheckStyleRemeasure(){
+	local src='source/src/nemo-list-view.c'
+	local body
+
+	[[ -f "$src" ]] || return 0
+
+	body="$(awk '/^tree_view_style_updated/ { on=1 } on { print } on && /^}/ { exit }' "$src")"
+
+	if ! grep -q -F 'remeasure_rows' <<< "$body"; then
+		fEcho "FAIL: ${src}: a theme change must send the rows back to be measured"
+		exit 2
+	fi
+
+	if ! grep -q -F 'measure_style_id' <<< "$body"; then
+		fEcho "FAIL: ${src}: remeasure only where the font or the theme sizes moved"
+		exit 2
+	fi
+}
+fCheckStyleRemeasure
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)
