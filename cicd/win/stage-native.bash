@@ -30,6 +30,14 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"	# .../github, for ven
 
 fEcho(){ echo "[ $* ]"; }
 
+## The strip below rewrites the PE Time/Date field, and left to itself it writes
+## the clock, so two builds of one tag would differ. The workflow exports this in
+## the build step only, and that is a different shell, so compute it here - which
+## covers the local cicd-win.ps1 path too.
+# shellcheck source=../utility/include/source-date.bash
+source "${REPO}/cicd/utility/include/source-date.bash"
+fSetSourceDate "$REPO"
+
 [[ -f "${BUILD}/src/nemo-anywhere.exe" ]] || { fEcho "FAILED: no exe at ${BUILD}/src/nemo-anywhere.exe"; exit 1; }
 
 fEcho "Staging native runtime -> ${DEST}"
@@ -198,6 +206,12 @@ if [[ -n "$strip_cmd" ]]; then
 	done
 	(( nstripped > 0 )) || { fEcho "FAILED: no app exe to strip in ${DEST}/app"; exit 1; }
 	fEcho "stripped ${nstripped} app exe(s) with ${strip_cmd}"
+	## The strip is the last thing to write the exe, so this is the stamp that
+	## ships. A miss here means the bundle is not reproducible from its tag.
+	pe="$(fPeTimestamp "${DEST}/app/nemo-anywhere.exe")"
+	[[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] \
+		|| { fEcho "FAILED: the staged exe is stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the strip is ignoring SOURCE_DATE_EPOCH"; exit 1; }
+	fEcho "staged exe stamped ${pe}"
 	bash "${REPO}/cicd/utility/check-win-build-flags.bash" --shipped "${DEST}/app/nemo-anywhere.exe" \
 		|| { fEcho "FAILED: the staged exe is not a stripped release build"; exit 1; }
 else
