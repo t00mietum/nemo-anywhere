@@ -178,8 +178,10 @@ launcher="${DEST}/nemo-anywhere.vbs"
 ## both copy out of the build directory, which is here. So the shipped exes are
 ## stripped here instead. Until 20260919 they went out with full DWARF.
 strip_cmd=""
+## Same reason as the strip loop below: an && list last in a loop body ends the
+## stage silently when no candidate is found, and the else branch never runs.
 for candidate in strip x86_64-w64-mingw32-strip llvm-strip; do
-	command -v "$candidate" >/dev/null 2>&1 && { strip_cmd="$candidate"; break; }
+	if command -v "$candidate" >/dev/null 2>&1; then strip_cmd="$candidate"; break; fi
 done
 if [[ -n "$strip_cmd" ]]; then
 	nstripped=0
@@ -187,10 +189,10 @@ if [[ -n "$strip_cmd" ]]; then
 	## loop body would end the whole stage with nothing said.
 	for binary in "${DEST}/app/"*.exe; do
 		[[ -f "$binary" ]] || continue
-		if "$strip_cmd" --strip-debug "$binary" 2>/dev/null; then
+		if strip_err="$("$strip_cmd" --strip-debug "$binary" 2>&1)"; then
 			nstripped=$(( nstripped + 1 ))
 		else
-			fEcho "FAILED: could not strip ${binary}"
+			fEcho "FAILED: could not strip ${binary}: ${strip_err:-no error text}"
 			exit 1
 		fi
 	done
