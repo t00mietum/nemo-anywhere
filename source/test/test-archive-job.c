@@ -278,6 +278,31 @@ check_archive_of_archive (const char *out_dir,
    decision is checked from both sides: an archive that really does hold the
    lot, and each way one can come up short. Between them the happy path is
    checked again, or a later refusal could just be damage left behind. */
+/* What the Compress dialog asks before it offers to delete the originals. */
+static void
+check_predicate (void)
+{
+	NemoArchiveOptions options;
+
+	nemo_archive_options_init (&options);
+	check (nemo_archive_can_verify (&options));
+
+	options.split_size = 1024;
+	check (!nemo_archive_can_verify (&options));
+	options.split_size = 0;
+
+	options.encrypt_names = TRUE;
+	check (nemo_archive_can_verify (&options));
+
+	options.password = g_strdup ("secret");
+	check (!nemo_archive_can_verify (&options));
+
+	options.encrypt_names = FALSE;
+	check (nemo_archive_can_verify (&options));
+
+	nemo_archive_options_clear (&options);
+}
+
 static void
 check_verify (const char *tmp,
 	      GtkWidget  *window)
@@ -353,6 +378,29 @@ check_verify (const char *tmp,
 	g_free (reason);
 	reason = NULL;
 	options.split_size = 0;
+
+	/* With the names encrypted the reader will not open the archive at all,
+	   password or no password, so the answer is no before anything is read.
+	   The archive here is the plain one that has just checked out, so a no
+	   can only have come from the options. */
+	options.encrypt_names = TRUE;
+	options.password = g_strdup ("secret");
+	check (!nemo_archive_verify (archive, sources, &options,
+				     NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, &reason));
+	check (reason != NULL);
+	g_free (reason);
+	reason = NULL;
+
+	/* The names box with no password behind it encrypts nothing. */
+	g_clear_pointer (&options.password, g_free);
+	check (nemo_archive_verify (archive, sources, &options,
+				    NEMO_ARCHIVE_BACKEND_LIBARCHIVE, NULL, NULL));
+	options.encrypt_names = FALSE;
+
+	/* The same four answers straight from the predicate. The Compress dialog
+	   greys its delete box on this, so the rule is checked once here rather
+	   than through a window. */
+	check_predicate ();
 
 	/* Something that will not open as an archive at all. */
 	write_file (out, "notes.txt", "this is not an archive");

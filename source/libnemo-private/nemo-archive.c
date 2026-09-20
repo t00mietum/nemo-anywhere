@@ -960,6 +960,25 @@ listing_holds_folder (GHashTable *listing,
 	return found;
 }
 
+/* Whether an archive written this way could be read back at all. Nothing is
+   removed on the writer's word alone, so this is also the answer to whether the
+   Compress dialog may offer to delete the originals. Two ways it cannot: one
+   volume of a split set is not an archive on its own, and an archive with its
+   names encrypted is refused outright - libarchive will not open a -hp rar or a
+   -mhe 7z whatever password it is handed. */
+gboolean
+nemo_archive_can_verify (const NemoArchiveOptions *options)
+{
+	g_return_val_if_fail (options != NULL, FALSE);
+
+	if (options->split_size > 0) {
+		return FALSE;
+	}
+
+	return !(options->encrypt_names &&
+		 options->password != NULL && options->password[0] != '\0');
+}
+
 gboolean
 nemo_archive_verify (GFile                    *archive_file,
 		     GList                    *sources,
@@ -984,10 +1003,10 @@ nemo_archive_verify (GFile                    *archive_file,
 		*reason = NULL;
 	}
 
-	/* One volume of a set is not an archive on its own, and the readers
-	   will not put the set back together for us. */
-	if (options->split_size > 0) {
-		trouble = g_strdup (_("An archive split into volumes cannot be checked."));
+	if (!nemo_archive_can_verify (options)) {
+		trouble = options->split_size > 0
+			? g_strdup (_("An archive split into volumes cannot be checked."))
+			: g_strdup (_("An archive with its file names encrypted cannot be checked."));
 		goto out;
 	}
 

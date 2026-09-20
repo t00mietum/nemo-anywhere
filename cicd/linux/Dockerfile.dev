@@ -22,6 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		libjson-glib-dev libgsf-1-dev libexempi-dev libexif-dev libarchive-dev \
 		libx11-dev libxext-dev libxrender-dev \
 		xvfb xauth x11-utils xdotool openbox imagemagick dbus \
+		p7zip-full \
 	&& rm -rf /var/lib/apt/lists/*
+
+# p7zip is here so the 7-Zip backend can be exercised rather than only the
+# libarchive one - without it the Compress dialog offers 7z with none of the
+# options that backend brings. rar is not packaged for Debian, so the rar
+# backend still cannot be driven from in here.
 
 WORKDIR /src
