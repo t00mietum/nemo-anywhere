@@ -65,7 +65,7 @@ jobs:
         run: |
           SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
           export SOURCE_DATE_EPOCH
-          meson setup -Dxmp=false build source
+          meson setup --buildtype=release -Dstrip=true -Dxmp=false build source
           ninja -C build
 
       - name: Stage self-contained runtime bundle

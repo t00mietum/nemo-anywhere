@@ -174,5 +174,24 @@ launcher="${DEST}/nemo-anywhere.vbs"
 	printf '%s\r\n' "sh.Run \"\"\"\" & base & \"app\\nemo-anywhere.exe\"\"\", 1, False"
 } > "$launcher"
 
+## meson's -Dstrip=true only runs on install, and neither Windows lane installs -
+## both copy out of the build directory, which is here. So the shipped exes are
+## stripped here instead. Until 20260919 they went out with full DWARF.
+strip_cmd=""
+for candidate in strip x86_64-w64-mingw32-strip llvm-strip; do
+	command -v "$candidate" >/dev/null 2>&1 && { strip_cmd="$candidate"; break; }
+done
+if [[ -n "$strip_cmd" ]]; then
+	nstripped=0
+	for binary in "${DEST}/app/"*.exe; do
+		"$strip_cmd" --strip-debug "$binary" 2>/dev/null && nstripped=$(( nstripped + 1 ))
+	done
+	fEcho "stripped ${nstripped} app exe(s) with ${strip_cmd}"
+	bash "${REPO}/cicd/utility/check-win-build-flags.bash" --shipped "${DEST}/app/nemo-anywhere.exe" \
+		|| { fEcho "FAILED: the staged exe is not a stripped release build"; exit 1; }
+else
+	fEcho "WARNING: no strip found, so the staged exes keep their debug sections"
+fi
+
 bundle_mb="$(du -sm "${DEST}" 2>/dev/null | cut -f1)"
 fEcho "OK: staged ${ndll} runtime dll(s); bundle ~${bundle_mb} MB -> ${DEST}"

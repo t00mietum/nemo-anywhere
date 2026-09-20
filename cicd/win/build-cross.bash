@@ -6,8 +6,10 @@
 ##	  of the same commit differ. SOURCE_DATE_EPOCH replaces it with HEAD's commit
 ##	  date, and docker exec does not carry the host environment across, so it has
 ##	  to be handed over here.
-##	- Same meson/ninja invocation the build notes have always used; this only adds
-##	  the stamp and the job cap.
+##	- Release buildtype, same as the Linux release lane. Left off, meson defaults
+##	  to debug, and every exe this lane produced before 20260919 carried DWARF at
+##	  five times the size it needs. cicd/utility/check-win-build-flags.bash holds
+##	  that, and runs below once the exe is linked.
 ##	- Syntax: build-cross.bash [--clean]
 
 ##	Copyright (c) 2026 Bubbles
@@ -64,7 +66,7 @@ fBuild(){
 	docker exec -e "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" "$CONTAINER" sh -c "
 		set -e
 		if [ -f ${BUILD}/build.ninja ]; then reconf=--reconfigure; else reconf=; fi
-		meson setup \$reconf --cross-file ${CROSS} -Dxmp=false ${BUILD} /src/source >/dev/null
+		meson setup \$reconf --cross-file ${CROSS} --buildtype=release -Dstrip=true -Dxmp=false ${BUILD} /src/source >/dev/null
 		ninja -C ${BUILD} -j ${jobs}" | tail -1
 }
 
@@ -86,6 +88,20 @@ fi
 pe="$(fStamp)"
 [[ "$pe" == "${SOURCE_DATE_EPOCH}" ]] || fDie "linker stamped ${pe:-nothing}, not ${SOURCE_DATE_EPOCH} - the toolchain is ignoring SOURCE_DATE_EPOCH"
 fEcho_Clean "exe stamped ${pe}"
+
+## meson's -Dstrip=true only runs on install, and this lane never installs -
+## pack-zip.bash copies the exe straight out of the build directory. So the
+## strip happens here, after the stamp check has read the untouched header.
+## mingw's static objects carry debug information even in a release link.
+docker exec "$CONTAINER" sh -c "x86_64-w64-mingw32-strip --strip-debug ${BUILD}/src/*.exe ${BUILD}/search-helpers/*.exe" \
+	|| fDie "could not strip the cross-built exes"
+
+## Read the exe back rather than trusting the flags above. Copied out first
+## because the check runs on the host and the exe lives in the container.
+tmpExe="$(mktemp)"
+trap 'rm -f "${tmpExe}"' EXIT
+docker exec "$CONTAINER" cat "${BUILD}/src/nemo-anywhere.exe" > "$tmpExe"
+bash "${ROOT}/cicd/utility/check-win-build-flags.bash" --shipped "$tmpExe" || fDie "the cross build is not a stripped release build"
 fEcho_Clean ""
 
 
