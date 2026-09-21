@@ -45,6 +45,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 The About box license text says "or (at your option) any later version", but the project is GPL-2.0-only.
+	- Opened: 20260921
+	- The text came from upstream. Rewording a license notice needs a decision first.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -62,8 +66,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
-
-- 🔘 Include uptime for the current nemo-anywhere session, in the Help|About dialog.
 
 - 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
 	- Opened: 20260920-230000
@@ -1534,6 +1536,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Include uptime for the current nemo-anywhere session, in the Help|About dialog.
+	- Opened: n/a. Closed: 20260921.
+	- The About box says "Running for 2 hours, 5 minutes." under the description. Every window is its own process by default, so this is how long that copy has been up.
+	- Days, hours and minutes, with any zero part left out. Under a minute reads "less than a minute".
 
 - ✅ Put archive extraction menu items nested into a "Extract ..." item.
 	- Opened: n/a. Closed: 20260921.

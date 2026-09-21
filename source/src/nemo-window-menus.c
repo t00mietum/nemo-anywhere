@@ -346,9 +346,19 @@ action_about_nemo_callback (GtkAction *action,
 		   "51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA")
 	};
 	gchar *license_trans;
+	gchar *uptime;
+	gchar *running;
+	gchar *comments;
 
 	license_trans = g_strjoin ("\n\n", _(license[0]), _(license[1]),
 					     _(license[2]), NULL);
+
+	uptime = nemo_format_uptime (nemo_get_uptime_seconds ());
+	running = g_strdup_printf (_("Running for %s."), uptime);
+	comments = g_strconcat (_("Nemo Anywhere lets you organize "
+				  "files and folders, both on "
+				  "your computer and online."),
+				"\n\n", running, NULL);
 
 	gtk_show_about_dialog (GTK_WINDOW (user_data),
 			       "program-name", _("Nemo Anywhere"),
@@ -356,15 +366,16 @@ action_about_nemo_callback (GtkAction *action,
 			       "copyright", "\xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)\n"
 					    "Upstream copyrights held by the Nemo authors",
 			       "website", "https://github.com/t00mietum/nemo-anywhere",
-			       "comments", _("Nemo Anywhere lets you organize "
-					     "files and folders, both on "
-					     "your computer and online."),
+			       "comments", comments,
 			       "license", license_trans,
 			       "wrap-license", TRUE,
 			      "logo-icon-name", "nemo-anywhere",
 			      NULL);
 
 	g_free (license_trans);
+	g_free (comments);
+	g_free (running);
+	g_free (uptime);
 }
 
 static void

@@ -77,6 +77,9 @@ char *   nemo_get_searches_directory             (void);
 char *	 nemo_compute_title_for_location	     (GFile *file);
 char *	 nemo_compute_window_title		     (const char *location_title);
 char *   nemo_compute_search_title_for_location (GFile *location);
+void     nemo_note_process_start                 (void);
+gint64   nemo_get_uptime_seconds                 (void);
+char *   nemo_format_uptime                      (gint64 seconds);
 /* This function returns something that needs to be freed with g_free,
  * is not NULL, but is not garaunteed to exist */
 char *   nemo_get_desktop_directory_uri_no_create (void);

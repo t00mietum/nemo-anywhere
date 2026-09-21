@@ -108,6 +108,8 @@ main (int argc, char *argv[])
 	mallopt (M_MMAP_THRESHOLD, 128 *1024);
 #endif
 
+	nemo_note_process_start ();
+
 	/* Before anything reads a data dir, because GLib caches the list. */
 	nemo_setup_runtime_environment ();
 

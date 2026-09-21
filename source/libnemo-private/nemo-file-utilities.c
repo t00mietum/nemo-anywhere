@@ -163,6 +163,65 @@ nemo_compute_window_title (const char *location_title)
 	return title;
 }
 
+static gint64 process_started = 0;
+
+/* Called first thing in main, so the About box can say how long this copy has
+   been running. By default every window is its own copy. */
+void
+nemo_note_process_start (void)
+{
+	if (process_started == 0) {
+		process_started = g_get_monotonic_time ();
+	}
+}
+
+gint64
+nemo_get_uptime_seconds (void)
+{
+	if (process_started == 0) {
+		return 0;
+	}
+
+	return (g_get_monotonic_time () - process_started) / G_USEC_PER_SEC;
+}
+
+/* Days, hours and minutes, leaving out any that are zero. Seconds would only
+   be stale by the time anyone read them. */
+char *
+nemo_format_uptime (gint64 seconds)
+{
+	GString *text;
+	gint64 days, hours, minutes;
+
+	if (seconds < 60) {
+		return g_strdup (_("less than a minute"));
+	}
+
+	days = seconds / 86400;
+	hours = (seconds % 86400) / 3600;
+	minutes = (seconds % 3600) / 60;
+
+	text = g_string_new (NULL);
+
+	if (days > 0) {
+		g_string_append_printf (text, ngettext ("%d day", "%d days", days), (int) days);
+	}
+	if (hours > 0) {
+		if (text->len > 0) {
+			g_string_append (text, ", ");
+		}
+		g_string_append_printf (text, ngettext ("%d hour", "%d hours", hours), (int) hours);
+	}
+	if (minutes > 0) {
+		if (text->len > 0) {
+			g_string_append (text, ", ");
+		}
+		g_string_append_printf (text, ngettext ("%d minute", "%d minutes", minutes), (int) minutes);
+	}
+
+	return g_string_free (text, FALSE);
+}
+
 // TODO: Maybe this can replace nemo_compute_title_for_location() all around?
 char *
 nemo_compute_search_title_for_location (GFile *location)
