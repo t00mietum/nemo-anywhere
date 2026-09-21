@@ -107,10 +107,10 @@ field: compact-view.all-columns-have-same-width
 	type: bool
 	default: false
 
-field: compact-view.default-zoom-level
-	type: string
-	allowed: smallest, smaller, small, standard, large, larger, largest
-	default: standard
+field: compact-view.default-icon-size
+	type: int
+	default: 100
+	desc: Icon size as a per cent of the standard 64 pixels
 
 field: debug.testguard-all-deletes
 	type: bool
@@ -167,10 +167,10 @@ field: icon-view.captions
 	default: none, size, date_modified
 	desc: Extra details shown under an icon
 
-field: icon-view.default-zoom-level
-	type: string
-	allowed: smallest, smaller, small, standard, large, larger, largest
-	default: standard
+field: icon-view.default-icon-size
+	type: int
+	default: 100
+	desc: Icon size as a per cent of the standard 64 pixels
 
 field: icon-view.labels-beside-icons
 	type: bool
@@ -199,10 +199,10 @@ field: list-view.default-visible-columns
 	type: string-array
 	default: name, size, extension, type, date_modified, owner, group, permissions
 
-field: list-view.default-zoom-level
-	type: string
-	allowed: smallest, smaller, small, standard, large, larger, largest
-	default: small
+field: list-view.default-icon-size
+	type: int
+	default: 75
+	desc: Icon size as a per cent of the standard 64 pixels
 
 field: list-view.enable-folder-expansion
 	type: bool

@@ -566,6 +566,16 @@ test('Search group test',
   args: []
 )
 
+test('Icon size test',
+  executable('test-nemo-icon-size',
+    [ 'test-nemo-icon-size.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args: nemo_definitions,
+  ),
+  args: []
+)
+
 test('List expander test',
   executable('test-nemo-list-expander',
     [ 'test-nemo-list-expander.c', '../src/nemo-list-model.c' ],

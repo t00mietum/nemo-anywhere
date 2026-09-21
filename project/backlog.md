@@ -68,20 +68,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
 		- Expose a separate adjustment for image thumnail size. default 320px.
 		- "Mostly images" means at least 2 images and at least half the files, folders not counted (settled 20260920).
-		- Not started. The design below is settled as of 20260920.
 		- **Two icon size settings, both a per cent of the standard 64px.** Ordinary folders get 100% as now. Folders that are mostly images get 500%, which is 320px. The range runs to 1000%, or 640px.
-		- A size that is not one of the named steps is reachable by dragging the slider, so a per cent is a plain number and not one of a fixed list.
 		- The image setting is a default, not a rule. An image folder opens at it, the slider still moves that folder, and the size sticks per folder where "Remember per-folder settings" is on.
-		- **The seven-value zoom enum goes.** A size is a number of pixels. The named steps stay only as presets, for Zoom Normal and for the marks on the slider. Adding a size is then one row.
-		- Zoom In and Zoom Out step to the next preset either side of wherever the slider left things, so the keyboard stays coarse while the slider is fine.
-		- Name text stays one size whatever the icon size. It nearly does already; the two smallest steps shrink it by two points and that goes.
-		- A name may run as wide as the icon above it, so the separate table of label widths goes with the enum. That also settles the oddity where Large was narrower than Standard.
-		- Both settings are a spin box in per cent. The seven-entry combo cannot express an arbitrary one.
-		- Saved sizes are pixels. An old saved value is a small number where a real size never is, so the two can be told apart on read. Three places store one: the settings file, the file metadata and the per-folder store.
-		- The list view stays on the preset steps for now. Its own item covers what that would take.
+		- ✅ Done 20260920: sizes are pixels and the seven-value zoom enum is gone. The named steps are stops the slider marks and Zoom In and Zoom Out move between, the slider reaches everything in between, the range runs to 640, and both defaults are a per cent. A saved size is pixels, and one saved before the change is told apart by being too small to be a real size. The whole rule is under "Icon sizes" in design.md.
+		- 🔘 Left: the second setting. There is one default size today and a folder of images has to get its own, which needs the "mostly images" test and a second row in the preferences.
+		- The size rows in preferences are still a seven-entry combo, now holding a per cent. They want a spin box once the second setting goes in beside them.
+		- The list view stays on the stops. Its own item covers what taking any size would need.
 		- Found while looking, and not part of this: the desktop range is five steps where everything else is seven, so clamping to the widest range lands the desktop outside its own table.
 	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
 		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
+
+- 🔘 Thumbnails are made at 256px at the largest, so a big icon size shows one scaled up.
+	- Opened: 20260920-234500
+	- `nemo-desktop-thumbnail.c` offers two sizes, 128 and 256, which is the older half of what the shared thumbnail spec now names. The spec has gone on to add 512 and 1024.
+	- Only worth anything alongside the bigger icon sizes, where a folder of images is meant to be shown at 320 or 640. Below that nothing is being lost.
+	- Touches the cache directory names, the size the factory is made with, and the test for whether a cached thumbnail is big enough to use.
 
 - 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
 	- Opened: 20260920-230000

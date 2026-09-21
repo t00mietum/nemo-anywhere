@@ -176,8 +176,8 @@ static const SortCriterion sort_criteria[] = {
 static void                 nemo_icon_view_set_directory_sort_by        (NemoIconView           *icon_view,
 									     NemoFile         *file,
 									     const char           *sort_by);
-static void                 nemo_icon_view_set_zoom_level               (NemoIconView           *view,
-									     NemoZoomLevel     new_level,
+static void                 set_icon_size                              (NemoIconView           *view,
+									     gint                  new_size,
 									     gboolean              always_emit);
 static void                 nemo_icon_view_update_click_mode            (NemoIconView           *icon_view);
 static void                 nemo_icon_view_update_click_to_rename_mode  (NemoIconView           *icon_view);
@@ -867,23 +867,42 @@ get_sort_criterion_by_sort_type (NemoFileSortType sort_type)
 	return &sort_criteria[0];
 }
 
-#define DEFAULT_ZOOM_LEVEL(icon_view) icon_view->details->compact ? default_compact_zoom_level : default_zoom_level
-
-static NemoZoomLevel
-get_default_zoom_level (NemoIconView *icon_view)
+/* Both settings are a per cent of the standard size, which is how the
+   preferences window shows them. */
+static gint
+get_default_icon_size (NemoIconView *icon_view)
 {
-	NemoZoomLevel default_zoom_level, default_compact_zoom_level;
+	gint percent;
 
-	default_zoom_level = nemo_config_get_enum (nemo_icon_view_preferences,
-						  NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL);
-	default_compact_zoom_level = nemo_config_get_enum (nemo_compact_view_preferences,
-							  NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ZOOM_LEVEL);
+	if (NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container) {
+		return NEMO_ICON_SIZE_STANDARD;
+	}
 
-    if (NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container) {
-        return NEMO_ZOOM_LEVEL_STANDARD;
-    }
+	if (icon_view->details->compact) {
+		percent = nemo_config_get_int (nemo_compact_view_preferences,
+					       NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
+	} else {
+		percent = nemo_config_get_int (nemo_icon_view_preferences,
+					       NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
+	}
 
-	return CLAMP (DEFAULT_ZOOM_LEVEL(icon_view), NEMO_ZOOM_LEVEL_SMALLEST, NEMO_ZOOM_LEVEL_LARGEST);
+	return nemo_icon_size_from_percent (percent);
+}
+
+/* A folder's saved size, which is a number of pixels now and was one of seven
+   levels before that. */
+static gint
+saved_icon_size (NemoFile *file, const char *key, gint fallback)
+{
+	gint saved;
+
+	saved = nemo_folder_settings_get_int (file, key, fallback);
+
+	if (nemo_icon_size_is_legacy_level (saved)) {
+		return nemo_icon_size_from_legacy_level (saved);
+	}
+
+	return nemo_icon_size_clamp (saved);
 }
 
 static void
@@ -931,7 +950,7 @@ nemo_icon_view_begin_loading (NemoView *view)
 	NemoIconView *icon_view;
 	GtkWidget *icon_container;
 	NemoFile *file;
-	int level;
+	int size;
     int h_adjust, v_adjust;
 	char *sort_name, *uri;
 
@@ -954,24 +973,20 @@ nemo_icon_view_begin_loading (NemoView *view)
 	/* Set up the zoom level from the metadata. */
 	if (nemo_view_supports_zooming (NEMO_VIEW (icon_view))) {
         if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
-            if (nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (view)) == -1) {
-                nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (view), get_default_zoom_level (icon_view));
+            if (nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (view)) == 0) {
+                nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (view), get_default_icon_size (icon_view));
             }
 
-            level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+            size = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
-            if (icon_view->details->compact) {
-                level = nemo_folder_settings_get_int (file,
-                                                      NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
-                                                      get_default_zoom_level (icon_view));
-            } else {
-                level = nemo_folder_settings_get_int (file,
-                                                      NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                                      get_default_zoom_level (icon_view));
-    		}
+            size = saved_icon_size (file,
+                                    icon_view->details->compact
+                                      ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
+                                      : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                    get_default_icon_size (icon_view));
         }
 
-		nemo_icon_view_set_zoom_level (icon_view, level, TRUE);
+		set_icon_size (icon_view, size, TRUE);
 	}
 
 	/* Set the sort mode.
@@ -1049,27 +1064,27 @@ nemo_icon_view_end_loading (NemoView *view,
 	icon_view_notify_clipboard_info (monitor, info, icon_view);
 }
 
-static NemoZoomLevel
-nemo_icon_view_get_zoom_level (NemoView *view)
+static gint
+nemo_icon_view_get_icon_size (NemoView *view)
 {
-	g_return_val_if_fail (NEMO_IS_ICON_VIEW (view), NEMO_ZOOM_LEVEL_STANDARD);
+	g_return_val_if_fail (NEMO_IS_ICON_VIEW (view), NEMO_ICON_SIZE_STANDARD);
 
-	return nemo_icon_container_get_zoom_level (get_icon_container (NEMO_ICON_VIEW (view)));
+	return nemo_icon_container_get_icon_size (get_icon_container (NEMO_ICON_VIEW (view)));
 }
 
 static void
-nemo_icon_view_set_zoom_level (NemoIconView *view,
-				   NemoZoomLevel new_level,
-				   gboolean always_emit)
+set_icon_size (NemoIconView *view,
+		   gint     new_size,
+		   gboolean always_emit)
 {
 	NemoIconContainer *icon_container;
 
 	g_return_if_fail (NEMO_IS_ICON_VIEW (view));
-	g_return_if_fail (new_level >= NEMO_ZOOM_LEVEL_SMALLEST &&
-			  new_level <= NEMO_ZOOM_LEVEL_LARGEST);
+
+	new_size = nemo_icon_size_clamp (new_size);
 
 	icon_container = get_icon_container (view);
-	if (nemo_icon_container_get_zoom_level (icon_container) == new_level) {
+	if (nemo_icon_container_get_icon_size (icon_container) == new_size) {
 		if (always_emit) {
 			g_signal_emit_by_name (view, "zoom_level_changed");
 		}
@@ -1077,22 +1092,17 @@ nemo_icon_view_set_zoom_level (NemoIconView *view,
 	}
 
     if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
-        nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_level);
+        nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_size);
     } else {
-        if (view->details->compact) {
-            nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
-                                          NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
-                                          get_default_zoom_level (view),
-                                          new_level);
-        } else {
-            nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
-                                          NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                          get_default_zoom_level (view),
-                                          new_level);
-        }
+        nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
+                                      view->details->compact
+                                        ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
+                                        : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                      get_default_icon_size (view),
+                                      new_size);
     }
 
-	nemo_icon_container_set_zoom_level (icon_container, new_level);
+	nemo_icon_container_set_icon_size (icon_container, new_size);
 
 	g_signal_emit_by_name (view, "zoom_level_changed");
 
@@ -1102,50 +1112,40 @@ nemo_icon_view_set_zoom_level (NemoIconView *view,
 }
 
 static void
-nemo_icon_view_bump_zoom_level (NemoView *view, int zoom_increment)
+nemo_icon_view_bump_icon_size (NemoView *view, int direction)
 {
-	NemoZoomLevel new_level;
-
 	g_return_if_fail (NEMO_IS_ICON_VIEW (view));
 
-	new_level = nemo_icon_view_get_zoom_level (view) + zoom_increment;
-
-	if (new_level >= NEMO_ZOOM_LEVEL_SMALLEST &&
-	    new_level <= NEMO_ZOOM_LEVEL_LARGEST) {
-		nemo_view_zoom_to_level (view, new_level);
-	}
+	nemo_view_set_icon_size (view, nemo_icon_size_step (nemo_icon_view_get_icon_size (view),
+							    direction));
 }
 
 static void
-nemo_icon_view_zoom_to_level (NemoView *view,
-			    NemoZoomLevel zoom_level)
+nemo_icon_view_set_icon_size_vfunc (NemoView *view,
+			    gint size)
 {
-	NemoIconView *icon_view;
-
 	g_assert (NEMO_IS_ICON_VIEW (view));
 
-	icon_view = NEMO_ICON_VIEW (view);
-	nemo_icon_view_set_zoom_level (icon_view, zoom_level, FALSE);
+	set_icon_size (NEMO_ICON_VIEW (view), size, FALSE);
 }
 
 static void
-nemo_icon_view_restore_default_zoom_level (NemoView *view)
+nemo_icon_view_restore_default_icon_size (NemoView *view)
 {
 	NemoIconView *icon_view;
 
 	g_return_if_fail (NEMO_IS_ICON_VIEW (view));
 
 	icon_view = NEMO_ICON_VIEW (view);
-	nemo_view_zoom_to_level
-		(view, get_default_zoom_level (icon_view));
+	nemo_view_set_icon_size (view, get_default_icon_size (icon_view));
 }
 
-static NemoZoomLevel
-nemo_icon_view_get_default_zoom_level (NemoView *view)
+static gint
+nemo_icon_view_get_default_icon_size_vfunc (NemoView *view)
 {
-    g_return_val_if_fail (NEMO_IS_ICON_VIEW (view), NEMO_ZOOM_LEVEL_NULL);
+    g_return_val_if_fail (NEMO_IS_ICON_VIEW (view), NEMO_ICON_SIZE_STANDARD);
 
-    return get_default_zoom_level(NEMO_ICON_VIEW (view));
+    return get_default_icon_size (NEMO_ICON_VIEW (view));
 }
 
 static gboolean
@@ -1153,8 +1153,7 @@ nemo_icon_view_can_zoom_in (NemoView *view)
 {
 	g_return_val_if_fail (NEMO_IS_ICON_VIEW (view), FALSE);
 
-	return nemo_icon_view_get_zoom_level (view)
-		< NEMO_ZOOM_LEVEL_LARGEST;
+	return nemo_icon_view_get_icon_size (view) < NEMO_ICON_SIZE_MAX;
 }
 
 static gboolean
@@ -1162,8 +1161,7 @@ nemo_icon_view_can_zoom_out (NemoView *view)
 {
 	g_return_val_if_fail (NEMO_IS_ICON_VIEW (view), FALSE);
 
-	return nemo_icon_view_get_zoom_level (view)
-		> NEMO_ZOOM_LEVEL_SMALLEST;
+	return nemo_icon_view_get_icon_size (view) > NEMO_ICON_SIZE_MIN;
 }
 
 static gboolean
@@ -1330,7 +1328,8 @@ layout_changed_callback (NemoIconContainer *container,
 static gboolean
 nemo_icon_view_can_rename_file (NemoView *view, NemoFile *file)
 {
-	if (!(nemo_icon_view_get_zoom_level (view) > NEMO_ZOOM_LEVEL_SMALLEST)) {
+	/* Too small to show a name is too small to type one into. */
+	if (nemo_icon_view_get_icon_size (view) < NEMO_ICON_SIZE_LABEL_MIN) {
 		return FALSE;
 	}
 
@@ -1505,11 +1504,11 @@ nemo_icon_view_reset_to_defaults (NemoView *view)
 
 	update_layout_menus (icon_view);
 
-	nemo_icon_view_restore_default_zoom_level (view);
+	nemo_icon_view_restore_default_icon_size (view);
 
     if (!nemo_global_preferences_get_remember_folder_settings ()) {
         NemoWindow *window = nemo_view_get_nemo_window (view);
-        nemo_window_set_ignore_meta_zoom_level (window, NEMO_ZOOM_LEVEL_NULL);
+        nemo_window_set_ignore_meta_icon_size (window, 0);
     }
 }
 
@@ -2056,11 +2055,11 @@ view_is_frontmost (NemoView *view)
 }
 
 static void
-default_zoom_level_changed_callback (gpointer callback_data)
+default_icon_size_changed_callback (gpointer callback_data)
 {
 	NemoIconView *icon_view;
 	NemoFile *file;
-	int level;
+	int size;
 
 	g_return_if_fail (NEMO_IS_ICON_VIEW (callback_data));
 
@@ -2077,24 +2076,20 @@ default_zoom_level_changed_callback (gpointer callback_data)
          */
         if (view_is_frontmost (NEMO_VIEW (icon_view)) &&
             !nemo_global_preferences_get_remember_folder_settings ()) {
-            nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), -1);
+            nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), 0);
         }
 
         if (!nemo_global_preferences_get_remember_folder_settings () &&
-            nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > -1) {
-            level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+            nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > 0) {
+            size = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
-            if (nemo_icon_view_is_compact (icon_view)) {
-                level = nemo_folder_settings_get_int (file,
-                                                      NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL,
-                                                      get_default_zoom_level (icon_view));
-            } else {
-                level = nemo_folder_settings_get_int (file,
-                                                      NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-                                                      get_default_zoom_level (icon_view));
-            }
+            size = saved_icon_size (file,
+                                    nemo_icon_view_is_compact (icon_view)
+                                      ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
+                                      : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                    get_default_icon_size (icon_view));
         }
-        nemo_view_zoom_to_level (NEMO_VIEW (icon_view), level);
+        nemo_view_set_icon_size (NEMO_VIEW (icon_view), size);
     }
 }
 
@@ -2568,7 +2563,7 @@ nemo_icon_view_finalize (GObject *object)
 					      icon_view);
 
 	g_signal_handlers_disconnect_by_func (nemo_icon_view_preferences,
-					      default_zoom_level_changed_callback,
+					      default_icon_size_changed_callback,
 					      icon_view);
 	g_signal_handlers_disconnect_by_func (nemo_icon_view_preferences,
 					      labels_beside_icons_changed_callback,
@@ -2578,7 +2573,7 @@ nemo_icon_view_finalize (GObject *object)
 					      icon_view);
 
 	g_signal_handlers_disconnect_by_func (nemo_compact_view_preferences,
-					      default_zoom_level_changed_callback,
+					      default_icon_size_changed_callback,
 					      icon_view);
 	g_signal_handlers_disconnect_by_func (nemo_compact_view_preferences,
 					      all_columns_same_width_changed_callback,
@@ -2622,8 +2617,8 @@ nemo_icon_view_constructed (GObject *object)
                   G_CALLBACK (image_display_policy_changed_callback),
                   icon_view);
     g_signal_connect_swapped (nemo_icon_view_preferences,
-                  "changed::" NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL,
-                  G_CALLBACK (default_zoom_level_changed_callback),
+                  "changed::" NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE,
+                  G_CALLBACK (default_icon_size_changed_callback),
                   icon_view);
     g_signal_connect_swapped (nemo_icon_view_preferences,
                   "changed::" NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS,
@@ -2635,8 +2630,8 @@ nemo_icon_view_constructed (GObject *object)
                   icon_view);
 
     g_signal_connect_swapped (nemo_compact_view_preferences,
-                  "changed::" NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ZOOM_LEVEL,
-                  G_CALLBACK (default_zoom_level_changed_callback),
+                  "changed::" NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE,
+                  G_CALLBACK (default_icon_size_changed_callback),
                   icon_view);
     g_signal_connect_swapped (nemo_compact_view_preferences,
                   "changed::" NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH,
@@ -2681,7 +2676,7 @@ nemo_icon_view_class_init (NemoIconViewClass *klass)
 
 	nemo_view_class->add_file = nemo_icon_view_add_file;
 	nemo_view_class->begin_loading = nemo_icon_view_begin_loading;
-	nemo_view_class->bump_zoom_level = nemo_icon_view_bump_zoom_level;
+	nemo_view_class->bump_icon_size = nemo_icon_view_bump_icon_size;
 	nemo_view_class->can_rename_file = nemo_icon_view_can_rename_file;
 	nemo_view_class->can_zoom_in = nemo_icon_view_can_zoom_in;
 	nemo_view_class->can_zoom_out = nemo_icon_view_can_zoom_out;
@@ -2697,15 +2692,15 @@ nemo_icon_view_class_init (NemoIconViewClass *klass)
 	nemo_view_class->is_empty = nemo_icon_view_is_empty;
 	nemo_view_class->remove_file = nemo_icon_view_remove_file;
 	nemo_view_class->reset_to_defaults = nemo_icon_view_reset_to_defaults;
-	nemo_view_class->restore_default_zoom_level = nemo_icon_view_restore_default_zoom_level;
-    nemo_view_class->get_default_zoom_level = nemo_icon_view_get_default_zoom_level;
+	nemo_view_class->restore_default_icon_size = nemo_icon_view_restore_default_icon_size;
+    nemo_view_class->get_default_icon_size = nemo_icon_view_get_default_icon_size_vfunc;
 	nemo_view_class->reveal_selection = nemo_icon_view_reveal_selection;
 	nemo_view_class->select_all = nemo_icon_view_select_all;
 	nemo_view_class->set_selection = nemo_icon_view_set_selection;
 	nemo_view_class->invert_selection = nemo_icon_view_invert_selection;
 	nemo_view_class->compare_files = compare_files;
-	nemo_view_class->zoom_to_level = nemo_icon_view_zoom_to_level;
-	nemo_view_class->get_zoom_level = nemo_icon_view_get_zoom_level;
+	nemo_view_class->set_icon_size = nemo_icon_view_set_icon_size_vfunc;
+	nemo_view_class->get_icon_size = nemo_icon_view_get_icon_size;
         nemo_view_class->click_policy_changed = nemo_icon_view_click_policy_changed;
         nemo_view_class->click_to_rename_mode_changed = nemo_icon_view_click_to_rename_mode_changed;
         nemo_view_class->merge_menus = nemo_icon_view_merge_menus;

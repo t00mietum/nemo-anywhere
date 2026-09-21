@@ -174,8 +174,8 @@ gboolean nemo_window_get_show_sidebar (NemoWindow *window);
 
 const gchar *nemo_window_get_ignore_meta_view_id (NemoWindow *window);
 void         nemo_window_set_ignore_meta_view_id (NemoWindow *window, const gchar *id);
-gint         nemo_window_get_ignore_meta_zoom_level (NemoWindow *window);
-void         nemo_window_set_ignore_meta_zoom_level (NemoWindow *window, gint level);
+gint         nemo_window_get_ignore_meta_icon_size (NemoWindow *window);
+void         nemo_window_set_ignore_meta_icon_size (NemoWindow *window, gint size);
 GList       *nemo_window_get_ignore_meta_visible_columns (NemoWindow *window);
 void         nemo_window_set_ignore_meta_visible_columns (NemoWindow *window, GList *list);
 GList       *nemo_window_get_ignore_meta_column_order (NemoWindow *window);

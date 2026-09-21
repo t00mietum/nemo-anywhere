@@ -87,7 +87,7 @@ struct NemoListViewDetails {
 	GList *cells;
 	GtkCellEditable *editable_widget;
 
-	NemoZoomLevel zoom_level;
+	gint icon_size;
 
 	NemoTreeViewDragDest *drag_dest;
 
@@ -234,11 +234,11 @@ static void   style_metrics                                  (NemoListView *view
 static GList *nemo_list_view_get_selection                   (NemoView   *view);
 static void   nemo_list_view_update_selection                (NemoView *view);
 static GList *nemo_list_view_get_selection_for_file_transfer (NemoView   *view);
-static void   nemo_list_view_set_zoom_level                  (NemoListView        *view,
-								  NemoZoomLevel  new_level,
-								  gboolean           always_set_level);
+static void   nemo_list_view_set_icon_size                   (NemoListView        *view,
+								  gint               new_size,
+								  gboolean           always_emit);
 static void   nemo_list_view_scale_font_size                 (NemoListView        *view,
-								  NemoZoomLevel  new_level);
+								  gint               new_size);
 static void   nemo_list_view_scroll_to_file                  (NemoListView        *view,
 								  NemoFile      *file);
 static void   nemo_list_view_rename_callback                 (NemoFile      *file,
@@ -260,7 +260,7 @@ static char **get_default_column_order                           (NemoListView *
 
 static void   set_columns_settings_from_metadata_and_preferences (NemoListView *list_view);
 static void   queue_update_visible_icons (NemoListView *view, gint delay);
-static NemoZoomLevel nemo_list_view_get_zoom_level (NemoView *view);
+static gint   nemo_list_view_get_icon_size (NemoView *view);
 static void   prioritize_visible_files (NemoListView *view);
 
 G_DEFINE_TYPE (NemoListView, nemo_list_view, NEMO_TYPE_VIEW);
@@ -900,7 +900,7 @@ get_drag_surface (NemoListView *view)
 		model = gtk_tree_view_get_model (view->details->tree_view);
 		gtk_tree_model_get_iter (model, &iter, path);
 		gtk_tree_model_get (model, &iter,
-				    nemo_list_model_get_column_id_from_zoom_level (view->details->zoom_level),
+				    nemo_list_model_get_column_id_for_icon_size (view->details->icon_size),
 				    &ret,
 				    -1);
 
@@ -3003,7 +3003,7 @@ prioritize_visible_files (NemoListView *view)
 
     gtk_tree_view_get_visible_rect (view->details->tree_view,
                                     &vrect);
-    icon_size = nemo_get_list_icon_size_for_zoom_level (nemo_list_view_get_zoom_level (NEMO_VIEW (view)));
+    icon_size = nemo_get_list_icon_size (nemo_list_view_get_icon_size (NEMO_VIEW (view)));
 
     gtk_tree_view_convert_tree_to_bin_window_coords(view->details->tree_view,
                                                     1, vrect.y,
@@ -4655,26 +4655,45 @@ list_view_changed_foreach (GtkTreeModel *model,
 	return FALSE;
 }
 
-static NemoZoomLevel
-get_default_zoom_level (void) {
-	NemoZoomLevel default_zoom_level;
+/* The list view is held to the steps rather than taking any size, because a
+   row's icon comes out of one of the model's size columns. The backlog carries
+   what it would take to lift that. */
+static gint
+snap_to_step (gint size)
+{
+	return nemo_icon_size_from_legacy_level (nemo_icon_size_legacy_level (size));
+}
 
-	default_zoom_level = nemo_config_get_enum (nemo_list_view_preferences,
-						  NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ZOOM_LEVEL);
+static gint
+get_default_icon_size (void) {
+	gint percent;
 
-	if (default_zoom_level <  NEMO_ZOOM_LEVEL_SMALLEST
-	    || NEMO_ZOOM_LEVEL_LARGEST < default_zoom_level) {
-		default_zoom_level = NEMO_ZOOM_LEVEL_SMALL;
+	percent = nemo_config_get_int (nemo_list_view_preferences,
+				       NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE);
+
+	return snap_to_step (nemo_icon_size_from_percent (percent));
+}
+
+static gint
+saved_icon_size (NemoFile *file, gint fallback)
+{
+	gint saved;
+
+	saved = nemo_folder_settings_get_int (file, NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL,
+					      fallback);
+
+	if (nemo_icon_size_is_legacy_level (saved)) {
+		return nemo_icon_size_from_legacy_level (saved);
 	}
 
-	return default_zoom_level;
+	return snap_to_step (saved);
 }
 
 static void
-set_zoom_level_from_metadata_and_preferences (NemoListView *list_view)
+set_icon_size_from_metadata_and_preferences (NemoListView *list_view)
 {
 	NemoFile *file;
-	int level;
+	int size;
 
 	if (nemo_view_supports_zooming (NEMO_VIEW (list_view))) {
 		file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
@@ -4684,21 +4703,19 @@ set_zoom_level_from_metadata_and_preferences (NemoListView *list_view)
             uri = nemo_file_get_uri (file);
 
             if (eel_uri_is_search (uri)) {
-                level = get_default_zoom_level ();
+                size = get_default_icon_size ();
             } else {
-                gint ignore_level;
-                ignore_level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
+                gint pinned;
+                pinned = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
 
-                level = ignore_level > -1 ? ignore_level : get_default_zoom_level ();
+                size = pinned > 0 ? snap_to_step (pinned) : get_default_icon_size ();
             }
 
             g_free (uri);
         } else {
-            level = nemo_folder_settings_get_int (file,
-                                                  NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL,
-                                                  get_default_zoom_level ());
+            size = saved_icon_size (file, get_default_icon_size ());
         }
-		nemo_list_view_set_zoom_level (list_view, level, TRUE);
+		nemo_list_view_set_icon_size (list_view, size, TRUE);
 
 		/* updated the rows after updating the font size */
 		gtk_tree_model_foreach (GTK_TREE_MODEL (list_view->details->model),
@@ -4714,7 +4731,7 @@ nemo_list_view_begin_loading (NemoView *view)
 	list_view = NEMO_LIST_VIEW (view);
 
 	set_sort_order_from_metadata_and_preferences (list_view);
-	set_zoom_level_from_metadata_and_preferences (list_view);
+	set_icon_size_from_metadata_and_preferences (list_view);
 	set_columns_settings_from_metadata_and_preferences (list_view);
 	load_user_widths (list_view);
 	expanders_enabled_changed_cb (list_view);
@@ -5373,7 +5390,7 @@ nemo_list_view_reset_to_defaults (NemoView *view)
         NemoWindow *window = nemo_view_get_nemo_window (NEMO_VIEW (view));
         nemo_window_set_ignore_meta_sort_column (window, NULL);
         nemo_window_set_ignore_meta_sort_direction (window, SORT_NULL);
-        nemo_window_set_ignore_meta_zoom_level (window, NEMO_ZOOM_LEVEL_NULL);
+        nemo_window_set_ignore_meta_icon_size (window, 0);
         nemo_window_set_ignore_meta_column_order (window, NULL);
         nemo_window_set_ignore_meta_visible_columns (window, NULL);
     } else if (nemo_file_is_in_search (file)) {
@@ -5402,62 +5419,65 @@ nemo_list_view_reset_to_defaults (NemoView *view)
                                        NEMO_LIST_VIEW (view));
 }
 
+/* A list row's text does grow with its size, unlike a name under an icon: in a
+   list the row height is most of what the size means. Kept per step, which is
+   the ladder the list view is held to. */
 static void
 nemo_list_view_scale_font_size (NemoListView *view,
-				    NemoZoomLevel new_level)
+				    gint new_size)
 {
 	GList *l;
 	static gboolean first_time = TRUE;
 	static double pango_scale[7];
 	int medium;
 	int i;
-
-	g_return_if_fail (new_level >= NEMO_ZOOM_LEVEL_SMALLEST &&
-			  new_level <= NEMO_ZOOM_LEVEL_LARGEST);
+	int step;
 
 	if (first_time) {
 		first_time = FALSE;
-		medium = NEMO_ZOOM_LEVEL_SMALLER;
+		medium = 1;
 		pango_scale[medium] = PANGO_SCALE_MEDIUM;
-		for (i = medium; i > NEMO_ZOOM_LEVEL_SMALLEST; i--) {
+		for (i = medium; i > 0; i--) {
 			pango_scale[i - 1] = (1 / 1.2) * pango_scale[i];
 		}
-		for (i = medium; i < NEMO_ZOOM_LEVEL_LARGEST; i++) {
+		for (i = medium; i < (int) G_N_ELEMENTS (pango_scale) - 1; i++) {
 			pango_scale[i + 1] = 1.2 * pango_scale[i];
 		}
 	}
 
+	step = nemo_icon_size_legacy_level (new_size);
+
 	g_object_set (G_OBJECT (view->details->file_name_cell),
-		      "scale", pango_scale[new_level],
+		      "scale", pango_scale[step],
 		      NULL);
 	for (l = view->details->cells; l != NULL; l = l->next) {
 		g_object_set (G_OBJECT (l->data),
-			      "scale", pango_scale[new_level],
+			      "scale", pango_scale[step],
 			      NULL);
 	}
 }
 
 static void
-nemo_list_view_set_zoom_level (NemoListView *view,
-				   NemoZoomLevel new_level,
-				   gboolean always_emit)
+nemo_list_view_set_icon_size (NemoListView *view,
+				  gint     new_size,
+				  gboolean always_emit)
 {
     NemoFile *file;
 	int icon_size;
 	int column;
 
 	g_return_if_fail (NEMO_IS_LIST_VIEW (view));
-	g_return_if_fail (new_level >= NEMO_ZOOM_LEVEL_SMALLEST &&
-			  new_level <= NEMO_ZOOM_LEVEL_LARGEST);
 
-	if (view->details->zoom_level == new_level) {
+	new_size = snap_to_step (new_size);
+
+	if (view->details->icon_size == new_size) {
 		if (always_emit) {
 			g_signal_emit_by_name (NEMO_VIEW(view), "zoom_level_changed");
 		}
 		return;
 	}
 
-	view->details->zoom_level = new_level;
+	view->details->icon_size = new_size;
 	g_signal_emit_by_name (NEMO_VIEW(view), "zoom_level_changed");
 
     file = nemo_view_get_directory_as_file (NEMO_VIEW (view));
@@ -5468,29 +5488,29 @@ nemo_list_view_set_zoom_level (NemoListView *view,
         uri = nemo_file_get_uri (file);
 
         if (!eel_uri_is_search (uri)) {
-            nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_level);
+            nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_size);
         }
 
         g_free (uri);
     } else {
         nemo_folder_settings_set_int (file,
                                       NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL,
-                                      get_default_zoom_level (),
-                                      new_level);
+                                      get_default_icon_size (),
+                                      new_size);
     }
 
 	/* Select correctly scaled icons. */
-	column = nemo_list_model_get_column_id_from_zoom_level (new_level);
+	column = nemo_list_model_get_column_id_for_icon_size (new_size);
 	gtk_tree_view_column_set_attributes (view->details->file_name_column,
 					     GTK_CELL_RENDERER (view->details->pixbuf_cell),
 					     "surface", column,
 					     NULL);
 
 	/* Scale text. */
-	nemo_list_view_scale_font_size (view, new_level);
+	nemo_list_view_scale_font_size (view, new_size);
 
 	/* Make all rows the same size. */
-	icon_size = nemo_get_list_icon_size_for_zoom_level (new_level);
+	icon_size = nemo_get_list_icon_size (new_size);
 	gtk_cell_renderer_set_fixed_size (GTK_CELL_RENDERER (view->details->pixbuf_cell),
 					  -1, icon_size);
 
@@ -5505,37 +5525,33 @@ nemo_list_view_set_zoom_level (NemoListView *view,
 }
 
 static void
-nemo_list_view_bump_zoom_level (NemoView *view, int zoom_increment)
+nemo_list_view_bump_icon_size (NemoView *view, int direction)
 {
 	NemoListView *list_view;
-	gint new_level;
 
 	g_return_if_fail (NEMO_IS_LIST_VIEW (view));
 
 	list_view = NEMO_LIST_VIEW (view);
-	new_level = list_view->details->zoom_level + zoom_increment;
-
-	if (new_level >= NEMO_ZOOM_LEVEL_SMALLEST &&
-	    new_level <= NEMO_ZOOM_LEVEL_LARGEST) {
-		nemo_list_view_set_zoom_level (list_view, new_level, FALSE);
-	}
+	nemo_list_view_set_icon_size (list_view,
+				      nemo_icon_size_step (list_view->details->icon_size, direction),
+				      FALSE);
 }
 
-static NemoZoomLevel
-nemo_list_view_get_zoom_level (NemoView *view)
+static gint
+nemo_list_view_get_icon_size (NemoView *view)
 {
 	NemoListView *list_view;
 
-	g_return_val_if_fail (NEMO_IS_LIST_VIEW (view), NEMO_ZOOM_LEVEL_STANDARD);
+	g_return_val_if_fail (NEMO_IS_LIST_VIEW (view), NEMO_ICON_SIZE_STANDARD);
 
 	list_view = NEMO_LIST_VIEW (view);
 
-	return list_view->details->zoom_level;
+	return list_view->details->icon_size;
 }
 
 static void
-nemo_list_view_zoom_to_level (NemoView *view,
-				  NemoZoomLevel zoom_level)
+nemo_list_view_set_icon_size_vfunc (NemoView *view,
+				  gint size)
 {
 	NemoListView *list_view;
 
@@ -5543,11 +5559,11 @@ nemo_list_view_zoom_to_level (NemoView *view,
 
 	list_view = NEMO_LIST_VIEW (view);
 
-	nemo_list_view_set_zoom_level (list_view, zoom_level, FALSE);
+	nemo_list_view_set_icon_size (list_view, size, FALSE);
 }
 
 static void
-nemo_list_view_restore_default_zoom_level (NemoView *view)
+nemo_list_view_restore_default_icon_size (NemoView *view)
 {
 	NemoListView *list_view;
 
@@ -5555,15 +5571,15 @@ nemo_list_view_restore_default_zoom_level (NemoView *view)
 
 	list_view = NEMO_LIST_VIEW (view);
 
-	nemo_list_view_set_zoom_level (list_view, get_default_zoom_level (), FALSE);
+	nemo_list_view_set_icon_size (list_view, get_default_icon_size (), FALSE);
 }
 
-static NemoZoomLevel
-nemo_list_view_get_default_zoom_level (NemoView *view)
+static gint
+nemo_list_view_get_default_icon_size_vfunc (NemoView *view)
 {
-    g_return_val_if_fail (NEMO_IS_LIST_VIEW (view), NEMO_ZOOM_LEVEL_NULL);
+    g_return_val_if_fail (NEMO_IS_LIST_VIEW (view), NEMO_ICON_SIZE_STANDARD);
 
-    return get_default_zoom_level();
+    return get_default_icon_size();
 }
 
 static gboolean
@@ -5571,7 +5587,7 @@ nemo_list_view_can_zoom_in (NemoView *view)
 {
 	g_return_val_if_fail (NEMO_IS_LIST_VIEW (view), FALSE);
 
-	return NEMO_LIST_VIEW (view)->details->zoom_level	< NEMO_ZOOM_LEVEL_LARGEST;
+	return NEMO_LIST_VIEW (view)->details->icon_size < NEMO_ICON_SIZE_LARGEST;
 }
 
 static gboolean
@@ -5579,7 +5595,7 @@ nemo_list_view_can_zoom_out (NemoView *view)
 {
 	g_return_val_if_fail (NEMO_IS_LIST_VIEW (view), FALSE);
 
-	return NEMO_LIST_VIEW (view)->details->zoom_level > NEMO_ZOOM_LEVEL_SMALLEST;
+	return NEMO_LIST_VIEW (view)->details->icon_size > NEMO_ICON_SIZE_SMALLEST;
 }
 
 static void
@@ -5730,7 +5746,7 @@ view_is_frontmost (NemoView *view)
 }
 
 static void
-default_zoom_level_changed_callback (gpointer callback_data)
+default_icon_size_changed_callback (gpointer callback_data)
 {
 	NemoListView *list_view;
 
@@ -5742,10 +5758,10 @@ default_zoom_level_changed_callback (gpointer callback_data)
 	 */
 	if (view_is_frontmost (NEMO_VIEW (list_view)) &&
 	    !nemo_global_preferences_get_remember_folder_settings ()) {
-		nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), -1);
+		nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), 0);
 	}
 
-	set_zoom_level_from_metadata_and_preferences (list_view);
+	set_icon_size_from_metadata_and_preferences (list_view);
 }
 
 static void
@@ -5939,7 +5955,7 @@ nemo_list_view_finalize (GObject *object)
 					      default_sort_order_changed_callback,
 					      list_view);
 	g_signal_handlers_disconnect_by_func (nemo_list_view_preferences,
-					      default_zoom_level_changed_callback,
+					      default_icon_size_changed_callback,
 					      list_view);
 	g_signal_handlers_disconnect_by_func (nemo_list_view_preferences,
 					      default_visible_columns_changed_callback,
@@ -6094,7 +6110,7 @@ nemo_list_view_class_init (NemoListViewClass *class)
 	nemo_view_class->add_file = nemo_list_view_add_file;
 	nemo_view_class->begin_loading = nemo_list_view_begin_loading;
 	nemo_view_class->end_loading = nemo_list_view_end_loading;
-	nemo_view_class->bump_zoom_level = nemo_list_view_bump_zoom_level;
+	nemo_view_class->bump_icon_size = nemo_list_view_bump_icon_size;
 	nemo_view_class->can_zoom_in = nemo_list_view_can_zoom_in;
 	nemo_view_class->can_zoom_out = nemo_list_view_can_zoom_out;
         nemo_view_class->click_policy_changed = nemo_list_view_click_policy_changed;
@@ -6112,8 +6128,8 @@ nemo_list_view_class_init (NemoListViewClass *class)
     nemo_view_class->unmerge_menus = nemo_list_view_unmerge_menus;
 	nemo_view_class->update_menus = nemo_list_view_update_menus;
 	nemo_view_class->reset_to_defaults = nemo_list_view_reset_to_defaults;
-	nemo_view_class->restore_default_zoom_level = nemo_list_view_restore_default_zoom_level;
-    nemo_view_class->get_default_zoom_level = nemo_list_view_get_default_zoom_level;
+	nemo_view_class->restore_default_icon_size = nemo_list_view_restore_default_icon_size;
+    nemo_view_class->get_default_icon_size = nemo_list_view_get_default_icon_size_vfunc;
 	nemo_view_class->reveal_selection = nemo_list_view_reveal_selection;
 	nemo_view_class->select_all = nemo_list_view_select_all;
 	nemo_view_class->set_selection = nemo_list_view_set_selection;
@@ -6122,8 +6138,8 @@ nemo_list_view_class_init (NemoListViewClass *class)
 	nemo_view_class->sort_directories_first_changed = nemo_list_view_sort_directories_first_changed;
 	nemo_view_class->sort_favorites_first_changed = nemo_list_view_sort_favorites_first_changed;
 	nemo_view_class->start_renaming_file = nemo_list_view_start_renaming_file;
-	nemo_view_class->get_zoom_level = nemo_list_view_get_zoom_level;
-	nemo_view_class->zoom_to_level = nemo_list_view_zoom_to_level;
+	nemo_view_class->get_icon_size = nemo_list_view_get_icon_size;
+	nemo_view_class->set_icon_size = nemo_list_view_set_icon_size_vfunc;
 	nemo_view_class->end_file_changes = nemo_list_view_end_file_changes;
 	nemo_view_class->using_manual_layout = nemo_list_view_using_manual_layout;
 	nemo_view_class->get_view_id = nemo_list_view_get_id;
@@ -6151,8 +6167,8 @@ nemo_list_view_init (NemoListView *list_view)
 				  G_CALLBACK (default_sort_order_changed_callback),
 				  list_view);
 	g_signal_connect_swapped (nemo_list_view_preferences,
-				  "changed::" NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ZOOM_LEVEL,
-				  G_CALLBACK (default_zoom_level_changed_callback),
+				  "changed::" NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE,
+				  G_CALLBACK (default_icon_size_changed_callback),
 				  list_view);
 	g_signal_connect_swapped (nemo_list_view_preferences,
 				  "changed::" NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS,
@@ -6206,8 +6222,8 @@ nemo_list_view_init (NemoListView *list_view)
 
     list_view->details->current_selection_count = -1;
 
-	/* ensure that the zoom level is always set in begin_loading */
-	list_view->details->zoom_level = NEMO_ZOOM_LEVEL_SMALLEST - 1;
+	/* ensure that the size is always set in begin_loading */
+	list_view->details->icon_size = 0;
 
 	list_view->details->hover_path = NULL;
 	list_view->details->clipboard_handler_id =

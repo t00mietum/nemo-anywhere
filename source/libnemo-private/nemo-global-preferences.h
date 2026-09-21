@@ -193,7 +193,7 @@ enum
 #define NEMO_DESKTOP_ICON_GRID_VIEW_IID  "OAFIID:Nemo_File_Manager_Desktop_Icon_Grid_View"
 
 /* Icon View */
-#define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL		"default-zoom-level"
+#define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE		"default-icon-size"
 #define NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS		"labels-beside-icons"
 
 /* Which text attributes appear beneath icon names */
@@ -207,11 +207,11 @@ enum
 #define NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT		"text-ellipsis-limit"
 
 /* Compact View */
-#define NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ZOOM_LEVEL		"default-zoom-level"
+#define NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE		"default-icon-size"
 #define NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH	"all-columns-have-same-width"
 
 /* List View */
-#define NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ZOOM_LEVEL		"default-zoom-level"
+#define NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE		"default-icon-size"
 #define NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS		"default-visible-columns"
 #define NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER		"default-column-order"
 #define NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION         "enable-folder-expansion"

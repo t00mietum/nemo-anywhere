@@ -647,14 +647,14 @@ nemo_view_is_empty (NemoView *view)
 }
 
 /**
- * nemo_view_bump_zoom_level:
+ * nemo_view_bump_icon_size:
  *
- * bump the current zoom level by invoking the relevant subclass through the slot
+ * step to the next size by invoking the relevant subclass through the slot
  *
  **/
 void
-nemo_view_bump_zoom_level (NemoView *view,
-			       int zoom_increment)
+nemo_view_bump_icon_size (NemoView *view,
+			      int direction)
 {
 	g_return_if_fail (NEMO_IS_VIEW (view));
 
@@ -662,18 +662,18 @@ nemo_view_bump_zoom_level (NemoView *view,
 		return;
 	}
 
-	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->bump_zoom_level (view, zoom_increment);
+	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->bump_icon_size (view, direction);
 }
 
 /**
- * nemo_view_zoom_to_level:
+ * nemo_view_set_icon_size:
  *
- * Set the current zoom level by invoking the relevant subclass through the slot
+ * Set the current size by invoking the relevant subclass through the slot
  *
  **/
 void
-nemo_view_zoom_to_level (NemoView *view,
-			     NemoZoomLevel zoom_level)
+nemo_view_set_icon_size (NemoView *view,
+			     gint size)
 {
 	g_return_if_fail (NEMO_IS_VIEW (view));
 
@@ -681,19 +681,19 @@ nemo_view_zoom_to_level (NemoView *view,
 		return;
 	}
 
-	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->zoom_to_level (view, zoom_level);
+	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->set_icon_size (view, size);
 }
 
-NemoZoomLevel
-nemo_view_get_zoom_level (NemoView *view)
+gint
+nemo_view_get_icon_size (NemoView *view)
 {
-	g_return_val_if_fail (NEMO_IS_VIEW (view), NEMO_ZOOM_LEVEL_STANDARD);
+	g_return_val_if_fail (NEMO_IS_VIEW (view), NEMO_ICON_SIZE_STANDARD);
 
 	if (!nemo_view_supports_zooming (view)) {
-		return NEMO_ZOOM_LEVEL_STANDARD;
+		return NEMO_ICON_SIZE_STANDARD;
 	}
 
-	return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->get_zoom_level (view);
+	return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->get_icon_size (view);
 }
 
 /**
@@ -747,13 +747,13 @@ nemo_view_supports_zooming (NemoView *view)
 }
 
 /**
- * nemo_view_restore_default_zoom_level:
+ * nemo_view_restore_default_icon_size:
  *
- * restore to the default zoom level by invoking the relevant subclass through the slot
+ * restore to the default size by invoking the relevant subclass through the slot
  *
  **/
 void
-nemo_view_restore_default_zoom_level (NemoView *view)
+nemo_view_restore_default_icon_size (NemoView *view)
 {
 	g_return_if_fail (NEMO_IS_VIEW (view));
 
@@ -761,22 +761,8 @@ nemo_view_restore_default_zoom_level (NemoView *view)
 		return;
 	}
 
-	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->restore_default_zoom_level (view);
+	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->restore_default_icon_size (view);
 }
-
-/*
-static NemoZoomLevel
-nemo_view_get_default_zoom_level (NemoView *view)
-{
-    g_return_if_fail (NEMO_IS_VIEW (view));
-
-    if (!nemo_view_supports_zooming (view)) {
-        return -1;
-    }
-
-    NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->get_default_zoom_level (view);
-}
-*/
 
 const char *
 nemo_view_get_view_id (NemoView *view)
@@ -12086,12 +12072,12 @@ nemo_view_handle_scroll_event (NemoView *directory_view,
 		switch (event->direction) {
 		case GDK_SCROLL_UP:
 			/* Zoom In */
-			nemo_view_bump_zoom_level (directory_view, 1);
+			nemo_view_bump_icon_size (directory_view, 1);
 			return TRUE;
 
 		case GDK_SCROLL_DOWN:
 			/* Zoom Out */
-			nemo_view_bump_zoom_level (directory_view, -1);
+			nemo_view_bump_icon_size (directory_view, -1);
 			return TRUE;
 
 		case GDK_SCROLL_SMOOTH:
@@ -12104,12 +12090,12 @@ nemo_view_handle_scroll_event (NemoView *directory_view,
 			if (total_delta_y >= 1) {
 				total_delta_y = 0;
 				/* emulate scroll down */
-				nemo_view_bump_zoom_level (directory_view, -1);
+				nemo_view_bump_icon_size (directory_view, -1);
 				return TRUE;
 			} else if (total_delta_y <= - 1) {
 				total_delta_y = 0;
 				/* emulate scroll up */
-				nemo_view_bump_zoom_level (directory_view, 1);
+				nemo_view_bump_icon_size (directory_view, 1);
 				return TRUE;
 			} else {
 				/* eat event */

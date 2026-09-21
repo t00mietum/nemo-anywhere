@@ -125,7 +125,7 @@ struct NemoWindowDetails
         gboolean menu_show_queued;
 
         gchar *ignore_meta_view_id;
-        gint ignore_meta_zoom_level;
+        gint ignore_meta_icon_size;	/* 0 when nothing is pinned */
         GList *ignore_meta_visible_columns;
         GList *ignore_meta_column_order;
         gchar *ignore_meta_sort_column;

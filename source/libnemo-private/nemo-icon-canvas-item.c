@@ -1472,7 +1472,7 @@ create_label_layout (NemoIconCanvasItem *item,
     if (pango_font_description_get_size (desc) > 0) {
         pango_font_description_set_size (desc,
                                          pango_font_description_get_size (desc) +
-                                         container->details->font_size_table [container->details->zoom_level]);
+                                         container->details->label_font_offset);
     }
 
     if (item->details->fav_unavailable) {
@@ -2008,9 +2008,14 @@ nemo_icon_canvas_item_get_max_text_width (NemoIconCanvasItem *item)
     } else {
         /* normal icon view */
         if (container->details->is_desktop) {
-            return nemo_get_desktop_text_width_for_zoom_level (nemo_icon_container_get_zoom_level (container));
+            return nemo_get_desktop_text_width (nemo_icon_container_get_icon_size (container));
         } else {
-            return nemo_get_icon_text_width_for_zoom_level (nemo_icon_container_get_zoom_level (container));
+            /* A name runs as wide as the icon above it, with a floor. There
+               used to be a table of widths of its own, which had Large
+               narrower than Standard and could not answer for a size that was
+               not one of the levels. */
+            return MAX (nemo_icon_container_get_icon_size (container),
+                        NEMO_ICON_LABEL_WIDTH_MIN);
         }
     }
 }
@@ -2036,7 +2041,7 @@ nemo_icon_canvas_item_get_fixed_text_height_for_layout (NemoIconCanvasItem *item
 
     container = NEMO_ICON_CONTAINER (EEL_CANVAS_ITEM (item)->canvas);
 
-    if (nemo_icon_container_get_zoom_level (container) == NEMO_ZOOM_LEVEL_SMALLEST) {
+    if (nemo_icon_container_get_icon_size (container) < NEMO_ICON_SIZE_LABEL_MIN) {
         // No label/info, just a bit of padding.
         return 0;
     }

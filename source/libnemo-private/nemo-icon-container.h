@@ -207,7 +207,7 @@ typedef struct {
                                            int *x1_return, int *y1_return,
                                            int *x2_return, int *y2_return,
                                            NemoIconCanvasItemBoundsUsage usage);
-    void         (*set_zoom_level)        (NemoIconContainer *container, gint new_level);
+    void         (*set_icon_size)         (NemoIconContainer *container, gint size);
 	/* Notifications for the whole container. */
 	void	     (* band_select_started)	  (NemoIconContainer *container);
 	void	     (* band_select_ended)	  (NemoIconContainer *container);
@@ -321,9 +321,9 @@ void              nemo_icon_container_unstretch                     (NemoIconCon
 void              nemo_icon_container_start_renaming_selected_item  (NemoIconContainer  *container,
 									 gboolean                select_all);
 /* options */
-NemoZoomLevel nemo_icon_container_get_zoom_level                (NemoIconContainer  *view);
-void              nemo_icon_container_set_zoom_level                (NemoIconContainer  *view,
-									 int                     new_zoom_level);
+gint              nemo_icon_container_get_icon_size                 (NemoIconContainer  *view);
+void              nemo_icon_container_set_icon_size                 (NemoIconContainer  *view,
+									 gint                    size);
 void              nemo_icon_container_set_single_click_mode         (NemoIconContainer  *container,
 									 gboolean                single_click_mode);
 void              nemo_icon_container_set_click_to_rename_enabled (NemoIconContainer *container,
@@ -339,8 +339,8 @@ void              nemo_icon_container_set_is_desktop                (NemoIconCon
 void              nemo_icon_container_reset_scroll_region           (NemoIconContainer  *container);
 void              nemo_icon_container_set_font                      (NemoIconContainer  *container,
 									 const char             *font); 
-void              nemo_icon_container_set_font_size_table           (NemoIconContainer  *container,
-									 const int               font_size_table[NEMO_ZOOM_LEVEL_LARGEST + 1]);
+void              nemo_icon_container_set_label_font_offset         (NemoIconContainer  *container,
+									 int                     points);
 void              nemo_icon_container_set_margins                   (NemoIconContainer  *container,
 									 int                     left_margin,
 									 int                     right_margin,

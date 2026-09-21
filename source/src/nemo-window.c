@@ -1742,17 +1742,17 @@ nemo_window_sync_zoom_widgets (NemoWindow *window)
 	GtkAction *action;
 	gboolean supports_zooming;
 	gboolean can_zoom, can_zoom_in, can_zoom_out;
-	NemoZoomLevel zoom_level;
+	gint icon_size;
 
 	slot = nemo_window_get_active_slot (window);
 	view = slot->content_view;
 
 	if (view != NULL) {
 		supports_zooming = nemo_view_supports_zooming (view);
-		zoom_level = nemo_view_get_zoom_level (view);
+		icon_size = nemo_view_get_icon_size (view);
 		can_zoom = supports_zooming &&
-			   zoom_level >= NEMO_ZOOM_LEVEL_SMALLEST &&
-			   zoom_level <= NEMO_ZOOM_LEVEL_LARGEST;
+			   icon_size >= NEMO_ICON_SIZE_MIN &&
+			   icon_size <= NEMO_ICON_SIZE_MAX;
 		can_zoom_in = can_zoom && nemo_view_can_zoom_in (view);
 		can_zoom_out = can_zoom && nemo_view_can_zoom_out (view);
 	} else {
@@ -2361,7 +2361,7 @@ nemo_window_init (NemoWindow *window)
     window->details->menu_show_queued = FALSE;
 
     window->details->ignore_meta_view_id = NULL;
-    window->details->ignore_meta_zoom_level = -1;
+    window->details->ignore_meta_icon_size = 0;
     window->details->ignore_meta_visible_columns = NULL;
     window->details->ignore_meta_column_order = NULL;
     window->details->ignore_meta_sort_column = NULL;
@@ -2675,7 +2675,7 @@ nemo_window_set_ignore_meta_view_id (NemoWindow *window, const gchar *id)
     if (id != NULL) {
         gchar *old_id = window->details->ignore_meta_view_id;
         if (g_strcmp0 (old_id, id) != 0) {
-            nemo_window_set_ignore_meta_zoom_level (window, -1);
+            nemo_window_set_ignore_meta_icon_size (window, 0);
         }
         window->details->ignore_meta_view_id = g_strdup (id);
         g_free (old_id);
@@ -2683,15 +2683,15 @@ nemo_window_set_ignore_meta_view_id (NemoWindow *window, const gchar *id)
 }
 
 gint
-nemo_window_get_ignore_meta_zoom_level (NemoWindow *window)
+nemo_window_get_ignore_meta_icon_size (NemoWindow *window)
 {
-    return window->details->ignore_meta_zoom_level;
+    return window->details->ignore_meta_icon_size;
 }
 
 void
-nemo_window_set_ignore_meta_zoom_level (NemoWindow *window, gint level)
+nemo_window_set_ignore_meta_icon_size (NemoWindow *window, gint size)
 {
-    window->details->ignore_meta_zoom_level = level;
+    window->details->ignore_meta_icon_size = size;
 }
 
 GList *
