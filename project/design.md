@@ -322,7 +322,7 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - SQLite is linked static. It has to come through pkg-config rather than meson's `find_library`, because the cross sysroot is not on the compiler's own search path.
 
-- Three tables. `files` is one row per distinct set of file contents: the size, and the checksum once anything has bothered to compute one. It holds no image, picture or not. `paths` is one row per uri, pointing at the file it holds and carrying its own timestamp. `thumbnails` is only for images; it hangs off a `files` row and holds the encoded image.
+- Three tables of data, plus one row of bookkeeping for pruning. `files` is one row per distinct set of file contents: the size, and the checksum once anything has bothered to compute one. It holds no image, picture or not. `paths` is one row per uri, pointing at the file it holds and carrying its own timestamp. `thumbnails` is only for images; it hangs off a `files` row and holds the encoded image.
 
 - Splitting paths from files is what lets a file that moved, or a second copy of one, find a thumbnail that is already there. It is also what a duplicate finder would need, which is why the split is drawn this way rather than around thumbnails: every file seen is a `files` row, and the copies of one are the paths hanging off it. A file nothing can draw has no `thumbnails` row and is otherwise an ordinary record.
 
@@ -330,7 +330,7 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Every launch is its own process and several can be open at once, so the file is in WAL mode with a busy timeout. Writes are small and the whole store is rebuildable, so `synchronous` is NORMAL rather than FULL - a power cut can cost the last few rows, which is not worth an fsync per row.
 
-- A damaged file, or one written by another version of the tables, is thrown away and rebuilt at open rather than migrated or repaired. Nothing in it cannot be worked out again from the disk. Damage noticed while running only stops the store being used, because deleting a file other processes still have open is worse than going without until the next launch.
+- A damaged file, or one written by another version of the tables, is thrown away and rebuilt at open rather than migrated or repaired. Nothing in it cannot be worked out again from the disk. Damage noticed while running only stops the store being used, because deleting a file other processes still have open is worse than going without until the next launch. It also leaves a marker beside the file, and the next launch starts over when it sees one. A damaged page deep in the file does not stop it opening, so without the marker nothing would ever act on it.
 
 - Draw counts are held in memory and written in one transaction. Scrolling a big folder draws the same file repeatedly, and the age rule works in days, so a write per draw would buy nothing.
 
@@ -352,7 +352,17 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Reload makes the folder's thumbnails again, as it always has. It forgets the stored copy and stops using the freedesktop one for those files. The freedesktop cache itself is left alone.
 
-- Pruning works as it did before: a worker thread well after startup, never on the path that draws a window, with rules for a source file that is gone and for anything unused past the age allowed.
+- Pruning runs on a worker thread over a connection of its own, so it never holds up a draw. Each pass checks the file for damage, forgets local files that are gone, drops thumbnails not drawn for too long, then drops the least recently drawn until the file is under its size limit, and last hands the freed space back to the disk.
+
+- A file is only forgotten when its folder is still there. A whole folder missing is more often a drive that is not plugged in. Shares are skipped, and so is any folder that is slow to answer, since one that is not answering costs about twenty seconds per question.
+
+- A pass is due at random between 4 and 24 hours after the last, and waits until nothing has been drawn for 5 minutes. All three are in the config file. Whoever finishes a pass picks the next time and writes it in the file, so every copy running agrees on it.
+
+- Only one process prunes at a time. The claim is a row in the database, taken in a write transaction, so SQLite's own locking decides who wins. That works the same on every platform, where a lock file would need a separate answer for Windows. The claim carries a heartbeat, and one nobody has touched for ten minutes belongs to a process that died and is taken over.
+
+- The space goes back a few pages at a time with incremental vacuum rather than a full VACUUM. A full one holds the write lock for as long as it takes to copy the whole file, and every other copy would wait on it.
+
+- Quitting stops a pass part way through, and it lets go of its claim.
 
 ### File operations
 

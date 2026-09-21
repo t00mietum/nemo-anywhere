@@ -24,7 +24,7 @@
  * holds, but not the only kind, so the tables are about files rather than about
  * pictures.
  *
- * Three tables:
+ * Three tables of data:
  *
  *   files       one row per distinct set of file contents - the size, and the
  *               checksum once anything has bothered to compute one. No image
@@ -33,6 +33,8 @@
  *               own mtime. Several paths on one files row means copies, or a
  *               file that moved
  *   thumbnails  at most one per files row, holding the encoded image
+ *
+ * plus one row of bookkeeping for the prune.
  *
  * Splitting paths from files is what lets a file that moved, or a second copy
  * of one, find a thumbnail that is already there instead of rendering it again.
@@ -53,7 +55,7 @@
 #ifndef NEMO_CACHE_DB_H
 #define NEMO_CACHE_DB_H
 
-#include <glib.h>
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
@@ -181,6 +183,48 @@ gboolean nemo_cache_db_empty (NemoCacheDb *db);
 /* Thumbnails held and the bytes they take, for the settings page. Either may be
  * NULL. */
 void nemo_cache_db_usage (NemoCacheDb *db, gint64 *n_thumbnails, gint64 *bytes);
+
+/* Monotonic seconds of the last lookup, store or draw count in this process,
+ * or 0 if nothing has used the store yet. The prune waits for a quiet spell. */
+gint64 nemo_cache_db_last_used (void);
+
+/* What a prune pass may throw away, and when the next one is due. */
+typedef struct {
+	gint64   max_bytes;	/* the file's size to get under; 0 for no limit */
+	gint64   max_age_secs;	/* a thumbnail not drawn for this long goes; 0 to keep */
+	gboolean drop_missing;	/* forget local files gone from a folder that is not */
+	gint64   gap_min_secs;	/* the next pass is due somewhere in this range */
+	gint64   gap_max_secs;
+	gboolean force;		/* run even if the next pass is not due yet */
+	gint64   now;		/* epoch seconds */
+} NemoCachePruneRules;
+
+typedef enum {
+	NEMO_CACHE_PRUNE_DONE,
+	NEMO_CACHE_PRUNE_NOT_DUE,
+	NEMO_CACHE_PRUNE_BUSY,		/* another process is running one */
+	NEMO_CACHE_PRUNE_CANCELLED,
+	NEMO_CACHE_PRUNE_DAMAGED,	/* the file is marked to start over next launch */
+	NEMO_CACHE_PRUNE_FAILED
+} NemoCachePruneResult;
+
+/* One prune pass, on the calling thread, over a connection of its own. Checks
+ * the file for damage, forgets missing files, drops old thumbnails and then the
+ * least recently drawn until the file is small enough, and hands the freed
+ * space back to the disk.
+ *
+ * Only one process runs a pass at a time. The claim lives in the file itself,
+ * with a heartbeat, so a process that dies part way through does not hold it
+ * for good. Whoever finishes a pass picks when the next one is due, at random
+ * within the gap, so every copy running agrees on it.
+ *
+ * `removed` is the thumbnails thrown away. `due` is when the next pass is due,
+ * epoch seconds, or 0 when there is nothing to say. Either may be NULL. Draw
+ * counts held in memory are not seen, so flush the process-wide store first. */
+NemoCachePruneResult nemo_cache_db_prune (const NemoCachePruneRules *rules,
+					  GCancellable              *cancellable,
+					  gint64                    *removed,
+					  gint64                    *due);
 
 G_END_DECLS
 

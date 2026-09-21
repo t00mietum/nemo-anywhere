@@ -61,6 +61,7 @@ nemo_private_sources = [
   'nemo-trash-win32.c',
   'nemo-win32-appearance.c',
   'nemo-cache-db.c',
+  'nemo-cache-db-prune.c',
   'nemo-file-digest.c',
   'nemo-file-xattr.c',
   'nemo-thumbnail-pixbuf-utils.c',

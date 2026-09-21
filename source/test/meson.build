@@ -128,6 +128,15 @@ test('File cache store test',
   args: []
 )
 
+test('File cache prune test',
+  executable('test-nemo-cache-prune',
+    [ 'test-nemo-cache-prune.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch, sqlite ],
+  ),
+  args: []
+)
+
 test('Thumbnail store test',
   executable('test-nemo-thumbnail-store',
     [ 'test-nemo-thumbnail-store.c' ],

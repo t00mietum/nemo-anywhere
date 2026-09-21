@@ -117,6 +117,36 @@ field: debug.testguard-all-deletes
 	default: false
 	desc: Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for
 
+field: file-cache.max-size-gib
+	type: float
+	default: 2
+	desc: Largest the file cache may get, in GiB. The least recently drawn thumbnails go first. 0 for no limit
+
+field: file-cache.max-age-days
+	type: int
+	default: 180
+	desc: Drop a thumbnail not drawn for this many days. 0 to keep them however old
+
+field: file-cache.drop-missing
+	type: bool
+	default: true
+	desc: Forget a local file that is gone from a folder that is still there. A folder that is missing entirely is left alone, since it may be on a drive that is not plugged in
+
+field: file-cache.prune-min-hours
+	type: int
+	default: 4
+	desc: Soonest the file cache is cleaned up again. The next time is picked at random between this and prune-max-hours
+
+field: file-cache.prune-max-hours
+	type: int
+	default: 24
+	desc: Latest the file cache is cleaned up again
+
+field: file-cache.prune-idle-minutes
+	type: int
+	default: 5
+	desc: Wait until no thumbnails have been drawn for this many minutes before cleaning up. 0 to not wait
+
 field: interface.clock-use-24h
 	type: bool
 	default: true

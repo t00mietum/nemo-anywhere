@@ -41,6 +41,15 @@ G_BEGIN_DECLS
 #define NEMO_DEBUG_GROUP						"debug"
 #define NEMO_PREFERENCES_TESTGUARD_ALL_DELETES	"testguard-all-deletes"
 
+/* The file cache and when it is cleaned up. */
+#define NEMO_FILE_CACHE_GROUP				"file-cache"
+#define NEMO_FILE_CACHE_MAX_SIZE_GIB			"max-size-gib"
+#define NEMO_FILE_CACHE_MAX_AGE_DAYS			"max-age-days"
+#define NEMO_FILE_CACHE_DROP_MISSING			"drop-missing"
+#define NEMO_FILE_CACHE_PRUNE_MIN_HOURS			"prune-min-hours"
+#define NEMO_FILE_CACHE_PRUNE_MAX_HOURS			"prune-max-hours"
+#define NEMO_FILE_CACHE_PRUNE_IDLE_MINUTES		"prune-idle-minutes"
+
 /* Windows */
 #define NEMO_PREFERENCES_WINDOW_PER_PROCESS	"window-per-process"
 

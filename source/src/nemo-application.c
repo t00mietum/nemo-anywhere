@@ -89,6 +89,7 @@
 #include <libnemo-private/nemo-appearance.h>
 
 #include <libnemo-private/nemo-desktop-thumbnail.h>
+#include <libnemo-private/nemo-cache-db-prune.h>
 #include <libnemo-private/nemo-thumbnail-prune.h>
 
 #define NEMO_ACCEL_MAP_SAVE_DELAY 30
@@ -653,6 +654,7 @@ nemo_application_startup (GApplication *app)
     self->priv->ignore_cache_problem = FALSE;
 
     nemo_thumbnail_prune_schedule ();
+    nemo_cache_db_prune_schedule ();
 
     /* If 'treat-root-as-normal' is true, assume we're running root as well,
        so we can skip the permission checks */
@@ -676,6 +678,7 @@ nemo_application_quit_mainloop (GApplication *app)
 {
 	DEBUG ("Quitting mainloop");
 
+    nemo_cache_db_prune_stop ();
     nemo_icon_info_clear_caches ();
     save_accel_map (NULL);
     g_object_unref (NEMO_APPLICATION (app)->undo_manager);

@@ -30,9 +30,15 @@
 #include <sqlite3.h>
 #include <string.h>
 
+#ifdef G_OS_WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+
 /* Bumped when the tables change. The store is a cache, so a file written by
  * another version is thrown away rather than migrated. */
-#define SCHEMA_VERSION 2
+#define SCHEMA_VERSION 3
 
 /* How long a statement waits for another process to finish writing. Long enough
  * that a busy window wins rather than dropping its work, short enough that a
@@ -43,13 +49,30 @@
 #define RENDER_FLUSH_SECS 30
 #define RENDER_FLUSH_MAX  256
 
+/* A claim on the prune nobody has touched for this long belongs to a process
+ * that died part way through. */
+#define CLAIM_STALE_SECS (10 * 60)
+
+/* Rows per prune transaction. Small enough that a window waiting to write
+ * never waits long. */
+#define PRUNE_BATCH 256
+
+/* Pages handed back to the disk per step while compacting. */
+#define COMPACT_STEP_PAGES 256
+
+/* A folder that takes this long to answer is probably on the network, and is
+ * not asked about again in the same pass. */
+#define SLOW_FOLDER_USECS G_USEC_PER_SEC
+
 struct _NemoCacheDb {
 	sqlite3     *handle;
 	GMutex       lock;
 
 	/* Set when sqlite reports the file is damaged. Everything after that is a
-	 * no-op: the next launch finds it at open time and starts over, which is
-	 * safer than deleting a file other processes still have open. */
+	 * no-op, and a marker beside the file tells the next launch to start
+	 * over, which is safer than deleting a file other processes still have
+	 * open. A damaged page deep in the file does not stop it opening, so
+	 * without the marker nothing would ever notice. */
 	gboolean     broken;
 
 	/* uri -> draws not yet written. Guarded by `lock`. */
@@ -63,6 +86,10 @@ struct _NemoCacheDb {
 static GMutex      the_db_lock;
 static NemoCacheDb *the_db = NULL;
 static gboolean     the_db_tried = FALSE;
+
+/* Monotonic seconds of the last lookup, store or draw, for the prune's idle
+ * test. 0 until something uses the store. */
+static gint last_used_secs = 0;
 
 static const char SCHEMA[] =
 	"CREATE TABLE IF NOT EXISTS files ("
@@ -88,7 +115,51 @@ static const char SCHEMA[] =
 	"  rendered  INTEGER NOT NULL DEFAULT 0,"
 	"  renders   INTEGER NOT NULL DEFAULT 0,"
 	"  image     BLOB NOT NULL);"
-	"CREATE INDEX IF NOT EXISTS thumbnails_rendered ON thumbnails (rendered);";
+	"CREATE INDEX IF NOT EXISTS thumbnails_rendered ON thumbnails (rendered);"
+	/* The prune's own bookkeeping. Claiming a pass is a write transaction,
+	 * and sqlite already makes those take turns across processes, so two
+	 * copies cannot both think they won. */
+	"CREATE TABLE IF NOT EXISTS prune ("
+	"  id           INTEGER PRIMARY KEY CHECK (id = 1),"
+	"  started      INTEGER NOT NULL DEFAULT 0,"
+	"  completed    INTEGER NOT NULL DEFAULT 0,"
+	"  completed_by INTEGER NOT NULL DEFAULT 0,"
+	"  removed      INTEGER NOT NULL DEFAULT 0,"
+	"  owner        INTEGER NOT NULL DEFAULT 0,"
+	"  heartbeat    INTEGER NOT NULL DEFAULT 0,"
+	"  due          INTEGER NOT NULL DEFAULT 0);"
+	"INSERT OR IGNORE INTO prune (id) VALUES (1);";
+
+static char *
+damaged_marker_path (const char *db_path)
+{
+	return g_strconcat (db_path, ".damaged", NULL);
+}
+
+static void
+mark_damaged (void)
+{
+	g_autofree char *path = nemo_cache_db_path ();
+	g_autofree char *marker = NULL;
+
+	if (path == NULL)
+		return;
+
+	marker = damaged_marker_path (path);
+	g_file_set_contents (marker, "", 0, NULL);
+}
+
+static void
+touch (void)
+{
+	g_atomic_int_set (&last_used_secs, (gint) (g_get_monotonic_time () / G_USEC_PER_SEC));
+}
+
+gint64
+nemo_cache_db_last_used (void)
+{
+	return g_atomic_int_get (&last_used_secs);
+}
 
 /* sqlite reports a damaged file several ways depending on where it noticed. */
 static gboolean
@@ -112,9 +183,11 @@ db_ok (NemoCacheDb *db, int rc, const char *what)
 		return TRUE;
 
 	if (is_corruption (rc)) {
-		if (!db->broken)
+		if (!db->broken) {
 			g_warning ("the file cache is damaged and will be rebuilt next run (%s: %s)",
 				   what, sqlite3_errstr (rc));
+			mark_damaged ();
+		}
 		db->broken = TRUE;
 	} else {
 		g_debug ("file cache %s: %s", what, sqlite3_errstr (rc));
@@ -235,11 +308,20 @@ open_at (const char *path, gboolean *out_rebuild)
 
 	sqlite3_busy_timeout (handle, BUSY_TIMEOUT_MS);
 
-	/* WAL so a reading window is not blocked by a writing one, and NORMAL
+	/* Incremental vacuum so the prune can hand space back a few pages at a
+	 * time, rather than a full VACUUM holding the write lock for as long as
+	 * it takes to copy the whole file. It only takes on a file with no tables
+	 * yet, which is every file this version opens, since an older one is
+	 * wiped.
+	 *
+	 * WAL so a reading window is not blocked by a writing one, and NORMAL
 	 * because losing the last few rows to a power cut costs a re-read and
-	 * nothing else. */
+	 * nothing else. The size limit trims the journal back after a prune has
+	 * grown it. */
 	rc = sqlite3_exec (handle,
+			   "PRAGMA auto_vacuum = INCREMENTAL;"
 			   "PRAGMA journal_mode = WAL;"
+			   "PRAGMA journal_size_limit = 67108864;"
 			   "PRAGMA synchronous = NORMAL;"
 			   "PRAGMA foreign_keys = ON;",
 			   NULL, NULL, &err);
@@ -296,6 +378,7 @@ db_open (void)
 	sqlite3         *handle;
 	gboolean         rebuild = FALSE;
 	g_autofree char *path = NULL;
+	g_autofree char *marker = NULL;
 
 	/* A build of sqlite with threading compiled out would corrupt the file the
 	 * first time a worker wrote while the main loop read. Nothing we ship is
@@ -308,6 +391,17 @@ db_open (void)
 	path = nemo_cache_db_path ();
 	if (path == NULL)
 		return NULL;
+
+	marker = damaged_marker_path (path);
+	if (g_file_test (marker, G_FILE_TEST_EXISTS)) {
+		g_message ("starting the damaged file cache at %s over", path);
+		remove_db_files (path);
+
+		/* On Windows a file another copy still has open cannot be
+		 * removed, so the marker stays for the next launch to try. */
+		if (!g_file_test (path, G_FILE_TEST_EXISTS))
+			g_unlink (marker);
+	}
 
 	handle = open_at (path, &rebuild);
 
@@ -739,6 +833,8 @@ nemo_cache_db_thumbnail_lookup (NemoCacheDb         *db,
 	if (db == NULL || db->broken)
 		return FALSE;
 
+	touch ();
+
 	g_mutex_lock (&db->lock);
 
 	fid = file_by_digest (db, id);
@@ -807,6 +903,8 @@ nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 	}
 
 	now = g_get_real_time () / G_USEC_PER_SEC;
+
+	touch ();
 
 	g_mutex_lock (&db->lock);
 
@@ -945,6 +1043,8 @@ nemo_cache_db_note_render (NemoCacheDb *db, const char *uri)
 
 	if (db == NULL || db->broken)
 		return;
+
+	touch ();
 
 	g_mutex_lock (&db->lock);
 
@@ -1119,4 +1219,636 @@ nemo_cache_db_close (void)
 	g_mutex_clear (&db->lock);
 
 	g_free (db);
+}
+
+static gint64
+wall_secs (void)
+{
+	return g_get_real_time () / G_USEC_PER_SEC;
+}
+
+/* sqlite calls this every so often during a long statement. Non-zero stops it
+ * with SQLITE_INTERRUPT, which is how a quit reaches a pass that is part way
+ * through checking a big file. */
+static int
+prune_interrupted (void *data)
+{
+	return g_cancellable_is_cancelled (G_CANCELLABLE (data));
+}
+
+typedef enum {
+	CLAIM_WON,
+	CLAIM_NOT_DUE,
+	CLAIM_BUSY,
+	CLAIM_ERROR
+} ClaimResult;
+
+static ClaimResult
+claim_pass (NemoCacheDb *db, const NemoCachePruneRules *rules, gint64 *due)
+{
+	static const char read_sql[] = "SELECT owner, heartbeat, due FROM prune WHERE id = 1";
+	static const char take_sql[] =
+		"UPDATE prune SET owner = ?, heartbeat = ?, started = ?, completed = 0 WHERE id = 1";
+	sqlite3_stmt *stmt;
+	gint64        owner = 0, heartbeat = 0;
+	gint64        me = (gint64) getpid ();
+	gboolean      found = FALSE;
+	gboolean      ok;
+
+	/* Another copy writing for longer than the busy timeout is another copy
+	 * busy, not an error. */
+	if (!begin (db))
+		return db->broken ? CLAIM_ERROR : CLAIM_BUSY;
+
+	stmt = prep (db, read_sql, "read prune state");
+	if (stmt != NULL) {
+		if (sqlite3_step (stmt) == SQLITE_ROW) {
+			owner     = sqlite3_column_int64 (stmt, 0);
+			heartbeat = sqlite3_column_int64 (stmt, 1);
+			*due      = sqlite3_column_int64 (stmt, 2);
+			found = TRUE;
+		}
+		sqlite3_finalize (stmt);
+	}
+
+	if (!found) {
+		rollback (db);
+		return CLAIM_ERROR;
+	}
+
+	if (owner != 0 && owner != me && wall_secs () - heartbeat < CLAIM_STALE_SECS) {
+		rollback (db);
+		return CLAIM_BUSY;
+	}
+
+	if (!rules->force && rules->now < *due) {
+		rollback (db);
+		return CLAIM_NOT_DUE;
+	}
+
+	stmt = prep (db, take_sql, "claim prune");
+	if (stmt == NULL) {
+		rollback (db);
+		return CLAIM_ERROR;
+	}
+
+	sqlite3_bind_int64 (stmt, 1, me);
+	sqlite3_bind_int64 (stmt, 2, wall_secs ());
+	sqlite3_bind_int64 (stmt, 3, wall_secs ());
+	ok = db_ok (db, sqlite3_step (stmt), "claim prune");
+	sqlite3_finalize (stmt);
+
+	if (!ok) {
+		rollback (db);
+		return CLAIM_ERROR;
+	}
+
+	return commit (db) ? CLAIM_WON : CLAIM_ERROR;
+}
+
+/* Called inside each batch's transaction. Stamps the claim so nobody takes it
+ * for a dead one, and answers false if somebody already has - a pass that
+ * stalled past the stale limit must not carry on beside the one that took
+ * over. */
+static gboolean
+still_ours (NemoCacheDb *db)
+{
+	static const char sql[] = "UPDATE prune SET heartbeat = ? WHERE id = 1 AND owner = ?";
+	sqlite3_stmt *stmt = prep (db, sql, "prune heartbeat");
+	gboolean      ok;
+
+	if (stmt == NULL)
+		return FALSE;
+
+	sqlite3_bind_int64 (stmt, 1, wall_secs ());
+	sqlite3_bind_int64 (stmt, 2, (gint64) getpid ());
+	ok = db_ok (db, sqlite3_step (stmt), "prune heartbeat")
+		&& sqlite3_changes (db->handle) == 1;
+	sqlite3_finalize (stmt);
+
+	return ok;
+}
+
+/* Lets go of the claim. A finished pass records what it did and when the next
+ * one is due; a `due` below zero leaves the old time alone. */
+static void
+release_pass (NemoCacheDb *db, gboolean finished, gint64 removed, gint64 due)
+{
+	static const char done_sql[] =
+		"UPDATE prune SET owner = 0, completed = ?, completed_by = ?, removed = ?, due = ?"
+		" WHERE id = 1 AND owner = ?";
+	static const char stop_sql[] =
+		"UPDATE prune SET owner = 0, due = MAX (due, ?) WHERE id = 1 AND owner = ?";
+	sqlite3_stmt *stmt;
+	gint64        me = (gint64) getpid ();
+
+	stmt = prep (db, finished ? done_sql : stop_sql, "release prune");
+	if (stmt == NULL)
+		return;
+
+	if (finished) {
+		sqlite3_bind_int64 (stmt, 1, wall_secs ());
+		sqlite3_bind_int64 (stmt, 2, me);
+		sqlite3_bind_int64 (stmt, 3, removed);
+		sqlite3_bind_int64 (stmt, 4, due);
+		sqlite3_bind_int64 (stmt, 5, me);
+	} else {
+		sqlite3_bind_int64 (stmt, 1, MAX (due, 0));
+		sqlite3_bind_int64 (stmt, 2, me);
+	}
+
+	db_ok (db, sqlite3_step (stmt), "release prune");
+	sqlite3_finalize (stmt);
+}
+
+/* quick_check rather than integrity_check: it skips matching every index
+ * against its table, which is most of the cost, and still reads every page. */
+static gboolean
+integrity_ok (NemoCacheDb *db)
+{
+	sqlite3_stmt *stmt = prep (db, "PRAGMA quick_check (1)", "check");
+	const char   *answer;
+	gboolean      ok = FALSE;
+	int           rc;
+
+	if (stmt == NULL)
+		return FALSE;
+
+	rc = sqlite3_step (stmt);
+	if (rc == SQLITE_ROW) {
+		answer = (const char *) sqlite3_column_text (stmt, 0);
+		ok = g_strcmp0 (answer, "ok") == 0;
+
+		if (!ok && !db->broken) {
+			g_warning ("the file cache is damaged and will be rebuilt next run (%s)",
+				   answer != NULL ? answer : "no detail");
+			mark_damaged ();
+			db->broken = TRUE;
+		}
+	} else {
+		db_ok (db, rc, "check");
+	}
+
+	sqlite3_finalize (stmt);
+
+	return ok;
+}
+
+typedef enum {
+	FOLDER_THERE = 1,
+	FOLDER_GONE,
+	FOLDER_SLOW
+} FolderState;
+
+/* True for a local file that is gone from a folder that is still there. A file
+ * whose whole folder is missing is left alone, since that is more often a drive
+ * that is not plugged in than a folder that was deleted. `folders` remembers
+ * each folder's answer for the rest of the pass. */
+static gboolean
+local_file_is_gone (const char *uri, GHashTable *folders)
+{
+	g_autofree char *path = g_filename_from_uri (uri, NULL, NULL);
+	g_autofree char *folder = NULL;
+	FolderState      state;
+	gint64           asked;
+
+	if (path == NULL)
+		return FALSE;
+
+	/* A share can take twenty seconds to say no, once per question. */
+	if ((path[0] == '/' && path[1] == '/') || (path[0] == '\\' && path[1] == '\\'))
+		return FALSE;
+
+	folder = g_path_get_dirname (path);
+	state = GPOINTER_TO_INT (g_hash_table_lookup (folders, folder));
+
+	if (state == 0) {
+		asked = g_get_monotonic_time ();
+		state = g_file_test (folder, G_FILE_TEST_IS_DIR) ? FOLDER_THERE : FOLDER_GONE;
+		if (g_get_monotonic_time () - asked > SLOW_FOLDER_USECS)
+			state = FOLDER_SLOW;
+		g_hash_table_insert (folders, g_steal_pointer (&folder), GINT_TO_POINTER (state));
+	}
+
+	return state == FOLDER_THERE && !g_file_test (path, G_FILE_TEST_EXISTS);
+}
+
+/* Forgets the names of local files that are gone. What they pointed at goes in
+ * the next step, once nothing points at it. The files are asked about with no
+ * transaction open, since that part can be slow. */
+static gboolean
+drop_missing_paths (NemoCacheDb *db, GCancellable *cancellable)
+{
+	static const char list_sql[] =
+		"SELECT rowid, uri FROM paths WHERE rowid > ? ORDER BY rowid LIMIT "
+		G_STRINGIFY (PRUNE_BATCH);
+	static const char drop_sql[] = "DELETE FROM paths WHERE rowid = ?";
+	g_autoptr (GHashTable) folders = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+	g_autoptr (GArray)     gone = g_array_new (FALSE, FALSE, sizeof (gint64));
+	g_autoptr (GPtrArray)  uris = g_ptr_array_new_with_free_func (g_free);
+	g_autoptr (GArray)     rowids = g_array_new (FALSE, FALSE, sizeof (gint64));
+	sqlite3_stmt          *stmt;
+	gint64                 after = 0;
+	gboolean               ok = TRUE;
+	guint                  i;
+
+	for (;;) {
+		g_ptr_array_set_size (uris, 0);
+		g_array_set_size (rowids, 0);
+		g_array_set_size (gone, 0);
+
+		stmt = prep (db, list_sql, "list paths");
+		if (stmt == NULL)
+			return FALSE;
+
+		sqlite3_bind_int64 (stmt, 1, after);
+		while (sqlite3_step (stmt) == SQLITE_ROW) {
+			gint64 rowid = sqlite3_column_int64 (stmt, 0);
+
+			g_array_append_val (rowids, rowid);
+			g_ptr_array_add (uris, g_strdup ((const char *) sqlite3_column_text (stmt, 1)));
+		}
+		sqlite3_finalize (stmt);
+
+		if (rowids->len == 0)
+			break;
+
+		after = g_array_index (rowids, gint64, rowids->len - 1);
+
+		for (i = 0; i < uris->len; i++) {
+			if (g_cancellable_is_cancelled (cancellable))
+				return FALSE;
+			if (g_ptr_array_index (uris, i) != NULL
+			    && local_file_is_gone (g_ptr_array_index (uris, i), folders))
+				g_array_append_val (gone, g_array_index (rowids, gint64, i));
+		}
+
+		if (gone->len > 0) {
+			if (!begin (db))
+				return FALSE;
+			ok = still_ours (db);
+
+			stmt = ok ? prep (db, drop_sql, "drop path") : NULL;
+			ok = ok && stmt != NULL;
+			for (i = 0; ok && i < gone->len; i++) {
+				sqlite3_reset (stmt);
+				sqlite3_bind_int64 (stmt, 1, g_array_index (gone, gint64, i));
+				ok = db_ok (db, sqlite3_step (stmt), "drop path");
+			}
+			sqlite3_finalize (stmt);
+
+			if (ok)
+				ok = commit (db);
+			else
+				rollback (db);
+
+			if (!ok)
+				return FALSE;
+		}
+
+		if (rowids->len < PRUNE_BATCH)
+			break;
+	}
+
+	return TRUE;
+}
+
+/* Runs one batch statement inside its own transaction, with the claim checked
+ * first. `sql` may carry one bound value. Answers the rows changed, or -1. */
+static gint64
+batch_delete (NemoCacheDb *db, const char *sql, gboolean bind, gint64 value, const char *what)
+{
+	sqlite3_stmt *stmt;
+	gint64        changed = -1;
+
+	if (!begin (db))
+		return -1;
+
+	if (!still_ours (db)) {
+		rollback (db);
+		return -1;
+	}
+
+	stmt = prep (db, sql, what);
+	if (stmt != NULL) {
+		if (bind)
+			sqlite3_bind_int64 (stmt, 1, value);
+		if (db_ok (db, sqlite3_step (stmt), what))
+			changed = sqlite3_changes (db->handle);
+		sqlite3_finalize (stmt);
+	}
+
+	if (changed < 0) {
+		rollback (db);
+		return -1;
+	}
+
+	return commit (db) ? changed : -1;
+}
+
+/* A file record nothing points at any more goes, and its thumbnail with it.
+ * The thumbnails are deleted by hand rather than left to the cascade, because
+ * sqlite does not count what a cascade removes. */
+static gboolean
+drop_orphans (NemoCacheDb *db, GCancellable *cancellable, gint64 *removed)
+{
+	static const char pick_sql[] =
+		"DELETE FROM doomed;"
+		"INSERT INTO doomed SELECT id FROM files f"
+		" WHERE NOT EXISTS (SELECT 1 FROM paths p WHERE p.file_id = f.id)"
+		" LIMIT " G_STRINGIFY (PRUNE_BATCH) ";";
+	gint64   picked;
+	gboolean ok;
+
+	if (!db_ok (db, sqlite3_exec (db->handle,
+				      "CREATE TEMP TABLE IF NOT EXISTS doomed (id INTEGER PRIMARY KEY)",
+				      NULL, NULL, NULL), "orphans"))
+		return FALSE;
+
+	do {
+		if (g_cancellable_is_cancelled (cancellable) || !begin (db))
+			return FALSE;
+
+		ok = still_ours (db)
+			&& db_ok (db, sqlite3_exec (db->handle, pick_sql, NULL, NULL, NULL), "orphans");
+		picked = ok ? sqlite3_changes (db->handle) : 0;
+
+		if (ok && picked > 0) {
+			ok = db_ok (db, sqlite3_exec (db->handle,
+						      "DELETE FROM thumbnails WHERE file_id IN (SELECT id FROM doomed)",
+						      NULL, NULL, NULL), "orphans");
+			if (ok)
+				*removed += sqlite3_changes (db->handle);
+			ok = ok && db_ok (db, sqlite3_exec (db->handle,
+							    "DELETE FROM files WHERE id IN (SELECT id FROM doomed)",
+							    NULL, NULL, NULL), "orphans");
+		}
+
+		if (ok)
+			ok = commit (db);
+		else
+			rollback (db);
+
+		if (!ok)
+			return FALSE;
+	} while (picked == PRUNE_BATCH);
+
+	return TRUE;
+}
+
+/* A thumbnail's age is the last time it was drawn, or when it was made if it
+ * never has been. */
+static gboolean
+drop_old (NemoCacheDb *db, GCancellable *cancellable, gint64 cutoff, gint64 *removed)
+{
+	static const char sql[] =
+		"DELETE FROM thumbnails WHERE file_id IN (SELECT file_id FROM thumbnails"
+		" WHERE MAX (rendered, stored) < ? LIMIT " G_STRINGIFY (PRUNE_BATCH) ")";
+	gint64 changed;
+
+	do {
+		if (g_cancellable_is_cancelled (cancellable))
+			return FALSE;
+
+		changed = batch_delete (db, sql, TRUE, cutoff, "drop old");
+		if (changed < 0)
+			return FALSE;
+
+		*removed += changed;
+	} while (changed == PRUNE_BATCH);
+
+	return TRUE;
+}
+
+static gint64
+pragma_int (NemoCacheDb *db, const char *sql)
+{
+	sqlite3_stmt *stmt = prep (db, sql, "size");
+
+	return stmt != NULL ? step_id (stmt) : -1;
+}
+
+/* What the file really takes, not counting pages it has already freed. */
+static gint64
+used_bytes (NemoCacheDb *db)
+{
+	gint64 pages = pragma_int (db, "PRAGMA page_count");
+	gint64 unused = pragma_int (db, "PRAGMA freelist_count");
+	gint64 page_size = pragma_int (db, "PRAGMA page_size");
+
+	if (pages < 0 || unused < 0 || page_size <= 0)
+		return -1;
+
+	return (pages - unused) * page_size;
+}
+
+/* Least recently drawn first, taking only as many as it takes to get under. */
+static gboolean
+drop_to_size (NemoCacheDb *db, GCancellable *cancellable, gint64 max_bytes, gint64 *removed)
+{
+	static const char pick_sql[] =
+		"SELECT file_id, LENGTH (image) FROM thumbnails"
+		" ORDER BY MAX (rendered, stored), file_id LIMIT " G_STRINGIFY (PRUNE_BATCH);
+	static const char drop_sql[] = "DELETE FROM thumbnails WHERE file_id = ?";
+	g_autoptr (GArray) doomed = g_array_new (FALSE, FALSE, sizeof (gint64));
+	sqlite3_stmt      *stmt;
+	gint64             used, excess, freed;
+	gboolean           ok;
+	guint              i;
+
+	for (;;) {
+		if (g_cancellable_is_cancelled (cancellable))
+			return FALSE;
+
+		used = used_bytes (db);
+		if (used < 0)
+			return FALSE;
+		if (used <= max_bytes)
+			return TRUE;
+
+		excess = used - max_bytes;
+		freed = 0;
+		g_array_set_size (doomed, 0);
+
+		if (!begin (db))
+			return FALSE;
+		ok = still_ours (db);
+
+		stmt = ok ? prep (db, pick_sql, "pick oldest") : NULL;
+		if (stmt != NULL) {
+			while (freed < excess && sqlite3_step (stmt) == SQLITE_ROW) {
+				gint64 fid = sqlite3_column_int64 (stmt, 0);
+
+				g_array_append_val (doomed, fid);
+				freed += sqlite3_column_int64 (stmt, 1);
+			}
+			sqlite3_finalize (stmt);
+		} else {
+			ok = FALSE;
+		}
+
+		stmt = (ok && doomed->len > 0) ? prep (db, drop_sql, "drop oldest") : NULL;
+		for (i = 0; stmt != NULL && ok && i < doomed->len; i++) {
+			sqlite3_reset (stmt);
+			sqlite3_bind_int64 (stmt, 1, g_array_index (doomed, gint64, i));
+			ok = db_ok (db, sqlite3_step (stmt), "drop oldest");
+		}
+		sqlite3_finalize (stmt);
+
+		if (ok)
+			ok = commit (db);
+		else
+			rollback (db);
+
+		if (!ok)
+			return FALSE;
+
+		/* Nothing left to take, and what is over is names and records. */
+		if (doomed->len == 0)
+			return TRUE;
+
+		*removed += doomed->len;
+	}
+}
+
+/* Hands freed pages back to the disk a step at a time, each its own short
+ * write, so nobody else waits on it for long. */
+static gboolean
+compact (NemoCacheDb *db, GCancellable *cancellable)
+{
+	gint64 unused, before;
+
+	unused = pragma_int (db, "PRAGMA freelist_count");
+
+	while (unused > 0) {
+		if (g_cancellable_is_cancelled (cancellable))
+			return FALSE;
+
+		if (!db_ok (db, sqlite3_exec (db->handle,
+					      "PRAGMA incremental_vacuum (" G_STRINGIFY (COMPACT_STEP_PAGES) ")",
+					      NULL, NULL, NULL), "compact"))
+			return FALSE;
+
+		before = unused;
+		unused = pragma_int (db, "PRAGMA freelist_count");
+
+		/* A file made before incremental vacuum was turned on never
+		 * shrinks this way. Not worth looping over. */
+		if (unused >= before)
+			break;
+	}
+
+	sqlite3_exec (db->handle, "PRAGMA wal_checkpoint (PASSIVE)", NULL, NULL, NULL);
+
+	return unused >= 0;
+}
+
+static gint64
+next_gap (const NemoCachePruneRules *rules)
+{
+	gint64 low = MAX (rules->gap_min_secs, 0);
+	gint64 span = MAX (rules->gap_max_secs - low, 0);
+
+	span = MIN (span, (gint64) G_MAXINT32 - 1);
+
+	return low + (span > 0 ? g_random_int_range (0, (gint32) span + 1) : 0);
+}
+
+NemoCachePruneResult
+nemo_cache_db_prune (const NemoCachePruneRules *rules,
+		     GCancellable              *cancellable,
+		     gint64                    *removed_out,
+		     gint64                    *due_out)
+{
+	g_autofree char     *path = nemo_cache_db_path ();
+	g_autoptr (GCancellable) own_cancellable = NULL;
+	NemoCacheDb          pruner = { 0 };
+	NemoCachePruneResult result;
+	gboolean             rebuild = FALSE;
+	gboolean             ok;
+	gint64               removed = 0;
+	gint64               due = 0;
+
+	g_return_val_if_fail (rules != NULL, NEMO_CACHE_PRUNE_FAILED);
+
+	if (removed_out != NULL)
+		*removed_out = 0;
+	if (due_out != NULL)
+		*due_out = 0;
+
+	if (path == NULL)
+		return NEMO_CACHE_PRUNE_FAILED;
+
+	if (cancellable == NULL)
+		cancellable = own_cancellable = g_cancellable_new ();
+
+	/* A connection of its own, so a long pass never holds the lock the draw
+	 * path waits on. The two take turns at the file through sqlite's own
+	 * locking, the same as two processes do. */
+	pruner.handle = open_at (path, &rebuild);
+	if (pruner.handle == NULL) {
+		if (rebuild)
+			mark_damaged ();
+		return rebuild ? NEMO_CACHE_PRUNE_DAMAGED : NEMO_CACHE_PRUNE_FAILED;
+	}
+
+	switch (claim_pass (&pruner, rules, &due)) {
+	case CLAIM_WON:
+		/* Only now, so a quit cannot leave the claim half taken. */
+		sqlite3_progress_handler (pruner.handle, 1000, prune_interrupted, cancellable);
+		break;
+	case CLAIM_NOT_DUE:
+		result = NEMO_CACHE_PRUNE_NOT_DUE;
+		goto out;
+	case CLAIM_BUSY:
+		due = 0;
+		result = NEMO_CACHE_PRUNE_BUSY;
+		goto out;
+	case CLAIM_ERROR:
+	default:
+		due = 0;
+		result = pruner.broken ? NEMO_CACHE_PRUNE_DAMAGED : NEMO_CACHE_PRUNE_FAILED;
+		goto out;
+	}
+
+	ok = integrity_ok (&pruner)
+		&& (!rules->drop_missing || drop_missing_paths (&pruner, cancellable))
+		&& drop_orphans (&pruner, cancellable, &removed)
+		&& (rules->max_age_secs <= 0
+		    || drop_old (&pruner, cancellable, rules->now - rules->max_age_secs, &removed))
+		&& (rules->max_bytes <= 0
+		    || drop_to_size (&pruner, cancellable, rules->max_bytes, &removed))
+		&& compact (&pruner, cancellable);
+
+	/* Or the release below is interrupted too. */
+	sqlite3_progress_handler (pruner.handle, 0, NULL, NULL);
+
+	if (ok) {
+		due = rules->now + next_gap (rules);
+		release_pass (&pruner, TRUE, removed, due);
+		result = NEMO_CACHE_PRUNE_DONE;
+	} else if (pruner.broken) {
+		/* The file is going at the next launch, claim and all. */
+		due = 0;
+		result = NEMO_CACHE_PRUNE_DAMAGED;
+	} else if (g_cancellable_is_cancelled (cancellable)) {
+		release_pass (&pruner, FALSE, 0, -1);
+		due = 0;
+		result = NEMO_CACHE_PRUNE_CANCELLED;
+	} else {
+		/* Not straight back into whatever went wrong. */
+		due = rules->now + MAX (rules->gap_min_secs, 0);
+		release_pass (&pruner, FALSE, 0, due);
+		result = NEMO_CACHE_PRUNE_FAILED;
+	}
+
+out:
+	sqlite3_close (pruner.handle);
+
+	if (removed_out != NULL)
+		*removed_out = removed;
+	if (due_out != NULL)
+		*due_out = due;
+
+	return result;
 }

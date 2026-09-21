@@ -97,7 +97,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Use the proper OS-specific cache locations for the database thumbnail cache.
 	- Statically link SQLite3 into all executables. (It will also come in handy for future features.)
 	- Opened: 20260921. Started: 20260921.
-	- Done so far: the store itself, its tests, the build dependency, and drawing from it.
+	- Done so far: the store itself, its tests, the build dependency, drawing from it, and pruning.
 	- Three tables. A file's contents are one record, the names it is known by are another, and a thumbnail hangs off the contents. So a file that moved keeps its thumbnail, and a file nothing can draw is still a record - which is what a duplicate finder would read.
 	- A checksum settles what two records that looked separate really were, and folds them into one. Without one, size and timestamp together are the only guess available.
 	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 is vendored under `vendor/blake3`, runs at 2459 MB/s and builds to 65,716 bytes. It checks out against the numbers blake3 publishes, which matters because a checksum written to a file outlives this program.
@@ -106,7 +106,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The checksum goes on the file in the three attributes asked for, checked from outside the program so the names really are `user.blake3.b64u`, `.bytes` and `.mtime`. On Windows they are alternate data streams, and that half passes on an NTFS drive. It passes under wine too, but for the wrong reason: a colon is an ordinary character in a Linux filename, so wine writes a second file beside the first.
 	- Thumbnails are read from the store and written to it. The freedesktop cache is still read when the store has nothing, and never written. Each one is kept at the largest size it has been shown at, and made again bigger when a zoom asks for more.
 	- A file that could not be drawn is remembered, so it is not tried again every launch.
-	- Still to do: the pruning thread, the settings page, and writing the checksum onto files, which waits for its setting.
+	- Still to do: the settings page, and writing the checksum onto files, which waits for its setting.
+	- Pruning runs on its own thread, one process at a time, at random every 4 to 24 hours once nothing has been drawn for 5 minutes. Its settings are in the config file under `file-cache`. A damaged file is found by the check and rebuilt at the next launch.
+	- The older sweep of the shared freedesktop cache still runs, with its own two settings on the Preview page. Nothing is written to that cache any more, so whether it goes is a question for the settings page.
 	- Tolerant of multiple process access.
 	- Tolerant of corrupt cache (db) file.
 	- Automatic cleanup:
