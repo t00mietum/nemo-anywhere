@@ -71,7 +71,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Not started. Settled 20260920: the zoom ladder grows rather than the thumbnail size being split off from it.
 		- The ladder runs past 256 to 640 at the top.
 		- The slider stops between the rungs as well, so a size that is not one of the named levels is reachable by dragging it.
-		- Open, and worth settling before any code: whether the list view shares the new top end (a 640px row is not useful), what a size between two rungs is saved as per folder, and what Zoom In and Zoom Out step by once the slider is finer than they are.
+		- Settled 20260920: the seven-value zoom enum goes. A size is a number of pixels, and the named steps become a table of presets that the combo boxes, Zoom Normal and the slider detents read. Adding a size is then a row in that table.
+		- Zoom In and Zoom Out step to the next preset either side of wherever the slider left things, so the keyboard stays coarse while the slider is fine.
+		- Saved sizes are pixels. An old saved value is a small number where a real size never is, so the two can be told apart on read.
+		- Open: whether the list view follows. Its size is currently which model column the row reads its icon from, and a tree model's column count is fixed, so the list view cannot take an arbitrary size until that is one column plus a size held beside it. It has no slider today and a 640px row is no use, so it could stay on the presets.
+		- Found while looking, and not part of this: the icon text width for Large is narrower than for Standard, and the desktop range is five steps where everything else is seven, so clamping to the widest range lands the desktop outside its own table.
 	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
 		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
 
