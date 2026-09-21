@@ -333,10 +333,9 @@ action_about_nemo_callback (GtkAction *action,
 				gpointer user_data)
 {
 	const gchar *license[] = {
-		/* The copyright label escapes markup, so links go here, where GTK
-		 * makes any URL clickable. */
-		N_("Licensed under GNU GPL v2: https://opensource.org/license/GPL-2.0\n"
-		   "Nemo authors: https://github.com/linuxmint/nemo/graphs/contributors"),
+		/* The copyright label escapes markup, so the link goes here, where
+		 * GTK makes any URL clickable. */
+		N_("Licensed under GNU GPL v2: https://opensource.org/license/GPL-2.0"),
 		N_("Nemo is free software; you can redistribute it and/or modify "
 		   "it under the terms of the GNU General Public License as published by "
 		   "the Free Software Foundation; version 2 of the License only."),
