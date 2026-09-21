@@ -48,4 +48,15 @@ if [[ -n "$bad" ]]; then
 	exit 2
 fi
 
+## The program is GPL-2.0-only, because a few fork files are. Headers on
+## inherited files still say or-later, which is fine for those files, so only
+## a quoted string is looked at - that is text the program shows. The extension
+## library is LGPL and keeps its own wording.
+bad="$(printf '%s\n' "${files[@]}" | grep '^source/' | grep -v '^source/libnemo-extension/' | xargs -d '\n' grep -nE '"[^"]*any later version' 2>/dev/null || true)"
+if [[ -n "$bad" ]]; then
+	fEcho "FAIL: text shown to the user offers a later GPL version"
+	printf '%s\n' "$bad"
+	exit 2
+fi
+
 fEcho "OK: identity lint: no findings"
