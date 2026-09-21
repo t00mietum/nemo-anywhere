@@ -1145,9 +1145,14 @@ nemo_cache_db_empty (NemoCacheDb *db)
 	sqlite3_free (err);
 
 	/* Dropping the rows leaves the file its old size, and somebody who just
-	 * asked for the cache to be emptied means the disk space too. */
-	if (done)
+	 * asked for the cache to be emptied means the disk space too. In WAL mode
+	 * the VACUUM writes the new file into the journal, which then holds more
+	 * than the old file did, so it is folded back in and cut short. Another
+	 * copy reading at the time can stop the cut, and that is left alone. */
+	if (done) {
 		sqlite3_exec (db->handle, "VACUUM", NULL, NULL, NULL);
+		sqlite3_exec (db->handle, "PRAGMA wal_checkpoint (TRUNCATE)", NULL, NULL, NULL);
+	}
 
 	g_mutex_unlock (&db->lock);
 

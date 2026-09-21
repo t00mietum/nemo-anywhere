@@ -46,6 +46,7 @@ G_BEGIN_DECLS
 #define NEMO_FILE_CACHE_MAX_SIZE_GIB			"max-size-gib"
 #define NEMO_FILE_CACHE_MAX_AGE_DAYS			"max-age-days"
 #define NEMO_FILE_CACHE_DROP_MISSING			"drop-missing"
+#define NEMO_FILE_CACHE_SAVE_CHECKSUM			"save-checksum"
 #define NEMO_FILE_CACHE_PRUNE_MIN_HOURS			"prune-min-hours"
 #define NEMO_FILE_CACHE_PRUNE_MAX_HOURS			"prune-max-hours"
 #define NEMO_FILE_CACHE_PRUNE_IDLE_MINUTES		"prune-idle-minutes"
@@ -254,8 +255,6 @@ typedef enum
 #define NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS "show-directory-item-counts"
 #define NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS	"show-image-thumbnails"
 #define NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT	"thumbnail-limit"
-#define NEMO_PREFERENCES_THUMBNAIL_CACHE_MAX_MB	"thumbnail-cache-max-mb"
-#define NEMO_PREFERENCES_THUMBNAIL_CACHE_MAX_DAYS	"thumbnail-cache-max-days"
 #define NEMO_PREFERENCES_INHERIT_SHOW_THUMBNAILS "inherit-show-thumbnails"
 
 /* bulk rename utility */

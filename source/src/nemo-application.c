@@ -90,7 +90,6 @@
 
 #include <libnemo-private/nemo-desktop-thumbnail.h>
 #include <libnemo-private/nemo-cache-db-prune.h>
-#include <libnemo-private/nemo-thumbnail-prune.h>
 
 #define NEMO_ACCEL_MAP_SAVE_DELAY 30
 
@@ -653,7 +652,6 @@ nemo_application_startup (GApplication *app)
     self->priv->cache_problem = FALSE;
     self->priv->ignore_cache_problem = FALSE;
 
-    nemo_thumbnail_prune_schedule ();
     nemo_cache_db_prune_schedule ();
 
     /* If 'treat-root-as-normal' is true, assume we're running root as well,

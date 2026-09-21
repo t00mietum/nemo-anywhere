@@ -132,6 +132,11 @@ field: file-cache.drop-missing
 	default: true
 	desc: Forget a local file that is gone from a folder that is still there. A folder that is missing entirely is left alone, since it may be on a drive that is not plugged in
 
+field: file-cache.save-checksum
+	type: bool
+	default: false
+	desc: Write each checksum onto the file it belongs to, as the extended attributes user.blake3.b64u, .bytes and .mtime. On Windows these are alternate data streams, which only local NTFS and ReFS drives keep
+
 field: file-cache.prune-min-hours
 	type: int
 	default: 4
@@ -587,16 +592,6 @@ field: preferences.thumbnail-limit
 	type: int
 	default: 1048576
 	desc: Largest image a thumbnail is made for, in bytes
-
-field: preferences.thumbnail-cache-max-mb
-	type: int
-	default: 512
-	desc: Largest the thumbnail cache may get, in megabytes. 0 for no limit.
-
-field: preferences.thumbnail-cache-max-days
-	type: int
-	default: 180
-	desc: Discard a thumbnail unused for this many days. 0 to keep them however old.
 
 field: preferences.thumbnail-threads
 	type: int

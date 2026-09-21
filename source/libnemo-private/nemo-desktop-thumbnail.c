@@ -49,7 +49,6 @@
 #include <glib/gstdio.h>
 #include <libnemo-private/nemo-posix-compat.h>
 #include <libnemo-private/nemo-file-utilities.h>
-#include <libnemo-private/nemo-thumbnail-prune.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -1006,10 +1005,7 @@ nemo_desktop_thumbnail_factory_lookup (NemoDesktopThumbnailFactory *factory,
   g_checksum_free (checksum);
 
   if (res)
-    {
-      nemo_thumbnail_prune_note_use (path);
-      return path;
-    }
+    return path;
 
   g_free (path);
   return NULL;

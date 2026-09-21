@@ -155,10 +155,8 @@ fCheckRawDeletes(){
 	allowed+='source/libnemo-private/nemo-link-win32.c '		# its own probe, and a link it failed to finish
 	allowed+='source/libnemo-private/nemo-archive.c '			# an archive it was writing
 	allowed+='source/libnemo-private/nemo-crash.c '			# old crash reports
-	allowed+='source/libnemo-private/nemo-thumbnail-prune.c '	# thumbnail cache
 	allowed+='source/libnemo-private/nemo-cache-db.c '		# a damaged cache file it is replacing
 	allowed+='source/libnemo-private/nemo-desktop-thumbnail.c '	# thumbnail cache
-	allowed+='source/libnemo-private/nemo-file.c '			# thumbnail cache
 	allowed+='source/src/nemo-bookmark-list.c '			# --reset
 	allowed+='source/src/nemo-main-application.c '			# --reset
 	local file bad=""

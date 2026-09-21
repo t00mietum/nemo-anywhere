@@ -85,6 +85,7 @@ typedef struct {
     guint cancelled : 1;
     guint read_anyway : 1;      /* making it reads the whole file, so checksum it too */
     guint had_thumbnail : 1;    /* a smaller one is already stored */
+    guint save_checksum : 1;    /* write the checksum onto the file too */
 } NemoThumbnailInfo;
 
 /* How it works:
@@ -463,6 +464,30 @@ learn_digest (NemoThumbnailInfo *info)
     info->id.has_digest = nemo_file_digest_file (file, info->id.digest, cancellable, NULL);
 }
 
+/* Last, once the store has it and the draw is on its way: an attribute write is
+ * slow. A file already carrying this checksum is left alone, so a folder shown
+ * again costs a read rather than a write. */
+static void
+save_digest_on_file (NemoThumbnailInfo *info)
+{
+    g_autoptr (GFile) file = NULL;
+    guint8 there[NEMO_CACHE_DIGEST_LEN];
+
+    if (!info->save_checksum || !info->id.has_digest || info->cancelled ||
+        g_cancellable_is_cancelled (cancellable))
+        return;
+
+    file = g_file_new_for_uri (info->image_uri);
+    if (g_file_peek_path (file) == NULL)
+        return;
+
+    if (nemo_file_digest_read_attr (file, info->id.bytes, info->id.mtime, there) &&
+        memcmp (there, info->id.digest, sizeof (there)) == 0)
+        return;
+
+    nemo_file_digest_write_attr (file, info->id.bytes, info->id.mtime, info->id.digest);
+}
+
 /* A copy of this file may already have been drawn big enough under another
  * name. Only a checksum can say so for certain; without one it is the size
  * and time guess the store makes. */
@@ -539,6 +564,7 @@ thumbnail_thread (gpointer data,
         g_idle_add_full (G_PRIORITY_HIGH_IDLE,
                          thumbnail_thread_notify_file_changed,
                          g_strdup (info->image_uri), NULL);
+        save_digest_on_file (info);
         remove_from_hash_table (info);
         return;
     }
@@ -621,6 +647,8 @@ thumbnail_thread (gpointer data,
                          thumbnail_thread_notify_file_changed,
                          g_strdup (info->image_uri), NULL);
     }
+
+    save_digest_on_file (info);
 
 #if DEBUG_THREADS
     g_message ("%u unprocessed (Done) (%u threads free)",
@@ -835,6 +863,8 @@ nemo_create_thumbnail (NemoFile *file, int size)
     info->size = nemo_thumbnail_size_step (size);
     info->read_anyway = nemo_can_thumbnail_internally (file);
     info->had_thumbnail = file->details->thumbnail_stored_size > 0;
+    info->save_checksum = nemo_config_get_boolean (nemo_config_get_group (NEMO_FILE_CACHE_GROUP),
+                                                   NEMO_FILE_CACHE_SAVE_CHECKSUM);
     info->add_time = g_get_monotonic_time ();
     info->cmd_type = THUMBNAIL_ADD;
 

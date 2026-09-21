@@ -17,6 +17,7 @@
 #include <string.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <utime.h>
 
 #include <libnemo-private/nemo-file-digest.h>
 #include <libnemo-private/nemo-file-xattr.h>
@@ -102,6 +103,35 @@ check_stale_attribute_is_refused (const char *scratch)
 	/* Edited without the timestamp moving, which some editors manage, but
 	 * the size gives it away. */
 	check (!nemo_file_digest_read_attr (file, bytes + 1, mtime, back));
+}
+
+/* Writing the checksum must not touch the time it was taken at. NTFS counts a
+ * write to any stream as a change to the whole file, so a careless write there
+ * makes every checksum stale as soon as it is written, and the file reads as edited
+ * to everything else too. */
+static void
+check_write_keeps_file_time (const char *scratch)
+{
+	g_autoptr (GFile) file = write_file (scratch, "kept", "hello");
+	g_autofree char *path = NULL;
+	struct utimbuf old = { 1600000000, 1600000000 };
+	guint8 digest[NEMO_CACHE_DIGEST_LEN];
+	GStatBuf before, after;
+
+	check (file != NULL);
+	if (file == NULL)
+		return;
+
+	path = g_file_get_path (file);
+	check (g_utime (path, &old) == 0);
+	check (g_stat (path, &before) == 0);
+
+	nemo_file_digest_bytes ("hello", 5, digest);
+	check (nemo_file_digest_write_attr (file, 5, (gint64) before.st_mtime * G_USEC_PER_SEC, digest));
+
+	check (g_stat (path, &after) == 0);
+	check (after.st_mtime == before.st_mtime);
+	check (after.st_mtime == 1600000000);
 }
 
 /* Each of the three attributes is written on its own, so a process that dies
@@ -191,6 +221,7 @@ main (int argc, char *argv[])
 
 	check_round_trip (scratch);
 	check_stale_attribute_is_refused (scratch);
+	check_write_keeps_file_time (scratch);
 	check_torn_write_is_refused (scratch);
 	check_junk_is_refused (scratch);
 

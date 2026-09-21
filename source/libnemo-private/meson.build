@@ -65,7 +65,6 @@ nemo_private_sources = [
   'nemo-file-digest.c',
   'nemo-file-xattr.c',
   'nemo-thumbnail-pixbuf-utils.c',
-  'nemo-thumbnail-prune.c',
   'nemo-mime-application-chooser.c',
   'nemo-module.c',
   'nemo-monitor.c',

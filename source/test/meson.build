@@ -146,14 +146,18 @@ test('Thumbnail store test',
   args: []
 )
 
-test('Thumbnail prune test',
-  executable('test-nemo-thumbnail-prune',
-    [ 'test-nemo-thumbnail-prune.c' ],
-    include_directories: [ rootInclude, ],
-    dependencies: [ gtk, nemo_private, test_scratch ],
-  ),
-  args: []
-)
+# Off since the sweep of the shared freedesktop thumbnail cache was retired:
+# nothing writes there any more, and the file cache prunes itself (see
+# test-nemo-cache-prune.c). test-nemo-thumbnail-prune.c needs
+# nemo-thumbnail-prune.h, which went with it.
+# test('Thumbnail prune test',
+#   executable('test-nemo-thumbnail-prune',
+#     [ 'test-nemo-thumbnail-prune.c' ],
+#     include_directories: [ rootInclude, ],
+#     dependencies: [ gtk, nemo_private, test_scratch ],
+#   ),
+#   args: []
+# )
 
 test('Thumbnail factory test',
   executable('test-nemo-thumbnail',

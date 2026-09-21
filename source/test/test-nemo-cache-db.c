@@ -339,10 +339,33 @@ check_digest_folds_records (NemoCacheDb *db)
 	check (after == before);
 }
 
-/* Emptying really empties, and the store still works afterwards. */
+/* The main file and its journal together, which is what the disk is paying. */
+static gint64
+on_disk (void)
+{
+	g_autofree char *path = nemo_cache_db_path ();
+	g_autofree char *wal = g_strconcat (path, "-wal", NULL);
+	GStatBuf info;
+	gint64 total = 0;
+
+	if (g_stat (path, &info) == 0)
+		total += info.st_size;
+	if (g_stat (wal, &info) == 0)
+		total += info.st_size;
+
+	return total;
+}
+
+/* Emptying really empties, the disk space included, and the store still works
+ * afterwards. The space is the part somebody pressing the button can see: in
+ * WAL mode a VACUUM writes the whole new file into the journal, so without a
+ * checkpoint after it the total on disk went up. */
 static void
 check_empty (NemoCacheDb *db)
 {
+	g_autoptr (GBytes) big = fake_image ('h', 512 * 1024);
+	NemoFileId big_id = id_for (44445, SOURCE_MTIME, NULL);
+	NemoThumbnailRecord big_in = record_for (256);
 	NemoFileId id = id_for (44444, SOURCE_MTIME, NULL);
 	NemoThumbnailRecord in = record_for (256);
 	NemoThumbnailRecord out = { 0 };
@@ -355,11 +378,15 @@ check_empty (NemoCacheDb *db)
 	check (rows > 0);
 	check (bytes >= 1024);
 
+	check (nemo_cache_db_thumbnail_store (db, "file:///big.png", &big_id, &big_in, big));
+	check (on_disk () > 512 * 1024);
+
 	check (nemo_cache_db_empty (db));
 
 	nemo_cache_db_usage (db, &rows, &bytes);
 	check (rows == 0);
 	check (bytes == 0);
+	check (on_disk () < 256 * 1024);
 
 	check (!nemo_cache_db_thumbnail_lookup (db, "file:///gone.png", &id, &out, NULL));
 

@@ -340,6 +340,10 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Writing an attribute is slow enough that it happens after the database is already up to date, never in front of a draw. It is also optional: a file system with nowhere to put one simply goes without, and the database still knows.
 
+- It is off by default, and switched on by a setting. It changes the file's status-change time, though not its modified time, and that can wake a backup tool, though most ignore it. With it on, a checksum is written when a thumbnail is made, so files already in the cache get one the next time they are drawn again. A file that already carries the same checksum is left alone.
+
+- On NTFS a write to any stream counts as a change to the whole file and moves its modified time. Left alone, that would make each checksum stale as soon as it was written, and the file would read as edited to everything else too. The write tells its handle to leave the file times as they are.
+
 - A thumbnail is made at the size it is being drawn at, rounded up to a step of 128 pixels, and made again bigger when a draw wants more than is stored. So each picture is kept at the largest size it has actually been shown at, and a folder only ever seen small stays small on disk.
 
 - JPEG at quality 90, and PNG only when the picture has see-through parts. An alpha channel that is opaque everywhere still counts as a photo. WebP is out, since gdk-pixbuf cannot write it and the Windows build cannot read it.
@@ -363,6 +367,12 @@ The file cache is the fourth store. It is a private SQLite database under the us
 - The space goes back a few pages at a time with incremental vacuum rather than a full VACUUM. A full one holds the write lock for as long as it takes to copy the whole file, and every other copy would wait on it.
 
 - Quitting stops a pass part way through, and it lets go of its claim.
+
+- The settings are on the Preview page: the size limit, the age limit, forgetting missing files, and saving checksums onto files. The schedule stays in the config file only. The page also shows how many thumbnails there are and the space on disk, with a button to clean up now and one to empty the cache.
+
+- Emptying asks first, then drops every row and runs a full VACUUM. In WAL mode the VACUUM writes the new file into the journal, which then holds more than the old file did, so the journal is folded back in and cut short after it.
+
+- The older sweep of the shared freedesktop cache is gone, along with its two settings. Nothing here writes to that cache any more, and other programs that do can look after it.
 
 ### File operations
 

@@ -43,6 +43,8 @@ typedef struct {
 	NemoCachePruneResult result;
 	gint64               removed;
 	gint64               due;
+	NemoCachePruneDone   done;
+	gpointer             done_data;
 } PrunePass;
 
 static guint         check_id = 0;
@@ -99,6 +101,9 @@ pass_done (GObject *source, GAsyncResult *res, gpointer user_data)
 	}
 
 	g_clear_object (&running);
+
+	if (pass->done != NULL)
+		pass->done (pass->result, pass->removed, pass->done_data);
 }
 
 static NemoCachePruneRules
@@ -138,12 +143,34 @@ is_idle (void)
 	return minutes <= 0 || now - quiet_since >= (gint64) minutes * 60;
 }
 
-static gboolean
-check_due (gpointer user_data)
+static void
+start_pass (gboolean force, NemoCachePruneDone done, gpointer done_data)
 {
 	PrunePass *pass;
 	GTask     *task;
 
+	/* A pass reads the draw times, and the last few are still in memory. */
+	nemo_cache_db_flush (nemo_cache_db_get ());
+
+	pass = g_new0 (PrunePass, 1);
+	pass->rules = read_rules ();
+	pass->rules.force = force;
+	pass->done = done;
+	pass->done_data = done_data;
+
+	running = g_cancellable_new ();
+	g_atomic_int_set (&in_thread, 1);
+
+	task = g_task_new (NULL, running, pass_done, NULL);
+	g_task_set_task_data (task, pass, g_free);
+	g_task_set_priority (task, force ? G_PRIORITY_DEFAULT : G_PRIORITY_LOW);
+	g_task_run_in_thread (task, pass_in_thread);
+	g_object_unref (task);
+}
+
+static gboolean
+check_due (gpointer user_data)
+{
 	(void) user_data;
 
 	if (running != NULL || !is_idle ())
@@ -152,22 +179,26 @@ check_due (gpointer user_data)
 	if (known_due != 0 && g_get_real_time () / G_USEC_PER_SEC < known_due)
 		return G_SOURCE_CONTINUE;
 
-	/* A pass reads the draw times, and the last few are still in memory. */
-	nemo_cache_db_flush (nemo_cache_db_get ());
-
-	pass = g_new0 (PrunePass, 1);
-	pass->rules = read_rules ();
-
-	running = g_cancellable_new ();
-	g_atomic_int_set (&in_thread, 1);
-
-	task = g_task_new (NULL, running, pass_done, NULL);
-	g_task_set_task_data (task, pass, g_free);
-	g_task_set_priority (task, G_PRIORITY_LOW);
-	g_task_run_in_thread (task, pass_in_thread);
-	g_object_unref (task);
+	start_pass (FALSE, NULL, NULL);
 
 	return G_SOURCE_CONTINUE;
+}
+
+gboolean
+nemo_cache_db_prune_now (NemoCachePruneDone done, gpointer user_data)
+{
+	if (running != NULL)
+		return FALSE;
+
+	start_pass (TRUE, done, user_data);
+
+	return TRUE;
+}
+
+gboolean
+nemo_cache_db_prune_running (void)
+{
+	return running != NULL;
 }
 
 void

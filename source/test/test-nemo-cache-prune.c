@@ -19,6 +19,8 @@
 #endif
 
 #include <libnemo-private/nemo-cache-db.h>
+#include <libnemo-private/nemo-cache-db-prune.h>
+#include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
 #include "test-check.h"
@@ -171,6 +173,48 @@ check_cancel (void)
 	check (nemo_cache_db_prune (&rules, cancellable, NULL, NULL) == NEMO_CACHE_PRUNE_CANCELLED);
 	check (query_int ("SELECT owner FROM prune") == 0);
 	check (query_int ("SELECT due FROM prune") == due_before);
+}
+
+typedef struct {
+	gboolean             called;
+	NemoCachePruneResult result;
+} NowState;
+
+static void
+now_done (NemoCachePruneResult result, gint64 removed, gpointer user_data)
+{
+	NowState *state = user_data;
+
+	(void) removed;
+
+	state->called = TRUE;
+	state->result = result;
+}
+
+/* The button's pass runs whether one is due or not, and one at a time. */
+static void
+check_prune_now (void)
+{
+	NowState state = { 0 };
+	g_autofree char *later = g_strdup_printf ("UPDATE prune SET due = %" G_GINT64_FORMAT ", completed = 0",
+						  wall () + DAY);
+	gint64 deadline;
+
+	check (query_int (later) == 1);
+
+	check (nemo_cache_db_prune_now (now_done, &state));
+	check (nemo_cache_db_prune_running ());
+	check (!nemo_cache_db_prune_now (now_done, &state));
+
+	deadline = g_get_monotonic_time () + 30 * G_USEC_PER_SEC;
+	while (!state.called && g_get_monotonic_time () < deadline)
+		g_main_context_iteration (NULL, TRUE);
+
+	check (state.called);
+	check (state.result == NEMO_CACHE_PRUNE_DONE);
+	check (!nemo_cache_db_prune_running ());
+	check (query_int ("SELECT completed FROM prune") > 0);
+	check (query_int ("SELECT due FROM prune") != wall () + DAY);
 }
 
 static void
@@ -338,6 +382,9 @@ main (int argc, char *argv[])
 		return 77;
 	}
 
+	/* The scheduler reads its rules from the settings. */
+	nemo_config_init ();
+
 	db = nemo_cache_db_get ();
 	if (db == NULL) {
 		g_printerr ("could not open a file cache in %s\n", scratch);
@@ -347,6 +394,7 @@ main (int argc, char *argv[])
 	check_due_and_gap ();
 	check_claim ();
 	check_cancel ();
+	check_prune_now ();
 	check_missing (db);
 	check_age (db);
 	check_size (db);

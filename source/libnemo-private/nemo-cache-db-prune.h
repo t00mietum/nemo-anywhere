@@ -28,12 +28,25 @@
 #ifndef NEMO_CACHE_DB_PRUNE_H
 #define NEMO_CACHE_DB_PRUNE_H
 
-#include <glib.h>
+#include "nemo-cache-db.h"
 
 G_BEGIN_DECLS
 
 /* Starts the check timer. Safe to call more than once. */
 void nemo_cache_db_prune_schedule (void);
+
+typedef void (*NemoCachePruneDone) (NemoCachePruneResult result,
+				    gint64               removed,
+				    gpointer             user_data);
+
+/* A pass straight away whether one is due or not, for the button that asks for
+ * one. `done` is called on the main loop with how it went, unless quitting
+ * stops it first. False, and nothing called, if this process is already
+ * running one. */
+gboolean nemo_cache_db_prune_now (NemoCachePruneDone done, gpointer user_data);
+
+/* Whether this process has a pass going. */
+gboolean nemo_cache_db_prune_running (void);
 
 /* Stops the timer, and stops a pass that is running, waiting a moment for it
  * to let go of its claim. For quitting. */

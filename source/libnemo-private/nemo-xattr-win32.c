@@ -100,6 +100,7 @@ gboolean
 nemo_xattr_win32_set (const char *path, const char *name, const char *value)
 {
 	g_autofree wchar_t *wide = NULL;
+	const FILETIME keep = { 0xFFFFFFFF, 0xFFFFFFFF };
 	HANDLE handle;
 	DWORD  len;
 	DWORD  written = 0;
@@ -119,6 +120,11 @@ nemo_xattr_win32_set (const char *path, const char *name, const char *value)
 			      NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (handle == INVALID_HANDLE_VALUE)
 		return FALSE;
+
+	/* NTFS counts a write to any stream as a change to the file, so without
+	 * this the checksum would move the very time it was taken at, and the file
+	 * would read as edited. All ones tells the handle to leave a time alone. */
+	SetFileTime (handle, NULL, &keep, &keep);
 
 	len = (DWORD) strlen (value);
 	ok = WriteFile (handle, value, len, &written, NULL);

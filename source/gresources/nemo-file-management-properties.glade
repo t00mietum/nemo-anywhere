@@ -105,6 +105,18 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
     <property name="can-focus">False</property>
     <property name="icon-name">folder-new-symbolic</property>
   </object>
+  <object class="GtkAdjustment" id="file_cache_size_adjustment">
+    <property name="upper">1024</property>
+    <property name="value">2</property>
+    <property name="step-increment">0.5</property>
+    <property name="page-increment">4</property>
+  </object>
+  <object class="GtkAdjustment" id="file_cache_age_adjustment">
+    <property name="upper">3650</property>
+    <property name="value">180</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">30</property>
+  </object>
   <object class="GtkAdjustment" id="icon_view_size_adjustment">
     <property name="lower">38</property>
     <property name="upper">1000</property>
@@ -166,6 +178,15 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
     <widgets>
       <widget name="views_current_label_2"/>
       <widget name="views_current_label_images"/>
+    </widgets>
+  </object>
+  <object class="GtkSizeGroup" id="preview_label_group">
+    <widgets>
+      <widget name="preview_label_0"/>
+      <widget name="preview_label_1"/>
+      <widget name="hbox_file_cache_size_label"/>
+      <widget name="hbox_file_cache_age_label"/>
+      <widget name="preview_label_2"/>
     </widgets>
   </object>
   <object class="GtkSizeGroup" id="views_size_label_group">
@@ -272,64 +293,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
       </row>
       <row>
         <col id="0" translatable="yes">Never</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkListStore" id="model_thumb_cache_age">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">A week</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">A month</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Three months</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Six months</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">A year</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">Never</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkListStore" id="model_thumb_cache_size">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">64 MB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">128 MB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">256 MB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">512 MB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">1 GB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">2 GB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">4 GB</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">No limit</col>
       </row>
     </data>
   </object>
@@ -4044,96 +4007,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                             <property name="position">2</property>
                                           </packing>
                                         </child>
-                                        <child>
-                                          <object class="GtkBox" id="hbox_thumb_cache_age">
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
-                                            <child>
-                                              <object class="GtkLabel" id="thumbnail_cache_age_label">
-                                                <property name="visible">True</property>
-                                                <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">_Discard a thumbnail unused for:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">thumbnail_cache_age_combobox</property>
-                                                <property name="xalign">0</property>
-                                              </object>
-                                              <packing>
-                                                <property name="expand">False</property>
-                                                <property name="fill">False</property>
-                                                <property name="position">0</property>
-                                              </packing>
-                                            </child>
-                                            <child>
-                                              <object class="GtkComboBox" id="thumbnail_cache_age_combobox">
-                                                <property name="visible">True</property>
-                                                <property name="can-focus">False</property>
-                                                <property name="model">model_thumb_cache_age</property>
-                                                <child>
-                                                  <object class="GtkCellRendererText" id="thumbnail_cache_age_combobox_renderer"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
-                                                </child>
-                                              </object>
-                                              <packing>
-                                                <property name="expand">False</property>
-                                                <property name="fill">True</property>
-                                                <property name="position">1</property>
-                                              </packing>
-                                            </child>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">True</property>
-                                            <property name="position">3</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkBox" id="hbox_thumb_cache_size">
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">False</property>
-                                            <property name="spacing">12</property>
-                                            <child>
-                                              <object class="GtkLabel" id="thumbnail_cache_size_label">
-                                                <property name="visible">True</property>
-                                                <property name="can-focus">False</property>
-                                                <property name="label" translatable="yes">Cache at _most:</property>
-                                                <property name="use-underline">True</property>
-                                                <property name="mnemonic-widget">thumbnail_cache_size_combobox</property>
-                                                <property name="xalign">0</property>
-                                              </object>
-                                              <packing>
-                                                <property name="expand">False</property>
-                                                <property name="fill">False</property>
-                                                <property name="position">0</property>
-                                              </packing>
-                                            </child>
-                                            <child>
-                                              <object class="GtkComboBox" id="thumbnail_cache_size_combobox">
-                                                <property name="visible">True</property>
-                                                <property name="can-focus">False</property>
-                                                <property name="model">model_thumb_cache_size</property>
-                                                <child>
-                                                  <object class="GtkCellRendererText" id="thumbnail_cache_size_combobox_renderer"/>
-                                                  <attributes>
-                                                    <attribute name="text">0</attribute>
-                                                  </attributes>
-                                                </child>
-                                              </object>
-                                              <packing>
-                                                <property name="expand">False</property>
-                                                <property name="fill">True</property>
-                                                <property name="position">1</property>
-                                              </packing>
-                                            </child>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">True</property>
-                                            <property name="position">4</property>
-                                          </packing>
-                                        </child>
                                       </object>
                                     </child>
                                   </object>
@@ -4148,6 +4021,254 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
                                 <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkBox" id="vbox_file_cache">
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                                <property name="border-width">6</property>
+                                <property name="orientation">vertical</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel" id="file_cache_heading">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">&lt;b&gt;Thumbnail cache&lt;/b&gt;</property>
+                                    <property name="use-markup">True</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">False</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkAlignment" id="alignment_file_cache">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="left-padding">40</property>
+                                    <child>
+                                      <object class="GtkBox" id="vbox_file_cache_rows">
+                                        <property name="visible">True</property>
+                                        <property name="can-focus">False</property>
+                                        <property name="orientation">vertical</property>
+                                        <property name="spacing">6</property>
+                                      <child>
+                                        <object class="GtkBox" id="hbox_file_cache_size">
+                                          <property name="visible">True</property>
+                                          <property name="can-focus">False</property>
+                                          <property name="spacing">12</property>
+                                          <child>
+                                            <object class="GtkLabel" id="hbox_file_cache_size_label">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="label" translatable="yes">Cache at _most:</property>
+                                              <property name="use-underline">True</property>
+                                              <property name="mnemonic-widget">file_cache_size_spinbutton</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="position">0</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkSpinButton" id="file_cache_size_spinbutton">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">True</property>
+                                              <property name="tooltip-text" translatable="yes">0 for no limit.</property>
+                                              <property name="width-chars">6</property>
+                                              <property name="max-width-chars">6</property>
+                                              <property name="adjustment">file_cache_size_adjustment</property>
+                                              <property name="digits">1</property>
+                                              <property name="numeric">True</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">True</property>
+                                              <property name="position">1</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkLabel" id="hbox_file_cache_size_unit">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="label" translatable="yes">GiB</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="position">2</property>
+                                            </packing>
+                                          </child>
+                                        </object>
+                                        <packing>
+                                          <property name="expand">False</property>
+                                          <property name="fill">True</property>
+                                          <property name="position">0</property>
+                                        </packing>
+                                      </child>
+                                      <child>
+                                        <object class="GtkBox" id="hbox_file_cache_age">
+                                          <property name="visible">True</property>
+                                          <property name="can-focus">False</property>
+                                          <property name="spacing">12</property>
+                                          <child>
+                                            <object class="GtkLabel" id="hbox_file_cache_age_label">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="label" translatable="yes">_Discard a thumbnail not shown for:</property>
+                                              <property name="use-underline">True</property>
+                                              <property name="mnemonic-widget">file_cache_age_spinbutton</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="position">0</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkSpinButton" id="file_cache_age_spinbutton">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">True</property>
+                                              <property name="tooltip-text" translatable="yes">0 keeps them however old.</property>
+                                              <property name="width-chars">6</property>
+                                              <property name="max-width-chars">6</property>
+                                              <property name="adjustment">file_cache_age_adjustment</property>
+                                              <property name="digits">0</property>
+                                              <property name="numeric">True</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">True</property>
+                                              <property name="position">1</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkLabel" id="hbox_file_cache_age_unit">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="label" translatable="yes">days</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="position">2</property>
+                                            </packing>
+                                          </child>
+                                        </object>
+                                        <packing>
+                                          <property name="expand">False</property>
+                                          <property name="fill">True</property>
+                                          <property name="position">1</property>
+                                        </packing>
+                                      </child>
+                                      <child>
+                                        <object class="GtkCheckButton" id="file_cache_drop_missing_checkbutton">
+                                          <property name="label" translatable="yes">_Forget files deleted from a folder that is still there</property>
+                                          <property name="visible">True</property>
+                                          <property name="can-focus">True</property>
+                                          <property name="receives-default">False</property>
+                                          <property name="use-underline">True</property>
+                                          <property name="xalign">0</property>
+                                          <property name="draw-indicator">True</property>
+                                        </object>
+                                        <packing>
+                                          <property name="expand">False</property>
+                                          <property name="fill">False</property>
+                                          <property name="position">2</property>
+                                        </packing>
+                                      </child>
+                                      <child>
+                                        <object class="GtkCheckButton" id="file_cache_save_checksum_checkbutton">
+                                          <property name="label" translatable="yes">Save _checksums onto the files</property>
+                                          <property name="visible">True</property>
+                                          <property name="can-focus">True</property>
+                                          <property name="receives-default">False</property>
+                                          <property name="use-underline">True</property>
+                                          <property name="xalign">0</property>
+                                          <property name="draw-indicator">True</property>
+                                        </object>
+                                        <packing>
+                                          <property name="expand">False</property>
+                                          <property name="fill">False</property>
+                                          <property name="position">3</property>
+                                        </packing>
+                                      </child>
+                                      <child>
+                                        <object class="GtkBox" id="hbox_file_cache_usage">
+                                          <property name="visible">True</property>
+                                          <property name="can-focus">False</property>
+                                          <property name="spacing">6</property>
+                                          <child>
+                                            <object class="GtkLabel" id="file_cache_usage_label">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">True</property>
+                                              <property name="fill">True</property>
+                                              <property name="position">0</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkButton" id="file_cache_empty_button">
+                                              <property name="label" translatable="yes">_Empty cache</property>
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">True</property>
+                                              <property name="receives-default">False</property>
+                                              <property name="use-underline">True</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="pack-type">end</property>
+                                              <property name="position">1</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkButton" id="file_cache_cleanup_button">
+                                              <property name="label" translatable="yes">C_lean up now</property>
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">True</property>
+                                              <property name="receives-default">False</property>
+                                              <property name="use-underline">True</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="pack-type">end</property>
+                                              <property name="position">2</property>
+                                            </packing>
+                                          </child>
+                                        </object>
+                                        <packing>
+                                          <property name="expand">False</property>
+                                          <property name="fill">True</property>
+                                          <property name="position">4</property>
+                                        </packing>
+                                      </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
                               </packing>
                             </child>
                             <child>
@@ -4240,7 +4361,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">1</property>
+                                <property name="position">2</property>
                               </packing>
                             </child>
                             <child>
@@ -4436,7 +4557,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">2</property>
+                                <property name="position">3</property>
                               </packing>
                             </child>
                           </object>
