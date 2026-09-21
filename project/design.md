@@ -314,13 +314,23 @@ Per-folder view state - view mode, zoom, sort column, column layout - is app-own
 
 #### Thumbnail cache
 
-The thumbnail cache is the fourth store and is not ours. It is the shared freedesktop cache: PNGs named by a hash of the file they were made from, under the user's cache directory, read and written by every file manager and image viewer on a Linux desktop, so a thumbnail made in one is already there in the next.
+The thumbnail cache is the fourth store. It is a private SQLite database under the user's cache directory, holding the encoded thumbnails themselves rather than a PNG per file in a shared folder.
 
-- Nothing ever removed one, so the folder only grew. It is swept now, at most once a day, on a worker thread a minute after startup, never on the path that draws a window.
+- It was the shared freedesktop cache until 2026-09-21, and that folder is still read. A thumbnail another program already made is used rather than rendered again; nothing is written back to it. On Windows and macOS there was never anything to share with.
 
-- Three rules in order: a thumbnail whose file is gone, then anything unused for longer than the age allowed, then oldest-first until the rest fit the size allowed. Both limits are on the Preview page and either can be turned off. The defaults, 180 days and 512 MB, are what a GNOME or Cinnamon desktop already applies to the same folder, so on those desktops nothing changes and everywhere else something is finally minding it.
+- The change was asked for, and the earlier decision to stay with the shared cache is reversed. What settled it is that the new requirements cannot be said in a PNG-per-file store keyed on a hash of the path: a thumbnail stored at the largest size a file has actually been shown at, files recognized as the same after they move, and pruning by how often something has been drawn. The dependency that argued against it in 2026-09-05 turned out to be one apt line per Linux container and nothing at all for Windows, where the sysroot already had it.
 
-- A private database was considered and dropped. It meant a new dependency in three build environments, and on Linux it would have cost the sharing that makes the cache worth having. Growth was the actual complaint, and sweeping fixes that without giving anything up.
+- SQLite is linked static. It has to come through pkg-config rather than meson's `find_library`, because the cross sysroot is not on the compiler's own search path.
+
+- Two tables. `images` is keyed on what a file's contents are - size, mtime and optionally a checksum - and holds the encoded thumbnail. `paths` maps a uri to one of those images and counts how often it has been drawn. Splitting them is what lets a file that moved, or a second copy of one, find a thumbnail that is already there.
+
+- Every launch is its own process and several can be open at once, so the file is in WAL mode with a busy timeout. Writes are small and the whole store is rebuildable, so `synchronous` is NORMAL rather than FULL - a power cut can cost the last few thumbnails, which is not worth an fsync per row.
+
+- A damaged file is thrown away and rebuilt at open rather than migrated or repaired. Damage noticed while running only stops the store being used, because deleting a file other processes still have open is worse than going without until the next launch.
+
+- Draw counts are held in memory and written in one transaction. Scrolling a big folder draws the same file repeatedly, and the age rule works in days, so a write per draw would buy nothing.
+
+- Pruning works as it did before: a worker thread well after startup, never on the path that draws a window, with rules for a source file that is gone and for anything unused past the age allowed.
 
 ### File operations
 

@@ -256,6 +256,12 @@ test_scratch_point_config_at (const char *dir)
 	g_setenv ("HOME", dir, TRUE);
 	g_setenv ("APPDATA", dir, TRUE);	/* the config root on Windows */
 	g_setenv ("XDG_CONFIG_HOME", dir, TRUE);
+
+	/* The cache root is picked separately from the config one, so a test that
+	 * only pointed the config vars would still write a thumbnail database into
+	 * the real cache dir. */
+	g_setenv ("LOCALAPPDATA", dir, TRUE);
+	g_setenv ("XDG_CACHE_HOME", dir, TRUE);
 }
 
 char *

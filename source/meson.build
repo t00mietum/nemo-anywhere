@@ -120,6 +120,12 @@ json    = dependency('json-glib-1.0',               version: '>=1.6')
 # encrypted headers), go out to a 7z or rar command when one is installed.
 archive = dependency('libarchive',                  version: '>=3.2.0')
 
+# Thumbnail cache. Asked for static so there is one fewer library to ship beside
+# the Windows exe. It has to come through pkg-config rather than find_library:
+# the cross sysroot is not on the compiler's own search path, and only the .pc
+# file says where it is.
+sqlite  = dependency('sqlite3',                     version: '>=3.20', static: true)
+
 gail    = dependency('gail-3.0')
 
 # Unix/X11-only deps, absent from the Windows (mingw) sysroot. Empty placeholders on

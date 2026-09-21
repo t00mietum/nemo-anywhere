@@ -238,6 +238,67 @@ nemo_get_user_config_root (void)
 #endif
 }
 
+/**
+ * nemo_get_user_cache_root:
+ *
+ * The per-user directory our cache directory lives in.
+ *
+ * Deliberately not the same choice as the config root above. A cache is big,
+ * rebuildable and tied to the machine that built it, so on Windows it belongs
+ * in local AppData rather than the roaming dir settings use - nobody wants a
+ * thumbnail database syncing between machines. macOS has a cache dir of its
+ * own that the system knows it may empty.
+ *
+ * Return value: the directory path, owned by the callee.
+ **/
+const char *
+nemo_get_user_cache_root (void)
+{
+#if defined(G_OS_WIN32)
+	static char *root = NULL;
+	static gsize once = 0;
+
+	if (g_once_init_enter (&once)) {
+		const char *local = g_getenv ("LOCALAPPDATA");
+
+		root = (local != NULL && *local != '\0')
+			? g_strdup (local)
+			: g_strdup (g_get_user_cache_dir ());
+		g_once_init_leave (&once, 1);
+	}
+
+	return root;
+#elif defined(__APPLE__)
+	static char *root = NULL;
+	static gsize once = 0;
+
+	if (g_once_init_enter (&once)) {
+		root = g_build_filename (g_get_home_dir (), "Library", "Caches", NULL);
+		g_once_init_leave (&once, 1);
+	}
+
+	return root;
+#else
+	return g_get_user_cache_dir ();
+#endif
+}
+
+char *
+nemo_get_user_cache_directory (void)
+{
+	char *dir = g_build_filename (nemo_get_user_cache_root (),
+				      NEMO_USER_DIRECTORY_NAME,
+				      NULL);
+
+	if (g_mkdir_with_parents (dir, DEFAULT_NEMO_DIRECTORY_MODE) != 0) {
+		g_warning ("could not make the cache dir %s: %s", dir, g_strerror (errno));
+		g_free (dir);
+		return NULL;
+	}
+
+	return dir;
+}
+
 /* Windows and macOS used to keep the config dir wherever GLib's XDG answer
  * put it. Move a dir left there by an older build rather than silently
  * starting from defaults; a partial or failed move leaves the old one alone. */

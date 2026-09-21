@@ -101,6 +101,15 @@ test('Favorites test',
   args: []
 )
 
+test('Thumbnail cache store test',
+  executable('test-nemo-thumbnail-db',
+    [ 'test-nemo-thumbnail-db.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Thumbnail prune test',
   executable('test-nemo-thumbnail-prune',
     [ 'test-nemo-thumbnail-prune.c' ],

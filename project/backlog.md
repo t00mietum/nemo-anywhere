@@ -63,11 +63,68 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Thumbnails are made at 256px at the largest, so a big icon size shows one scaled up.
+- 🛠️ SQLite icon cache issue reopened. More detail:
+	- Downsample the images in the database, to the largest size the user ever requested.
+		- Jpeg quality 90, with settings that favor faster decoding, potentially slower encoding if the space saving is worth it.
+		- PNG or WebM if there is transparency.
+	- Then downsample again at runtime only, if necessary, for actual display, if the current size is lower than the stored thumbnail. (If that is computationally feasible and user-tolerable for e.g. 250 images. If not, store multiple sample sizes as necessary.)
+	- In the database, try to detect and avoid duplicates.
+		- Fields for fast lookup:
+			- Full pathname (or hash?).
+		- Fields for dedupe:
+			- precise mtime equivalent, file size, binary blake3 checksum (computed only if needed, OR if file is read anyway for icon generation).
+			- This will allow recognizing the same file if it moves.
+		- Also (only what's necessary):
+			- icon size, stored img type, date stored, latest date rendered, render count.
+	- Add GUI Settings for basic automatic pruning control
+		- Preferences:
+			- [max cache size]; float GiB, default 2.
+			- [oldest date rendered]; integer days
+			- [local path exists but image no longer does]; boolean
+			- [save checksum]; boolean
+				- If checked, and extended attributes can be written:
+					- Stored:
+						- user.blake3.b64u = checksum in base64url
+						- user.blake3.mtime = file modification time when checksum calculated
+						- user.blake3.bytes = file size when checksum calculated
+					- Writing xattrs is slow, so write *after* database updates.
+	- FYI: The checksum xattr will also be used for future features.
+	- Queue thumbnail creation and xattr updates, but abort cleanly if user changes directory and no longer needs to see thumbnails.
+	- Manual buttons for:
+		- "Cleanup now", which runs a prune and compact cycle
+		- "Empty cache", erases the entire database.
+	- Use the proper OS-specific cache locations for the database thumbnail cache.
+	- Statically link SQLite3 into all executables. (It will also come in handy for future features.)
+	- Opened: 20260921. Started: 20260921.
+	- Done so far: the store itself, its tests, and the build dependency. Two tables, a uri pointing at an image keyed on what the file's contents are, so a file that moved keeps its thumbnail.
+	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 with SIMD is about 3000 MB/s and 64 KB of vendored code.
+	- The cache location is its own choice, not the config one - local AppData on Windows so a thumbnail database does not sync between machines.
+	- Reading "WebM" above as WebP. Either way it is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
+	- Still to do: the checksum and xattrs, swapping the draw path over, the pruning thread, and the settings page.
+	- Tolerant of multiple process access.
+	- Tolerant of corrupt cache (db) file.
+	- Automatic cleanup:
+		- Run on a separate thread.
+		- Process:
+			- Check DB for errors.
+			- Remove stale rows from DB.
+			- Compact DB.
+		- Don't run every launch. Run randomly after every 4 to 24 hours - at launch time, or even if sitting idle.
+			- Ideally only after sitting idle for N minutes.
+			- Settings in config file
+		- Only one process at a time runs. Check some kind of file - in cache dir or /dev/shm - for:
+			- Date/time last started.
+			- Date/time last completed. [Cleared on a new run]
+			- Last process ID to complete it.
+			- Count of thumbnails removed.
+			- Process ID that currently wants to clean it.
+
+- 🔘 Problem: Currently, thumbnails are made at 256px at the largest, so a big icon size shows one scaled up.
 	- Opened: 20260920-234500
 	- `nemo-desktop-thumbnail.c` offers two sizes, 128 and 256, which is the older half of what the shared thumbnail spec now names. The spec has gone on to add 512 and 1024.
 	- Only worth anything alongside the bigger icon sizes, where a folder of images is meant to be shown at 320 or 640. Below that nothing is being lost.
 	- Touches the cache directory names, the size the factory is made with, and the test for whether a cached thumbnail is big enough to use.
+	- Note: This will be solved by the cache -> database feature.
 
 - 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
 	- Opened: 20260920-230000
@@ -1927,7 +1984,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left off the list: keys the app writes back itself, such as a window size, a sidebar width or the last state of a search toggle. Setting one by hand only gets it overwritten.
 	- Two keys that nothing had read since the fork were dropped.
 
-- ✅ Better thumbnail cache management. Asked for as a database plus background pruning.
+- ✅ Better thumbnail cache management. Database plus background pruning.
 	- Opened: 20260826-103001
 	- Closed: 20260905-192349
 	- Done 20260905. The cache is swept once a day, on a worker thread a minute after startup. A thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed.

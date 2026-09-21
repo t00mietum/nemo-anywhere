@@ -60,6 +60,7 @@ nemo_private_sources = [
   'nemo-shortcut-win32.c',
   'nemo-trash-win32.c',
   'nemo-win32-appearance.c',
+  'nemo-thumbnail-db.c',
   'nemo-thumbnail-pixbuf-utils.c',
   'nemo-thumbnail-prune.c',
   'nemo-mime-application-chooser.c',
@@ -95,7 +96,7 @@ nemo_private_sources = [
 
 nemo_private_deps = [
   archive, eel, execinfo, gail, gio_unix, glib, gmodule, gtk, json, math,
-  nemo_extension, win_shell, x11
+  nemo_extension, sqlite, win_shell, x11
 ]
 
 if libexif_enabled

@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		libgtk-3-dev libglib2.0-dev libglib2.0-bin libglib2.0-dev-bin \
 		libpango1.0-dev libatk1.0-dev libgail-3-dev \
 		libjson-glib-dev libgsf-1-dev libexempi-dev libexif-dev libarchive-dev \
+		libsqlite3-dev \
 		libx11-dev libxext-dev libxrender-dev \
 		desktop-file-utils tar xz-utils \
 		xvfb \
