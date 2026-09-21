@@ -100,10 +100,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done so far: the store itself, its tests, and the build dependency.
 	- Three tables. A file's contents are one record, the names it is known by are another, and a thumbnail hangs off the contents. So a file that moved keeps its thumbnail, and a file nothing can draw is still a record - which is what a duplicate finder would read.
 	- A checksum settles what two records that looked separate really were, and folds them into one. Without one, size and timestamp together are the only guess available.
-	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 with SIMD is about 3000 MB/s and 64 KB of vendored code.
+	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 is vendored under `vendor/blake3`, runs at 2459 MB/s and builds to 65,716 bytes. It checks out against the numbers blake3 publishes, which matters because a checksum written to a file outlives this program.
 	- The cache location is its own choice, not the config one - local AppData on Windows so a thumbnail database does not sync between machines.
 	- Reading "WebM" above as WebP. Either way it is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
-	- Still to do: computing the checksum and the xattrs, swapping the draw path over, the pruning thread, and the settings page.
+	- Still to do: the xattrs, swapping the draw path over, the pruning thread, and the settings page.
 	- Tolerant of multiple process access.
 	- Tolerant of corrupt cache (db) file.
 	- Automatic cleanup:

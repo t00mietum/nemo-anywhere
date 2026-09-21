@@ -61,6 +61,7 @@ nemo_private_sources = [
   'nemo-trash-win32.c',
   'nemo-win32-appearance.c',
   'nemo-cache-db.c',
+  'nemo-file-digest.c',
   'nemo-thumbnail-pixbuf-utils.c',
   'nemo-thumbnail-prune.c',
   'nemo-mime-application-chooser.c',
@@ -95,7 +96,7 @@ nemo_private_sources = [
 ]
 
 nemo_private_deps = [
-  archive, eel, execinfo, gail, gio_unix, glib, gmodule, gtk, json, math,
+  archive, blake3, eel, execinfo, gail, gio_unix, glib, gmodule, gtk, json, math,
   nemo_extension, sqlite, win_shell, x11
 ]
 

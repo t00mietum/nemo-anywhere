@@ -6,6 +6,18 @@ SHCL config engine, single-header C binding, **MIT** - compiled into nemo, so un
 
 - `shcl/shcl.h` <- https://github.com/jim-collier/shcl @ `fd1068a629701068f07a197de45212d267c20f46` (tag `v2.0.0`)
 
+blake3 hash, C implementation, dual **CC0-1.0** and **Apache-2.0** - compiled into nemo, and keeps its `LICENSE` (the CC0 one, which is the simpler of the two to carry under GPL-2.0-only). Update by copying the named files out of `c/` at a newer tag and re-pinning here.
+
+- `blake3/` <- https://github.com/BLAKE3-team/BLAKE3 @ `df610ddc3b93841ffc59a87e3da659a15910eb46` (tag `1.8.2`)
+
+It is here rather than linked because there is nothing to link to. No Linux distribution ships a libblake3 old enough to rely on, and the Windows sysroot has none at all. The C sources are 113 KB and build to 65,716 bytes of code, which is cheaper than the alternatives were:
+
+- GLib's own SHA-256 is plain C at 291 MB/s. Nothing is vendored, but a folder of large files would wait on it.
+- OpenSSL's SHA-256 is fast, 1450 MB/s where the processor has SHA-NI and 502 where it does not. Linking `libcrypto.a` statically for the one call costs **4.8 MB** on a Windows executable that is 8.3 MB today, because the digest goes through the provider machinery and none of it strips out.
+- blake3 as vendored runs at 2459 MB/s single-threaded. Measured on b23, a Ryzen 3950X with AVX2, against a 64 MB buffer.
+
+Only the parts that are used are here: the plain C routine, the dispatcher, and the SSE2, SSE4.1 and AVX2 routines. AVX-512 is left out, and so are the hand-written assembly versions of the same routines, the NEON one and the thread-pool wrapper. Which routine runs is decided at run time by what the processor reports. A machine that is not x86 gets the plain C one, so a future arm64 build works but is slow - `blake3_neon.c` is the file to add when that matters.
+
 ## Themes
 
 Regenerate with `cicd/utility/vendor-themes.bash` - do not hand-edit the table. Bundled as mere aggregation: GTK reads them at runtime, nothing is linked into nemo. Each theme keeps its own `COPYING`. Our own Windows-look icon sets are not here - Luna, Aero, Metro and Mica are first-party art in `assets/icons`, built by `gen-icon-theme.py`. Nothing Windows-styled is vendored as icons: every such set that circulates draws blue folders, and Windows folders are yellow.
