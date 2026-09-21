@@ -910,6 +910,30 @@ icon_size_key (NemoIconView *icon_view)
 		: NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL;
 }
 
+/* With per-folder settings off the window holds the size instead, one for
+   pictures and one for everything else. 0 means nothing is held. */
+static gint
+held_icon_size (NemoIconView *icon_view)
+{
+	NemoWindow *window = nemo_view_get_nemo_window (NEMO_VIEW (icon_view));
+
+	return icon_view->details->mostly_images
+		? nemo_window_get_ignore_meta_image_icon_size (window)
+		: nemo_window_get_ignore_meta_icon_size (window);
+}
+
+static void
+hold_icon_size (NemoIconView *icon_view, gint size)
+{
+	NemoWindow *window = nemo_view_get_nemo_window (NEMO_VIEW (icon_view));
+
+	if (icon_view->details->mostly_images) {
+		nemo_window_set_ignore_meta_image_icon_size (window, size);
+	} else {
+		nemo_window_set_ignore_meta_icon_size (window, size);
+	}
+}
+
 /* A folder's saved size, which is a number of pixels now and was one of seven
    levels before that. */
 static gint
@@ -999,11 +1023,11 @@ nemo_icon_view_begin_loading (NemoView *view)
 	/* Set up the zoom level from the metadata. */
 	if (nemo_view_supports_zooming (NEMO_VIEW (icon_view))) {
         if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
-            if (nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (view)) == 0) {
-                nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (view), get_default_icon_size (icon_view));
+            if (held_icon_size (icon_view) == 0) {
+                hold_icon_size (icon_view, get_default_icon_size (icon_view));
             }
 
-            size = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+            size = held_icon_size (icon_view);
         } else {
             size = saved_icon_size (file, icon_size_key (icon_view),
                                     get_default_icon_size (icon_view));
@@ -1072,17 +1096,17 @@ icon_view_notify_clipboard_info (NemoClipboardMonitor *monitor,
    folder is already carrying whatever it was given, and the default has to stay
    a default so the preference can still move it.
 
-   With per-folder settings off the whole window shares one size instead, so the
-   bigger size only applies while nothing in the window has been zoomed. */
+   With per-folder settings off the window holds a size for pictures apart from
+   the one list view shares, so neither leaks into the other. */
 static gint
-size_for_mostly_images (NemoIconView *icon_view, gint plain_default)
+size_for_mostly_images (NemoIconView *icon_view)
 {
 	NemoView *view = NEMO_VIEW (icon_view);
 
 	if (!nemo_global_preferences_get_remember_folder_settings ()) {
-		gint held = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (view));
+		gint held = held_icon_size (icon_view);
 
-		return held == plain_default ? get_default_icon_size (icon_view) : held;
+		return held > 0 ? held : get_default_icon_size (icon_view);
 	}
 
 	return saved_icon_size (nemo_view_get_directory_as_file (view),
@@ -1096,7 +1120,7 @@ update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
 	NemoView *view = NEMO_VIEW (icon_view);
 	NemoIconContainer *container;
 	gboolean mostly_images;
-	gint plain_default, size;
+	gint size;
 
 	if (!all_files_seen || icon_view->details->compact ||
 	    NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container ||
@@ -1109,12 +1133,9 @@ update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
 		return;
 	}
 
-	/* Read before the flag moves, since both of these answer differently
-	   once it has. */
-	plain_default = get_default_icon_size (icon_view);
 	icon_view->details->mostly_images = mostly_images;
 
-	size = size_for_mostly_images (icon_view, plain_default);
+	size = size_for_mostly_images (icon_view);
 
 	container = get_icon_container (icon_view);
 	if (nemo_icon_container_get_icon_size (container) == size) {
@@ -1179,7 +1200,7 @@ set_icon_size (NemoIconView *view,
 	}
 
     if (!nemo_global_preferences_get_remember_folder_settings () && !NEMO_ICON_VIEW_GET_CLASS (view)->use_grid_container) {
-        nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_size);
+        hold_icon_size (view, new_size);
     } else {
         nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
                                       icon_size_key (view),
@@ -1593,7 +1614,7 @@ nemo_icon_view_reset_to_defaults (NemoView *view)
 
     if (!nemo_global_preferences_get_remember_folder_settings ()) {
         NemoWindow *window = nemo_view_get_nemo_window (view);
-        nemo_window_set_ignore_meta_icon_size (window, 0);
+        nemo_window_forget_ignore_meta_icon_sizes (window);
     }
 }
 
@@ -2161,12 +2182,12 @@ default_icon_size_changed_callback (gpointer callback_data)
          */
         if (view_is_frontmost (NEMO_VIEW (icon_view)) &&
             !nemo_global_preferences_get_remember_folder_settings ()) {
-            nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), 0);
+            nemo_window_forget_ignore_meta_icon_sizes (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         }
 
         if (!nemo_global_preferences_get_remember_folder_settings () &&
-            nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > 0) {
-            size = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+            held_icon_size (icon_view) > 0) {
+            size = held_icon_size (icon_view);
         } else {
             size = saved_icon_size (file, icon_size_key (icon_view),
                                     get_default_icon_size (icon_view));

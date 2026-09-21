@@ -441,6 +441,27 @@ fCheckImageDefault(){
 }
 fCheckImageDefault
 
+## With per-folder settings off the window holds two icon sizes, one for a
+## folder of pictures and one that list view shares. Anything in the icon view
+## reaching past held_icon_size/hold_icon_size to the window picks one without
+## asking which kind of folder is in front, and that is how the picture size
+## once ended up on the rows of the next list.
+fCheckHeldIconSize(){
+	local src='source/src/nemo-icon-view.c'
+	local stray
+
+	[[ -f "$src" ]] || return 0
+
+	stray="$(awk '/^(held_icon_size|hold_icon_size) / { on=1 } !on && /nemo_window_[gs]et_ignore_meta_(image_)?icon_size/ { print FNR": "$0 } on && /^}/ { on=0 }' "$src")"
+
+	if [[ -n "$stray" ]]; then
+		fEcho "FAIL: ${src}: read or write the window's held icon size through held_icon_size/hold_icon_size:"
+		fEcho "${stray}"
+		exit 2
+	fi
+}
+fCheckHeldIconSize
+
 ## A checksum is kept on a file in three attributes, and the order they are
 ## written in is the only thing standing between a torn write and a checksum
 ## that vouches for contents it has never seen. Reading requires the size and

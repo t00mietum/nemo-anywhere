@@ -45,16 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Images view:
-	- Doesn't render at specified %, until the % is changed. (But afterward seems to remember?)
-	- 500% is too big. Let's do 250%
-	- The image % affects list views too. At least, when changing to a list view folder from an image folder.
-		- If you manually change the view to icon though, that renders correct zoom. Then back to list view, then it's also the correct zoo.
-	- An image folder flashes when entering. First list view, then images view.
-		- Is this just an inherent limitation of dynamic file listing? If so:
-			- Maybe folders one level down can be pre-scanned in a background thread, to know in advance if they are image-heavy.
-			- Keep a list in memory of last N folders that are known to contain images, to avoid having to re-scan.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -184,6 +174,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Images view:
+	- Doesn't render at specified %, until the % is changed. (But afterward seems to remember?)
+	- 500% is too big. Let's do 250%
+	- The image % affects list views too. At least, when changing to a list view folder from an image folder.
+		- If you manually change the view to icon though, that renders correct zoom. Then back to list view, then it's also the correct zoom.
+	- An image folder flashes when entering. First list view, then images view.
+		- Is this just an inherent limitation of dynamic file listing? If so:
+			- Maybe folders one level down can be pre-scanned in a background thread, to know in advance if they are image-heavy.
+			- Keep a list in memory of last N folders that are known to contain images, to avoid having to re-scan.
+	- Closed: 20260921.
+	- With per-folder settings off, the window held one icon size that list view shared. A list folder left its own size there, which the picture folder read as a zoom and so skipped the % setting. Changing the % in a picture folder then wrote the picture size back into it, and the next list folder picked that up. The window now holds a picture size apart from the plain one, the same pair a folder keeps when per-folder settings are on.
+	- The picture default is 250% now.
+	- The flash is gone for any folder seen lately, and for the folders one level down from the one in front. The answer is kept in memory for the last 512 folders. When a folder finishes loading, its sub-folders are counted in the background, so opening one of them picks icon view first time. Shares, links and non-local folders are not counted ahead, and a big folder is judged on its first 1000 entries. The real count after loading still has the last word.
+	- A folder opened cold, from a bookmark or the command line with nothing known, still switches after loading. Nothing can be known about it sooner.
 
 - ✅ The About box license text says "or (at your option) any later version", but the project is GPL-2.0-only.
 	- Opened: 20260921. Closed: 20260921.

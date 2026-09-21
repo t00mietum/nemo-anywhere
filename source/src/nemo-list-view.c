@@ -5390,7 +5390,7 @@ nemo_list_view_reset_to_defaults (NemoView *view)
         NemoWindow *window = nemo_view_get_nemo_window (NEMO_VIEW (view));
         nemo_window_set_ignore_meta_sort_column (window, NULL);
         nemo_window_set_ignore_meta_sort_direction (window, SORT_NULL);
-        nemo_window_set_ignore_meta_icon_size (window, 0);
+        nemo_window_forget_ignore_meta_icon_sizes (window);
         nemo_window_set_ignore_meta_column_order (window, NULL);
         nemo_window_set_ignore_meta_visible_columns (window, NULL);
     } else if (nemo_file_is_in_search (file)) {
