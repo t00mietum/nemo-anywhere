@@ -101,14 +101,63 @@ test('Favorites test',
   args: []
 )
 
-test('Thumbnail prune test',
-  executable('test-nemo-thumbnail-prune',
-    [ 'test-nemo-thumbnail-prune.c' ],
+test('File checksum test',
+  executable('test-nemo-file-digest',
+    [ 'test-nemo-file-digest.c' ],
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private, test_scratch ],
   ),
   args: []
 )
+
+test('File checksum attribute test',
+  executable('test-nemo-file-xattr',
+    [ 'test-nemo-file-xattr.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
+test('File cache store test',
+  executable('test-nemo-cache-db',
+    [ 'test-nemo-cache-db.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
+test('File cache prune test',
+  executable('test-nemo-cache-prune',
+    [ 'test-nemo-cache-prune.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch, sqlite ],
+  ),
+  args: []
+)
+
+test('Thumbnail store test',
+  executable('test-nemo-thumbnail-store',
+    [ 'test-nemo-thumbnail-store.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
+# Off since the sweep of the shared freedesktop thumbnail cache was retired:
+# nothing writes there any more, and the file cache prunes itself (see
+# test-nemo-cache-prune.c). test-nemo-thumbnail-prune.c needs
+# nemo-thumbnail-prune.h, which went with it.
+# test('Thumbnail prune test',
+#   executable('test-nemo-thumbnail-prune',
+#     [ 'test-nemo-thumbnail-prune.c' ],
+#     include_directories: [ rootInclude, ],
+#     dependencies: [ gtk, nemo_private, test_scratch ],
+#   ),
+#   args: []
+# )
 
 test('Thumbnail factory test',
   executable('test-nemo-thumbnail',

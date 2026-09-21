@@ -40,6 +40,14 @@
  * Application Support on macOS, XDG elsewhere. Not freed by the caller. */
 const char *nemo_get_user_config_root            (void);
 
+/* The per-user dir our cache dir sits in - local AppData on Windows,
+ * ~/Library/Caches on macOS, XDG elsewhere. Not freed by the caller. */
+const char *nemo_get_user_cache_root             (void);
+
+/* <cache root>/nemo-anywhere, created if it is not there. Freed by the caller,
+ * and NULL if the dir could not be made. */
+char *   nemo_get_user_cache_directory           (void);
+
 /* These functions all return something something that needs to be
  * freed with g_free, is not NULL, and is guaranteed to exist.
  */

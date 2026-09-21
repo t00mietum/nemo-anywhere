@@ -49,7 +49,6 @@
 #include <glib/gstdio.h>
 #include <libnemo-private/nemo-posix-compat.h>
 #include <libnemo-private/nemo-file-utilities.h>
-#include <libnemo-private/nemo-thumbnail-prune.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -1006,10 +1005,7 @@ nemo_desktop_thumbnail_factory_lookup (NemoDesktopThumbnailFactory *factory,
   g_checksum_free (checksum);
 
   if (res)
-    {
-      nemo_thumbnail_prune_note_use (path);
-      return path;
-    }
+    return path;
 
   g_free (path);
   return NULL;
@@ -1134,6 +1130,41 @@ mimetype_supported_by_gdk_pixbuf (const char *mime_type)
     }
 
     return result;
+}
+
+/* Whether anything here knows how to draw this type at all. Unlike
+ * can_thumbnail it asks nothing of the shared cache - neither whether it can be
+ * written to nor what it says failed - since thumbnails are no longer written
+ * there. */
+gboolean
+nemo_desktop_thumbnail_factory_can_make (NemoDesktopThumbnailFactory *factory,
+					  const char            *uri,
+					  const char            *mime_type)
+{
+  Thumbnailer *thumb;
+
+  if (mime_type == NULL)
+    return FALSE;
+
+  /* Don't thumbnail thumbnails */
+  if (uri &&
+      strncmp (uri, "file:/", 6) == 0 &&
+      strstr (uri, "/thumbnails/") != NULL)
+    return FALSE;
+
+  g_mutex_lock (&factory->priv->lock);
+
+  if (nemo_desktop_thumbnail_factory_is_disabled (factory, mime_type))
+    {
+      g_mutex_unlock (&factory->priv->lock);
+      return FALSE;
+    }
+
+  thumb = g_hash_table_lookup (factory->priv->mime_types_map, mime_type);
+
+  g_mutex_unlock (&factory->priv->lock);
+
+  return thumb != NULL || mimetype_supported_by_gdk_pixbuf (mime_type);
 }
 
 /**
@@ -1375,9 +1406,22 @@ nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *
 						    const char            *uri,
 						    const char            *mime_type)
 {
+  return nemo_desktop_thumbnail_factory_generate_thumbnail_at_size (factory, uri, mime_type,
+                                                                   factory->priv->size == NEMO_DESKTOP_THUMBNAIL_SIZE_LARGE
+                                                                   ? 256 : 128);
+}
+
+/* The same, at any size rather than the two the shared cache has folders for.
+ * An external thumbnailer is free to hand back something smaller than asked. */
+GdkPixbuf *
+nemo_desktop_thumbnail_factory_generate_thumbnail_at_size (NemoDesktopThumbnailFactory *factory,
+							    const char            *uri,
+							    const char            *mime_type,
+							    int                    size)
+{
   GdkPixbuf *pixbuf, *scaled, *tmp_pixbuf;
   char *script, *expanded_script;
-  int width, height, size;
+  int width, height;
   int original_width = 0;
   int original_height = 0;
   char dimension[12];
@@ -1387,12 +1431,7 @@ nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *
 
   g_return_val_if_fail (uri != NULL, NULL);
   g_return_val_if_fail (mime_type != NULL, NULL);
-
-  /* Doesn't access any volatile fields in factory, so it's threadsafe */
-  
-  size = 128;
-  if (factory->priv->size == NEMO_DESKTOP_THUMBNAIL_SIZE_LARGE)
-    size = 256;
+  g_return_val_if_fail (size > 0, NULL);
 
   pixbuf = NULL;
 

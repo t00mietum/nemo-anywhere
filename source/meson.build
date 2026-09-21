@@ -120,6 +120,54 @@ json    = dependency('json-glib-1.0',               version: '>=1.6')
 # encrypted headers), go out to a 7z or rar command when one is installed.
 archive = dependency('libarchive',                  version: '>=3.2.0')
 
+# Thumbnail cache. Asked for static so there is one fewer library to ship beside
+# the Windows exe. It has to come through pkg-config rather than find_library:
+# the cross sysroot is not on the compiler's own search path, and only the .pc
+# file says where it is.
+sqlite  = dependency('sqlite3',                     version: '>=3.20', static: true)
+
+# blake3, vendored under ../vendor. Checksums have to be cheap enough to compute
+# while a folder is being listed, and this is the only option that both hits a
+# few GB/s and fits in 100 KB of source - see vendor/README.md for the other two
+# that were measured.
+#
+# Each instruction set is its own library, because each needs its own flag on
+# the command line. Which of them actually runs is decided at run time by cpuid,
+# so the flags never reach anything else. AVX-512 is left out: it is another
+# 100 KB of code for a case nobody here hits, and on a good many parts it clocks
+# the core down while it runs.
+blake3Include = include_directories('../vendor/blake3')
+blake3Defines = [ '-DBLAKE3_NO_AVX512' ]
+blake3Simd = []
+
+if host_machine.cpu_family() in [ 'x86', 'x86_64' ]
+  foreach set : [ [ 'sse2', '-msse2' ], [ 'sse41', '-msse4.1' ], [ 'avx2', '-mavx2' ] ]
+    blake3Simd += static_library('blake3-' + set[0],
+      files('../vendor/blake3/blake3_' + set[0] + '.c'),
+      c_args: blake3Defines + [ set[1] ],
+      include_directories: blake3Include,
+    )
+  endforeach
+else
+  # No hand-written path for this machine, so ask for the plain C one. Without
+  # the NEON line blake3 turns it on by itself on arm64 and then wants a source
+  # file that is not vendored.
+  blake3Defines += [ '-DBLAKE3_NO_SSE2', '-DBLAKE3_NO_SSE41', '-DBLAKE3_NO_AVX2',
+                     '-DBLAKE3_USE_NEON=0' ]
+endif
+
+blake3 = declare_dependency(
+  link_with: static_library('blake3',
+    files('../vendor/blake3/blake3.c',
+          '../vendor/blake3/blake3_dispatch.c',
+          '../vendor/blake3/blake3_portable.c'),
+    c_args: blake3Defines,
+    include_directories: blake3Include,
+    link_with: blake3Simd,
+  ),
+  include_directories: blake3Include,
+)
+
 gail    = dependency('gail-3.0')
 
 # Unix/X11-only deps, absent from the Windows (mingw) sysroot. Empty placeholders on

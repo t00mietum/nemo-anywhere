@@ -63,12 +63,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Thumbnails are made at 256px at the largest, so a big icon size shows one scaled up.
-	- Opened: 20260920-234500
-	- `nemo-desktop-thumbnail.c` offers two sizes, 128 and 256, which is the older half of what the shared thumbnail spec now names. The spec has gone on to add 512 and 1024.
-	- Only worth anything alongside the bigger icon sizes, where a folder of images is meant to be shown at 320 or 640. Below that nothing is being lost.
-	- Touches the cache directory names, the size the factory is made with, and the test for whether a cached thumbnail is big enough to use.
-
 - 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
 	- Opened: 20260920-230000
 	- A tree model's column count is fixed once it is built, so one column per size is a ceiling on how many sizes there can be. It wants one surface column with the size held beside it.
@@ -1537,6 +1531,82 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ SQLite icon cache issue reopened. More detail:
+	- Downsample the images in the database, to the largest size the user ever requested.
+		- Jpeg quality 90, with settings that favor faster decoding, potentially slower encoding if the space saving is worth it.
+		- PNG or WebM if there is transparency.
+	- Then downsample again at runtime only, if necessary, for actual display, if the current size is lower than the stored thumbnail. (If that is computationally feasible and user-tolerable for e.g. 250 images. If not, store multiple sample sizes as necessary.)
+	- In the database, try to detect and avoid duplicates.
+		- Fields for fast lookup:
+			- Full pathname (or hash?).
+		- Fields for dedupe:
+			- precise mtime equivalent, file size, binary blake3 checksum (computed only if needed, OR if file is read anyway for icon generation).
+			- This will allow recognizing the same file if it moves.
+		- Also (only what's necessary):
+			- icon size, stored img type, date stored, latest date rendered, render count.
+	- Organize the database so that it can also handle non-image files - e.g. for future general filesystem deduplication features.
+	- Add GUI Settings for basic automatic pruning control
+		- Preferences:
+			- [max cache size]; float GiB, default 2.
+			- [oldest date rendered]; integer days
+			- [local path exists but image no longer does]; boolean
+			- [save checksum]; boolean
+				- If checked, and extended attributes can be written:
+					- Stored:
+						- user.blake3.b64u = checksum in base64url
+						- user.blake3.mtime = file modification time when checksum calculated
+						- user.blake3.bytes = file size when checksum calculated
+					- Writing xattrs is slow, so write *after* database updates.
+	- FYI: The checksum xattr will also be used for future features.
+	- Queue thumbnail creation and xattr updates, but abort cleanly if user changes directory and no longer needs to see thumbnails.
+	- Manual buttons for:
+		- "Cleanup now", which runs a prune and compact cycle
+		- "Empty cache", erases the entire database.
+	- Use the proper OS-specific cache locations for the database thumbnail cache.
+	- Statically link SQLite3 into all executables. (It will also come in handy for future features.)
+	- Opened: 20260921. Started: 20260921. Closed: 20260921.
+	- Done: the store itself, its tests, the build dependency, drawing from it, pruning, and the settings.
+	- Three tables. A file's contents are one record, the names it is known by are another, and a thumbnail hangs off the contents. So a file that moved keeps its thumbnail, and a file nothing can draw is still a record - which is what a duplicate finder would read.
+	- A checksum settles what two records that looked separate really were, and folds them into one. Without one, size and timestamp together are the only guess available.
+	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 is vendored under `vendor/blake3`, runs at 2459 MB/s and builds to 65,716 bytes. It checks out against the numbers blake3 publishes, which matters because a checksum written to a file outlives this program.
+	- The cache location is its own choice, not the config one - local AppData on Windows so a thumbnail database does not sync between machines.
+	- WebP is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
+	- The checksum goes on the file in the three attributes asked for, checked from outside the program so the names really are `user.blake3.b64u`, `.bytes` and `.mtime`. On Windows they are alternate data streams, and that half passes on an NTFS drive. It passes under wine too, but for the wrong reason: a colon is an ordinary character in a Linux filename, so wine writes a second file beside the first.
+	- Thumbnails are read from the store and written to it. The freedesktop cache is still read when the store has nothing, and never written. Each one is kept at the largest size it has been shown at, and made again bigger when a zoom asks for more.
+	- A file that could not be drawn is remembered, so it is not tried again every launch.
+	- The settings are on the Preview page, under Thumbnail cache: the four asked for, a line saying how many thumbnails there are and the space they take, and the two buttons. Emptying asks first. The pruning schedule stays in the config file.
+	- [save checksum] is off by default. Its tooltip says it is fairly cheap, and that the changed ctime can wake a backup tool, though most ignore it (settled 20260921).
+	- With it on, a checksum is written onto a file when its thumbnail is made. Files already in the cache get one the next time they are drawn again.
+	- On Windows, writing a checksum moved the file's modified time, since NTFS counts a write to any stream as a change to the file. That made each checksum stale as soon as it was written. Fixed.
+	- Emptying the cache left more on disk than before, because the rebuilt file sat in the journal. It is folded back in now.
+	- Pruning runs on its own thread, one process at a time, at random every 4 to 24 hours once nothing has been drawn for 5 minutes. Its settings are in the config file under `file-cache`. A damaged file is found by the check and rebuilt at the next launch.
+	- The older sweep of the shared freedesktop cache is gone, with its two settings (settled 20260921). Nothing here writes to that cache any more.
+	- Tolerant of multiple process access.
+	- Tolerant of corrupt cache (db) file.
+	- Automatic cleanup:
+		- Run on a separate thread.
+		- Process:
+			- Check DB for errors.
+			- Remove stale rows from DB.
+			- Compact DB.
+		- Don't run every launch. Run randomly after every 4 to 24 hours - at launch time, or even if sitting idle.
+			- Ideally only after sitting idle for N minutes.
+			- Settings in config file
+		- Only one process at a time runs. Check some kind of file - in cache dir or /dev/shm - for:
+			- Date/time last started.
+			- Date/time last completed. [Cleared on a new run]
+			- Last process ID to complete it.
+			- Count of thumbnails removed.
+			- Process ID that currently wants to clean it.
+
+- ✅ Problem: Currently, thumbnails are made at 256px at the largest, so a big icon size shows one scaled up.
+	- Opened: 20260920-234500. Closed: 20260921.
+	- Solved by the file cache. A thumbnail is made at the size it is drawn at, rounded up to a step of 128, up to 640.
+	- `nemo-desktop-thumbnail.c` offers two sizes, 128 and 256, which is the older half of what the shared thumbnail spec now names. The spec has gone on to add 512 and 1024.
+	- Only worth anything alongside the bigger icon sizes, where a folder of images is meant to be shown at 320 or 640. Below that nothing is being lost.
+	- Touches the cache directory names, the size the factory is made with, and the test for whether a cached thumbnail is big enough to use.
+	- Note: This will be solved by the cache -> database feature.
+
 - ✅ Icon view:
 	- Opened: 20260919-083140. Closed: 20260920.
 	- ✅ If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
@@ -1927,7 +1997,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left off the list: keys the app writes back itself, such as a window size, a sidebar width or the last state of a search toggle. Setting one by hand only gets it overwritten.
 	- Two keys that nothing had read since the fork were dropped.
 
-- ✅ Better thumbnail cache management. Asked for as a database plus background pruning.
+- ✅ Better thumbnail cache management. Database plus background pruning.
 	- Opened: 20260826-103001
 	- Closed: 20260905-192349
 	- Done 20260905. The cache is swept once a day, on a worker thread a minute after startup. A thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed.

@@ -30,6 +30,7 @@
 #include "nemo-directory-notify.h"
 #include "nemo-global-preferences.h"
 #include "nemo-file-utilities.h"
+#include "nemo-file-digest.h"
 #include <math.h>
 #include <eel/eel-graphic-effects.h>
 #include <eel/eel-string.h>
@@ -77,9 +78,14 @@ typedef struct {
     char *image_uri;
     char *mime_type;
     time_t original_file_mtime;
+    NemoFileId id;              /* bytes and mtime, and later the checksum */
+    int size;                   /* largest size asked for, in pixels */
     gint64 add_time;
     ThumbnailCommandType cmd_type;
     guint cancelled : 1;
+    guint read_anyway : 1;      /* making it reads the whole file, so checksum it too */
+    guint had_thumbnail : 1;    /* a smaller one is already stored */
+    guint save_checksum : 1;    /* write the checksum onto the file too */
 } NemoThumbnailInfo;
 
 /* How it works:
@@ -167,7 +173,7 @@ lifo_sorter (gconstpointer a,
 }
 
 static gboolean
-get_file_mtime (const char *file_uri, time_t* mtime)
+get_file_mtime (const char *file_uri, time_t* mtime, NemoFileId *id)
 {
     GFile *file;
     GFileInfo *info;
@@ -177,10 +183,17 @@ get_file_mtime (const char *file_uri, time_t* mtime)
     *mtime = INVALID_MTIME;
 
     file = g_file_new_for_uri (file_uri);
-    info = g_file_query_info (file, G_FILE_ATTRIBUTE_TIME_MODIFIED, 0, NULL, NULL);
+    info = g_file_query_info (file,
+                              G_FILE_ATTRIBUTE_TIME_MODIFIED ","
+                              G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC ","
+                              G_FILE_ATTRIBUTE_STANDARD_SIZE,
+                              0, NULL, NULL);
     if (info) {
         if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_TIME_MODIFIED)) {
             *mtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
+            id->mtime = (gint64) *mtime * G_USEC_PER_SEC
+                        + g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC);
+            id->bytes = g_file_info_get_size (info);
             ret = TRUE;
         }
 
@@ -300,6 +313,198 @@ thumbnail_thread_notify_file_changed (gpointer image_uri)
     return G_SOURCE_REMOVE;
 }
 
+/* What a render made, on its way back to the main loop. */
+typedef struct {
+    char *uri;
+    time_t mtime;
+    NemoThumbnailLoaded loaded;
+} RenderDone;
+
+/* The picture just made is handed straight to the file, rather than read
+ * back out of the store it was just written to. */
+static gboolean
+thumbnail_render_done (gpointer data)
+{
+    RenderDone *done = data;
+    NemoFile *file;
+
+    file = nemo_file_get_by_uri (done->uri);
+
+    if (file != NULL) {
+        nemo_file_set_is_thumbnailing (file, FALSE);
+
+        /* Edited while it was being drawn, so what was drawn is stale. */
+        if (file->details->mtime != done->mtime) {
+            nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
+        } else {
+            nemo_file_take_thumbnail (file, &done->loaded);
+            nemo_file_changed (file);
+        }
+
+        nemo_file_unref (file);
+    }
+
+    g_clear_object (&done->loaded.pixbuf);
+    g_free (done->uri);
+    g_free (done);
+
+    return G_SOURCE_REMOVE;
+}
+
+/* A photo decoded with an alpha channel is usually opaque all the same, and
+ * only real transparency is worth giving up JPEG for. */
+static gboolean
+has_transparency (GdkPixbuf *pixbuf)
+{
+    const guchar *pixels;
+    int width, height, rowstride, x, y;
+
+    if (!gdk_pixbuf_get_has_alpha (pixbuf))
+        return FALSE;
+
+    pixels = gdk_pixbuf_read_pixels (pixbuf);
+    width = gdk_pixbuf_get_width (pixbuf);
+    height = gdk_pixbuf_get_height (pixbuf);
+    rowstride = gdk_pixbuf_get_rowstride (pixbuf);
+
+    for (y = 0; y < height; y++) {
+        const guchar *row = pixels + (gsize) y * rowstride;
+
+        for (x = 0; x < width; x++) {
+            if (row[x * 4 + 3] != 255)
+                return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static GdkPixbuf *
+drop_alpha (GdkPixbuf *pixbuf)
+{
+    GdkPixbuf *opaque;
+    const guchar *src;
+    guchar *dst;
+    int width, height, src_stride, dst_stride, x, y;
+
+    width = gdk_pixbuf_get_width (pixbuf);
+    height = gdk_pixbuf_get_height (pixbuf);
+
+    opaque = gdk_pixbuf_new (GDK_COLORSPACE_RGB, FALSE, 8, width, height);
+    if (opaque == NULL)
+        return NULL;
+
+    src = gdk_pixbuf_read_pixels (pixbuf);
+    dst = gdk_pixbuf_get_pixels (opaque);
+    src_stride = gdk_pixbuf_get_rowstride (pixbuf);
+    dst_stride = gdk_pixbuf_get_rowstride (opaque);
+
+    for (y = 0; y < height; y++) {
+        const guchar *s = src + (gsize) y * src_stride;
+        guchar *d = dst + (gsize) y * dst_stride;
+
+        for (x = 0; x < width; x++) {
+            d[x * 3]     = s[x * 4];
+            d[x * 3 + 1] = s[x * 4 + 1];
+            d[x * 3 + 2] = s[x * 4 + 2];
+        }
+    }
+
+    return opaque;
+}
+
+/* The JPEG is baseline rather than progressive, which is what gdk-pixbuf
+ * writes, and is also the faster of the two to decode. */
+GBytes *
+nemo_thumbnail_encode (GdkPixbuf *pixbuf, NemoThumbnailFormat *format)
+{
+    g_autoptr (GdkPixbuf) opaque = NULL;
+    gchar *buffer = NULL;
+    gsize len = 0;
+    gboolean ok;
+
+    if (has_transparency (pixbuf)) {
+        *format = NEMO_THUMBNAIL_FORMAT_PNG;
+        ok = gdk_pixbuf_save_to_buffer (pixbuf, &buffer, &len, "png", NULL, NULL);
+    } else {
+        if (gdk_pixbuf_get_has_alpha (pixbuf)) {
+            opaque = drop_alpha (pixbuf);
+            if (opaque == NULL)
+                return NULL;
+        }
+
+        *format = NEMO_THUMBNAIL_FORMAT_JPEG;
+        ok = gdk_pixbuf_save_to_buffer (opaque != NULL ? opaque : pixbuf,
+                                        &buffer, &len, "jpeg", NULL,
+                                        "quality", "90", NULL);
+    }
+
+    if (!ok || len == 0) {
+        g_free (buffer);
+        return NULL;
+    }
+
+    return g_bytes_new_take (buffer, len);
+}
+
+/* Checksums the file when making the thumbnail reads all of it anyway, which
+ * costs a second pass over bytes the page cache still holds. */
+static void
+learn_digest (NemoThumbnailInfo *info)
+{
+    g_autoptr (GFile) file = NULL;
+
+    if (!info->read_anyway || info->id.has_digest)
+        return;
+
+    file = g_file_new_for_uri (info->image_uri);
+    if (g_file_peek_path (file) == NULL)
+        return;
+
+    info->id.has_digest = nemo_file_digest_file (file, info->id.digest, cancellable, NULL);
+}
+
+/* Last, once the store has it and the draw is on its way: an attribute write is
+ * slow. A file already carrying this checksum is left alone, so a folder shown
+ * again costs a read rather than a write. */
+static void
+save_digest_on_file (NemoThumbnailInfo *info)
+{
+    g_autoptr (GFile) file = NULL;
+    guint8 there[NEMO_CACHE_DIGEST_LEN];
+
+    if (!info->save_checksum || !info->id.has_digest || info->cancelled ||
+        g_cancellable_is_cancelled (cancellable))
+        return;
+
+    file = g_file_new_for_uri (info->image_uri);
+    if (g_file_peek_path (file) == NULL)
+        return;
+
+    if (nemo_file_digest_read_attr (file, info->id.bytes, info->id.mtime, there) &&
+        memcmp (there, info->id.digest, sizeof (there)) == 0)
+        return;
+
+    nemo_file_digest_write_attr (file, info->id.bytes, info->id.mtime, info->id.digest);
+}
+
+/* A copy of this file may already have been drawn big enough under another
+ * name. Only a checksum can say so for certain; without one it is the size
+ * and time guess the store makes. */
+static gboolean
+already_stored (NemoCacheDb *db, NemoThumbnailInfo *info)
+{
+    NemoThumbnailRecord record;
+
+    if (!nemo_cache_db_thumbnail_lookup (db, info->image_uri, &info->id, &record, NULL))
+        return FALSE;
+
+    if (record.width == 0)
+        return !info->had_thumbnail;
+
+    return record.size >= info->size || MAX (record.width, record.height) < record.size;
+}
+
 /* Always on thumbnail thread */
 static void
 remove_from_hash_table (NemoThumbnailInfo *info)
@@ -317,6 +522,8 @@ thumbnail_thread (gpointer data,
                   gpointer user_data)
 {
     NemoThumbnailInfo *info = (NemoThumbnailInfo *) data;
+    NemoCacheDb *db;
+    RenderDone *done;
     GdkPixbuf *pixbuf;
     time_t current_time;
     gchar *image_uri = info->image_uri;
@@ -330,7 +537,7 @@ thumbnail_thread (gpointer data,
 
     /* Deferred from nemo_create_thumbnail, which cannot afford to block. */
     if (info->original_file_mtime == INVALID_MTIME) {
-        get_file_mtime (info->image_uri, &info->original_file_mtime);
+        get_file_mtime (info->image_uri, &info->original_file_mtime, &info->id);
     }
 
     time (&current_time);
@@ -348,8 +555,22 @@ thumbnail_thread (gpointer data,
         return;
     }
 
+    db = nemo_cache_db_get ();
+
+    learn_digest (info);
+
+    if (db != NULL && already_stored (db, info)) {
+        DEBUG ("(Thumbnail Thread) Already stored: %s", info->image_uri);
+        g_idle_add_full (G_PRIORITY_HIGH_IDLE,
+                         thumbnail_thread_notify_file_changed,
+                         g_strdup (info->image_uri), NULL);
+        save_digest_on_file (info);
+        remove_from_hash_table (info);
+        return;
+    }
+
     /* Create the thumbnail. */
-    DEBUG ("(Thumbnail Thread) Creating thumbnail: %s", info->image_uri);
+    DEBUG ("(Thumbnail Thread) Creating thumbnail: %s at %d", info->image_uri, info->size);
 
     if (eel_uri_is_network (info->image_uri)) {
         GFile *file = g_file_new_for_uri (info->image_uri);
@@ -373,30 +594,61 @@ thumbnail_thread (gpointer data,
      * because of that we have to convert our path from the network URI to a local file:// URI or else any
      * thumbnailers that use %i wont generate thumbnails correctly
      */
-    pixbuf = nemo_desktop_thumbnail_factory_generate_thumbnail (thumbnail_factory,
-                                                                 image_uri,
-                                                                 info->mime_type);
+    pixbuf = nemo_desktop_thumbnail_factory_generate_thumbnail_at_size (get_thumbnail_factory (),
+                                                                         image_uri,
+                                                                         info->mime_type,
+                                                                         info->size);
     if (free_uri) {
         g_free (image_uri);
     }
 
+    /* Nothing goes into the shared freedesktop cache any more. It is read
+       when the store has nothing, and never written. */
+    done = g_new0 (RenderDone, 1);
+    done->uri = g_strdup (info->image_uri);
+    done->mtime = info->original_file_mtime;
+
     if (pixbuf) {
-        nemo_desktop_thumbnail_factory_save_thumbnail (thumbnail_factory,
-                                                        pixbuf,
-                                                        info->image_uri,
-                                                        info->original_file_mtime);
-        g_object_unref (pixbuf);
+        NemoThumbnailRecord record = { 0 };
+        g_autoptr (GBytes) image = NULL;
+        int longest = MAX (gdk_pixbuf_get_width (pixbuf), gdk_pixbuf_get_height (pixbuf));
+
+        record.size = info->size;
+        record.width = gdk_pixbuf_get_width (pixbuf);
+        record.height = gdk_pixbuf_get_height (pixbuf);
+
+        image = nemo_thumbnail_encode (pixbuf, &record.format);
+        done->loaded.from_store = image != NULL &&
+                                  nemo_cache_db_thumbnail_store (db, info->image_uri, &info->id,
+                                                                 &record, image);
+
+        done->loaded.pixbuf = pixbuf;
+        done->loaded.stored_size = info->size;
+        done->loaded.stored_capped = longest >= info->size;
     } else {
-        nemo_desktop_thumbnail_factory_create_failed_thumbnail (thumbnail_factory, 
-                                                                 info->image_uri,
-                                                                 info->original_file_mtime);
+        NemoThumbnailRecord record = { 0 };
+
+        /* A bigger render that failed leaves the smaller one alone. */
+        if (!info->had_thumbnail) {
+            record.size = info->size;
+            nemo_cache_db_thumbnail_store (db, info->image_uri, &info->id, &record, NULL);
+            done->loaded.failed = TRUE;
+        }
     }
 
     /* We need to call nemo_file_changed(), but I don't think that is
        thread safe. So add an idle handler and do it from the main loop. */
-    g_idle_add_full (G_PRIORITY_HIGH_IDLE,
-                     thumbnail_thread_notify_file_changed,
-                     g_strdup (info->image_uri), NULL);
+    if (done->loaded.pixbuf != NULL || done->loaded.failed) {
+        g_idle_add_full (G_PRIORITY_HIGH_IDLE, thumbnail_render_done, done, NULL);
+    } else {
+        g_free (done->uri);
+        g_free (done);
+        g_idle_add_full (G_PRIORITY_HIGH_IDLE,
+                         thumbnail_thread_notify_file_changed,
+                         g_strdup (info->image_uri), NULL);
+    }
+
+    save_digest_on_file (info);
 
 #if DEBUG_THREADS
     g_message ("%u unprocessed (Done) (%u threads free)",
@@ -454,6 +706,8 @@ feeder_thread (GTask        *task,
 
                     /* The file in the queue might need a new original mtime */
                     existing_info->original_file_mtime = feeder_info->original_file_mtime;
+                    existing_info->id = feeder_info->id;
+                    existing_info->size = MAX (existing_info->size, feeder_info->size);
                     existing_info->add_time = g_get_monotonic_time ();
                     g_thread_pool_move_to_front ((GThreadPool *) tpool, existing_info);
                 }
@@ -543,7 +797,7 @@ finalize_thumbnailer (void)
 
 /* Mainloop */
 void
-nemo_create_thumbnail (NemoFile *file)
+nemo_create_thumbnail (NemoFile *file, int size)
 {
     time_t file_mtime = 0;
     static gsize once_init = 0;
@@ -576,7 +830,7 @@ nemo_create_thumbnail (NemoFile *file)
 
         real_file = nemo_file_get_by_uri (uri);
         if (real_file != NULL) {
-            nemo_create_thumbnail (real_file);
+            nemo_create_thumbnail (real_file, size);
             nemo_file_unref (real_file);
         }
 
@@ -603,6 +857,14 @@ nemo_create_thumbnail (NemoFile *file)
     info->image_uri = file_uri;
     info->mime_type = nemo_file_get_mime_type (file);
     info->original_file_mtime = file_mtime;
+    if (file_mtime != INVALID_MTIME) {
+        nemo_thumbnail_file_id (file, &info->id);
+    }
+    info->size = nemo_thumbnail_size_step (size);
+    info->read_anyway = nemo_can_thumbnail_internally (file);
+    info->had_thumbnail = file->details->thumbnail_stored_size > 0;
+    info->save_checksum = nemo_config_get_boolean (nemo_config_get_group (NEMO_FILE_CACHE_GROUP),
+                                                   NEMO_FILE_CACHE_SAVE_CHECKSUM);
     info->add_time = g_get_monotonic_time ();
     info->cmd_type = THUMBNAIL_ADD;
 
@@ -681,22 +943,162 @@ nemo_can_thumbnail_internally (NemoFile *file)
 gboolean
 nemo_can_thumbnail (NemoFile *file)
 {
-    NemoDesktopThumbnailFactory *factory;
     g_autofree gchar *mime_type = NULL;
     g_autofree gchar *uri = NULL;
-    time_t mtime;
-    gboolean res;
 
     uri = nemo_file_get_uri (file);
     mime_type = nemo_file_get_mime_type (file);
-    mtime = nemo_file_get_mtime (file);
-    
-    factory = get_thumbnail_factory ();
-    res = nemo_desktop_thumbnail_factory_can_thumbnail (factory,
-                                                         uri,
-                                                         mime_type,
-                                                         mtime);
-    return res;
+
+    return nemo_desktop_thumbnail_factory_can_make (get_thumbnail_factory (), uri, mime_type);
+}
+
+int
+nemo_thumbnail_size_step (int size)
+{
+    int step = NEMO_THUMBNAIL_SIZE_STEP;
+
+    return MAX (step, (size + step - 1) / step * step);
+}
+
+void
+nemo_thumbnail_file_id (NemoFile *file, NemoFileId *id)
+{
+    memset (id, 0, sizeof (*id));
+    id->bytes = MAX (file->details->size, 0);
+    id->mtime = (gint64) file->details->mtime * G_USEC_PER_SEC + file->details->mtime_usec;
+}
+
+typedef struct {
+    int max_size;
+    gboolean capped;
+} DecodeSize;
+
+/* Decodes no bigger than `max_size` on the longer side. JPEG in particular
+ * decodes much faster straight to a smaller size than at full size and then
+ * scaled. */
+static void
+decode_size_prepared (GdkPixbufLoader *loader, int width, int height, gpointer data)
+{
+    DecodeSize *want = data;
+    int max_size = want->max_size;
+
+    if (max_size <= 0 || MAX (width, height) <= max_size)
+        return;
+
+    want->capped = TRUE;
+
+    if (width >= height) {
+        gdk_pixbuf_loader_set_size (loader, max_size, MAX (1, (int) ((gint64) height * max_size / width)));
+    } else {
+        gdk_pixbuf_loader_set_size (loader, MAX (1, (int) ((gint64) width * max_size / height)), max_size);
+    }
+}
+
+static GdkPixbuf *
+decode_at_most (const guint8 *data, gsize len, int max_size, gboolean *capped)
+{
+    g_autoptr (GdkPixbufLoader) loader = gdk_pixbuf_loader_new ();
+    DecodeSize want = { max_size, FALSE };
+    GdkPixbuf *pixbuf;
+
+    *capped = FALSE;
+
+    g_signal_connect (loader, "size-prepared", G_CALLBACK (decode_size_prepared), &want);
+
+    if (!gdk_pixbuf_loader_write (loader, data, len, NULL) ||
+        !gdk_pixbuf_loader_close (loader, NULL)) {
+        return NULL;
+    }
+
+    pixbuf = gdk_pixbuf_loader_get_pixbuf (loader);
+    if (pixbuf == NULL)
+        return NULL;
+
+    *capped = want.capped;
+
+    return gdk_pixbuf_apply_embedded_orientation (pixbuf);
+}
+
+/* A thumbnail someone else made. The shared cache stamps the time of the file
+ * it was made from, and one that does not match is out of date. The option
+ * does not survive a scaled decode, so it is read at full size, which is at
+ * most 1024 there. */
+static GdkPixbuf *
+load_shared (const char *path, int max_size, gboolean *capped, time_t *mtime)
+{
+    g_autofree gchar *contents = NULL;
+    g_autoptr (GdkPixbuf) full = NULL;
+    const char *stamp;
+    gsize len = 0;
+    int width, height;
+
+    *capped = FALSE;
+
+    if (!g_file_get_contents (path, &contents, &len, NULL))
+        return NULL;
+
+    full = decode_at_most ((const guint8 *) contents, len, 0, capped);
+    if (full == NULL)
+        return NULL;
+
+    stamp = gdk_pixbuf_get_option (full, "tEXt::Thumb::MTime");
+    *mtime = stamp != NULL ? (time_t) g_ascii_strtoll (stamp, NULL, 10) : 0;
+
+    width = gdk_pixbuf_get_width (full);
+    height = gdk_pixbuf_get_height (full);
+
+    if (max_size <= 0 || MAX (width, height) <= max_size)
+        return g_steal_pointer (&full);
+
+    *capped = TRUE;
+
+    if (width >= height) {
+        return gdk_pixbuf_scale_simple (full, max_size, MAX (1, (int) ((gint64) height * max_size / width)),
+                                        GDK_INTERP_BILINEAR);
+    }
+
+    return gdk_pixbuf_scale_simple (full, MAX (1, (int) ((gint64) width * max_size / height)), max_size,
+                                    GDK_INTERP_BILINEAR);
+}
+
+void
+nemo_thumbnail_load (const char          *uri,
+                     const NemoFileId    *id,
+                     const char          *shared_path,
+                     int                  max_size,
+                     NemoThumbnailLoaded *out)
+{
+    NemoCacheDb *db = nemo_cache_db_get ();
+    NemoThumbnailRecord record;
+    g_autoptr (GBytes) image = NULL;
+
+    memset (out, 0, sizeof (*out));
+
+    if (db != NULL && nemo_cache_db_thumbnail_lookup (db, uri, id, &record, &image)) {
+        out->from_store = TRUE;
+
+        if (record.width == 0 || image == NULL) {
+            out->failed = TRUE;
+            return;
+        }
+
+        out->stored_size = record.size;
+        out->stored_capped = MAX (record.width, record.height) >= record.size;
+        out->pixbuf = decode_at_most (g_bytes_get_data (image, NULL), g_bytes_get_size (image),
+                                      max_size, &out->capped);
+        if (out->pixbuf != NULL)
+            return;
+
+        /* Unreadable, so as good as not there. */
+        out->from_store = FALSE;
+    }
+
+    /* How big the shared copy was made is not known, so a bigger draw
+       always asks for one of our own. */
+    if (shared_path != NULL) {
+        out->pixbuf = load_shared (shared_path, max_size, &out->capped, &out->shared_mtime);
+        out->stored_capped = TRUE;
+    }
 }
 
 

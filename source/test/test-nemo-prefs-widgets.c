@@ -41,6 +41,14 @@ static const char * const widget_ids[] = {
 	"icon_view_image_size_spinbutton_current",
 	"compact_view_size_spinbutton_current",
 	"list_view_size_spinbutton_current",
+	/* The thumbnail cache section, wired in nemo-prefs-file-cache.c. */
+	"file_cache_size_spinbutton",
+	"file_cache_age_spinbutton",
+	"file_cache_drop_missing_checkbutton",
+	"file_cache_save_checksum_checkbutton",
+	"file_cache_usage_label",
+	"file_cache_cleanup_button",
+	"file_cache_empty_button",
 	NULL
 };
 

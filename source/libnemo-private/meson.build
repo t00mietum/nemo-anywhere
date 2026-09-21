@@ -60,8 +60,11 @@ nemo_private_sources = [
   'nemo-shortcut-win32.c',
   'nemo-trash-win32.c',
   'nemo-win32-appearance.c',
+  'nemo-cache-db.c',
+  'nemo-cache-db-prune.c',
+  'nemo-file-digest.c',
+  'nemo-file-xattr.c',
   'nemo-thumbnail-pixbuf-utils.c',
-  'nemo-thumbnail-prune.c',
   'nemo-mime-application-chooser.c',
   'nemo-module.c',
   'nemo-monitor.c',
@@ -94,8 +97,8 @@ nemo_private_sources = [
 ]
 
 nemo_private_deps = [
-  archive, eel, execinfo, gail, gio_unix, glib, gmodule, gtk, json, math,
-  nemo_extension, win_shell, x11
+  archive, blake3, eel, execinfo, gail, gio_unix, glib, gmodule, gtk, json, math,
+  nemo_extension, sqlite, win_shell, x11
 ]
 
 if libexif_enabled
@@ -109,6 +112,7 @@ endif
 
 if is_windows
   nemo_private_sources += 'nemo-delete-guard-win32.c'
+  nemo_private_sources += 'nemo-xattr-win32.c'
   nemo_private_sources += 'nemo-search-engine-win32.c'
   nemo_private_sources += 'nemo-associations-win32.c'
   nemo_private_sources += 'nemo-launch-win32.c'

@@ -21,7 +21,9 @@ PFX="mingw-w64-x86_64-"
 ##	Roots: gtk3 drags in the bulk of the stack (glib2, atk, cairo, gdk-pixbuf2, pango,
 ##	json-glib, libepoxy, gettext, icon theme). The rest are our extra meson deps.
 ##	Exempi (XMP) is not packaged for mingw - we cross-build with -Dxmp=false instead.
-ROOTS=(gtk3 json-glib libexif libgsf libarchive)
+##	sqlite3 already arrives through the gtk3 chain, but the thumbnail cache links it
+##	directly, so name it here rather than let a refresh of that chain drop it.
+ROOTS=(gtk3 json-glib libexif libgsf libarchive sqlite3)
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

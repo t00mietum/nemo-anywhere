@@ -80,6 +80,13 @@ gboolean               nemo_desktop_thumbnail_factory_can_thumbnail (NemoDesktop
 GdkPixbuf *            nemo_desktop_thumbnail_factory_generate_thumbnail (NemoDesktopThumbnailFactory *factory,
 									   const char            *uri,
 									   const char            *mime_type);
+GdkPixbuf *            nemo_desktop_thumbnail_factory_generate_thumbnail_at_size (NemoDesktopThumbnailFactory *factory,
+										   const char            *uri,
+										   const char            *mime_type,
+										   int                    size);
+gboolean               nemo_desktop_thumbnail_factory_can_make (NemoDesktopThumbnailFactory *factory,
+								 const char            *uri,
+								 const char            *mime_type);
 void                   nemo_desktop_thumbnail_factory_save_thumbnail (NemoDesktopThumbnailFactory *factory,
 								       GdkPixbuf             *thumbnail,
 								       const char            *uri,

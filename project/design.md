@@ -31,7 +31,7 @@ Status: kept current as decisions change, rather than written once. Last read th
 		- [Application settings](#application-settings)
 		- [Bookmarks](#bookmarks)
 		- [Per-folder view state](#per-folder-view-state)
-		- [Thumbnail cache](#thumbnail-cache)
+		- [File cache](#file-cache)
 	- [File operations](#file-operations)
 		- [Trash and delete](#trash-and-delete)
 		- [Links](#links)
@@ -312,15 +312,67 @@ Per-folder view state - view mode, zoom, sort column, column layout - is app-own
 
 - Window size, position and maximized state are shared by every window and live with the application settings. They are written shortly after a move or resize settles rather than at close, so an abnormal exit does not discard them. With nothing saved yet a window opens at 1280x720 including its frame, with the side pane at about a fifth of the width.
 
-#### Thumbnail cache
+#### File cache
 
-The thumbnail cache is the fourth store and is not ours. It is the shared freedesktop cache: PNGs named by a hash of the file they were made from, under the user's cache directory, read and written by every file manager and image viewer on a Linux desktop, so a thumbnail made in one is already there in the next.
+The file cache is the fourth store. It is a private SQLite database under the user's cache directory, holding what has been worked out about files on disk so it does not have to be worked out again. Thumbnails are the first thing in it and the reason it exists, but the tables are about files rather than about pictures, so a checksum for a text file is as much at home there as an image is.
 
-- Nothing ever removed one, so the folder only grew. It is swept now, at most once a day, on a worker thread a minute after startup, never on the path that draws a window.
+- Thumbnails were kept in the shared freedesktop cache until 2026-09-21, and that folder is still read. A thumbnail another program already made is used rather than rendered again; nothing is written back to it. On Windows and macOS there was never anything to share with.
 
-- Three rules in order: a thumbnail whose file is gone, then anything unused for longer than the age allowed, then oldest-first until the rest fit the size allowed. Both limits are on the Preview page and either can be turned off. The defaults, 180 days and 512 MB, are what a GNOME or Cinnamon desktop already applies to the same folder, so on those desktops nothing changes and everywhere else something is finally minding it.
+- The change was asked for, and the earlier decision to stay with the shared cache is reversed. What settled it is that the new requirements cannot be said in a PNG-per-file store keyed on a hash of the path: a thumbnail stored at the largest size a file has actually been shown at, files recognized as the same after they move, and pruning by how often something has been drawn. The dependency that argued against it in 2026-09-05 turned out to be one apt line per Linux container and nothing at all for Windows, where the sysroot already had it.
 
-- A private database was considered and dropped. It meant a new dependency in three build environments, and on Linux it would have cost the sharing that makes the cache worth having. Growth was the actual complaint, and sweeping fixes that without giving anything up.
+- SQLite is linked static. It has to come through pkg-config rather than meson's `find_library`, because the cross sysroot is not on the compiler's own search path.
+
+- Three tables of data, plus one row of bookkeeping for pruning. `files` is one row per distinct set of file contents: the size, and the checksum once anything has bothered to compute one. It holds no image, picture or not. `paths` is one row per uri, pointing at the file it holds and carrying its own timestamp. `thumbnails` is only for images; it hangs off a `files` row and holds the encoded image.
+
+- Splitting paths from files is what lets a file that moved, or a second copy of one, find a thumbnail that is already there. It is also what a duplicate finder would need, which is why the split is drawn this way rather than around thumbnails: every file seen is a `files` row, and the copies of one are the paths hanging off it. A file nothing can draw has no `thumbnails` row and is otherwise an ordinary record.
+
+- A checksum settles what two records that looked separate really were, so learning one folds them together. The image and every other name move onto the record that stays. Without a checksum, size and timestamp together are the only guess available, and two unrelated files that happen to match both would share a thumbnail.
+
+- Every launch is its own process and several can be open at once, so the file is in WAL mode with a busy timeout. Writes are small and the whole store is rebuildable, so `synchronous` is NORMAL rather than FULL - a power cut can cost the last few rows, which is not worth an fsync per row.
+
+- A damaged file, or one written by another version of the tables, is thrown away and rebuilt at open rather than migrated or repaired. Nothing in it cannot be worked out again from the disk. Damage noticed while running only stops the store being used, because deleting a file other processes still have open is worse than going without until the next launch. It also leaves a marker beside the file, and the next launch starts over when it sees one. A damaged page deep in the file does not stop it opening, so without the marker nothing would ever act on it.
+
+- Draw counts are held in memory and written in one transaction. Scrolling a big folder draws the same file repeatedly, and the age rule works in days, so a write per draw would buy nothing.
+
+- A checksum is also left on the file itself, in three attributes: the checksum, and the size and time it was taken at. That way it travels with the file - a copy onto another machine, or onto a drive this program has never seen, arrives already knowing what it is. On Linux and the BSDs they are extended attributes in the `user` namespace; on Windows they are alternate data streams, which only NTFS and ReFS have, and the setting says so where it is switched on.
+
+- The time is written last of the three, and reading requires both the size and the time to match. A write that stops part way then leaves the old time next to the new checksum, and the next reader throws the lot away. Written the other way round, a half-finished write leaves the old checksum under a size and time that both match, which no reader can catch.
+
+- Writing an attribute is slow enough that it happens after the database is already up to date, never in front of a draw. It is also optional: a file system with nowhere to put one simply goes without, and the database still knows.
+
+- It is off by default, and switched on by a setting. It changes the file's status-change time, though not its modified time, and that can wake a backup tool, though most ignore it. With it on, a checksum is written when a thumbnail is made, so files already in the cache get one the next time they are drawn again. A file that already carries the same checksum is left alone.
+
+- On NTFS a write to any stream counts as a change to the whole file and moves its modified time. Left alone, that would make each checksum stale as soon as it was written, and the file would read as edited to everything else too. The write tells its handle to leave the file times as they are.
+
+- A thumbnail is made at the size it is being drawn at, rounded up to a step of 128 pixels, and made again bigger when a draw wants more than is stored. So each picture is kept at the largest size it has actually been shown at, and a folder only ever seen small stays small on disk.
+
+- JPEG at quality 90, and PNG only when the picture has see-through parts. An alpha channel that is opaque everywhere still counts as a photo. WebP is out, since gdk-pixbuf cannot write it and the Windows build cannot read it.
+
+- A thumbnail is read on a worker thread and decoded no bigger than the draw needs, so a picture stored at 640 and shown in a list takes a 128 pixel copy in memory. JPEG decodes straight to a smaller size, which is far cheaper than decoding in full and scaling.
+
+- A render that failed is stored too, with no image, so a broken file is not tried again on every launch. Editing the file clears it.
+
+- A file that has to be read in full to make its thumbnail is checksummed at the same time, since its bytes were just read. A copy of it under another name then finds the thumbnail already there.
+
+- Reload makes the folder's thumbnails again, as it always has. It forgets the stored copy and stops using the freedesktop one for those files. The freedesktop cache itself is left alone.
+
+- Pruning runs on a worker thread over a connection of its own, so it never holds up a draw. Each pass checks the file for damage, forgets local files that are gone, drops thumbnails not drawn for too long, then drops the least recently drawn until the file is under its size limit, and last hands the freed space back to the disk.
+
+- A file is only forgotten when its folder is still there. A whole folder missing is more often a drive that is not plugged in. Shares are skipped, and so is any folder that is slow to answer, since one that is not answering costs about twenty seconds per question.
+
+- A pass is due at random between 4 and 24 hours after the last, and waits until nothing has been drawn for 5 minutes. All three are in the config file. Whoever finishes a pass picks the next time and writes it in the file, so every copy running agrees on it.
+
+- Only one process prunes at a time. The claim is a row in the database, taken in a write transaction, so SQLite's own locking decides who wins. That works the same on every platform, where a lock file would need a separate answer for Windows. The claim carries a heartbeat, and one nobody has touched for ten minutes belongs to a process that died and is taken over.
+
+- The space goes back a few pages at a time with incremental vacuum rather than a full VACUUM. A full one holds the write lock for as long as it takes to copy the whole file, and every other copy would wait on it.
+
+- Quitting stops a pass part way through, and it lets go of its claim.
+
+- The settings are on the Preview page: the size limit, the age limit, forgetting missing files, and saving checksums onto files. The schedule stays in the config file only. The page also shows how many thumbnails there are and the space on disk, with a button to clean up now and one to empty the cache.
+
+- Emptying asks first, then drops every row and runs a full VACUUM. In WAL mode the VACUUM writes the new file into the journal, which then holds more than the old file did, so the journal is folded back in and cut short after it.
+
+- The older sweep of the shared freedesktop cache is gone, along with its two settings. Nothing here writes to that cache any more, and other programs that do can look after it.
 
 ### File operations
 
