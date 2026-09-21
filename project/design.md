@@ -438,6 +438,12 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - The image size is a default, not a rule. The slider still moves the folder, and where "Remember per-folder settings" is on that size is what sticks. The default itself is never written back: a folder with nothing of its own keeps following whatever the setting says, and in a window that is not remembering per folder the bigger size does not follow you into the next folder.
 
+- A folder therefore remembers two icon sizes, not one: what it should look like full of pictures, and what it should look like otherwise. Zooming decides which of the two is being set by what is in the folder at the time, so zooming a gallery never moves the size its plain sibling opens at.
+
+- Both sizes inherit. A child with nothing of its own takes the pair from the nearest parent that has one and then picks between them by what is in the child. So one setting on a photo library gives every album under it the big size, while a folder of notes filed in the same tree still opens small. Where a parent only ever had one of the two set, the other falls back to its default.
+
+- The Current tab in preferences shows both, since the pair is what children inherit. A size there that the folder itself will never use is still worth setting.
+
 - The slider runs along the stops rather than over pixels. The range is nearly thirty times as wide at one end as the other, so spacing the marks evenly is the only way the low end stays usable.
 
 - A name under an icon is one size whatever the icon is. It runs as wide as the icon above it, and never narrower than 110 pixels, or an ordinary file name wraps at the usual size. Below 32 pixels there is no name at all. The desktop is the one place a name does grow with the icon, a point either side of the standard size, and it always did.

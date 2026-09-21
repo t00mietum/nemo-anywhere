@@ -417,17 +417,18 @@ fCheckSliderMargin(){
 }
 fCheckSliderMargin
 
-## The bigger size a folder of images opens at is a default, not a choice the
-## folder made. Writing it back would pin the folder at whatever the setting
-## said the first time it was opened, and in a window that is not remembering
-## per folder it would follow you into the next folder.
+## Sizing a folder of images reads: either the folder's own image size, which is
+## already stored, or the image default, which has to stay a default so the
+## preference can still move it. Writing here would pin a folder at whatever the
+## setting said the first time it was opened, and in a window that is not
+## remembering per folder it would follow you into the next folder.
 fCheckImageDefault(){
 	local src='source/src/nemo-icon-view.c'
 	local body
 
 	[[ -f "$src" ]] || return 0
 
-	body="$(awk '/^update_mostly_images/ { on=1 } on { print } on && /^}/ { exit }' "$src")"
+	body="$(awk '/^(size_for_mostly_images|update_mostly_images)/ { on=1 } on { print } on && /^}/ { on=0 }' "$src")"
 
 	if ! grep -q -F 'nemo_directory_is_mostly_images' <<< "$body"; then
 		fEcho "FAIL: ${src}: update_mostly_images must ask what is in the folder"
@@ -435,7 +436,7 @@ fCheckImageDefault(){
 	fi
 
 	if grep -qE '(^|[[:space:](])set_icon_size \(|nemo_folder_settings_set|nemo_window_set_ignore_meta_icon_size' <<< "$body"; then
-		fEcho "FAIL: ${src}: the image size is a default and must not be stored"
+		fEcho "FAIL: ${src}: sizing a folder of images must not write anything back"
 		exit 2
 	fi
 }
