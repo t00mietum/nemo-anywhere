@@ -268,6 +268,10 @@ DOGFOOD_CROSS_DESTS=()
 ## Run after the installs. Keeps the launcher and its wrappers in step with the
 ## synced copies people actually run.
 DOGFOOD_HOOK=(bash cicd/utility/deploy-launcher.bash)
+## The packed Windows exe, built on whichever Windows box answers, under the shared
+## host lock. Off under --quick. Without it the mswin drop only moved when someone
+## ran cicd-win.ps1 by hand, and it sat 18 days behind before anyone noticed.
+DOGFOOD_REMOTE=(bash cicd/utility/win-dogfood.bash)
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
