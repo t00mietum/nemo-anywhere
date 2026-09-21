@@ -38,6 +38,7 @@ static const char * const widget_ids[] = {
 	"compact_view_size_spinbutton",
 	"list_view_size_spinbutton",
 	"icon_view_size_spinbutton_current",
+	"icon_view_image_size_spinbutton_current",
 	"compact_view_size_spinbutton_current",
 	"list_view_size_spinbutton_current",
 	NULL

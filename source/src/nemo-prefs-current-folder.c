@@ -26,7 +26,6 @@
 #include <string.h>
 #include <glib/gi18n.h>
 
-#include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-global-preferences.h>
@@ -42,6 +41,7 @@ enum {
 	FIELD_FOLDERS_FIRST,
 	FIELD_FAVORITES_FIRST,
 	FIELD_ICON_ZOOM,
+	FIELD_ICON_IMAGE_ZOOM,
 	FIELD_LABELS_BESIDE,
 	FIELD_COMPACT_ZOOM,
 	FIELD_SAME_WIDTH,
@@ -61,6 +61,7 @@ static const char * const field_widgets[N_FIELDS] = {
 	"sort_folders_first_checkbutton",
 	"sort_favorites_first_checkbutton",
 	"icon_view_size_spinbutton",
+	"icon_view_image_size_spinbutton",
 	"labels_beside_icons_checkbutton",
 	"compact_view_size_spinbutton",
 	"all_columns_same_width_checkbutton",
@@ -168,6 +169,7 @@ field_key (int field)
 	case FIELD_FOLDERS_FIRST: return NEMO_METADATA_KEY_SORT_DIRECTORIES_FIRST;
 	case FIELD_FAVORITES_FIRST: return NEMO_METADATA_KEY_SORT_FAVORITES_FIRST;
 	case FIELD_ICON_ZOOM: return NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL;
+	case FIELD_ICON_IMAGE_ZOOM: return NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL;
 	case FIELD_LABELS_BESIDE: return NEMO_METADATA_KEY_ICON_VIEW_LABELS_BESIDE_ICONS;
 	case FIELD_COMPACT_ZOOM: return NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL;
 	case FIELD_SAME_WIDTH: return NEMO_METADATA_KEY_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH;
@@ -190,28 +192,8 @@ size_percent (gint size)
 	return nemo_icon_size_percent (size);
 }
 
-/* A folder that is mostly images falls back to the image default instead, so
-   that is what the Current tab has to show when the folder has nothing of its
-   own. The folder is open in a window, so it has already been read. */
-static gboolean
-folder_is_mostly_images (NemoFile *folder)
-{
-	NemoDirectory *directory;
-	gboolean answer;
-
-	if (folder == NULL) {
-		return FALSE;
-	}
-
-	directory = nemo_directory_get_for_file (folder);
-	answer = nemo_directory_is_mostly_images (directory);
-	nemo_directory_unref (directory);
-
-	return answer;
-}
-
 static int
-field_default (CurrentTab *tab, int field)
+field_default (int field)
 {
 	switch (field) {
 	case FIELD_VIEW: return default_view_index ();
@@ -219,10 +201,8 @@ field_default (CurrentTab *tab, int field)
 	case FIELD_REVERSE: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DEFAULT_SORT_IN_REVERSE_ORDER);
 	case FIELD_FOLDERS_FIRST: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
 	case FIELD_FAVORITES_FIRST: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
-	case FIELD_ICON_ZOOM: return nemo_config_get_int (nemo_icon_view_preferences,
-							  folder_is_mostly_images (tab->folder)
-							    ? NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE
-							    : NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
+	case FIELD_ICON_ZOOM: return nemo_config_get_int (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
+	case FIELD_ICON_IMAGE_ZOOM: return nemo_config_get_int (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE);
 	case FIELD_LABELS_BESIDE: return nemo_config_get_boolean (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
 	case FIELD_COMPACT_ZOOM: return nemo_config_get_int (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_SAME_WIDTH: return nemo_config_get_boolean (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH);
@@ -279,7 +259,7 @@ folder_uses_list_view (CurrentTab *tab)
 static int
 folder_value (CurrentTab *tab, int field)
 {
-	int fallback = field_default (tab, field);
+	int fallback = field_default (field);
 	char *value;
 	int result;
 	guint i;
@@ -318,6 +298,7 @@ folder_value (CurrentTab *tab, int field)
 							 fallback);
 
 	case FIELD_ICON_ZOOM:
+	case FIELD_ICON_IMAGE_ZOOM:
 	case FIELD_COMPACT_ZOOM:
 	case FIELD_LIST_ZOOM:
 		return size_percent (nemo_folder_settings_get_int (tab->folder, field_key (field),
@@ -413,7 +394,7 @@ save_fields (CurrentTab *tab, guint fields)
 		}
 
 		value = widget_value (tab->current[field]);
-		fallback = field_default (tab, field);
+		fallback = field_default (field);
 		if (value < 0) {
 			continue;
 		}
@@ -443,6 +424,7 @@ save_fields (CurrentTab *tab, guint fields)
 			break;
 
 		case FIELD_ICON_ZOOM:
+		case FIELD_ICON_IMAGE_ZOOM:
 		case FIELD_COMPACT_ZOOM:
 		case FIELD_LIST_ZOOM:
 			nemo_folder_settings_set_int (tab->folder, field_key (field),

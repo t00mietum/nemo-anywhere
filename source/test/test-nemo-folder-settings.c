@@ -247,6 +247,41 @@ main (int argc, char *argv[])
 		g_free (child_path);
 	}
 
+	/* The icon view keeps two sizes per folder, one for when the folder is
+	 * mostly pictures and one for when it is not, and both inherit. A child
+	 * that is full of pictures takes the parent's picture size while its
+	 * plain sibling takes the parent's other one. */
+	{
+		char *gallery_path = make_dir (dir, "top/mid/gallery");
+		NemoFile *gallery = folder_for (gallery_path);
+
+		nemo_folder_settings_set_int (mid, NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 64, 96);
+		nemo_folder_settings_set_int (mid, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320, 448);
+
+		check (source_is (gallery, mid));
+		check (nemo_folder_settings_get_int (gallery, NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 64) == 96);
+		check (nemo_folder_settings_get_int (gallery, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320) == 448);
+
+		/* Changing one leaves the other alone, rather than there being one
+		 * size that both kinds of folder have to share. */
+		nemo_folder_settings_set_int (gallery, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320, 640);
+		check (nemo_folder_settings_get_int (gallery, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320) == 640);
+		check (nemo_folder_settings_get_int (gallery, NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 64) == 96);
+		check (nemo_folder_settings_get_int (mid, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320) == 448);
+
+		/* A parent that was only ever zoomed on pictures hands its children
+		 * nothing for the other kind, so those fall back to the default. */
+		nemo_folder_settings_forget (mid);
+		nemo_folder_settings_forget (gallery);
+		nemo_folder_settings_set_int (mid, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320, 448);
+		check (nemo_folder_settings_get_int (leaf, NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL, 320) == 448);
+		check (nemo_folder_settings_get_int (leaf, NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 64) == 64);
+
+		nemo_folder_settings_forget (mid);
+		nemo_file_unref (gallery);
+		g_free (gallery_path);
+	}
+
 	/* A set saved before the marker existed still counts. */
 	{
 		char *uri = nemo_file_get_uri (other);

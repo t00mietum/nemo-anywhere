@@ -895,6 +895,21 @@ get_default_icon_size (NemoIconView *icon_view)
 	return nemo_icon_size_from_percent (percent);
 }
 
+/* Which of the folder's saved sizes applies. A folder keeps one for when it is
+   mostly pictures and one for when it is not, and a child that inherits both
+   picks by what is in the child. */
+static const char *
+icon_size_key (NemoIconView *icon_view)
+{
+	if (icon_view->details->compact) {
+		return NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL;
+	}
+
+	return icon_view->details->mostly_images
+		? NEMO_METADATA_KEY_ICON_VIEW_IMAGE_ZOOM_LEVEL
+		: NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL;
+}
+
 /* A folder's saved size, which is a number of pixels now and was one of seven
    levels before that. */
 static gint
@@ -990,10 +1005,7 @@ nemo_icon_view_begin_loading (NemoView *view)
 
             size = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
-            size = saved_icon_size (file,
-                                    icon_view->details->compact
-                                      ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
-                                      : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+            size = saved_icon_size (file, icon_size_key (icon_view),
                                     get_default_icon_size (icon_view));
         }
 
@@ -1055,40 +1067,36 @@ icon_view_notify_clipboard_info (NemoClipboardMonitor *monitor,
 							       get_icon_container (icon_view), icon_data);
 }
 
-/* Whether what is on screen came from the default rather than from a size this
-   folder or this window was given. Only a folder still on the default follows
-   the image default when the folder turns out to hold images. */
-static gboolean
-icon_size_is_default (NemoIconView *icon_view)
+/* A folder of pictures is sized from its own pair of settings: the stored image
+   size if it has one, or the image default. Nothing is written back here - the
+   folder is already carrying whatever it was given, and the default has to stay
+   a default so the preference can still move it.
+
+   With per-folder settings off the whole window shares one size instead, so the
+   bigger size only applies while nothing in the window has been zoomed. */
+static gint
+size_for_mostly_images (NemoIconView *icon_view, gint plain_default)
 {
 	NemoView *view = NEMO_VIEW (icon_view);
 
-	if (!nemo_global_preferences_get_remember_folder_settings () &&
-	    !NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container) {
-		return nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (view))
-		       == get_default_icon_size (icon_view);
+	if (!nemo_global_preferences_get_remember_folder_settings ()) {
+		gint held = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (view));
+
+		return held == plain_default ? get_default_icon_size (icon_view) : held;
 	}
 
-	/* -1 is not a size and not one of the old levels, so it can only mean
-	   the folder has nothing stored. */
-	return nemo_folder_settings_get_int (nemo_view_get_directory_as_file (view),
-					     icon_view->details->compact
-					       ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
-					       : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
-					     -1) == -1;
+	return saved_icon_size (nemo_view_get_directory_as_file (view),
+				icon_size_key (icon_view),
+				get_default_icon_size (icon_view));
 }
 
-/* A folder of pictures opens bigger than an ordinary one. The size is not
-   written back anywhere: it is a default, so moving the slider still overrides
-   it, and changing the preference still moves every folder that has not been
-   given a size of its own. */
 static void
 update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
 {
 	NemoView *view = NEMO_VIEW (icon_view);
 	NemoIconContainer *container;
 	gboolean mostly_images;
-	gboolean on_default;
+	gint plain_default, size;
 
 	if (!all_files_seen || icon_view->details->compact ||
 	    NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container ||
@@ -1101,19 +1109,19 @@ update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
 		return;
 	}
 
-	on_default = icon_size_is_default (icon_view);
+	/* Read before the flag moves, since both of these answer differently
+	   once it has. */
+	plain_default = get_default_icon_size (icon_view);
 	icon_view->details->mostly_images = mostly_images;
 
-	if (!on_default) {
-		return;
-	}
+	size = size_for_mostly_images (icon_view, plain_default);
 
 	container = get_icon_container (icon_view);
-	if (nemo_icon_container_get_icon_size (container) == get_default_icon_size (icon_view)) {
+	if (nemo_icon_container_get_icon_size (container) == size) {
 		return;
 	}
 
-	nemo_icon_container_set_icon_size (container, get_default_icon_size (icon_view));
+	nemo_icon_container_set_icon_size (container, size);
 	g_signal_emit_by_name (icon_view, "zoom_level_changed");
 
 	if (nemo_view_get_active (view)) {
@@ -1174,9 +1182,7 @@ set_icon_size (NemoIconView *view,
         nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_size);
     } else {
         nemo_folder_settings_set_int (nemo_view_get_directory_as_file (NEMO_VIEW (view)),
-                                      view->details->compact
-                                        ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
-                                        : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+                                      icon_size_key (view),
                                       get_default_icon_size (view),
                                       new_size);
     }
@@ -2162,10 +2168,7 @@ default_icon_size_changed_callback (gpointer callback_data)
             nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > 0) {
             size = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
         } else {
-            size = saved_icon_size (file,
-                                    nemo_icon_view_is_compact (icon_view)
-                                      ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
-                                      : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+            size = saved_icon_size (file, icon_size_key (icon_view),
                                     get_default_icon_size (icon_view));
         }
         nemo_view_set_icon_size (NEMO_VIEW (icon_view), size);
