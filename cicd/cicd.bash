@@ -38,8 +38,8 @@
 ##	   --shots             refresh README screenshots (off by default)
 ##	   --demo              re-record the demo video (off by default)
 ##	   --quick             skip the slow stages: cross builds, packages, profiler,
-##	                       harness, screenshots, demo. The native build, the full
-##	                       test suite and dogfood still run.
+##	                       harness, screenshots, demo, remote dogfood. The native
+##	                       build, the full test suite and local dogfood still run.
 ##	   --gate              merge gate only: format-check + lints + tests, then exit
 ##	                       (fast local stand-in for hosted CI; the pre-push hook runs it)
 ## - Reuse: copy the cicd/ directory into another project and edit config.bash.
@@ -99,7 +99,7 @@ while (($#)); do case "$1" in
 	--no-arm)                 no_arm=1; shift ;;                ## drop ARM64 builds + packages
 	--no-package)             PACKAGE_ENABLE=0; shift ;;
 	--no-profile)             PROFILE_ENABLE=0; shift ;;
-	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); DOGFOOD_CROSS_DESTS=(); DOGFOOD_HOOK=(); shift ;;
+	--no-dogfood)             DOGFOOD_FIXED_DESTS=(); DOGFOOD_ROTATING_DESTS=(); DOGFOOD_CROSS_DESTS=(); DOGFOOD_HOOK=(); DOGFOOD_REMOTE=(); shift ;;
 	--no-publish)             GIT_PUBLISH=(); shift ;;
 	--allow-dirty)            allow_dirty=1; shift ;;
 	--shots)                  SHOTS_ENABLE=1; shift ;;
@@ -121,6 +121,7 @@ fi
 declare -p PACKAGE_ENABLE &>/dev/null || PACKAGE_ENABLE=0        ## tolerate a config predating the packages stage
 declare -p DOGFOOD_CROSS_DESTS &>/dev/null || DOGFOOD_CROSS_DESTS=()   ## ditto, cross dogfood
 declare -p DOGFOOD_HOOK &>/dev/null || DOGFOOD_HOOK=()                 ## ditto, post-dogfood hook
+declare -p DOGFOOD_REMOTE &>/dev/null || DOGFOOD_REMOTE=()             ## ditto, dogfood built on another box
 
 ## Publish commit message: -m wins, then config, then whatever the auto-message
 ## helper makes of the tree when unattended - one place owns the wording, so this
@@ -729,6 +730,16 @@ if ((${#DOGFOOD_HOOK[@]})); then
 	if ! (cd "${root}" && "${DOGFOOD_HOOK[@]}"); then
 		fEcho "WARNING: dogfood hook failed (${DOGFOOD_HOOK[0]})"
 	fi
+fi
+
+## 7e. A dogfood drop only another box can build, such as a packed Windows exe.
+## Slow, so skipped under --quick, and never fatal for the same reason as 7d.
+if ((! ${#DOGFOOD_REMOTE[@]})); then
+	:
+elif ((quick)); then
+	fEcho_Clean "remote dogfood skipped (--quick)"
+elif ! (cd "${root}" && "${DOGFOOD_REMOTE[@]}"); then
+	fEcho "WARNING: remote dogfood failed (${DOGFOOD_REMOTE[*]})"
 fi
 
 ## Refresh README screenshots (skipped under --quick; non-fatal - a miss never
