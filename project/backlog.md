@@ -63,21 +63,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🛠️ Icon view:
-	- Opened: 20260919-083140
-	- If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
-		- Expose a separate adjustment for image thumnail size. default 320px.
-		- "Mostly images" means at least 2 images and at least half the files, folders not counted (settled 20260920).
-		- **Two icon size settings, both a per cent of the standard 64px.** Ordinary folders get 100% as now. Folders that are mostly images get 500%, which is 320px. The range runs to 1000%, or 640px.
-		- The image setting is a default, not a rule. An image folder opens at it, the slider still moves that folder, and the size sticks per folder where "Remember per-folder settings" is on.
-		- ✅ Done 20260920: sizes are pixels and the seven-value zoom enum is gone. The named steps are stops the slider marks and Zoom In and Zoom Out move between, the slider reaches everything in between, the range runs to 640, and both defaults are a per cent. A saved size is pixels, and one saved before the change is told apart by being too small to be a real size. The whole rule is under "Icon sizes" in design.md.
-		- 🔘 Left: the second setting. There is one default size today and a folder of images has to get its own, which needs the "mostly images" test and a second row in the preferences.
-		- The size rows in preferences are still a seven-entry combo, now holding a per cent. They want a spin box once the second setting goes in beside them.
-		- The list view stays on the stops. Its own item covers what taking any size would need.
-		- Found while looking, and not part of this: the desktop range is five steps where everything else is seven, so clamping to the widest range lands the desktop outside its own table.
-	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
-		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
-
 - 🔘 Thumbnails are made at 256px at the largest, so a big icon size shows one scaled up.
 	- Opened: 20260920-234500
 	- `nemo-desktop-thumbnail.c` offers two sizes, 128 and 256, which is the older half of what the shared thumbnail spec now names. The spec has gone on to add 512 and 1024.
@@ -1551,6 +1536,22 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Icon view:
+	- Opened: 20260919-083140. Closed: 20260920.
+	- ✅ If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
+		- Expose a separate adjustment for image thumnail size. default 320px.
+		- "Mostly images" means at least 2 images and at least half the files, folders not counted (settled 20260920).
+		- **Two icon size settings, both a per cent of the standard 64px.** Ordinary folders get 100% as now. Folders that are mostly images get 500%, which is 320px. The range runs to 1000%, or 640px.
+		- The image setting is a default, not a rule. An image folder opens at it, the slider still moves that folder, and the size sticks per folder where "Remember per-folder settings" is on.
+		- Done 20260920, first half: sizes are pixels and the seven-value zoom enum is gone. The named steps are stops the slider marks and Zoom In and Zoom Out move between, the slider reaches everything in between, the range runs to 640, and both defaults are a per cent. A saved size is pixels, and one saved before the change is told apart by being too small to be a real size.
+		- Done 20260920, second half: a folder of pictures opens at 500%. The count is taken once the folder has loaded, since that is the first moment anything is known about what is in it, and the size is never written back - a folder with nothing of its own keeps following the setting, and in a window that is not remembering per folder the bigger size does not follow you into the next folder.
+		- The six size rows in preferences are spin boxes now, and the image one sits beside the icon view row. A seven-entry combo could not hold 500%.
+		- The whole rule is under "Icon sizes" in design.md.
+		- The list view stays on the stops. Its own item covers what taking any size would need.
+		- Found while looking, and not part of this: the desktop range is five steps where everything else is seven, so clamping to the widest range lands the desktop outside its own table.
+	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
+		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
 
 - ✅ If "show full path in tabs and window" is enabled:
 	- Show the entire path of the current tab, if there's enough room.

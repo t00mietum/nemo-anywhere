@@ -31,6 +31,15 @@ static const char * const widget_ids[] = {
 	"views_current_tab",
 	"list_view_row_shading_checkbutton",
 	"rename_selects_whole_name_checkbutton",
+	/* The size spin boxes. The Current tab finds its copies by adding
+	   "_current", so a rename there is silent in a different way again. */
+	"icon_view_size_spinbutton",
+	"icon_view_image_size_spinbutton",
+	"compact_view_size_spinbutton",
+	"list_view_size_spinbutton",
+	"icon_view_size_spinbutton_current",
+	"compact_view_size_spinbutton_current",
+	"list_view_size_spinbutton_current",
 	NULL
 };
 

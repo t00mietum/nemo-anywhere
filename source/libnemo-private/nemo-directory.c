@@ -1682,6 +1682,44 @@ nemo_directory_match_pattern (NemoDirectory *directory, const char *pattern)
 	return ret;
 }
 
+/* Smallest number of images that can make a folder an image folder. One
+   picture among a pile of other things is not a gallery. */
+#define MOSTLY_IMAGES_MIN 2
+
+gboolean
+nemo_directory_is_mostly_images (NemoDirectory *directory)
+{
+	GList *files, *l;
+	guint images, others;
+
+	if (directory == NULL) {
+		return FALSE;
+	}
+
+	images = 0;
+	others = 0;
+
+	files = nemo_directory_get_file_list (directory);
+	for (l = files; l != NULL; l = l->next) {
+		NemoFile *file = NEMO_FILE (l->data);
+
+		/* Folders are not counted either way. A folder of photos with
+		   sub-folders in it is still a folder of photos. */
+		if (nemo_file_is_directory (file)) {
+			continue;
+		}
+
+		if (nemo_file_is_mime_type (file, "image/*")) {
+			images++;
+		} else {
+			others++;
+		}
+	}
+	nemo_file_list_free (files);
+
+	return images >= MOSTLY_IMAGES_MIN && images >= others;
+}
+
 /**
  * nemo_directory_list_ref
  *

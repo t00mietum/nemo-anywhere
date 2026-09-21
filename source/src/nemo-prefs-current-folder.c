@@ -26,6 +26,7 @@
 #include <string.h>
 #include <glib/gi18n.h>
 
+#include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-global-preferences.h>
@@ -59,11 +60,11 @@ static const char * const field_widgets[N_FIELDS] = {
 	"reverse_sort_checkbox",
 	"sort_folders_first_checkbutton",
 	"sort_favorites_first_checkbutton",
-	"icon_view_zoom_combobox",
+	"icon_view_size_spinbutton",
 	"labels_beside_icons_checkbutton",
-	"compact_view_zoom_combobox",
+	"compact_view_size_spinbutton",
 	"all_columns_same_width_checkbutton",
-	"list_view_zoom_combobox",
+	"list_view_size_spinbutton",
 	"list_view_show_expanders_checkbutton",
 };
 
@@ -176,28 +177,41 @@ field_key (int field)
 	}
 }
 
-/* the preference a field falls back to, as a combo row or a check state */
-/* The size combos still have one row per step, so what the widget holds is a
-   step and what is stored is a number of pixels. */
+/* the preference a field falls back to, as a spin box value, a combo row or a
+   check state */
+/* A size is stored as pixels and shown as a per cent of the standard size. */
 static int
-size_row (gint size)
+size_percent (gint size)
 {
 	if (nemo_icon_size_is_legacy_level (size)) {
-		return size;	/* saved before sizes were pixels */
+		size = nemo_icon_size_from_legacy_level (size);	/* saved before sizes were pixels */
 	}
 
-	return nemo_icon_size_legacy_level (size);
+	return nemo_icon_size_percent (size);
 }
 
-static int
-default_size_row (NemoConfigGroup *group, const char *key)
+/* A folder that is mostly images falls back to the image default instead, so
+   that is what the Current tab has to show when the folder has nothing of its
+   own. The folder is open in a window, so it has already been read. */
+static gboolean
+folder_is_mostly_images (NemoFile *folder)
 {
-	return nemo_icon_size_legacy_level
-		(nemo_icon_size_from_percent (nemo_config_get_int (group, key)));
+	NemoDirectory *directory;
+	gboolean answer;
+
+	if (folder == NULL) {
+		return FALSE;
+	}
+
+	directory = nemo_directory_get_for_file (folder);
+	answer = nemo_directory_is_mostly_images (directory);
+	nemo_directory_unref (directory);
+
+	return answer;
 }
 
 static int
-field_default (int field)
+field_default (CurrentTab *tab, int field)
 {
 	switch (field) {
 	case FIELD_VIEW: return default_view_index ();
@@ -205,11 +219,14 @@ field_default (int field)
 	case FIELD_REVERSE: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DEFAULT_SORT_IN_REVERSE_ORDER);
 	case FIELD_FOLDERS_FIRST: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
 	case FIELD_FAVORITES_FIRST: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
-	case FIELD_ICON_ZOOM: return default_size_row (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
+	case FIELD_ICON_ZOOM: return nemo_config_get_int (nemo_icon_view_preferences,
+							  folder_is_mostly_images (tab->folder)
+							    ? NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE
+							    : NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_LABELS_BESIDE: return nemo_config_get_boolean (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
-	case FIELD_COMPACT_ZOOM: return default_size_row (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
+	case FIELD_COMPACT_ZOOM: return nemo_config_get_int (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_SAME_WIDTH: return nemo_config_get_boolean (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH);
-	case FIELD_LIST_ZOOM: return default_size_row (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE);
+	case FIELD_LIST_ZOOM: return nemo_config_get_int (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_EXPANDERS: return nemo_config_get_boolean (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION);
 	default: return 0;
 	}
@@ -218,6 +235,10 @@ field_default (int field)
 static int
 widget_value (GtkWidget *widget)
 {
+	if (GTK_IS_SPIN_BUTTON (widget)) {
+		return gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
+	}
+
 	if (GTK_IS_COMBO_BOX (widget)) {
 		return gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
 	}
@@ -225,10 +246,22 @@ widget_value (GtkWidget *widget)
 	return gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
 }
 
+static const char *
+change_signal (GtkWidget *widget)
+{
+	if (GTK_IS_SPIN_BUTTON (widget)) {
+		return "value-changed";
+	}
+
+	return GTK_IS_COMBO_BOX (widget) ? "changed" : "toggled";
+}
+
 static void
 set_widget_value (GtkWidget *widget, int value)
 {
-	if (GTK_IS_COMBO_BOX (widget)) {
+	if (GTK_IS_SPIN_BUTTON (widget)) {
+		gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget), (gdouble) value);
+	} else if (GTK_IS_COMBO_BOX (widget)) {
 		gtk_combo_box_set_active (GTK_COMBO_BOX (widget), value);
 	} else {
 		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), value);
@@ -246,7 +279,7 @@ folder_uses_list_view (CurrentTab *tab)
 static int
 folder_value (CurrentTab *tab, int field)
 {
-	int fallback = field_default (field);
+	int fallback = field_default (tab, field);
 	char *value;
 	int result;
 	guint i;
@@ -287,8 +320,8 @@ folder_value (CurrentTab *tab, int field)
 	case FIELD_ICON_ZOOM:
 	case FIELD_COMPACT_ZOOM:
 	case FIELD_LIST_ZOOM:
-		return size_row (nemo_folder_settings_get_int (tab->folder, field_key (field),
-							       nemo_icon_size_from_legacy_level (fallback)));
+		return size_percent (nemo_folder_settings_get_int (tab->folder, field_key (field),
+								   nemo_icon_size_from_percent (fallback)));
 
 	default:
 		return nemo_folder_settings_get_boolean (tab->folder, field_key (field), fallback);
@@ -380,7 +413,7 @@ save_fields (CurrentTab *tab, guint fields)
 		}
 
 		value = widget_value (tab->current[field]);
-		fallback = field_default (field);
+		fallback = field_default (tab, field);
 		if (value < 0) {
 			continue;
 		}
@@ -413,8 +446,8 @@ save_fields (CurrentTab *tab, guint fields)
 		case FIELD_COMPACT_ZOOM:
 		case FIELD_LIST_ZOOM:
 			nemo_folder_settings_set_int (tab->folder, field_key (field),
-						      nemo_icon_size_from_legacy_level (fallback),
-						      nemo_icon_size_from_legacy_level (value));
+						      nemo_icon_size_from_percent (fallback),
+						      nemo_icon_size_from_percent (value));
 			break;
 
 		default:
@@ -609,8 +642,7 @@ nemo_prefs_current_folder_setup (GtkBuilder *builder,
 		tab->current[field] = GTK_WIDGET (gtk_builder_get_object (builder, name));
 		g_free (name);
 
-		g_signal_connect (tab->current[field],
-				  GTK_IS_COMBO_BOX (tab->current[field]) ? "changed" : "toggled",
+		g_signal_connect (tab->current[field], change_signal (tab->current[field]),
 				  G_CALLBACK (current_field_changed), tab);
 	}
 

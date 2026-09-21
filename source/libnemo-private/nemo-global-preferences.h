@@ -194,6 +194,7 @@ enum
 
 /* Icon View */
 #define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE		"default-icon-size"
+#define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE	"default-image-icon-size"
 #define NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS		"labels-beside-icons"
 
 /* Which text attributes appear beneath icon names */

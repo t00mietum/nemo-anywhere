@@ -172,6 +172,11 @@ field: icon-view.default-icon-size
 	default: 100
 	desc: Icon size as a per cent of the standard 64 pixels
 
+field: icon-view.default-image-icon-size
+	type: int
+	default: 500
+	desc: Icon size for a folder that is mostly images, as a per cent of the standard 64 pixels
+
 field: icon-view.labels-beside-icons
 	type: bool
 	default: false
