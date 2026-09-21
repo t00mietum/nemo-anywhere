@@ -185,6 +185,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Upstream Nemo is or-later, which can be narrowed to version 2 only. A few files written for the fork are version 2 only, so the whole program has to be. The text now says version 2 only.
 	- The file headers inherited from upstream still say or-later. That is right for those files and they were left alone.
 	- The lint now fails if text the program shows offers a later version.
+	- The copyright lines and the top of the license text now match the README. The two links sit in the license text, since the copyright line cannot hold a link.
 
 - ✅ The "expand" Chevron next to folders should more reliably appear when a formerly empty folder gains content, especially after user-initiated actions (like drag and drop contents into a previously empty folder).
 	- Opened: 20260919-125440. Closed: 20260920.
