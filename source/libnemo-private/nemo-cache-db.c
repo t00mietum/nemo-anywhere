@@ -791,14 +791,20 @@ nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 	g_return_val_if_fail (uri != NULL, FALSE);
 	g_return_val_if_fail (id != NULL, FALSE);
 	g_return_val_if_fail (record != NULL, FALSE);
-	g_return_val_if_fail (image != NULL, FALSE);
 
 	if (db == NULL || db->broken)
 		return FALSE;
 
-	data = g_bytes_get_data (image, &len);
-	if (data == NULL || len == 0)
-		return FALSE;
+	/* No image is a render that failed, kept so the next run does not try
+	 * again. An empty blob rather than NULL, since the column is NOT NULL. */
+	if (image != NULL) {
+		data = g_bytes_get_data (image, &len);
+		if (data == NULL || len == 0)
+			return FALSE;
+	} else {
+		data = "";
+		len = 0;
+	}
 
 	now = g_get_real_time () / G_USEC_PER_SEC;
 
@@ -817,8 +823,8 @@ nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 
 	sqlite3_bind_int64 (stmt, 1, fid);
 	sqlite3_bind_int (stmt, 2, record->size);
-	sqlite3_bind_int (stmt, 3, record->width);
-	sqlite3_bind_int (stmt, 4, record->height);
+	sqlite3_bind_int (stmt, 3, image != NULL ? record->width : 0);
+	sqlite3_bind_int (stmt, 4, image != NULL ? record->height : 0);
 	sqlite3_bind_int (stmt, 5, (int) record->format);
 	sqlite3_bind_int64 (stmt, 6, record->stored > 0 ? record->stored : now);
 	sqlite3_bind_blob64 (stmt, 7, data, len, SQLITE_STATIC);
@@ -840,6 +846,33 @@ fail:
 	rollback (db);
 
 out:
+	g_mutex_unlock (&db->lock);
+
+	return done;
+}
+
+gboolean
+nemo_cache_db_thumbnail_forget (NemoCacheDb *db, const char *uri)
+{
+	static const char sql[] =
+		"DELETE FROM thumbnails WHERE file_id = (SELECT file_id FROM paths WHERE uri = ?)";
+	sqlite3_stmt *stmt;
+	gboolean      done = FALSE;
+
+	g_return_val_if_fail (uri != NULL, FALSE);
+
+	if (db == NULL || db->broken)
+		return FALSE;
+
+	g_mutex_lock (&db->lock);
+
+	stmt = prep (db, sql, "forget thumbnail");
+	if (stmt != NULL) {
+		sqlite3_bind_text (stmt, 1, uri, -1, SQLITE_STATIC);
+		done = db_ok (db, sqlite3_step (stmt), "forget thumbnail");
+		sqlite3_finalize (stmt);
+	}
+
 	g_mutex_unlock (&db->lock);
 
 	return done;

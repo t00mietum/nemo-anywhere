@@ -28,6 +28,7 @@
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-monitor.h>
+#include <libnemo-private/nemo-thumbnails.h>
 #include <libnemo-private/nemo-file-undo-operations.h>
 #include <eel/eel-glib-extensions.h>
 #include <eel/eel-string.h>
@@ -85,6 +86,7 @@ struct NemoFileDetails
 
 	time_t atime; /* 0 is unknown */
 	time_t mtime; /* 0 is unknown */
+	guint32 mtime_usec;
 	time_t ctime; /* 0 is unknown */
     time_t btime; /* 0 is unknown */
 	
@@ -109,15 +111,23 @@ struct NemoFileDetails
 
 	char *thumbnail_path;
     eel_boolean_bit thumbnail_access_problem : 1;
-    /* Caches a negative nemo_can_thumbnail() verdict (unsupported type, or a
-     * valid failed-thumbnail marker already on disk) so we stop re-hashing and
-     * re-decoding the fail PNG on every icon fetch - per row per draw in list
-     * view. Reset when thumbnail state is invalidated or the file's mtime moves. */
+    /* Caches a nemo_can_thumbnail() verdict either way, since it is asked per
+     * row per draw in list view. Reset when the file's info is read again. */
     eel_boolean_bit thumbnail_try_ruled_out : 1;
+    eel_boolean_bit thumbnail_type_ok : 1;
 	GdkPixbuf *thumbnail;
 	time_t thumbnail_mtime;
-    gint thumbnail_throttle_count;
-    time_t last_thumbnail_try_mtime;
+    /* Sizes in device pixels. `want` is the last draw's, `stored` what the
+     * file cache's copy was rendered for, and `asked` the last render queued,
+     * so a render that came back no bigger is not asked for again. */
+    gint thumbnail_want_size;
+    gint thumbnail_stored_size;
+    gint thumbnail_asked_size;
+    eel_boolean_bit thumbnail_capped : 1;          /* held smaller than its source */
+    eel_boolean_bit thumbnail_stored_capped : 1;   /* the stored copy was cut down */
+    eel_boolean_bit thumbnail_from_store : 1;
+    /* Set by a refresh, so the freedesktop copy stops being used. */
+    eel_boolean_bit thumbnail_ignore_shared : 1;
 
 	GList *mime_list; /* If this is a directory, the list of MIME types in it. */
 
@@ -195,8 +205,6 @@ struct NemoFileDetails
 
     eel_boolean_bit has_preview_icon              : 1;
 	eel_boolean_bit thumbnail_is_up_to_date       : 1;
-	eel_boolean_bit thumbnail_wants_original      : 1;
-	eel_boolean_bit thumbnail_tried_original      : 1;
 	eel_boolean_bit thumbnailing_failed           : 1;
 	
 	eel_boolean_bit is_thumbnailing               : 1;
@@ -317,6 +325,12 @@ void                   nemo_file_info_providers_done                (NemoFile   
 /* Thumbnailing: */
 void          nemo_file_set_is_thumbnailing            (NemoFile           *file,
 							    gboolean                is_thumbnailing);
+/* Whether a thumbnail could be made for this type at all. Cached both ways. */
+gboolean      nemo_file_thumbnail_type_ok              (NemoFile           *file);
+/* Puts a loaded or freshly made thumbnail on the file, and marks it up to
+ * date whether or not there was one to put. */
+void          nemo_file_take_thumbnail                 (NemoFile                  *file,
+							    const NemoThumbnailLoaded *loaded);
 
 NemoFileOperation *nemo_file_operation_new      (NemoFile                  *file,
 							 NemoFileOperationCallback  callback,

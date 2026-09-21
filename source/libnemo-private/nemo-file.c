@@ -656,7 +656,10 @@ nemo_file_clear_info (NemoFile *file)
 	file->details->thumbnail_path = NULL;
 	file->details->thumbnailing_failed = FALSE;
     file->details->thumbnail_try_ruled_out = FALSE;
-    file->details->last_thumbnail_try_mtime = 0;
+    file->details->thumbnail_type_ok = FALSE;
+    file->details->thumbnail_stored_size = 0;
+    file->details->thumbnail_asked_size = 0;
+    file->details->thumbnail_from_store = FALSE;
 
 	file->details->is_launcher = FALSE;
 	file->details->is_foreign_link = FALSE;
@@ -2647,6 +2650,7 @@ update_info_internal (NemoFile *file,
 	goffset size;
 	int sort_order;
 	time_t atime, mtime, ctime, btime;
+	guint32 mtime_usec;
 	time_t trash_time;
 	GTimeVal g_trash_time;
 	const char * time_string;
@@ -2677,6 +2681,7 @@ update_info_internal (NemoFile *file,
 
     file->details->thumbnail_access_problem = FALSE;
     file->details->thumbnail_try_ruled_out = FALSE;
+    file->details->thumbnail_type_ok = FALSE;
 
     file->details->pinning = FILE_META_STATE_INIT;
     file->details->favorite = FILE_META_STATE_INIT;
@@ -2968,9 +2973,11 @@ update_info_internal (NemoFile *file,
 	atime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
 	ctime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CHANGED);
     mtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
+    mtime_usec = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC);
 	btime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CREATED);
 	if (file->details->atime != atime ||
 	    file->details->mtime != mtime ||
+	    file->details->mtime_usec != mtime_usec ||
 	    file->details->ctime != ctime ||
         file->details->btime != btime) {
 		if (file->details->thumbnail == NULL) {
@@ -2982,9 +2989,18 @@ update_info_internal (NemoFile *file,
 
 		changed = TRUE;
 	}
+
+	/* Different contents, so nothing known about the old thumbnail holds. */
+	if (file->details->mtime != mtime || file->details->mtime_usec != mtime_usec) {
+		file->details->thumbnail_asked_size = 0;
+		file->details->thumbnail_stored_size = 0;
+		file->details->thumbnailing_failed = FALSE;
+	}
+
 	file->details->atime = atime;
 	file->details->ctime = ctime;
 	file->details->mtime = mtime;
+	file->details->mtime_usec = mtime_usec;
     file->details->btime = btime;
 
 	if (file->details->thumbnail != NULL &&
@@ -3010,7 +3026,9 @@ update_info_internal (NemoFile *file,
 		file->details->icon = icon != NULL ? g_object_ref (icon) : NULL;
 	}
 
-	thumbnail_path =  g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_THUMBNAIL_PATH);
+	/* The freedesktop cache, read only as a fallback for the file cache. */
+	thumbnail_path = file->details->thumbnail_ignore_shared ? NULL :
+		g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_THUMBNAIL_PATH);
 
 	if (g_strcmp0 (file->details->thumbnail_path, thumbnail_path) != 0) {
 		changed = TRUE;
@@ -3024,7 +3042,11 @@ update_info_internal (NemoFile *file,
         }
 	}
 
-	thumbnailing_failed =  g_file_info_get_attribute_boolean (info, G_FILE_ATTRIBUTE_THUMBNAILING_FAILED);
+	/* A failure the store recorded outranks the freedesktop cache saying it
+	   did not fail. */
+	thumbnailing_failed = !file->details->thumbnail_ignore_shared &&
+		g_file_info_get_attribute_boolean (info, G_FILE_ATTRIBUTE_THUMBNAILING_FAILED);
+	thumbnailing_failed |= file->details->thumbnail_from_store && file->details->thumbnailing_failed;
 	if (file->details->thumbnailing_failed != thumbnailing_failed) {
 		changed = TRUE;
 		file->details->thumbnailing_failed = thumbnailing_failed;
@@ -4913,8 +4935,12 @@ nemo_file_should_show_thumbnail (NemoFile *file)
 		return FALSE;
 	}
     
-    /* Only care about the file size, if the thumbnail has not been created yet */
-	if (file->details->thumbnail_path == NULL &&
+    /* The size limit is about making one. A thumbnail that already exists is
+     * shown whatever size the file is, and until the store has been asked
+     * nobody knows whether it holds one. */
+	if (file->details->thumbnail == NULL &&
+	    file->details->thumbnail_path == NULL &&
+	    file->details->thumbnail_is_up_to_date &&
 	    nemo_file_get_size (file) > cached_thumbnail_limit) {
 		return FALSE;
 	}
@@ -5000,67 +5026,88 @@ nemo_file_should_show_thumbnail (NemoFile *file)
     return nemo_file_is_local (file);
 }
 
-static void
-delete_failed_thumbnail_marker (NemoFile *file)
-{
-    gchar *uri, *filename, *path;
-    GChecksum *checksum;
-    guint8 digest[16];
-    gsize digest_len = sizeof (digest);
-    gint success;
-
-    uri = nemo_file_get_uri (file);
-    checksum = g_checksum_new (G_CHECKSUM_MD5);
-    g_checksum_update (checksum, (const guchar *) uri, strlen (uri));
-
-    g_checksum_get_digest (checksum, digest, &digest_len);
-    g_assert (digest_len == 16);
-
-    filename = g_strconcat (g_checksum_get_string (checksum), ".png", NULL);
-    g_checksum_free (checksum);
-
-    path = g_build_filename (g_get_user_cache_dir (),
-                             "thumbnails/fail/gnome-thumbnail-factory",
-                             filename,
-                             NULL);
-    g_free (filename);
-
-    success = g_unlink (path);
-
-    if (success != 0) {
-        if (errno != ENOENT && errno != EFAULT) {
-            g_warning ("Could not remove failed thumbnail marker for '%s'. The path was '%s'",
-                       file->details->display_name,
-                       path);
-        }
-    }
-
-    g_free (uri);
-    g_free (path);
-}
-
+/* A refresh. The file cache forgets its copy and the freedesktop one stops
+ * being read for this file, so the next draw makes a new one. The freedesktop
+ * cache itself is left as it is, since it is not ours to write. */
 void
 nemo_file_delete_thumbnail (NemoFile *file)
 {
-    if (file->details->thumbnail_path == NULL) {
-        if (file->details->thumbnailing_failed) {
-            delete_failed_thumbnail_marker (file);
-        }
+    g_autofree char *uri = nemo_file_get_uri (file);
 
+    nemo_cache_db_thumbnail_forget (nemo_cache_db_get (), uri);
+
+    file->details->thumbnail_ignore_shared = TRUE;
+    g_clear_pointer (&file->details->thumbnail_path, g_free);
+    g_clear_object (&file->details->thumbnail);
+    file->details->thumbnailing_failed = FALSE;
+    file->details->thumbnail_try_ruled_out = FALSE;
+    file->details->thumbnail_stored_size = 0;
+    file->details->thumbnail_asked_size = 0;
+    file->details->thumbnail_from_store = FALSE;
+
+    nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
+}
+
+void
+nemo_file_take_thumbnail (NemoFile                  *file,
+                          const NemoThumbnailLoaded *loaded)
+{
+    NemoFileDetails *details = file->details;
+
+    details->thumbnail_is_up_to_date = TRUE;
+    g_clear_object (&details->thumbnail);
+
+    details->thumbnail_from_store = loaded->from_store;
+    details->thumbnail_stored_size = loaded->stored_size;
+    details->thumbnail_stored_capped = loaded->stored_capped;
+
+    if (loaded->failed) {
+        details->thumbnailing_failed = TRUE;
         return;
     }
 
-    gint success;
+    if (loaded->pixbuf == NULL)
+        return;
 
-    nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
-    g_clear_object (&file->details->thumbnail);
+    /* A freedesktop thumbnail of an older version of the file. */
+    if (!loaded->from_store && loaded->shared_mtime != 0 &&
+        loaded->shared_mtime != details->mtime) {
+        g_clear_pointer (&details->thumbnail_path, g_free);
+        return;
+    }
 
-    success = g_unlink (file->details->thumbnail_path);
+    details->thumbnail = g_object_ref (loaded->pixbuf);
+    details->thumbnail_mtime = details->mtime;
+    details->thumbnail_capped = loaded->capped;
+}
 
-    if (success != 0) {
-        g_warning ("Could not remove thumb for '%s'.  The thumbnail path is '%s'",
-                   file->details->display_name,
-                   file->details->thumbnail_path);
+/* Called on every draw of a thumbnail too small for it. A copy held cut down
+ * is read again bigger; a stored copy that was cut down is made again bigger.
+ * One that is already the whole picture is left, since nothing bigger exists. */
+static void
+want_bigger_thumbnail (NemoFile *file, int want, int held)
+{
+    NemoFileDetails *details = file->details;
+    int step;
+
+    if (want <= held || details->is_thumbnailing) {
+        return;
+    }
+
+    step = nemo_thumbnail_size_step (want);
+
+    if (details->thumbnail_capped &&
+        (!details->thumbnail_from_store || details->thumbnail_stored_size > held)) {
+        nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
+        return;
+    }
+
+    if (details->thumbnail_stored_capped &&
+        details->thumbnail_stored_size < want &&
+        details->thumbnail_asked_size < step &&
+        nemo_can_thumbnail (file)) {
+        details->thumbnail_asked_size = step;
+        nemo_create_thumbnail (file, step);
     }
 }
 
@@ -5410,6 +5457,8 @@ nemo_file_get_icon (NemoFile *file,
                    modified_size, cached_thumbnail_size);
         }
 
+        file->details->thumbnail_want_size = modified_size;
+
 		if (file->details->thumbnail) {
 			int w, h, s;
 			double thumb_scale;
@@ -5466,14 +5515,12 @@ nemo_file_get_icon (NemoFile *file,
 
 			g_object_unref (raw_pixbuf);
 
-			/* Don't scale up if more than 25%, then read the original
-			   image instead. */
-			if (modified_size > 256 * 1.25 * scale &&
-			    !file->details->thumbnail_wants_original &&
-			    nemo_can_thumbnail_internally (file)) {
-				/* Invalidate if we resize upward */
-				file->details->thumbnail_wants_original = TRUE;
-				nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
+			want_bigger_thumbnail (file, modified_size, MAX (w, h));
+
+			if (file->details->thumbnail_from_store) {
+				g_autofree char *uri = nemo_file_get_uri (file);
+
+				nemo_cache_db_note_render (nemo_cache_db_get (), uri);
 			}
 
 			DEBUG ("Returning thumbnailed image, at size %d %d",
@@ -5483,19 +5530,19 @@ nemo_file_get_icon (NemoFile *file,
             g_object_unref (scaled_pixbuf);
 
             return icon;
-		} else if (file->details->thumbnail_path == NULL &&
+		} else if (file->details->thumbnail_is_up_to_date &&
+			   file->details->thumbnail_path == NULL &&
 			   file->details->can_read &&
 			   !file->details->is_thumbnailing &&
 			   !file->details->thumbnailing_failed &&
-			   !file->details->thumbnail_try_ruled_out) {
-			if (nemo_can_thumbnail (file)) {
-				nemo_create_thumbnail (file);
-			} else {
-				/* nemo_can_thumbnail hashed the uri and decoded the
-				 * fail-dir PNG to get here; cache the no so we don't
-				 * repeat it on every subsequent fetch. */
-				file->details->thumbnail_try_ruled_out = TRUE;
-			}
+			   nemo_file_thumbnail_type_ok (file)) {
+			/* Only once the store has been asked, which is what
+			   up to date means here. Rendering before that would
+			   redo work a lookup was about to find. */
+			int step = nemo_thumbnail_size_step (modified_size);
+
+			file->details->thumbnail_asked_size = step;
+			nemo_create_thumbnail (file, step);
 		}
 	}
 
@@ -9102,6 +9149,24 @@ nemo_file_is_thumbnailing (NemoFile *file)
 	g_return_val_if_fail (NEMO_IS_FILE (file), FALSE);
 
 	return file->details->is_thumbnailing;
+}
+
+gboolean
+nemo_file_thumbnail_type_ok (NemoFile *file)
+{
+	if (file->details->thumbnail_try_ruled_out)
+		return FALSE;
+
+	if (!file->details->thumbnail_type_ok) {
+		if (!nemo_can_thumbnail (file)) {
+			file->details->thumbnail_try_ruled_out = TRUE;
+			return FALSE;
+		}
+
+		file->details->thumbnail_type_ok = TRUE;
+	}
+
+	return TRUE;
 }
 
 void

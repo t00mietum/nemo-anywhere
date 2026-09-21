@@ -27,12 +27,46 @@
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <libnemo-private/nemo-file.h>
+#include <libnemo-private/nemo-cache-db.h>
 
 /* Cool-off period between last file modification time and thumbnail creation */
 #define THUMBNAIL_CREATION_DELAY_SECS 3
 
-/* Returns NULL if there's no thumbnail yet. */
-void       nemo_create_thumbnail                (NemoFile *file);
+/* Thumbnails are made and loaded at a multiple of this, so a zoom that moves a
+ * few pixels at a time does not render or reload on every step. */
+#define NEMO_THUMBNAIL_SIZE_STEP 128
+
+/* What a load found. `pixbuf` is NULL when there is nothing to show. */
+typedef struct {
+	GdkPixbuf *pixbuf;
+	gboolean   capped;		/* decoded smaller than the image it came from */
+	gboolean   from_store;
+	int        stored_size;		/* size the stored copy was rendered for */
+	gboolean   stored_capped;	/* and it was cut down to fit that size */
+	gboolean   failed;		/* the store says this could not be drawn */
+	time_t     shared_mtime;	/* stamp on a freedesktop cache thumbnail */
+} NemoThumbnailLoaded;
+
+/* Queues a render at `size` pixels, rounded up to a step. A file already
+ * queued keeps its place and takes the larger of the two sizes. */
+void       nemo_create_thumbnail                (NemoFile *file, int size);
+int        nemo_thumbnail_size_step             (int size);
+
+/* The store first, and the freedesktop cache only if the store has nothing.
+ * Decodes no larger than `max_size`. Blocks on the disk, so it belongs on a
+ * worker thread. */
+void       nemo_thumbnail_load                  (const char          *uri,
+                                                 const NemoFileId    *id,
+                                                 const char          *shared_path,
+                                                 int                  max_size,
+                                                 NemoThumbnailLoaded *out);
+void       nemo_thumbnail_file_id               (NemoFile *file, NemoFileId *id);
+
+/* JPEG at quality 90, or PNG when the picture has see-through parts, which JPEG
+ * cannot carry. NULL if it could not be encoded. */
+GBytes    *nemo_thumbnail_encode                (GdkPixbuf           *pixbuf,
+                                                 NemoThumbnailFormat *format);
+
 gboolean   nemo_can_thumbnail                   (NemoFile *file);
 gboolean   nemo_can_thumbnail_internally        (NemoFile *file);
 void       nemo_thumbnail_frame_image           (GdkPixbuf **pixbuf);

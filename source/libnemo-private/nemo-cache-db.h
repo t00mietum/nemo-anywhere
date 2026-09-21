@@ -79,7 +79,8 @@ typedef enum {
 	NEMO_THUMBNAIL_FORMAT_PNG  = 1
 } NemoThumbnailFormat;
 
-/* A stored thumbnail, minus the image bytes. */
+/* A stored thumbnail, minus the image bytes. A width of 0 is a render that
+ * failed, with no image behind it. */
 typedef struct {
 	int                 size;	/* icon size it was rendered for, in pixels */
 	int                 width;	/* what the stored image actually is */
@@ -142,12 +143,19 @@ gboolean nemo_cache_db_thumbnail_lookup (NemoCacheDb         *db,
 
 /* Writes a thumbnail, replacing any earlier one for the same contents and
  * leaving its draw history alone. Safe to call from a worker thread. Returns
- * false if nothing was written. */
+ * false if nothing was written.
+ *
+ * A NULL `image` records that the render failed, so it is not tried again
+ * until the file changes. */
 gboolean nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 					const char                *uri,
 					const NemoFileId          *id,
 					const NemoThumbnailRecord *record,
 					GBytes                    *image);
+
+/* Drops the thumbnail of what `uri` points at, for a refresh asked for by
+ * hand. The record of the file itself stays. */
+gboolean nemo_cache_db_thumbnail_forget (NemoCacheDb *db, const char *uri);
 
 /* Counts a draw against whatever `uri` points at and stamps the time. Both are
  * what the pruning rules read, so this is called often and does as little as it

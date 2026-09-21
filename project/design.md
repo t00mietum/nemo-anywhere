@@ -340,6 +340,18 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Writing an attribute is slow enough that it happens after the database is already up to date, never in front of a draw. It is also optional: a file system with nowhere to put one simply goes without, and the database still knows.
 
+- A thumbnail is made at the size it is being drawn at, rounded up to a step of 128 pixels, and made again bigger when a draw wants more than is stored. So each picture is kept at the largest size it has actually been shown at, and a folder only ever seen small stays small on disk.
+
+- JPEG at quality 90, and PNG only when the picture has see-through parts. An alpha channel that is opaque everywhere still counts as a photo. WebP is out, since gdk-pixbuf cannot write it and the Windows build cannot read it.
+
+- A thumbnail is read on a worker thread and decoded no bigger than the draw needs, so a picture stored at 640 and shown in a list takes a 128 pixel copy in memory. JPEG decodes straight to a smaller size, which is far cheaper than decoding in full and scaling.
+
+- A render that failed is stored too, with no image, so a broken file is not tried again on every launch. Editing the file clears it.
+
+- A file that has to be read in full to make its thumbnail is checksummed at the same time, since its bytes were just read. A copy of it under another name then finds the thumbnail already there.
+
+- Reload makes the folder's thumbnails again, as it always has. It forgets the stored copy and stops using the freedesktop one for those files. The freedesktop cache itself is left alone.
+
 - Pruning works as it did before: a worker thread well after startup, never on the path that draws a window, with rules for a source file that is gone and for anything unused past the age allowed.
 
 ### File operations

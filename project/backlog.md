@@ -97,14 +97,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Use the proper OS-specific cache locations for the database thumbnail cache.
 	- Statically link SQLite3 into all executables. (It will also come in handy for future features.)
 	- Opened: 20260921. Started: 20260921.
-	- Done so far: the store itself, its tests, and the build dependency.
+	- Done so far: the store itself, its tests, the build dependency, and drawing from it.
 	- Three tables. A file's contents are one record, the names it is known by are another, and a thumbnail hangs off the contents. So a file that moved keeps its thumbnail, and a file nothing can draw is still a record - which is what a duplicate finder would read.
 	- A checksum settles what two records that looked separate really were, and folds them into one. Without one, size and timestamp together are the only guess available.
 	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 is vendored under `vendor/blake3`, runs at 2459 MB/s and builds to 65,716 bytes. It checks out against the numbers blake3 publishes, which matters because a checksum written to a file outlives this program.
 	- The cache location is its own choice, not the config one - local AppData on Windows so a thumbnail database does not sync between machines.
 	- WebP is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
 	- The checksum goes on the file in the three attributes asked for, checked from outside the program so the names really are `user.blake3.b64u`, `.bytes` and `.mtime`. On Windows they are alternate data streams, and that half passes on an NTFS drive. It passes under wine too, but for the wrong reason: a colon is an ordinary character in a Linux filename, so wine writes a second file beside the first.
-	- Still to do: swapping the draw path over, the pruning thread, and the settings page.
+	- Thumbnails are read from the store and written to it. The freedesktop cache is still read when the store has nothing, and never written. Each one is kept at the largest size it has been shown at, and made again bigger when a zoom asks for more.
+	- A file that could not be drawn is remembered, so it is not tried again every launch.
+	- Still to do: the pruning thread, the settings page, and writing the checksum onto files, which waits for its setting.
 	- Tolerant of multiple process access.
 	- Tolerant of corrupt cache (db) file.
 	- Automatic cleanup:

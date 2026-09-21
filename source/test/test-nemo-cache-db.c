@@ -520,6 +520,52 @@ check_second_process_sees_writes (void)
 	check (out_text != NULL && g_ascii_strtoll (out_text, NULL, 10) == 1);
 }
 
+/* A render that failed is stored with no image, so the next run knows not to
+ * try again, and a later good one replaces it. */
+static void
+check_failure_record (NemoCacheDb *db)
+{
+	NemoFileId id = id_for (777, SOURCE_MTIME, NULL);
+	NemoThumbnailRecord in = record_for (256);
+	NemoThumbnailRecord out = { 0 };
+	g_autoptr (GBytes) image = fake_image ('f', 32);
+	GBytes *back = NULL;
+
+	check (nemo_cache_db_thumbnail_store (db, "file:///broken.png", &id, &in, NULL));
+
+	check (nemo_cache_db_thumbnail_lookup (db, "file:///broken.png", &id, &out, &back));
+	check (out.width == 0 && out.height == 0);
+	check (back == NULL);
+
+	check (nemo_cache_db_thumbnail_store (db, "file:///broken.png", &id, &in, image));
+	check (nemo_cache_db_thumbnail_lookup (db, "file:///broken.png", &id, &out, &back));
+	check (out.width == 256);
+	check (back != NULL && g_bytes_equal (back, image));
+
+	g_clear_pointer (&back, g_bytes_unref);
+}
+
+/* A refresh drops the picture and keeps the record of the file. */
+static void
+check_forget (NemoCacheDb *db)
+{
+	NemoFileId id = id_for (888, SOURCE_MTIME, NULL);
+	NemoThumbnailRecord in = record_for (128);
+	NemoThumbnailRecord out = { 0 };
+	g_autoptr (GBytes) image = fake_image ('g', 32);
+	guint8 digest[NEMO_CACHE_DIGEST_LEN];
+	NemoFileId with_digest;
+
+	memset (digest, 0x5a, sizeof (digest));
+	with_digest = id_for (888, SOURCE_MTIME, digest);
+
+	check (nemo_cache_db_thumbnail_store (db, "file:///refresh.png", &with_digest, &in, image));
+	check (nemo_cache_db_thumbnail_forget (db, "file:///refresh.png"));
+
+	check (!nemo_cache_db_thumbnail_lookup (db, "file:///refresh.png", &id, &out, NULL));
+	check (nemo_cache_db_lookup_digest (db, "file:///refresh.png", 888, SOURCE_MTIME, digest));
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -552,6 +598,8 @@ main (int argc, char *argv[])
 	check_digest_folds_records (db);
 	check_empty (db);
 	check_note_render (db);
+	check_failure_record (db);
+	check_forget (db);
 
 	check_corrupt_file_is_rebuilt ();
 	check_wrong_version_is_rebuilt ();

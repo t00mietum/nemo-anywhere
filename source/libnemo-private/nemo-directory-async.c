@@ -84,8 +84,13 @@ struct ThumbnailState {
 	NemoDirectory *directory;
 	GCancellable *cancellable;
 	NemoFile *file;
-	gboolean trying_original;
-	gboolean tried_original;
+
+	/* Copied off the file, since the worker cannot touch it. */
+	char *uri;
+	char *shared_path;
+	NemoFileId id;
+	int max_size;
+	NemoThumbnailLoaded loaded;
 };
 
 struct MountState {
@@ -1731,13 +1736,15 @@ lacks_extension_info (NemoFile *file)
         file->details->pending_info_providers != NULL;
 }
 
+/* Any file of a type that can be drawn might be in the file cache, so it is
+ * asked about, not only a file the freedesktop cache has a copy of. */
 static gboolean
 lacks_thumbnail (NemoFile *file)
 {
     return file->details->load_deferred_attrs > NEMO_FILE_LOAD_DEFERRED_ATTRS_NO &&
-        nemo_file_should_show_thumbnail (file) &&
-		file->details->thumbnail_path != NULL &&
-		!file->details->thumbnail_is_up_to_date;
+		!file->details->thumbnail_is_up_to_date &&
+		(file->details->thumbnail_path != NULL || nemo_file_thumbnail_type_ok (file)) &&
+        nemo_file_should_show_thumbnail (file);
 }
 
 static gboolean
@@ -3777,41 +3784,10 @@ link_info_start (NemoDirectory *directory,
 static void
 thumbnail_done (NemoDirectory *directory,
 		NemoFile *file,
-		GdkPixbuf *pixbuf,
-		gboolean tried_original)
+		const NemoThumbnailLoaded *loaded)
 {
-	const char *thumb_mtime_str;
-	time_t thumb_mtime = 0;
-	
-	file->details->thumbnail_is_up_to_date = TRUE;
-	file->details->thumbnail_tried_original  = tried_original;
-	if (file->details->thumbnail) {
-		g_object_unref (file->details->thumbnail);
-		file->details->thumbnail = NULL;
-	}
+	nemo_file_take_thumbnail (file, loaded);
 
-	if (pixbuf) {
-		if (tried_original) {
-			thumb_mtime = file->details->mtime;
-		} else {
-			thumb_mtime_str = gdk_pixbuf_get_option (pixbuf, "tEXt::Thumb::MTime");
-			if (thumb_mtime_str) {
-				thumb_mtime = atol (thumb_mtime_str);
-			}
-		}
-		
-		if (thumb_mtime == 0 ||
-		    thumb_mtime == file->details->mtime) {
-			file->details->thumbnail = g_object_ref (pixbuf);
-			file->details->thumbnail_mtime = thumb_mtime;
-            file->details->thumbnail_throttle_count = 1;
-		} else {
-			g_free (file->details->thumbnail_path);
-			file->details->thumbnail_path = NULL;
-		}
-
-	}
-	
 	nemo_directory_async_state_changed (directory);
 }
 
@@ -3841,19 +3817,14 @@ thumbnail_stop (NemoDirectory *directory)
 static void
 thumbnail_got_pixbuf (NemoDirectory *directory,
 		      NemoFile *file,
-		      GdkPixbuf *pixbuf,
-		      gboolean tried_original)
+		      const NemoThumbnailLoaded *loaded)
 {
 	nemo_directory_ref (directory);
 
 	nemo_file_ref (file);
-	thumbnail_done (directory, file, pixbuf, tried_original);
+	thumbnail_done (directory, file, loaded);
 	nemo_file_changed (file);
 	nemo_file_unref (file);
-	
-	if (pixbuf) {
-		g_object_unref (pixbuf);
-	}
 
 	nemo_directory_unref (directory);
 }
@@ -3861,132 +3832,56 @@ thumbnail_got_pixbuf (NemoDirectory *directory,
 static void
 thumbnail_state_free (ThumbnailState *state)
 {
+	g_clear_object (&state->loaded.pixbuf);
 	g_object_unref (state->cancellable);
+	g_free (state->uri);
+	g_free (state->shared_path);
 	g_free (state);
 }
 
 extern int cached_thumbnail_size;
 
-/* scale very large images down to the max. size we need */
 static void
-thumbnail_loader_size_prepared (GdkPixbufLoader *loader,
-				int width,
-				int height,
-				gpointer user_data)
+thumbnail_load_thread (GTask        *task,
+		       gpointer      source,
+		       gpointer      task_data,
+		       GCancellable *cancellable)
 {
-	int max_thumbnail_size;
-	double aspect_ratio;
+	ThumbnailState *state = task_data;
 
-	aspect_ratio = ((double) width) / height;
-
-	/* cf. nemo_file_get_icon() */
-	max_thumbnail_size = NEMO_ICON_SIZE_LARGEST * cached_thumbnail_size / NEMO_ICON_SIZE_STANDARD;
-	if (MAX (width, height) > max_thumbnail_size) {
-		if (width > height) {
-			width = max_thumbnail_size;
-			height = width / aspect_ratio;
-		} else {
-			height = max_thumbnail_size;
-			width = height * aspect_ratio;
-		}
-
-		gdk_pixbuf_loader_set_size (loader, width, height);
+	if (!g_cancellable_is_cancelled (cancellable)) {
+		nemo_thumbnail_load (state->uri, &state->id, state->shared_path,
+				     state->max_size, &state->loaded);
 	}
+
+	g_task_return_boolean (task, TRUE);
 }
 
-static GdkPixbuf *
-get_pixbuf_for_content (goffset file_len,
-			char *file_contents)
-{
-	gboolean res;
-	GdkPixbuf *pixbuf, *pixbuf2;
-	GdkPixbufLoader *loader;
-	gsize chunk_len = 4096;
-	pixbuf = NULL;
-	
-	loader = gdk_pixbuf_loader_new ();
-	g_signal_connect (loader, "size-prepared",
-			  G_CALLBACK (thumbnail_loader_size_prepared),
-			  NULL);
-
-	/* For some reason we have to write in chunks, or gdk-pixbuf fails */
-	res = TRUE;
-	while (res && file_len > 0) {
-		chunk_len = (file_len > chunk_len) ? chunk_len : file_len;
-		res = gdk_pixbuf_loader_write (loader, (guchar *) file_contents, chunk_len, NULL);
-		file_contents += chunk_len;
-		file_len -= chunk_len;
-	}
-	if (res) {
-		res = gdk_pixbuf_loader_close (loader, NULL);
-	}
-	if (res) {
-		pixbuf = g_object_ref (gdk_pixbuf_loader_get_pixbuf (loader));
-	}
-	g_object_unref (G_OBJECT (loader));
-
-	if (pixbuf) {
-		pixbuf2 = gdk_pixbuf_apply_embedded_orientation (pixbuf);
-		g_object_unref (pixbuf);
-		pixbuf = pixbuf2;
-	}
-	return pixbuf;
-}
-
-
 static void
-thumbnail_read_callback (GObject *source_object,
-			 GAsyncResult *res,
-			 gpointer user_data)
+thumbnail_load_done (GObject      *source,
+		     GAsyncResult *res,
+		     gpointer      user_data)
 {
-	ThumbnailState *state;
-	gsize file_size;
-	char *file_contents;
-	gboolean result;
+	ThumbnailState *state = g_task_get_task_data (G_TASK (res));
 	NemoDirectory *directory;
-	GdkPixbuf *pixbuf;
-	GFile *location;
-
-	state = user_data;
 
 	if (state->directory == NULL) {
 		/* Operation was cancelled. Bail out */
-		thumbnail_state_free (state);
 		return;
 	}
 
 	directory = nemo_directory_ref (state->directory);
 
-	result = g_file_load_contents_finish (G_FILE (source_object),
-					      res,
-					      &file_contents, &file_size,
-					      NULL, NULL);
+	state->directory->details->thumbnail_state = NULL;
+	async_job_end (state->directory, "thumbnail");
 
-	pixbuf = NULL;
-	if (result) {
-		pixbuf = get_pixbuf_for_content (file_size, file_contents);
-		g_free (file_contents);
-	}
-	
-	if (pixbuf == NULL && state->trying_original) {
-		state->trying_original = FALSE;
-
-		location = g_file_new_for_path (state->file->details->thumbnail_path);
-
-		g_file_load_contents_async (location,
-					    state->cancellable,
-					    thumbnail_read_callback,
-					    state);
-		g_object_unref (location);
+	/* The file left the directory while it was loading. */
+	if (state->file != NULL) {
+		thumbnail_got_pixbuf (directory, state->file, &state->loaded);
 	} else {
-		state->directory->details->thumbnail_state = NULL;
-		async_job_end (state->directory, "thumbnail");
-		
-		thumbnail_got_pixbuf (state->directory, state->file, pixbuf, state->tried_original);
-	
-		thumbnail_state_free (state);
+		nemo_directory_async_state_changed (directory);
 	}
-	
+
 	nemo_directory_unref (directory);
 }
 
@@ -3995,8 +3890,9 @@ thumbnail_start (NemoDirectory *directory,
 		 NemoFile *file,
 		 gboolean *doing_io)
 {
-	GFile *location;
 	ThumbnailState *state;
+	GTask *task;
+	int want;
 
 	if (directory->details->thumbnail_state != NULL) {
 		*doing_io = TRUE;
@@ -4013,27 +3909,29 @@ thumbnail_start (NemoDirectory *directory,
 	if (!async_job_start (directory, "thumbnail")) {
 		return;
 	}
-	
+
+	/* The size it was last drawn at, or before any draw the size a thumbnail
+	   is at the default zoom. */
+	want = file->details->thumbnail_want_size;
+	if (want <= 0) {
+		want = cached_thumbnail_size;
+	}
+
 	state = g_new0 (ThumbnailState, 1);
 	state->directory = directory;
 	state->file = file;
 	state->cancellable = g_cancellable_new ();
+	state->uri = nemo_file_get_uri (file);
+	state->shared_path = g_strdup (file->details->thumbnail_path);
+	state->max_size = nemo_thumbnail_size_step (want);
+	nemo_thumbnail_file_id (file, &state->id);
 
-	if (file->details->thumbnail_wants_original) {
-		state->tried_original = TRUE;
-		state->trying_original = TRUE;
-		location = nemo_file_get_location (file);
-	} else {
-		location = g_file_new_for_path (file->details->thumbnail_path);
-	}
-	
 	directory->details->thumbnail_state = state;
 
-	g_file_load_contents_async (location,
-				    state->cancellable,
-				    thumbnail_read_callback,
-				    state);
-	g_object_unref (location);
+	task = g_task_new (NULL, state->cancellable, thumbnail_load_done, NULL);
+	g_task_set_task_data (task, state, (GDestroyNotify) thumbnail_state_free);
+	g_task_run_in_thread (task, thumbnail_load_thread);
+	g_object_unref (task);
 }
 
 static void
