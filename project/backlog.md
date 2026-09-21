@@ -70,15 +70,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-125440
 	- Settled 20260920: write it now rather than wait for a macOS target. There is no way to run it here, so it goes in behind a platform check and stays unverified until there is a machine to try it on.
 
-- ✅ Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
-	- Opened: 20260804-230307. Closed: 20260919.
-	- The gif is 58 seconds and 1.6 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
-	- Six scenes: the window opens with Places alone, then the folder tree opens beside it and closes again; F3 opens a second content pane and closes it; icon view thumbnails; search flat then grouped by folder; and Compress to 7z.
-	- The synthetic home is mounted at a generic path, so no account name or working path is on screen.
-	- It picks a free display rather than insisting on one number, after a sister project's recorder was found on the one this had claimed.
-	- `cicd.bash --demo` records it. Off by default and skipped on a quick run, since it takes about six minutes and only changes when the interface or the script does.
-	- Note: merged with an older item from 20260804 that asked for about twenty seconds. The lengths above win.
-
 - 🔘 Put the drag-move scene back in the demo once the delete test guard's compile-time arm is at 0.
 	- Opened: 20260919-161500
 	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
@@ -87,6 +78,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 The Compress dialog is taller than a 540px screen once Options is expanded, and its buttons fall off the bottom.
 	- Opened: 20260919-161500
 	- Found while writing the demo, at 960x540. The preferences dialog was checked down to 1024x600 and fits; this one was not.
+
+- Stop here for a next release.
 
 - 🔘 Selectable metadata to include for media titles in icon mode. (E.g. px size, capture date, megapixel, framerate for video, Avg bitrate for audio and video, codec, etc.)
 
@@ -1544,6 +1537,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The three extract items sit under one Extract submenu, in the right-click menu and the Edit menu. It shows only when every selected item is an archive, and the menu setting that hid the three items hides the submenu.
 	- Mount archive stays beside it rather than inside. It browses an archive, it does not unpack one.
 	- New test: every menu path a setting can hide has to be in the menu files. A wrong path used to fail with no sign.
+
+- ✅ Create a demo GIF at 50 fps (<60 seconds) and demo video (<3 minutes) at 60 fps. Use creation and script harness from project 'silkterm'.
+	- Opened: 20260804-230307. Closed: 20260919.
+	- The gif is 58 seconds and 1.6 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
+	- Six scenes: the window opens with Places alone, then the folder tree opens beside it and closes again; F3 opens a second content pane and closes it; icon view thumbnails; search flat then grouped by folder; and Compress to 7z.
+	- The synthetic home is mounted at a generic path, so no account name or working path is on screen.
+	- It picks a free display rather than insisting on one number, after a sister project's recorder was found on the one this had claimed.
+	- `cicd.bash --demo` records it. Off by default and skipped on a quick run, since it takes about six minutes and only changes when the interface or the script does.
+	- Note: merged with an older item from 20260804 that asked for about twenty seconds. The lengths above win.
 
 - ✅ Add a preference: Auto-switch to image thumbnail view for folders with mostly images.
 	- Store the tunables that define "mostly images" in the config file.
