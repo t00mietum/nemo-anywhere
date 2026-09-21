@@ -45,6 +45,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Images view:
+	- Doesn't render at specified %, until the % is changed. (But afterward seems to remember?)
+	- 500% is too big. Let's do 250%
+	- The image % affects list views too. At least, when changing to a list view folder from an image folder.
+		- If you manually change the view to icon though, that renders correct zoom. Then back to list view, then it's also the correct zoo.
+	- An image folder flashes when entering. First list view, then images view.
+		- Is this just an inherent limitation of dynamic file listing? If so:
+			- Maybe folders one level down can be pre-scanned in a background thread, to know in advance if they are image-heavy.
+			- Keep a list in memory of last N folders that are known to contain images, to avoid having to re-scan.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
