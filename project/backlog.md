@@ -45,9 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 In list view, a folder of pictures shows a horizontal scrollbar even when every column fits. A folder of text files the same size does not.
-	- Opened: 20260921
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -3129,6 +3126,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Need to think through the UX.
 
 ### Canceled
+
+- 🚫 In list view, a folder of pictures shows a horizontal scrollbar even when every column fits. A folder of text files the same size does not.
+	- Opened: 20260921. Closed: 20260921.
+	- Why canceled: not a bug. The columns did not fit. The pictures were 327 bytes against 4 KiB, and "327 bytes" is wider than "4.0 KiB". "Image" is wider than "Text", and the names were a character longer.
+	- Every name in that folder is the same width, so Name has nothing it can cut short. With every column at its least, the row ran about 24px past the view. design.md says to scroll then.
+	- Text files of 327 bytes with shorter names fit, and showed no scrollbar.
 
 - 🚫 Persist icon view size changes, for both regular and image.
 	- Why canceled: Per-folder and global settings do this.
