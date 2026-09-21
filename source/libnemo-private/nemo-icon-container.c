@@ -281,8 +281,8 @@ icon_get_size (NemoIconContainer *container,
 	       guint *size)
 {
 	if (size != NULL) {
-		*size = MAX (nemo_get_icon_size_for_zoom_level (container->details->zoom_level)
-			       * icon->scale, NEMO_ICON_SIZE_SMALLEST);
+		*size = MAX (container->details->icon_size * icon->scale,
+			       NEMO_ICON_SIZE_MIN);
 	}
 }
 
@@ -306,9 +306,7 @@ icon_set_size (NemoIconContainer *container,
 		return;
 	}
 
-	scale = (double) icon_size /
-		nemo_get_icon_size_for_zoom_level
-		(container->details->zoom_level);
+	scale = (double) icon_size / container->details->icon_size;
 	nemo_icon_container_move_icon (container, icon,
 					   icon->x, icon->y,
 					   scale, FALSE,
@@ -967,8 +965,7 @@ nemo_icon_container_update_scroll_region (NemoIconContainer *container)
 	vadj = gtk_scrollable_get_vadjustment (GTK_SCROLLABLE (container));
 
 	/* Scroll by 1/4 icon each time you click. */
-	step_increment = nemo_get_icon_size_for_zoom_level
-		(container->details->zoom_level) / 4;
+	step_increment = container->details->icon_size / 4;
 	if (gtk_adjustment_get_step_increment (hadj) != step_increment) {
 		gtk_adjustment_set_step_increment (hadj, step_increment);
 	}
@@ -4475,8 +4472,8 @@ real_icon_get_bounding_box (NemoIcon *icon,
 }
 
 static void
-real_set_zoom_level (NemoIconContainer *container,
-                     gint               new_level)
+real_set_icon_size (NemoIconContainer *container,
+                    gint               size)
 {
     g_assert_not_reached ();
 }
@@ -4498,7 +4495,7 @@ nemo_icon_container_class_init (NemoIconContainerClass *class)
     class->align_icons = real_align_icons;
     class->finish_adding_new_icons = NULL;
     class->icon_get_bounding_box = real_icon_get_bounding_box;
-    class->set_zoom_level = real_set_zoom_level;
+    class->set_icon_size = real_set_icon_size;
     class->is_grid_container = FALSE;
 
 	/* Signals.  */
@@ -4906,15 +4903,8 @@ nemo_icon_container_init (NemoIconContainer *container)
 
 	details->icon_set = g_hash_table_new (g_direct_hash, g_direct_equal);
 	details->layout_timestamp = UNDEFINED_TIME;
-	details->zoom_level = NEMO_ZOOM_LEVEL_STANDARD;
-
-	details->font_size_table[NEMO_ZOOM_LEVEL_SMALLEST] = -2 * PANGO_SCALE;
-	details->font_size_table[NEMO_ZOOM_LEVEL_SMALLER] = -2 * PANGO_SCALE;
-	details->font_size_table[NEMO_ZOOM_LEVEL_SMALL] = -0 * PANGO_SCALE;
-	details->font_size_table[NEMO_ZOOM_LEVEL_STANDARD] = 0 * PANGO_SCALE;
-	details->font_size_table[NEMO_ZOOM_LEVEL_LARGE] = 0 * PANGO_SCALE;
-	details->font_size_table[NEMO_ZOOM_LEVEL_LARGER] = 0 * PANGO_SCALE;
-	details->font_size_table[NEMO_ZOOM_LEVEL_LARGEST] = 0 * PANGO_SCALE;
+	details->icon_size = NEMO_ICON_SIZE_STANDARD;
+	details->label_font_offset = 0;
 
     details->fixed_text_height = -1;
 
@@ -5883,19 +5873,19 @@ nemo_icon_container_invalidate_labels (NemoIconContainer *container)
     }
 }
 
-/* zooming */
+/* sizing */
 
-NemoZoomLevel
-nemo_icon_container_get_zoom_level (NemoIconContainer *container)
+gint
+nemo_icon_container_get_icon_size (NemoIconContainer *container)
 {
-    return container->details->zoom_level;
+    return container->details->icon_size;
 }
 
 void
-nemo_icon_container_set_zoom_level (NemoIconContainer *container,
-                                    gint               new_level)
+nemo_icon_container_set_icon_size (NemoIconContainer *container,
+                                   gint               size)
 {
-    NEMO_ICON_CONTAINER_GET_CLASS (container)->set_zoom_level (container, new_level);
+    NEMO_ICON_CONTAINER_GET_CLASS (container)->set_icon_size (container, size);
 
     nemo_icon_container_invalidate_labels (container);
     nemo_icon_container_request_update_all (container);
@@ -6944,7 +6934,7 @@ nemo_icon_container_start_renaming_selected_item (NemoIconContainer *container,
     if (pango_font_description_get_size (desc) > 0) {
         pango_font_description_set_size (desc,
                                          pango_font_description_get_size (desc) +
-                                         container->details->font_size_table [container->details->zoom_level]);
+                                         container->details->label_font_offset);
     }
 
 	eel_editable_label_set_font_description (EEL_EDITABLE_LABEL (details->rename_widget),
@@ -7209,27 +7199,18 @@ nemo_icon_container_set_font (NemoIconContainer *container,
 }
 
 void
-nemo_icon_container_set_font_size_table (NemoIconContainer *container,
-					     const int font_size_table[NEMO_ZOOM_LEVEL_LARGEST + 1])
+nemo_icon_container_set_label_font_offset (NemoIconContainer *container,
+					       int points)
 {
-	int old_font_size;
-	int i;
-
 	g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
-	g_return_if_fail (font_size_table != NULL);
 
-	old_font_size = container->details->font_size_table[container->details->zoom_level];
-
-	for (i = 0; i <= NEMO_ZOOM_LEVEL_LARGEST; i++) {
-		if (container->details->font_size_table[i] != font_size_table[i]) {
-			container->details->font_size_table[i] = font_size_table[i];
-		}
+	if (container->details->label_font_offset == points) {
+		return;
 	}
 
-	if (old_font_size != container->details->font_size_table[container->details->zoom_level]) {
-		nemo_icon_container_invalidate_labels (container);
-		nemo_icon_container_request_update_all (container);
-	}
+	container->details->label_font_offset = points;
+	nemo_icon_container_invalidate_labels (container);
+	nemo_icon_container_request_update_all (container);
 }
 
 /**
@@ -7708,8 +7689,8 @@ nemo_icon_container_widget_to_file_operation_position (NemoIconContainer *contai
 	position->y = (int) y;
 
 	/* ensure that we end up in the middle of the icon */
-	position->x -= nemo_get_icon_size_for_zoom_level (container->details->zoom_level) / 2;
-	position->y -= nemo_get_icon_size_for_zoom_level (container->details->zoom_level) / 2;
+	position->x -= container->details->icon_size / 2;
+	position->y -= container->details->icon_size / 2;
 }
 
 static void

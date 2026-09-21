@@ -136,7 +136,7 @@ on_slider_changed_cb (GtkWidget *zoom_slider, gpointer user_data)
     if (!NEMO_IS_VIEW (view))
         return;
 
-    nemo_view_zoom_to_level (view, (int) val);
+    nemo_view_set_icon_size (view, nemo_icon_size_at_position (val));
 }
 
 #define SLIDER_WIDTH 100
@@ -210,10 +210,17 @@ nemo_status_bar_constructed (GObject *object)
     gtk_widget_set_margin_top (GTK_WIDGET (statusbar), 0);
     gtk_widget_set_margin_bottom (GTK_WIDGET (statusbar), 0);
 
+    guint n_steps;
+    guint step;
+
+    nemo_icon_size_steps (&n_steps);
+
+    /* The slider runs along the steps rather than over pixels, so the marks
+       come out evenly spaced although the sizes they stand for do not. */
     GtkWidget *zoom_slider = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL,
-                                                       (gdouble) NEMO_ZOOM_LEVEL_SMALLEST,
-                                                       (gdouble) NEMO_ZOOM_LEVEL_LARGEST,
-                                                       1.0);
+                                                       0.0,
+                                                       (gdouble) (n_steps - 1),
+                                                       0.05);
     gtk_widget_set_tooltip_text (GTK_WIDGET (zoom_slider), _("Adjust zoom level"));
     bar->zoom_slider = zoom_slider;
 
@@ -229,8 +236,12 @@ nemo_status_bar_constructed (GObject *object)
        edge while the buttons at the other end sit clear of it. */
     gtk_widget_set_margin_end (GTK_WIDGET (zoom_slider), SLIDER_END_MARGIN);
     gtk_scale_set_draw_value (GTK_SCALE (zoom_slider), FALSE);
-    gtk_range_set_increments (GTK_RANGE (zoom_slider), 1.0, 1.0);
-    gtk_range_set_round_digits (GTK_RANGE (zoom_slider), 0);
+    gtk_range_set_increments (GTK_RANGE (zoom_slider), 0.05, 1.0);
+    gtk_range_set_round_digits (GTK_RANGE (zoom_slider), 2);
+
+    for (step = 0; step < n_steps; step++) {
+        gtk_scale_add_mark (GTK_SCALE (zoom_slider), (gdouble) step, GTK_POS_BOTTOM, NULL);
+    }
 
     gtk_widget_show_all (GTK_WIDGET (bar));
 
@@ -342,11 +353,11 @@ nemo_status_bar_sync_zoom_widgets (NemoStatusBar *bar)
        columns, so it only clutters the bar there. */
     gtk_widget_set_visible (bar->zoom_slider, !NEMO_IS_LIST_VIEW (view));
 
-    NemoZoomLevel zoom_level = nemo_view_get_zoom_level (NEMO_VIEW (view));
+    gint icon_size = nemo_view_get_icon_size (NEMO_VIEW (view));
 
     g_signal_handlers_block_by_func (GTK_RANGE (bar->zoom_slider), on_slider_changed_cb, bar);
 
-    gtk_range_set_value (GTK_RANGE (bar->zoom_slider), (double) zoom_level);
+    gtk_range_set_value (GTK_RANGE (bar->zoom_slider), nemo_icon_size_position (icon_size));
 
     g_signal_handlers_unblock_by_func (GTK_RANGE (bar->zoom_slider), on_slider_changed_cb, bar);
 }

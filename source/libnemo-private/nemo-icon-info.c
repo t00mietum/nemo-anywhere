@@ -560,126 +560,206 @@ nemo_icon_info_get_used_name (NemoIconInfo  *icon)
 	return icon->icon_name;
 }
 
-/* Return nominal icon size for given zoom level.
- * @zoom_level: zoom level for which to find matching icon size.
- *
- * Return value: icon size between NEMO_ICON_SIZE_SMALLEST and
- * NEMO_ICON_SIZE_LARGEST, inclusive.
- */
-guint
-nemo_get_icon_size_for_zoom_level (NemoZoomLevel zoom_level)
+/* The stops. Everything between two of them is a size too; these are only what
+ * the slider marks and what Zoom In and Zoom Out move between. Adding one is a
+ * row here and nothing else. */
+static const gint icon_size_steps[] = {
+	NEMO_ICON_SIZE_SMALLEST,
+	NEMO_ICON_SIZE_SMALLER,
+	NEMO_ICON_SIZE_SMALL,
+	NEMO_ICON_SIZE_STANDARD,
+	NEMO_ICON_SIZE_LARGE,
+	NEMO_ICON_SIZE_LARGER,
+	NEMO_ICON_SIZE_LARGEST,
+	NEMO_ICON_SIZE_HUGE,
+	NEMO_ICON_SIZE_HUGEST,
+	NEMO_ICON_SIZE_MAXIMUM
+};
+
+/* The seven levels a size was until 2026-09, in order, so an older settings
+ * file or a folder's saved size still reads as what it meant. */
+static const gint legacy_icon_sizes[] = {
+	NEMO_ICON_SIZE_SMALLEST,
+	NEMO_ICON_SIZE_SMALLER,
+	NEMO_ICON_SIZE_SMALL,
+	NEMO_ICON_SIZE_STANDARD,
+	NEMO_ICON_SIZE_LARGE,
+	NEMO_ICON_SIZE_LARGER,
+	NEMO_ICON_SIZE_LARGEST
+};
+
+static const gint legacy_list_icon_sizes[] = {
+	NEMO_LIST_ICON_SIZE_SMALLEST,
+	NEMO_LIST_ICON_SIZE_SMALLER,
+	NEMO_LIST_ICON_SIZE_SMALL,
+	NEMO_LIST_ICON_SIZE_STANDARD,
+	NEMO_LIST_ICON_SIZE_LARGE,
+	NEMO_LIST_ICON_SIZE_LARGER,
+	NEMO_LIST_ICON_SIZE_LARGEST
+};
+
+#define N_LEGACY_LEVELS ((gint) G_N_ELEMENTS (legacy_icon_sizes))
+
+const gint *
+nemo_icon_size_steps (guint *n_steps)
 {
-	switch (zoom_level) {
-	case NEMO_ZOOM_LEVEL_SMALLEST:
-		return NEMO_ICON_SIZE_SMALLEST;
-	case NEMO_ZOOM_LEVEL_SMALLER:
-		return NEMO_ICON_SIZE_SMALLER;
-	case NEMO_ZOOM_LEVEL_SMALL:
-		return NEMO_ICON_SIZE_SMALL;
-	case NEMO_ZOOM_LEVEL_STANDARD:
-		return NEMO_ICON_SIZE_STANDARD;
-	case NEMO_ZOOM_LEVEL_LARGE:
-		return NEMO_ICON_SIZE_LARGE;
-	case NEMO_ZOOM_LEVEL_LARGER:
-		return NEMO_ICON_SIZE_LARGER;
-	case NEMO_ZOOM_LEVEL_LARGEST:
-		return NEMO_ICON_SIZE_LARGEST;
-    case NEMO_ZOOM_LEVEL_NULL:
-    default:
-        g_return_val_if_reached (NEMO_ICON_SIZE_STANDARD);
+	if (n_steps != NULL) {
+		*n_steps = G_N_ELEMENTS (icon_size_steps);
 	}
+
+	return icon_size_steps;
+}
+
+gint
+nemo_icon_size_clamp (gint size)
+{
+	return CLAMP (size, NEMO_ICON_SIZE_MIN, NEMO_ICON_SIZE_MAX);
+}
+
+gdouble
+nemo_icon_size_position (gint size)
+{
+	gint i, n;
+
+	size = nemo_icon_size_clamp (size);
+	n = G_N_ELEMENTS (icon_size_steps);
+
+	for (i = 0; i < n - 1; i++) {
+		if (size <= icon_size_steps[i + 1]) {
+			return i + (gdouble) (size - icon_size_steps[i])
+				   / (icon_size_steps[i + 1] - icon_size_steps[i]);
+		}
+	}
+
+	return n - 1;
+}
+
+gint
+nemo_icon_size_at_position (gdouble position)
+{
+	gint i, n;
+	gdouble frac;
+
+	n = G_N_ELEMENTS (icon_size_steps);
+	position = CLAMP (position, 0.0, (gdouble) (n - 1));
+
+	i = (gint) position;
+	if (i >= n - 1) {
+		return icon_size_steps[n - 1];
+	}
+
+	frac = position - i;
+
+	return nemo_icon_size_clamp ((gint) (icon_size_steps[i]
+			+ frac * (icon_size_steps[i + 1] - icon_size_steps[i]) + 0.5));
+}
+
+gint
+nemo_icon_size_step (gint size, gint direction)
+{
+	gint i;
+
+	size = nemo_icon_size_clamp (size);
+
+	if (direction > 0) {
+		for (i = 0; i < (gint) G_N_ELEMENTS (icon_size_steps); i++) {
+			if (icon_size_steps[i] > size) {
+				return icon_size_steps[i];
+			}
+		}
+	} else if (direction < 0) {
+		for (i = G_N_ELEMENTS (icon_size_steps) - 1; i >= 0; i--) {
+			if (icon_size_steps[i] < size) {
+				return icon_size_steps[i];
+			}
+		}
+	}
+
+	/* Already at the end it was asked to move toward. */
+	return size;
+}
+
+gint
+nemo_icon_size_from_percent (gint percent)
+{
+	return nemo_icon_size_clamp ((percent * NEMO_ICON_SIZE_STANDARD + 50) / 100);
+}
+
+gint
+nemo_icon_size_percent (gint size)
+{
+	return (nemo_icon_size_clamp (size) * 100 + NEMO_ICON_SIZE_STANDARD / 2)
+	       / NEMO_ICON_SIZE_STANDARD;
+}
+
+gboolean
+nemo_icon_size_is_legacy_level (gint saved)
+{
+	/* No real size is this small, so the two cannot be confused. */
+	return saved >= 0 && saved < N_LEGACY_LEVELS;
+}
+
+gint
+nemo_icon_size_from_legacy_level (gint level)
+{
+	if (!nemo_icon_size_is_legacy_level (level)) {
+		return NEMO_ICON_SIZE_STANDARD;
+	}
+
+	return legacy_icon_sizes[level];
+}
+
+gint
+nemo_list_icon_size_from_legacy_level (gint level)
+{
+	if (!nemo_icon_size_is_legacy_level (level)) {
+		return NEMO_LIST_ICON_SIZE_STANDARD;
+	}
+
+	return legacy_list_icon_sizes[level];
+}
+
+gint
+nemo_icon_size_legacy_level (gint size)
+{
+	gint i;
+
+	size = nemo_icon_size_clamp (size);
+
+	for (i = 0; i < N_LEGACY_LEVELS; i++) {
+		if (size <= legacy_icon_sizes[i]) {
+			return i;
+		}
+	}
+
+	return N_LEGACY_LEVELS - 1;
+}
+
+/* A list row is a good deal shorter than an icon view cell, so it keeps its own
+ * scale rather than showing the icon view's size. Held to the old ladder, since
+ * the list view has no slider and a 640px row is no use to anyone. */
+guint
+nemo_get_list_icon_size (gint size)
+{
+	return legacy_list_icon_sizes[nemo_icon_size_legacy_level (size)];
+}
+
+/* The desktop covers a narrower range than anything else and always did. */
+guint
+nemo_get_desktop_icon_size (gint size)
+{
+	return (guint) CLAMP (size, NEMO_DESKTOP_ICON_SIZE_SMALLER,
+			      NEMO_DESKTOP_ICON_SIZE_LARGER);
 }
 
 guint
-nemo_get_icon_text_width_for_zoom_level (NemoZoomLevel  zoom_level)
+nemo_get_desktop_text_width (gint size)
 {
-    switch (zoom_level) {
-    case NEMO_ZOOM_LEVEL_SMALLEST:
-        return NEMO_ICON_TEXT_WIDTH_SMALLEST;
-    case NEMO_ZOOM_LEVEL_SMALLER:
-        return NEMO_ICON_TEXT_WIDTH_SMALLER;
-    case NEMO_ZOOM_LEVEL_SMALL:
-        return NEMO_ICON_TEXT_WIDTH_SMALL;
-    case NEMO_ZOOM_LEVEL_STANDARD:
-        return NEMO_ICON_TEXT_WIDTH_STANDARD;
-    case NEMO_ZOOM_LEVEL_LARGE:
-        return NEMO_ICON_TEXT_WIDTH_LARGE;
-    case NEMO_ZOOM_LEVEL_LARGER:
-        return NEMO_ICON_TEXT_WIDTH_LARGER;
-    case NEMO_ZOOM_LEVEL_LARGEST:
-        return NEMO_ICON_TEXT_WIDTH_LARGEST;
-    case NEMO_ZOOM_LEVEL_NULL:
-    default:
-        g_return_val_if_reached (NEMO_ICON_TEXT_WIDTH_STANDARD);
-    }
-}
+	gint icon = (gint) nemo_get_desktop_icon_size (size);
 
-
-
-guint
-nemo_get_desktop_icon_size_for_zoom_level (NemoZoomLevel zoom_level)
-{
-    switch (zoom_level) {
-        case NEMO_ZOOM_LEVEL_SMALLER:
-            return NEMO_DESKTOP_ICON_SIZE_SMALLER;
-        case NEMO_ZOOM_LEVEL_SMALL:
-            return NEMO_DESKTOP_ICON_SIZE_SMALL;
-        case NEMO_ZOOM_LEVEL_STANDARD:
-            return NEMO_DESKTOP_ICON_SIZE_STANDARD;
-        case NEMO_ZOOM_LEVEL_LARGE:
-            return NEMO_DESKTOP_ICON_SIZE_LARGE;
-        case NEMO_ZOOM_LEVEL_LARGER:
-            return NEMO_DESKTOP_ICON_SIZE_LARGER;
-        case NEMO_ZOOM_LEVEL_SMALLEST:
-        case NEMO_ZOOM_LEVEL_LARGEST:
-        case NEMO_ZOOM_LEVEL_NULL:
-        default:
-            g_return_val_if_reached (NEMO_ICON_SIZE_STANDARD);
-    }
-}
-
-guint
-nemo_get_desktop_text_width_for_zoom_level (NemoZoomLevel  zoom_level)
-{
-    switch (zoom_level) {
-    case NEMO_ZOOM_LEVEL_SMALLER:
-        return NEMO_DESKTOP_TEXT_WIDTH_SMALLER;
-    case NEMO_ZOOM_LEVEL_SMALL:
-        return NEMO_DESKTOP_TEXT_WIDTH_SMALL;
-    case NEMO_ZOOM_LEVEL_STANDARD:
-        return NEMO_DESKTOP_TEXT_WIDTH_STANDARD;
-    case NEMO_ZOOM_LEVEL_LARGE:
-        return NEMO_DESKTOP_TEXT_WIDTH_LARGE;
-    case NEMO_ZOOM_LEVEL_LARGER:
-        return NEMO_DESKTOP_TEXT_WIDTH_LARGER;
-    case NEMO_ZOOM_LEVEL_NULL:
-    default:
-        g_return_val_if_reached (NEMO_DESKTOP_TEXT_WIDTH_STANDARD);
-    }
-}
-
-guint
-nemo_get_list_icon_size_for_zoom_level (NemoZoomLevel zoom_level)
-{
-    switch (zoom_level) {
-    case NEMO_ZOOM_LEVEL_SMALLEST:
-        return NEMO_LIST_ICON_SIZE_SMALLEST;
-    case NEMO_ZOOM_LEVEL_SMALLER:
-        return NEMO_LIST_ICON_SIZE_SMALLER;
-    case NEMO_ZOOM_LEVEL_SMALL:
-        return NEMO_LIST_ICON_SIZE_SMALL;
-    case NEMO_ZOOM_LEVEL_STANDARD:
-        return NEMO_LIST_ICON_SIZE_STANDARD;
-    case NEMO_ZOOM_LEVEL_LARGE:
-        return NEMO_LIST_ICON_SIZE_LARGE;
-    case NEMO_ZOOM_LEVEL_LARGER:
-        return NEMO_LIST_ICON_SIZE_LARGER;
-    case NEMO_ZOOM_LEVEL_LARGEST:
-        return NEMO_LIST_ICON_SIZE_LARGEST;
-    case NEMO_ZOOM_LEVEL_NULL:
-    default:
-        g_return_val_if_reached (NEMO_ICON_SIZE_STANDARD);
-    }
+	/* The old table ran 64, 84, 110, 150, 200 against icons of 24, 32, 48,
+	 * 64, 96, which is a little over twice the icon with a floor under it. */
+	return (guint) MAX (NEMO_DESKTOP_TEXT_WIDTH_SMALLER, icon * 21 / 10);
 }
 
 gint

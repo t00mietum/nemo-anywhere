@@ -41,7 +41,7 @@ nemo_centered_placement_grid_new (NemoIconContainer *container, gboolean horizon
     /* Get container dimensions */
     gtk_widget_get_allocation (GTK_WIDGET (container), &allocation);
 
-    icon_size = nemo_get_desktop_icon_size_for_zoom_level (container->details->zoom_level);
+    icon_size = nemo_get_desktop_icon_size (container->details->icon_size);
 
     width  = nemo_icon_container_get_canvas_width (container, allocation);
     height = nemo_icon_container_get_canvas_height (container, allocation);

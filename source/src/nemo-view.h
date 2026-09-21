@@ -200,24 +200,22 @@ struct NemoViewClass {
 
 	guint    (* get_item_count)             (NemoView *view);
 
-        /* bump_zoom_level is a function pointer that subclasses must override
-         * to change the zoom level of an object. */
-        void    (* bump_zoom_level)      	(NemoView *view,
-					  	 int zoom_increment);
+        /* A size throughout is a number of pixels. bump steps to the next stop
+         * either side, so the keyboard stays coarse while the slider is fine. */
+        void    (* bump_icon_size)      	(NemoView *view,
+					  	 int direction);
 
-        /* zoom_to_level is a function pointer that subclasses must override
-         * to set the zoom level of an object to the specified level. */
-        void    (* zoom_to_level) 		(NemoView *view, 
-        				         NemoZoomLevel level);
+        void    (* set_icon_size) 		(NemoView *view,
+        				         gint size);
 
-        NemoZoomLevel (* get_zoom_level)    (NemoView *view);
+        gint    (* get_icon_size)               (NemoView *view);
 
-	/* restore_default_zoom_level is a function pointer that subclasses must override
-         * to restore the zoom level of an object to a default setting. */
-        void    (* restore_default_zoom_level) (NemoView *view);
+	/* restore_default_icon_size is a function pointer that subclasses must override
+         * to restore the size of an object to a default setting. */
+        void    (* restore_default_icon_size) (NemoView *view);
 
-    /* return the default zoom level for the current view */
-        NemoZoomLevel  (* get_default_zoom_level)   (NemoView *view);
+    /* return the default size for the current view */
+        gint    (* get_default_icon_size)   (NemoView *view);
         /* can_zoom_in is a function pointer that subclasses must override to
          * return whether the view is at maximum size (furthest-in zoom level) */
         gboolean (* can_zoom_in)	 	(NemoView *view);
@@ -421,14 +419,14 @@ void              nemo_view_scroll_to_file             (NemoView      *view,
 							    const char        *uri);
 char *            nemo_view_get_title                  (NemoView      *view);
 gboolean          nemo_view_supports_zooming           (NemoView      *view);
-void              nemo_view_bump_zoom_level            (NemoView      *view,
-							    int                zoom_increment);
-void              nemo_view_zoom_to_level              (NemoView      *view,
-							    NemoZoomLevel  level);
-void              nemo_view_restore_default_zoom_level (NemoView      *view);
+void              nemo_view_bump_icon_size             (NemoView      *view,
+							    int                direction);
+void              nemo_view_set_icon_size              (NemoView      *view,
+							    gint               size);
+void              nemo_view_restore_default_icon_size  (NemoView      *view);
 gboolean          nemo_view_can_zoom_in                (NemoView      *view);
 gboolean          nemo_view_can_zoom_out               (NemoView      *view);
-NemoZoomLevel nemo_view_get_zoom_level             (NemoView      *view);
+gint              nemo_view_get_icon_size              (NemoView      *view);
 void              nemo_view_pop_up_location_context_menu (NemoView    *view,
 							      GdkEventButton  *event,
 							      const char      *location);

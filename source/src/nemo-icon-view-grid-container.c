@@ -1355,7 +1355,7 @@ get_vertical_adjustment (NemoIconContainer *container,
     if (pango_font_description_get_size (desc) > 0) {
         pango_font_description_set_size (desc,
                                          pango_font_description_get_size (desc) +
-                                         container->details->font_size_table [container->details->zoom_level]);
+                                         container->details->label_font_offset);
     }
 
     pango_layout_set_font_description (layout, desc);
@@ -1389,7 +1389,7 @@ update_layout_constants (NemoIconContainer *container)
     ellipsis_pref = nemo_config_get_int (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_TEXT_ELLIPSIS_LIMIT);
     NEMO_ICON_VIEW_GRID_CONTAINER (container)->text_ellipsis_limit = ellipsis_pref;
 
-    icon_size = nemo_get_desktop_icon_size_for_zoom_level (container->details->zoom_level);
+    icon_size = nemo_get_desktop_icon_size (container->details->icon_size);
 
     scale = (double) icon_size / NEMO_DESKTOP_ICON_SIZE_STANDARD;
 
@@ -1405,34 +1405,38 @@ update_layout_constants (NemoIconContainer *container)
     constants->icon_vertical_adjust = MIN (get_vertical_adjustment (container, icon_size), constants->snap_size_y / 2);
     /* This isn't what this is intended for, but it's a simple way vs. overriding what
      * icon_get_size() uses to get the icon size in nemo-icon-container.c (it should use
-     * nemo_get_desktop_icon_size_for_zoom_level) */
+     * nemo_get_desktop_icon_size) */
     nemo_icon_container_set_forced_icon_size (container, icon_size);
 
     gtk_widget_queue_draw (GTK_WIDGET (container));
 }
 
 static void
-nemo_icon_view_grid_container_set_zoom_level (NemoIconContainer *container, gint new_level)
+nemo_icon_view_grid_container_set_icon_size (NemoIconContainer *container, gint size)
 {
     NemoIconContainerDetails *details;
-    int pinned_level;
 
     details = container->details;
 
     nemo_icon_container_end_renaming_mode (container, TRUE);
 
-    pinned_level = new_level;
-    if (pinned_level < NEMO_ZOOM_LEVEL_SMALLEST) {
-        pinned_level = NEMO_ZOOM_LEVEL_SMALLEST;
-    } else if (pinned_level > NEMO_ZOOM_LEVEL_LARGEST) {
-        pinned_level = NEMO_ZOOM_LEVEL_LARGEST;
-    }
+    size = nemo_icon_size_clamp (size);
 
-    if (pinned_level == details->zoom_level) {
+    if (size == details->icon_size) {
         return;
     }
 
-    details->zoom_level = pinned_level;
+    details->icon_size = size;
+
+    /* The desktop is the one place a name does change size with the icon, and
+       it always did: a point either side of the standard size. */
+    if (size < NEMO_ICON_SIZE_STANDARD) {
+        details->label_font_offset = -1 * PANGO_SCALE;
+    } else if (size > NEMO_ICON_SIZE_STANDARD) {
+        details->label_font_offset = 1 * PANGO_SCALE;
+    } else {
+        details->label_font_offset = 0;
+    }
 
     eel_canvas_set_pixels_per_unit (EEL_CANVAS (container), 1.0);
 }
@@ -1638,7 +1642,7 @@ nemo_icon_view_grid_container_class_init (NemoIconViewGridContainerClass *klass)
     ic_class->reload_icon_positions = nemo_icon_view_grid_container_reload_icon_positions;
     ic_class->finish_adding_new_icons = nemo_icon_view_grid_container_finish_adding_new_icons;
     ic_class->icon_get_bounding_box = nemo_icon_view_grid_container_icon_get_bounding_box;
-    ic_class->set_zoom_level = nemo_icon_view_grid_container_set_zoom_level;
+    ic_class->set_icon_size = nemo_icon_view_grid_container_set_icon_size;
 
     g_signal_override_class_handler ("icon_added",
                                      NEMO_TYPE_ICON_VIEW_GRID_CONTAINER,
@@ -1656,9 +1660,6 @@ nemo_icon_view_grid_container_init (NemoIconViewGridContainer *icon_container)
 {
 	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (icon_container)),
 				     GTK_STYLE_CLASS_VIEW);
-
-    NEMO_ICON_CONTAINER (icon_container)->details->font_size_table[NEMO_ZOOM_LEVEL_SMALL] = -1 * PANGO_SCALE;
-    NEMO_ICON_CONTAINER (icon_container)->details->font_size_table[NEMO_ZOOM_LEVEL_LARGE] =  1 * PANGO_SCALE;
 
     icon_container->text_ellipsis_limit = 2;
 }

@@ -40,6 +40,7 @@ Status: kept current as decisions change, rather than written once. Last read th
 	- [User interface](#user-interface)
 		- [Window, tabs and side panes](#window-tabs-and-side-panes)
 		- [Views and list columns](#views-and-list-columns)
+		- [Icon sizes](#icon-sizes)
 		- [List view column widths](#list-view-column-widths)
 		- [Labels and dialogs](#labels-and-dialogs)
 		- [Hidden files and shortcuts](#hidden-files-and-shortcuts)
@@ -423,6 +424,22 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - Extensions can add context-menu items, list columns, property pages and file attributes. Nothing in the interface depends on one being present.
 
+#### Icon sizes
+
+- An icon size is a number of pixels, at a scale factor of one. It used to be one of seven named steps, which meant eight separate tables keyed by the step and no way to ask for a size the list did not already hold.
+
+- The named steps survive as stops: 24, 32, 48, 64, 96, 128, 256, 320, 448 and 640 pixels. They are what the slider marks and what Zoom In and Zoom Out move between. The slider reaches everything in between, so the keyboard stays coarse while dragging is fine. Adding a size is a row in one table.
+
+- Both the settings and the preferences window say it as a per cent of the standard 64 pixels, so 100% is 64 and 1000% is 640.
+
+- The slider runs along the stops rather than over pixels. The range is nearly thirty times as wide at one end as the other, so spacing the marks evenly is the only way the low end stays usable.
+
+- A name under an icon is one size whatever the icon is. It runs as wide as the icon above it, and never narrower than 110 pixels, or an ordinary file name wraps at the usual size. Below 32 pixels there is no name at all. The desktop is the one place a name does grow with the icon, a point either side of the standard size, and it always did.
+
+- The list view is held to the stops rather than taking any size, because a row's icon comes out of one of the model's size columns and a tree model's column count is fixed. Its row text does grow with its size, unlike a name under an icon: in a list the row height is most of what a size means.
+
+- A saved size is a number of pixels. One saved before this change is a step number, 0 to 6, which no real size can be, so the two are told apart on read.
+
 #### List view column widths
 
 This rule has been rewritten several times and will probably move again, so the whole of it is here rather than spread between the code and a summary. This should be treated (and updated) as THE canonical, precise, complete, conflict-free definition. It describes where the behavior is going, so where the code differs it is the code that moves. The code has matched it since 2026-09-17. The arithmetic is in `nemo-column-layout.c`, which knows nothing about widgets and can be tested without a screen; the measuring that feeds it is in `nemo-list-view.c`.
@@ -464,7 +481,7 @@ This rule has been rewritten several times and will probably move again, so the 
 - What gets measured, and when.
 	- Every row is measured as it arrives and as its details fill in, which is a handful of cells at a time rather than a walk of the folder.
 	- Rows a subfolder adds count while it is open, and are forgotten when it collapses.
-	- Everything is measured again when the zoom level changes the font or icon size, and when a column is switched on that was not there to be measured while it was hidden.
+	- Everything is measured again when the size changes the font or the icon, when the theme brings a new font, and when a column is switched on that was not there to be measured while it was hidden.
 	- Samples are thrown away on a folder change. The names in the last folder say nothing about this one.
 	- A column remembers the width it worked out for a piece of text, so a type, an owner or a set of permissions that repeats down the folder is laid out once instead of once a row. Name is left out, since no two files in a folder share a name. A column stops remembering past a couple of thousand distinct values, which is where a date would otherwise keep one entry per row for nothing. The remembered widths go when the samples do.
 

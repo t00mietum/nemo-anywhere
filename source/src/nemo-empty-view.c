@@ -55,7 +55,7 @@ nemo_empty_view_add_file (NemoView *view, NemoFile *file, NemoDirectory *directo
 	if (!timer) timer = g_timer_new ();
 
 	g_timer_start (timer);
-	icon = nemo_file_get_icon_pixbuf (file, nemo_get_icon_size_for_zoom_level (NEMO_ZOOM_LEVEL_STANDARD), TRUE, 0, NEMO_FILE_ICON_FLAGS_NONE);
+	icon = nemo_file_get_icon_pixbuf (file, NEMO_ICON_SIZE_STANDARD, TRUE, 0, NEMO_FILE_ICON_FLAGS_NONE);
 
 	elaps = g_timer_elapsed (timer, NULL);
 	g_timer_stop (timer);
@@ -155,24 +155,24 @@ nemo_empty_view_reset_to_defaults (NemoView *view)
 }
 
 static void
-nemo_empty_view_bump_zoom_level (NemoView *view, int zoom_increment)
+nemo_empty_view_bump_icon_size (NemoView *view, int direction)
 {
 }
 
-static NemoZoomLevel
-nemo_empty_view_get_zoom_level (NemoView *view)
+static gint
+nemo_empty_view_get_icon_size (NemoView *view)
 {
-	return NEMO_ZOOM_LEVEL_STANDARD;
-}
-
-static void
-nemo_empty_view_zoom_to_level (NemoView *view,
-			    NemoZoomLevel zoom_level)
-{
+	return NEMO_ICON_SIZE_STANDARD;
 }
 
 static void
-nemo_empty_view_restore_default_zoom_level (NemoView *view)
+nemo_empty_view_set_icon_size (NemoView *view,
+			    gint size)
+{
+}
+
+static void
+nemo_empty_view_restore_default_icon_size (NemoView *view)
 {
 }
 
@@ -261,7 +261,7 @@ nemo_empty_view_class_init (NemoEmptyViewClass *class)
 
 	nemo_view_class->add_file = nemo_empty_view_add_file;
 	nemo_view_class->begin_loading = nemo_empty_view_begin_loading;
-	nemo_view_class->bump_zoom_level = nemo_empty_view_bump_zoom_level;
+	nemo_view_class->bump_icon_size = nemo_empty_view_bump_icon_size;
 	nemo_view_class->can_zoom_in = nemo_empty_view_can_zoom_in;
 	nemo_view_class->can_zoom_out = nemo_empty_view_can_zoom_out;
         nemo_view_class->click_policy_changed = nemo_empty_view_click_policy_changed;
@@ -275,15 +275,15 @@ nemo_empty_view_class_init (NemoEmptyViewClass *class)
 	nemo_view_class->merge_menus = nemo_empty_view_merge_menus;
 	nemo_view_class->update_menus = nemo_empty_view_update_menus;
 	nemo_view_class->reset_to_defaults = nemo_empty_view_reset_to_defaults;
-	nemo_view_class->restore_default_zoom_level = nemo_empty_view_restore_default_zoom_level;
+	nemo_view_class->restore_default_icon_size = nemo_empty_view_restore_default_icon_size;
 	nemo_view_class->reveal_selection = nemo_empty_view_reveal_selection;
 	nemo_view_class->select_all = nemo_empty_view_select_all;
 	nemo_view_class->set_selection = nemo_empty_view_set_selection;
 	nemo_view_class->compare_files = nemo_empty_view_compare_files;
 	nemo_view_class->sort_directories_first_changed = nemo_empty_view_sort_directories_first_changed;
 	nemo_view_class->start_renaming_file = nemo_empty_view_start_renaming_file;
-	nemo_view_class->get_zoom_level = nemo_empty_view_get_zoom_level;
-	nemo_view_class->zoom_to_level = nemo_empty_view_zoom_to_level;
+	nemo_view_class->get_icon_size = nemo_empty_view_get_icon_size;
+	nemo_view_class->set_icon_size = nemo_empty_view_set_icon_size;
 	nemo_view_class->end_file_changes = nemo_empty_view_end_file_changes;
 	nemo_view_class->using_manual_layout = nemo_empty_view_using_manual_layout;
 	nemo_view_class->end_loading = nemo_empty_view_end_loading;

@@ -177,6 +177,25 @@ field_key (int field)
 }
 
 /* the preference a field falls back to, as a combo row or a check state */
+/* The size combos still have one row per step, so what the widget holds is a
+   step and what is stored is a number of pixels. */
+static int
+size_row (gint size)
+{
+	if (nemo_icon_size_is_legacy_level (size)) {
+		return size;	/* saved before sizes were pixels */
+	}
+
+	return nemo_icon_size_legacy_level (size);
+}
+
+static int
+default_size_row (NemoConfigGroup *group, const char *key)
+{
+	return nemo_icon_size_legacy_level
+		(nemo_icon_size_from_percent (nemo_config_get_int (group, key)));
+}
+
 static int
 field_default (int field)
 {
@@ -186,11 +205,11 @@ field_default (int field)
 	case FIELD_REVERSE: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_DEFAULT_SORT_IN_REVERSE_ORDER);
 	case FIELD_FOLDERS_FIRST: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST);
 	case FIELD_FAVORITES_FIRST: return nemo_config_get_boolean (nemo_preferences, NEMO_PREFERENCES_SORT_FAVORITES_FIRST);
-	case FIELD_ICON_ZOOM: return nemo_config_get_enum (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL);
+	case FIELD_ICON_ZOOM: return default_size_row (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_LABELS_BESIDE: return nemo_config_get_boolean (nemo_icon_view_preferences, NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
-	case FIELD_COMPACT_ZOOM: return nemo_config_get_enum (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ZOOM_LEVEL);
+	case FIELD_COMPACT_ZOOM: return default_size_row (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_SAME_WIDTH: return nemo_config_get_boolean (nemo_compact_view_preferences, NEMO_PREFERENCES_COMPACT_VIEW_ALL_COLUMNS_SAME_WIDTH);
-	case FIELD_LIST_ZOOM: return nemo_config_get_enum (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ZOOM_LEVEL);
+	case FIELD_LIST_ZOOM: return default_size_row (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE);
 	case FIELD_EXPANDERS: return nemo_config_get_boolean (nemo_list_view_preferences, NEMO_PREFERENCES_LIST_VIEW_ENABLE_EXPANSION);
 	default: return 0;
 	}
@@ -268,7 +287,8 @@ folder_value (CurrentTab *tab, int field)
 	case FIELD_ICON_ZOOM:
 	case FIELD_COMPACT_ZOOM:
 	case FIELD_LIST_ZOOM:
-		return nemo_folder_settings_get_int (tab->folder, field_key (field), fallback);
+		return size_row (nemo_folder_settings_get_int (tab->folder, field_key (field),
+							       nemo_icon_size_from_legacy_level (fallback)));
 
 	default:
 		return nemo_folder_settings_get_boolean (tab->folder, field_key (field), fallback);
@@ -392,7 +412,9 @@ save_fields (CurrentTab *tab, guint fields)
 		case FIELD_ICON_ZOOM:
 		case FIELD_COMPACT_ZOOM:
 		case FIELD_LIST_ZOOM:
-			nemo_folder_settings_set_int (tab->folder, field_key (field), fallback, value);
+			nemo_folder_settings_set_int (tab->folder, field_key (field),
+						      nemo_icon_size_from_legacy_level (fallback),
+						      nemo_icon_size_from_legacy_level (value));
 			break;
 
 		default:

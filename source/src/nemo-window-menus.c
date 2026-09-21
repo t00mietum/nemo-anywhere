@@ -249,21 +249,21 @@ static void
 action_zoom_in_callback (GtkAction *action,
 			 gpointer user_data)
 {
-    nemo_view_bump_zoom_level (get_current_view (user_data), 1);
+    nemo_view_bump_icon_size (get_current_view (user_data), 1);
 }
 
 static void
 action_zoom_out_callback (GtkAction *action,
 			  gpointer user_data)
 {
-    nemo_view_bump_zoom_level (get_current_view (user_data), -1);
+    nemo_view_bump_icon_size (get_current_view (user_data), -1);
 }
 
 static void
 action_zoom_normal_callback (GtkAction *action,
 			     gpointer user_data)
 {
-    nemo_view_restore_default_zoom_level (get_current_view (user_data));
+    nemo_view_restore_default_icon_size (get_current_view (user_data));
 }
 
 /* Windows marks hidden files with an attribute and treats a leading dot as an

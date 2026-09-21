@@ -336,14 +336,12 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
             NemoFileIconFlags flags;
             cairo_surface_t *surface;
             int icon_size, icon_scale;
-            NemoZoomLevel zoom_level;
             GdkPixbuf *icon, *rendered_icon;
             NemoIconInfo *icon_info;
             GList *emblem_icons, *l;
             gboolean cacheable;
 
-			zoom_level = nemo_list_model_get_zoom_level_from_column_id (column);
-			icon_size = nemo_get_list_icon_size_for_zoom_level (zoom_level);
+			icon_size = nemo_list_model_get_icon_size_from_column_id (column);
             icon_scale = nemo_list_model_get_icon_scale (model);
 
             /* Drag-accept and cut-highlight render live; everything else is a
@@ -1740,53 +1738,36 @@ nemo_list_model_get_attribute_from_sort_column_id (NemoListModel *model,
 	return attribute;
 }
 
-NemoZoomLevel
-nemo_list_model_get_zoom_level_from_column_id (int column)
+/* The size columns run smallest to largest in the enum, so the offset from the
+   first of them is the step. */
+static const int size_columns[] = {
+	NEMO_LIST_MODEL_SMALLEST_ICON_COLUMN,
+	NEMO_LIST_MODEL_SMALLER_ICON_COLUMN,
+	NEMO_LIST_MODEL_SMALL_ICON_COLUMN,
+	NEMO_LIST_MODEL_STANDARD_ICON_COLUMN,
+	NEMO_LIST_MODEL_LARGE_ICON_COLUMN,
+	NEMO_LIST_MODEL_LARGER_ICON_COLUMN,
+	NEMO_LIST_MODEL_LARGEST_ICON_COLUMN
+};
+
+guint
+nemo_list_model_get_icon_size_from_column_id (int column)
 {
-	switch (column) {
-	case NEMO_LIST_MODEL_SMALLEST_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_SMALLEST;
-	case NEMO_LIST_MODEL_SMALLER_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_SMALLER;
-	case NEMO_LIST_MODEL_SMALL_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_SMALL;
-	case NEMO_LIST_MODEL_STANDARD_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_STANDARD;
-	case NEMO_LIST_MODEL_LARGE_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_LARGE;
-	case NEMO_LIST_MODEL_LARGER_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_LARGER;
-	case NEMO_LIST_MODEL_LARGEST_ICON_COLUMN:
-		return NEMO_ZOOM_LEVEL_LARGEST;
-        default:
-                break;
+	guint i;
+
+	for (i = 0; i < G_N_ELEMENTS (size_columns); i++) {
+		if (size_columns[i] == column) {
+			return nemo_list_icon_size_from_legacy_level (i);
+		}
 	}
 
-	g_return_val_if_reached (NEMO_ZOOM_LEVEL_STANDARD);
+	g_return_val_if_reached (NEMO_LIST_ICON_SIZE_STANDARD);
 }
 
 int
-nemo_list_model_get_column_id_from_zoom_level (NemoZoomLevel zoom_level)
+nemo_list_model_get_column_id_for_icon_size (gint size)
 {
-	switch (zoom_level) {
-	case NEMO_ZOOM_LEVEL_SMALLEST:
-		return NEMO_LIST_MODEL_SMALLEST_ICON_COLUMN;
-	case NEMO_ZOOM_LEVEL_SMALLER:
-		return NEMO_LIST_MODEL_SMALLER_ICON_COLUMN;
-	case NEMO_ZOOM_LEVEL_SMALL:
-		return NEMO_LIST_MODEL_SMALL_ICON_COLUMN;
-	case NEMO_ZOOM_LEVEL_STANDARD:
-		return NEMO_LIST_MODEL_STANDARD_ICON_COLUMN;
-	case NEMO_ZOOM_LEVEL_LARGE:
-		return NEMO_LIST_MODEL_LARGE_ICON_COLUMN;
-	case NEMO_ZOOM_LEVEL_LARGER:
-		return NEMO_LIST_MODEL_LARGER_ICON_COLUMN;
-	case NEMO_ZOOM_LEVEL_LARGEST:
-		return NEMO_LIST_MODEL_LARGEST_ICON_COLUMN;
-        case NEMO_ZOOM_LEVEL_NULL:
-    default:
-        g_return_val_if_reached (NEMO_LIST_MODEL_STANDARD_ICON_COLUMN);
-	}
+	return size_columns[nemo_icon_size_legacy_level (size)];
 }
 
 void

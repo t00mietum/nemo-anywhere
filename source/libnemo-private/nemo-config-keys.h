@@ -82,17 +82,6 @@ static const NemoConfigEnumValue enum_TabPosition[] = {
 	{ NULL, 0 }
 };
 
-static const NemoConfigEnumValue enum_ZoomLevel[] = {
-	{ "smallest", 0 },
-	{ "smaller", 1 },
-	{ "small", 2 },
-	{ "standard", 3 },
-	{ "large", 4 },
-	{ "larger", 5 },
-	{ "largest", 6 },
-	{ NULL, 0 }
-};
-
 static const char *const deflist__favorites[] = { NULL };
 static const char *const deflist__favorites_root_metadata[] = { NULL };
 static const char *const deflist_icon_view_captions[] = { "none", "size", "date_modified", NULL };
@@ -152,7 +141,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_ARCHIVE_STATE_KEY_SPLIT_SIZE, NEMO_CONFIG_STRING, NEMO_ARCHIVE_STATE_DEFAULT_SPLIT_SIZE, NULL, NULL, "What the Compress dialog starts from next time", NEMO_CONFIG_KEY_STATE },
 	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_ARCHIVE_STATE_KEY_STORE_LINKS, NEMO_CONFIG_BOOL, "true", NULL, NULL, "What the Compress dialog starts from next time", NEMO_CONFIG_KEY_STATE },
 	{ "compact-view", "all-columns-have-same-width", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
-	{ "compact-view", "default-zoom-level", NEMO_CONFIG_ENUM, "standard", NULL, enum_ZoomLevel, NULL },
+	{ "compact-view", "default-icon-size", NEMO_CONFIG_INT, "100", NULL, NULL, "Icon size as a per cent of the standard 64 pixels" },
 	{ "debug", "testguard-all-deletes", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for" },
 	{ "interface", "clock-use-24h", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "media-handling", "automount", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
@@ -165,14 +154,14 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "desktop", "text-ellipsis-limit", NEMO_CONFIG_INT, "2", NULL, NULL, "Lines of a name under a desktop icon before it is cut short" },
 	{ "desktop", "use-desktop-grid", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "icon-view", "captions", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_captions, NULL, "Extra details shown under an icon" },
-	{ "icon-view", "default-zoom-level", NEMO_CONFIG_ENUM, "standard", NULL, enum_ZoomLevel, NULL },
+	{ "icon-view", "default-icon-size", NEMO_CONFIG_INT, "100", NULL, NULL, "Icon size as a per cent of the standard 64 pixels" },
 	{ "icon-view", "labels-beside-icons", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "icon-view", "text-ellipsis-limit", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_text_ellipsis_limit, NULL, "Lines of a name under an icon before it is cut short" },
 	{ "icon-view", "thumbnail-size", NEMO_CONFIG_INT, "64", NULL, NULL, "Thumbnail size in pixels" },
 	{ "list-view", "column-fit-percent", NEMO_CONFIG_INT, "90", NULL, NULL, "Share of the values Name and Location still show when the row is short of room, and the share other variable columns show by default. Name counts every file; the others count each distinct value once." },
 	{ "list-view", "default-column-order", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_column_order, NULL, NULL },
 	{ "list-view", "default-visible-columns", NEMO_CONFIG_STRING_LIST, NULL, deflist_list_view_default_visible_columns, NULL, NULL },
-	{ "list-view", "default-zoom-level", NEMO_CONFIG_ENUM, "small", NULL, enum_ZoomLevel, NULL },
+	{ "list-view", "default-icon-size", NEMO_CONFIG_INT, "75", NULL, NULL, "Icon size as a per cent of the standard 64 pixels" },
 	{ "list-view", "enable-folder-expansion", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Let a folder be expanded in place to show what is in it" },
 	{ "list-view", "row-shading", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Shade every other row" },
 	{ "list-view", "row-shading-color", NEMO_CONFIG_STRING, "", NULL, NULL, "Color of the shaded rows, in any form CSS takes. Empty uses the theme's nemo_row_shading color, or a faint tint of the text color if it has none" },

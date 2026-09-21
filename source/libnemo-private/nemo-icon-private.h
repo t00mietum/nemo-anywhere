@@ -206,11 +206,13 @@ struct NemoIconContainerDetails {
 	/* Used to coalesce selection changed signals in some cases */
 	guint selection_changed_id;
 
-	/* zoom level */
-	int zoom_level;
-	
-	/* font sizes used to draw labels */
-	int font_size_table[NEMO_ZOOM_LEVEL_LARGEST + 1];
+	/* icon size in pixels, at a scale factor of 1 */
+	int icon_size;
+
+	/* points added to the label font. Flat across sizes in a window, since
+	   a name is a name whatever the icon under it is; the desktop sets its
+	   own. */
+	int label_font_offset;
 
 	/* State used so arrow keys don't wander if icons aren't lined up.
 	 */

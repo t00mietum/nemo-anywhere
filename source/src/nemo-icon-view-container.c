@@ -283,17 +283,12 @@ nemo_icon_view_container_get_icon_text_attribute_names (NemoIconContainer *conta
 	GQuark *attributes;
 	int piece_count;
 
-	const int pieces_by_level[] = {
-		0,	/* NEMO_ZOOM_LEVEL_SMALLEST */
-		0,	/* NEMO_ZOOM_LEVEL_SMALLER */
-		0,	/* NEMO_ZOOM_LEVEL_SMALL */
-		1,	/* NEMO_ZOOM_LEVEL_STANDARD */
-		2,	/* NEMO_ZOOM_LEVEL_LARGE */
-		2,	/* NEMO_ZOOM_LEVEL_LARGER */
-		3	/* NEMO_ZOOM_LEVEL_LARGEST */
-	};
+	/* How many lines of detail a cell has room for, by step. A size between
+	   two steps takes the answer for the step at or above it. */
+	const int pieces_by_step[] = { 0, 0, 0, 1, 2, 2, 3 };
 
-	piece_count = pieces_by_level[nemo_icon_container_get_zoom_level (container)];
+	piece_count = pieces_by_step[nemo_icon_size_legacy_level
+				     (nemo_icon_container_get_icon_size (container))];
 
 	attributes = nemo_icon_view_container_get_icon_text_attributes_from_preferences ();
 
@@ -330,8 +325,8 @@ nemo_icon_view_container_get_icon_text (NemoIconContainer *container,
 
 	use_additional = (additional_text != NULL);
 
-	/* In the smallest zoom mode, no text is drawn. */
-	if (nemo_icon_container_get_zoom_level (container) == NEMO_ZOOM_LEVEL_SMALLEST &&
+	/* Too small for a name under it. */
+	if (nemo_icon_container_get_icon_size (container) < NEMO_ICON_SIZE_LABEL_MIN &&
             !include_invisible) {
 		*editable_text = NULL;
         if (pinned) {
@@ -687,7 +682,7 @@ lay_down_icons_horizontal (NemoIconContainer *container,
     int icon_text_gap, column_gap, row_gap;
     int device_canvas_width;
     GtkAllocation allocation;
-    gint icon_size, text_size, use_size;
+    gint icon_size, use_size;
 
     g_assert (NEMO_IS_ICON_CONTAINER (container));
 
@@ -708,10 +703,10 @@ lay_down_icons_horizontal (NemoIconContainer *container,
     row_gap = floor (ROW_GAP / ppu);
 
     device_canvas_width = floor (canvas_width * ppu);
-    icon_size = nemo_get_icon_size_for_zoom_level (container->details->zoom_level);
-    text_size = nemo_get_icon_text_width_for_zoom_level (container->details->zoom_level);
-
-    use_size = MAX (icon_size, text_size) + 15;
+    /* A cell is as wide as whichever is wider, the icon or the name under it,
+       plus the gap either side. */
+    icon_size = container->details->icon_size;
+    use_size = MAX (icon_size, NEMO_ICON_LABEL_WIDTH_MIN) + 15;
     icon_size /= ppu;
     if (container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
         /* Would it be worth caching these bounds for the next loop? */
@@ -1415,8 +1410,8 @@ icon_get_size (NemoIconContainer *container,
            guint *size)
 {
     if (size != NULL) {
-        *size = MAX (nemo_get_icon_size_for_zoom_level (container->details->zoom_level)
-                   * icon->scale, NEMO_ICON_SIZE_SMALLEST);
+        *size = MAX (container->details->icon_size * icon->scale,
+                   NEMO_ICON_SIZE_MIN);
     }
 }
 
@@ -1831,39 +1826,35 @@ nemo_icon_view_container_finish_adding_new_icons (NemoIconContainer *container)
 }
 
 static void
-nemo_icon_view_container_set_zoom_level (NemoIconContainer *container, gint new_level)
+nemo_icon_view_container_set_icon_size (NemoIconContainer *container, gint size)
 {
     NemoIconContainerDetails *details;
-    int pinned_level;
     double pixels_per_unit;
 
     details = container->details;
 
     nemo_icon_container_end_renaming_mode (container, TRUE);
 
-    pinned_level = new_level;
-    if (pinned_level < NEMO_ZOOM_LEVEL_SMALLEST) {
-        pinned_level = NEMO_ZOOM_LEVEL_SMALLEST;
-    } else if (pinned_level > NEMO_ZOOM_LEVEL_LARGEST) {
-        pinned_level = NEMO_ZOOM_LEVEL_LARGEST;
-    }
+    size = nemo_icon_size_clamp (size);
 
-    if (pinned_level == details->zoom_level) {
+    if (size == details->icon_size) {
         return;
     }
 
-    details->zoom_level = pinned_level;
+    details->icon_size = size;
 
-    pixels_per_unit = (double) nemo_get_icon_size_for_zoom_level (pinned_level) / NEMO_ICON_SIZE_STANDARD;
+    pixels_per_unit = (double) size / NEMO_ICON_SIZE_STANDARD;
     eel_canvas_set_pixels_per_unit (EEL_CANVAS (container), pixels_per_unit);
 }
 
-static int text_ellipsis_limits[NEMO_ZOOM_LEVEL_N_ENTRIES];
+/* One per step, since that is how the preference names them. A size between
+   two steps reads the step at or above it. */
+static int text_ellipsis_limits[7];
 static int desktop_text_ellipsis_limit;
 
 static gboolean
 get_text_ellipsis_limit_for_zoom (char **strs,
-                  const char *zoom_level,
+                  const char *step_name,
                   int *limit)
 {
     char **p;
@@ -1875,8 +1866,8 @@ get_text_ellipsis_limit_for_zoom (char **strs,
     /* default */
     *limit = 3;
 
-    if (zoom_level != NULL) {
-        str = g_strdup_printf ("%s:%%d", zoom_level);
+    if (step_name != NULL) {
+        str = g_strdup_printf ("%s:%%d", step_name);
     } else {
         str = g_strdup ("%d");
     }
@@ -1894,7 +1885,7 @@ get_text_ellipsis_limit_for_zoom (char **strs,
     return success;
 }
 
-static const char * zoom_level_names[] = {
+static const char * step_names[] = {
     "smallest",
     "smaller",
     "small",
@@ -1916,14 +1907,14 @@ text_ellipsis_limit_changed_callback (gpointer callback_data)
 
     /* set default */
     get_text_ellipsis_limit_for_zoom (pref, NULL, &one_limit);
-    for (i = 0; i < NEMO_ZOOM_LEVEL_N_ENTRIES; i++) {
+    for (i = 0; i < G_N_ELEMENTS (text_ellipsis_limits); i++) {
         text_ellipsis_limits[i] = one_limit;
     }
 
-    /* override for each zoom level */
-    for (i = 0; i < G_N_ELEMENTS(zoom_level_names); i++) {
+    /* override for each step */
+    for (i = 0; i < G_N_ELEMENTS(step_names); i++) {
         if (get_text_ellipsis_limit_for_zoom (pref,
-                              zoom_level_names[i],
+                              step_names[i],
                               &one_limit)) {
             text_ellipsis_limits[i] = one_limit;
         }
@@ -1963,7 +1954,7 @@ nemo_icon_view_container_get_max_layout_lines_for_pango (NemoIconContainer  *con
     if (nemo_icon_container_get_is_desktop (container)) {
         limit = desktop_text_ellipsis_limit;
     } else {
-        limit = text_ellipsis_limits[container->details->zoom_level];
+        limit = text_ellipsis_limits[nemo_icon_size_legacy_level (container->details->icon_size)];
     }
 
     if (limit <= 0) {
@@ -1981,7 +1972,7 @@ nemo_icon_view_container_get_max_layout_lines (NemoIconContainer  *container)
     if (nemo_icon_container_get_is_desktop (container)) {
         limit = desktop_text_ellipsis_limit;
     } else {
-        limit = text_ellipsis_limits[container->details->zoom_level];
+        limit = text_ellipsis_limits[nemo_icon_size_legacy_level (container->details->icon_size)];
     }
 
     if (limit <= 0) {
@@ -2060,7 +2051,7 @@ nemo_icon_view_container_class_init (NemoIconViewContainerClass *klass)
     ic_class->reload_icon_positions = nemo_icon_view_container_reload_icon_positions;
     ic_class->finish_adding_new_icons = nemo_icon_view_container_finish_adding_new_icons;
     ic_class->icon_get_bounding_box = nemo_icon_view_container_icon_get_bounding_box;
-    ic_class->set_zoom_level = nemo_icon_view_container_set_zoom_level;
+    ic_class->set_icon_size = nemo_icon_view_container_set_icon_size;
     ic_class->get_additional_text_line_count = nemo_icon_view_container_get_additional_text_line_count;
 }
 
