@@ -63,8 +63,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Put archive extraction menu items nested into a "Extract ..." item.
-
 - 🔘 Include uptime for the current nemo-anywhere session, in the Help|About dialog.
 
 - 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
@@ -1536,6 +1534,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Put archive extraction menu items nested into a "Extract ..." item.
+	- Opened: n/a. Closed: 20260921.
+	- The three extract items sit under one Extract submenu, in the right-click menu and the Edit menu. It shows only when every selected item is an archive, and the menu setting that hid the three items hides the submenu.
+	- Mount archive stays beside it rather than inside. It browses an archive, it does not unpack one.
+	- New test: every menu path a setting can hide has to be in the menu files. A wrong path used to fail with no sign.
 
 - ✅ Add a preference: Auto-switch to image thumbnail view for folders with mostly images.
 	- Store the tunables that define "mostly images" in the config file.

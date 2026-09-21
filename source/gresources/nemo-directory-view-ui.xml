@@ -76,10 +76,11 @@
 			<menuitem name="Create Link" action="Create Link"/>
 			<menuitem name="Create Shortcut" action="Create Shortcut"/>
 			<menuitem name="Compress" action="Compress"/>
-			<menuitem name="ExtractHere" action="ExtractHere"/>
-			<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
-			<menuitem name="ExtractTo" action="ExtractTo"/>
-		<menuitem name="MountArchive" action="MountArchive"/>
+			<menu name="ExtractMenu" action="ExtractMenu">
+				<menuitem name="ExtractHere" action="ExtractHere"/>
+				<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
+				<menuitem name="ExtractTo" action="ExtractTo"/>
+			</menu>
 			<menuitem name="MountArchive" action="MountArchive"/>
 			<menuitem name="Rename" action="Rename"/>
 			<menu action="CopyToMenu">
@@ -207,9 +208,11 @@
 		<menuitem name="Create Link" action="Create Link"/>
 		<menuitem name="Create Shortcut" action="Create Shortcut"/>
 		<menuitem name="Compress" action="Compress"/>
-		<menuitem name="ExtractHere" action="ExtractHere"/>
-		<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
-		<menuitem name="ExtractTo" action="ExtractTo"/>
+		<menu name="ExtractMenu" action="ExtractMenu">
+			<menuitem name="ExtractHere" action="ExtractHere"/>
+			<menuitem name="ExtractToFolder" action="ExtractToFolder"/>
+			<menuitem name="ExtractTo" action="ExtractTo"/>
+		</menu>
 		<menuitem name="MountArchive" action="MountArchive"/>
 		<menuitem name="Rename" action="Rename"/>
 		<menu name="CopyToMenu" action="CopyToMenu">
