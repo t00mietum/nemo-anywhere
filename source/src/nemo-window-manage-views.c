@@ -58,6 +58,7 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-folder-settings.h>
+#include <libnemo-private/nemo-image-folders.h>
 #include <libnemo-private/nemo-module.h>
 #include <libnemo-private/nemo-monitor.h>
 #include <libnemo-private/nemo-search-directory.h>
@@ -105,6 +106,8 @@ static void load_new_location                         (NemoWindowSlot         *s
 						       gboolean                    tell_new_content_view);
 static void location_has_really_changed               (NemoWindowSlot         *slot);
 static char *default_view_for_folder                  (NemoFile               *file);
+static gboolean folder_wants_image_view               (NemoFile               *file);
+static gboolean view_is_a_list                        (const char             *id);
 static void update_for_new_location                   (NemoWindowSlot         *slot);
 
 /* set_displayed_location:
@@ -896,6 +899,13 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 		/* Look in metadata for view */
 		if (!nemo_global_preferences_get_remember_folder_settings ()) {
 			view_id = g_strdup (nemo_window_get_ignore_meta_view_id (window));
+
+			/* The switch after loading looks past the window's view, so
+			   when the answer is already known, do that now instead. */
+			if (view_is_a_list (view_id) && folder_wants_image_view (file)) {
+				g_free (view_id);
+				view_id = g_strdup (NEMO_ICON_VIEW_IID);
+			}
 		} else {
 			view_id = nemo_folder_settings_get (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL);
 		}
@@ -1806,8 +1816,8 @@ nemo_window_slot_stop_loading (NemoWindowSlot *slot)
 }
 
 /* A folder that is mostly images opens in icon view unless it has a view of its
- * own. That can only be known once its files are in, so it is FALSE for a
- * folder nothing has loaded yet. */
+ * own. Before its files are in, that is only known if it was seen lately or
+ * counted ahead from the folder above it, and otherwise it is FALSE. */
 static gboolean
 folder_wants_image_view (NemoFile *file)
 {
@@ -1820,12 +1830,28 @@ folder_wants_image_view (NemoFile *file)
 	}
 
 	directory = nemo_directory_get_for_file (file);
-	wanted = !NEMO_IS_SEARCH_DIRECTORY (directory) &&
-		 nemo_directory_are_all_files_seen (directory) &&
-		 nemo_directory_is_mostly_images (directory);
+	if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
+		wanted = FALSE;
+	} else if (nemo_directory_are_all_files_seen (directory)) {
+		wanted = nemo_directory_is_mostly_images (directory);
+	} else {
+		GFile *location = nemo_file_get_location (file);
+
+		if (!nemo_image_folders_known (location, &wanted)) {
+			wanted = FALSE;
+		}
+		g_object_unref (location);
+	}
 	nemo_directory_unref (directory);
 
 	return wanted;
+}
+
+static gboolean
+view_is_a_list (const char *id)
+{
+	return g_strcmp0 (id, NEMO_LIST_VIEW_IID) == 0 ||
+	       g_strcmp0 (id, NEMO_COMPACT_VIEW_IID) == 0;
 }
 
 static char *
@@ -1940,12 +1966,24 @@ nemo_window_slot_check_image_view (NemoWindowSlot *slot)
 
 	g_set_object (&slot->image_view_checked, slot->location);
 
+	file = nemo_file_get (slot->location);
+
+	if (nemo_config_get_boolean (nemo_icon_view_preferences,
+				     NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_SWITCH)) {
+		NemoDirectory *directory = nemo_directory_get_for_file (file);
+
+		if (!NEMO_IS_SEARCH_DIRECTORY (directory)) {
+			nemo_image_folders_look_ahead (directory);
+		}
+		nemo_directory_unref (directory);
+	}
+
 	if (!nemo_window_slot_content_view_matches_iid (slot, NEMO_LIST_VIEW_IID) &&
 	    !nemo_window_slot_content_view_matches_iid (slot, NEMO_COMPACT_VIEW_IID)) {
+		nemo_file_unref (file);
 		return;
 	}
 
-	file = nemo_file_get (slot->location);
 	saved_id = nemo_global_preferences_get_remember_folder_settings () ?
 		nemo_folder_settings_get (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL) : NULL;
 

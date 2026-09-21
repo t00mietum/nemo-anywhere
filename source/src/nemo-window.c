@@ -2362,6 +2362,7 @@ nemo_window_init (NemoWindow *window)
 
     window->details->ignore_meta_view_id = NULL;
     window->details->ignore_meta_icon_size = 0;
+    window->details->ignore_meta_image_icon_size = 0;
     window->details->ignore_meta_visible_columns = NULL;
     window->details->ignore_meta_column_order = NULL;
     window->details->ignore_meta_sort_column = NULL;
@@ -2675,7 +2676,7 @@ nemo_window_set_ignore_meta_view_id (NemoWindow *window, const gchar *id)
     if (id != NULL) {
         gchar *old_id = window->details->ignore_meta_view_id;
         if (g_strcmp0 (old_id, id) != 0) {
-            nemo_window_set_ignore_meta_icon_size (window, 0);
+            nemo_window_forget_ignore_meta_icon_sizes (window);
         }
         window->details->ignore_meta_view_id = g_strdup (id);
         g_free (old_id);
@@ -2692,6 +2693,27 @@ void
 nemo_window_set_ignore_meta_icon_size (NemoWindow *window, gint size)
 {
     window->details->ignore_meta_icon_size = size;
+}
+
+/* Kept apart from the plain size, which list view shares. A zoom in a folder
+   of pictures must not follow the window into the next list. */
+gint
+nemo_window_get_ignore_meta_image_icon_size (NemoWindow *window)
+{
+    return window->details->ignore_meta_image_icon_size;
+}
+
+void
+nemo_window_set_ignore_meta_image_icon_size (NemoWindow *window, gint size)
+{
+    window->details->ignore_meta_image_icon_size = size;
+}
+
+void
+nemo_window_forget_ignore_meta_icon_sizes (NemoWindow *window)
+{
+    window->details->ignore_meta_icon_size = 0;
+    window->details->ignore_meta_image_icon_size = 0;
 }
 
 GList *

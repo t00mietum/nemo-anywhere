@@ -31,6 +31,7 @@
 #include "nemo-file-utilities.h"
 #include "nemo-search-directory.h"
 #include "nemo-global-preferences.h"
+#include "nemo-image-folders.h"
 #include "nemo-lib-self-check-functions.h"
 #include "nemo-metadata.h"
 #include "nemo-vfs-directory.h"
@@ -1687,7 +1688,7 @@ nemo_directory_is_mostly_images (NemoDirectory *directory)
 {
 	GList *files, *l;
 	guint images, others;
-	gint min_images, min_percent;
+	gboolean mostly;
 
 	if (directory == NULL) {
 		return FALSE;
@@ -1714,15 +1715,14 @@ nemo_directory_is_mostly_images (NemoDirectory *directory)
 	}
 	nemo_file_list_free (files);
 
-	/* The floor is there because one picture among a pile of other things is
-	   not a gallery. */
-	min_images = nemo_config_get_int (nemo_icon_view_preferences,
-					  NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_IMAGES);
-	min_percent = nemo_config_get_int (nemo_icon_view_preferences,
-					   NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_PERCENT);
+	mostly = nemo_image_folders_counts_say_mostly (images, others);
 
-	return images >= (guint) MAX (min_images, 1) &&
-	       (guint64) images * 100 >= (guint64) CLAMP (min_percent, 0, 100) * (images + others);
+	/* A whole count is the best answer there is, so it replaces any guess. */
+	if (nemo_directory_are_all_files_seen (directory)) {
+		nemo_image_folders_note (directory->details->location, mostly);
+	}
+
+	return mostly;
 }
 
 /**
