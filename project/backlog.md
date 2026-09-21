@@ -63,6 +63,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Put archive extraction menu items nested into a "Extract ..." item.
+
+- 🔘 Add a preference: Auto-switch to image thumbnail view for folders with mostly images.
+	- Store the tunables that define "mostly images" in the config file.
+
+- 🔘 Include uptime for the current nemo-anywhere session, in the Help|About dialog.
+
 - 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
 	- Opened: 20260920-230000
 	- A tree model's column count is fixed once it is built, so one column per size is a ceiling on how many sizes there can be. It wants one surface column with the size held beside it.
@@ -93,6 +100,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 The Compress dialog is taller than a 540px screen once Options is expanded, and its buttons fall off the bottom.
 	- Opened: 20260919-161500
 	- Found while writing the demo, at 960x540. The preferences dialog was checked down to 1024x600 and fits; this one was not.
+
+- 🔘 Selectable metadata to include for media titles in icon mode. (E.g. px size, capture date, megapixel, framerate for video, Avg bitrate for audio and video, codec, etc.)
 
 - 🔬 Installers: architecture always detected, a version option, and a stable install that still works before any stable release exists.
 	- Opened: 20260919-131209
@@ -3111,6 +3120,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Need to think through the UX.
 
 ### Canceled
+
+- 🚫 Persist icon view size changes, for both regular and image.
+	- Why canceled: Per-folder and global settings do this.
+	- Opened and closed: 20260920-162550.
 
 - 🚫 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
 	- Opened: 20260919-210000
