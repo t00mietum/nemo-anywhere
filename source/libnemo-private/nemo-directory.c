@@ -1682,15 +1682,12 @@ nemo_directory_match_pattern (NemoDirectory *directory, const char *pattern)
 	return ret;
 }
 
-/* Smallest number of images that can make a folder an image folder. One
-   picture among a pile of other things is not a gallery. */
-#define MOSTLY_IMAGES_MIN 2
-
 gboolean
 nemo_directory_is_mostly_images (NemoDirectory *directory)
 {
 	GList *files, *l;
 	guint images, others;
+	gint min_images, min_percent;
 
 	if (directory == NULL) {
 		return FALSE;
@@ -1717,7 +1714,15 @@ nemo_directory_is_mostly_images (NemoDirectory *directory)
 	}
 	nemo_file_list_free (files);
 
-	return images >= MOSTLY_IMAGES_MIN && images >= others;
+	/* The floor is there because one picture among a pile of other things is
+	   not a gallery. */
+	min_images = nemo_config_get_int (nemo_icon_view_preferences,
+					  NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_IMAGES);
+	min_percent = nemo_config_get_int (nemo_icon_view_preferences,
+					   NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_PERCENT);
+
+	return images >= (guint) MAX (min_images, 1) &&
+	       (guint64) images * 100 >= (guint64) CLAMP (min_percent, 0, 100) * (images + others);
 }
 
 /**

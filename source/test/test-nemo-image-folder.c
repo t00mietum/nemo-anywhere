@@ -1,6 +1,7 @@
 /* A folder that is mostly images opens at its own default size. What counts as
  * mostly images is two rules at once - enough pictures to be a gallery, and
- * more pictures than anything else - and folders are left out of the count. */
+ * a big enough share of the files - and folders are left out of the count. Both
+ * limits come from the settings. */
 
 #include <config.h>
 
@@ -8,8 +9,10 @@
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
+#include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
+#include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
 #include "test-check.h"
@@ -114,11 +117,13 @@ main (int argc, char **argv)
 
 	gtk_init_check (&argc, &argv);
 
-	tmp = test_scratch_dir ("nemo-image-folder-XXXXXX", NULL);
+	tmp = test_scratch_config_home ("nemo-image-folder-XXXXXX");
 	if (tmp == NULL) {
 		g_printerr ("FAIL could not make a temp dir\n");
 		return EXIT_FAILURE;
 	}
+
+	nemo_global_preferences_init ();
 
 	check (!mostly_images (tmp, "empty", 0, 0, 0));
 
@@ -136,6 +141,23 @@ main (int argc, char **argv)
 	   still reads as a folder of pictures. */
 	check (mostly_images (tmp, "with-folders", 2, 0, 5));
 	check (!mostly_images (tmp, "folders-and-text", 2, 3, 5));
+
+	nemo_config_set_int (nemo_icon_view_preferences,
+			     NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_IMAGES, 3);
+	check (!mostly_images (tmp, "two-of-three", 2, 0, 0));
+	check (mostly_images (tmp, "three-of-three", 3, 0, 0));
+
+	nemo_config_set_int (nemo_icon_view_preferences,
+			     NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_PERCENT, 75);
+	check (!mostly_images (tmp, "two-thirds", 4, 2, 0));
+	check (mostly_images (tmp, "three-quarters", 3, 1, 0));
+
+	/* Nothing below one picture, whatever the setting says. */
+	nemo_config_set_int (nemo_icon_view_preferences,
+			     NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_IMAGES, 0);
+	nemo_config_set_int (nemo_icon_view_preferences,
+			     NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_PERCENT, 0);
+	check (!mostly_images (tmp, "text-only", 0, 3, 0));
 
 	g_free (tmp);
 
