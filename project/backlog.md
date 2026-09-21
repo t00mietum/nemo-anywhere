@@ -173,6 +173,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ The Windows dogfood build was 18 days old. Only a run of the Windows pipeline by hand ever updated it.
+	- Opened: 20260921. Closed: 20260921.
+	- A full pipeline run now also builds, tests and packs on whichever Windows test box answers, and drops the exe into the synced app folder. It takes the shared lock on the box first. A quick run skips it.
+	- The first run found two more bugs, fixed with it. A Windows build dir could not update a library that had lost a source file. And a folder of pictures was never seen as one on Windows, since the type check there never matched an image.
+
 - ✅ Images view:
 	- Doesn't render at specified %, until the % is changed. (But afterward seems to remember?)
 	- 500% is too big. Let's do 250%
