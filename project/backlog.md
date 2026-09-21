@@ -76,6 +76,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- This will allow recognizing the same file if it moves.
 		- Also (only what's necessary):
 			- icon size, stored img type, date stored, latest date rendered, render count.
+	- Organize the database so that it can also handle non-image files - e.g. for future general filesystem deduplication features.
 	- Add GUI Settings for basic automatic pruning control
 		- Preferences:
 			- [max cache size]; float GiB, default 2.
@@ -96,11 +97,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Use the proper OS-specific cache locations for the database thumbnail cache.
 	- Statically link SQLite3 into all executables. (It will also come in handy for future features.)
 	- Opened: 20260921. Started: 20260921.
-	- Done so far: the store itself, its tests, and the build dependency. Two tables, a uri pointing at an image keyed on what the file's contents are, so a file that moved keeps its thumbnail.
+	- Done so far: the store itself, its tests, and the build dependency.
+	- Three tables. A file's contents are one record, the names it is known by are another, and a thumbnail hangs off the contents. So a file that moved keeps its thumbnail, and a file nothing can draw is still a record - which is what a duplicate finder would read.
+	- A checksum settles what two records that looked separate really were, and folds them into one. Without one, size and timestamp together are the only guess available.
 	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 with SIMD is about 3000 MB/s and 64 KB of vendored code.
 	- The cache location is its own choice, not the config one - local AppData on Windows so a thumbnail database does not sync between machines.
 	- Reading "WebM" above as WebP. Either way it is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
-	- Still to do: the checksum and xattrs, swapping the draw path over, the pruning thread, and the settings page.
+	- Still to do: computing the checksum and the xattrs, swapping the draw path over, the pruning thread, and the settings page.
 	- Tolerant of multiple process access.
 	- Tolerant of corrupt cache (db) file.
 	- Automatic cleanup:

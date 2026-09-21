@@ -31,7 +31,7 @@ Status: kept current as decisions change, rather than written once. Last read th
 		- [Application settings](#application-settings)
 		- [Bookmarks](#bookmarks)
 		- [Per-folder view state](#per-folder-view-state)
-		- [Thumbnail cache](#thumbnail-cache)
+		- [File cache](#file-cache)
 	- [File operations](#file-operations)
 		- [Trash and delete](#trash-and-delete)
 		- [Links](#links)
@@ -312,21 +312,25 @@ Per-folder view state - view mode, zoom, sort column, column layout - is app-own
 
 - Window size, position and maximized state are shared by every window and live with the application settings. They are written shortly after a move or resize settles rather than at close, so an abnormal exit does not discard them. With nothing saved yet a window opens at 1280x720 including its frame, with the side pane at about a fifth of the width.
 
-#### Thumbnail cache
+#### File cache
 
-The thumbnail cache is the fourth store. It is a private SQLite database under the user's cache directory, holding the encoded thumbnails themselves rather than a PNG per file in a shared folder.
+The file cache is the fourth store. It is a private SQLite database under the user's cache directory, holding what has been worked out about files on disk so it does not have to be worked out again. Thumbnails are the first thing in it and the reason it exists, but the tables are about files rather than about pictures, so a checksum for a text file is as much at home there as an image is.
 
-- It was the shared freedesktop cache until 2026-09-21, and that folder is still read. A thumbnail another program already made is used rather than rendered again; nothing is written back to it. On Windows and macOS there was never anything to share with.
+- Thumbnails were kept in the shared freedesktop cache until 2026-09-21, and that folder is still read. A thumbnail another program already made is used rather than rendered again; nothing is written back to it. On Windows and macOS there was never anything to share with.
 
 - The change was asked for, and the earlier decision to stay with the shared cache is reversed. What settled it is that the new requirements cannot be said in a PNG-per-file store keyed on a hash of the path: a thumbnail stored at the largest size a file has actually been shown at, files recognized as the same after they move, and pruning by how often something has been drawn. The dependency that argued against it in 2026-09-05 turned out to be one apt line per Linux container and nothing at all for Windows, where the sysroot already had it.
 
 - SQLite is linked static. It has to come through pkg-config rather than meson's `find_library`, because the cross sysroot is not on the compiler's own search path.
 
-- Two tables. `images` is keyed on what a file's contents are - size, mtime and optionally a checksum - and holds the encoded thumbnail. `paths` maps a uri to one of those images and counts how often it has been drawn. Splitting them is what lets a file that moved, or a second copy of one, find a thumbnail that is already there.
+- Three tables. `content` is one row per distinct set of file contents: the size, and the checksum once anything has bothered to compute one. `paths` is one row per uri, pointing at the contents it holds and carrying its own timestamp. `thumbnails` hangs off a content row and holds the encoded image.
 
-- Every launch is its own process and several can be open at once, so the file is in WAL mode with a busy timeout. Writes are small and the whole store is rebuildable, so `synchronous` is NORMAL rather than FULL - a power cut can cost the last few thumbnails, which is not worth an fsync per row.
+- Splitting paths from contents is what lets a file that moved, or a second copy of one, find a thumbnail that is already there. It is also what a duplicate finder would need, which is why the split is drawn this way rather than around thumbnails: every file seen is a content row, and the copies of one are the paths hanging off it. A file nothing can draw has no `thumbnails` row and is otherwise an ordinary record.
 
-- A damaged file is thrown away and rebuilt at open rather than migrated or repaired. Damage noticed while running only stops the store being used, because deleting a file other processes still have open is worse than going without until the next launch.
+- A checksum settles what two records that looked separate really were, so learning one folds them together. The image and every other name move onto the record that stays. Without a checksum, size and timestamp together are the only guess available, and two unrelated files that happen to match both would share a thumbnail.
+
+- Every launch is its own process and several can be open at once, so the file is in WAL mode with a busy timeout. Writes are small and the whole store is rebuildable, so `synchronous` is NORMAL rather than FULL - a power cut can cost the last few rows, which is not worth an fsync per row.
+
+- A damaged file, or one written by another version of the tables, is thrown away and rebuilt at open rather than migrated or repaired. Nothing in it cannot be worked out again from the disk. Damage noticed while running only stops the store being used, because deleting a file other processes still have open is worse than going without until the next launch.
 
 - Draw counts are held in memory and written in one transaction. Scrolling a big folder draws the same file repeatedly, and the age rule works in days, so a write per draw would buy nothing.
 

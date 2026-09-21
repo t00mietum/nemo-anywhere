@@ -101,9 +101,9 @@ test('Favorites test',
   args: []
 )
 
-test('Thumbnail cache store test',
-  executable('test-nemo-thumbnail-db',
-    [ 'test-nemo-thumbnail-db.c' ],
+test('File cache store test',
+  executable('test-nemo-cache-db',
+    [ 'test-nemo-cache-db.c' ],
     include_directories: [ rootInclude, ],
     dependencies: [ gtk, nemo_private, test_scratch ],
   ),
