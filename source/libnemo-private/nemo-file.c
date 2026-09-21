@@ -7920,10 +7920,7 @@ nemo_file_is_mime_type (NemoFile *file, const char *mime_type)
 	g_return_val_if_fail (NEMO_IS_FILE (file), FALSE);
 	g_return_val_if_fail (mime_type != NULL, FALSE);
 
-	if (file->details->mime_type == NULL) {
-		return FALSE;
-	}
-	return g_content_type_is_a (file->details->mime_type, mime_type);
+	return nemo_content_type_is_a (file->details->mime_type, mime_type);
 }
 
 gboolean

@@ -15,6 +15,7 @@
 #include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-directory.h>
 #include <libnemo-private/nemo-file.h>
+#include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-image-folders.h>
 
@@ -181,6 +182,17 @@ main (int argc, char **argv)
 	}
 
 	nemo_global_preferences_init ();
+
+	/* On Windows a content type is an extension, which a plain
+	   g_content_type_is_a never finds to be an image. */
+	{
+		g_autofree char *png = g_content_type_guess ("shot.png", NULL, 0, NULL);
+
+		check (nemo_content_type_is_a (png, "image/*"));
+		check (nemo_content_type_is_a (png, "image/png"));
+		check (!nemo_content_type_is_a (png, "text/*"));
+		check (!nemo_content_type_is_a (NULL, "image/*"));
+	}
 
 	check (!mostly_images (tmp, "empty", 0, 0, 0));
 
