@@ -24,6 +24,8 @@
 
 #include "nemo-file-digest.h"
 
+#include "nemo-file-xattr.h"
+
 #include <blake3.h>
 #include <string.h>
 
@@ -153,4 +155,64 @@ nemo_file_digest_from_text (const char *text, guint8 *digest)
 	memcpy (digest, raw, NEMO_CACHE_DIGEST_LEN);
 
 	return TRUE;
+}
+
+/* The three names the backlog settled on. `user.` is prepended on Linux and
+ * the BSDs; on Windows these are stream names as they stand. */
+#define ATTR_DIGEST "blake3.b64u"
+#define ATTR_BYTES  "blake3.bytes"
+#define ATTR_MTIME  "blake3.mtime"
+
+gboolean
+nemo_file_digest_read_attr (GFile *file, gint64 bytes, gint64 mtime, guint8 *digest)
+{
+	g_autofree char *text = NULL;
+	g_autofree char *stored_bytes = NULL;
+	g_autofree char *stored_mtime = NULL;
+
+	g_return_val_if_fail (G_IS_FILE (file), FALSE);
+	g_return_val_if_fail (digest != NULL, FALSE);
+
+	text = nemo_file_xattr_get (file, ATTR_DIGEST);
+	if (text == NULL)
+		return FALSE;
+
+	stored_bytes = nemo_file_xattr_get (file, ATTR_BYTES);
+	stored_mtime = nemo_file_xattr_get (file, ATTR_MTIME);
+
+	if (stored_bytes == NULL || stored_mtime == NULL)
+		return FALSE;
+
+	if (g_ascii_strtoll (stored_bytes, NULL, 10) != bytes
+	    || g_ascii_strtoll (stored_mtime, NULL, 10) != mtime)
+		return FALSE;
+
+	return nemo_file_digest_from_text (text, digest);
+}
+
+gboolean
+nemo_file_digest_write_attr (GFile *file, gint64 bytes, gint64 mtime, const guint8 *digest)
+{
+	g_autofree char *stored_bytes = NULL;
+	g_autofree char *stored_mtime = NULL;
+	char text[NEMO_FILE_DIGEST_TEXT_LEN];
+
+	g_return_val_if_fail (G_IS_FILE (file), FALSE);
+	g_return_val_if_fail (digest != NULL, FALSE);
+
+	nemo_file_digest_to_text (digest, text);
+	stored_bytes = g_strdup_printf ("%" G_GINT64_FORMAT, bytes);
+	stored_mtime = g_strdup_printf ("%" G_GINT64_FORMAT, mtime);
+
+	/* The time goes last, and that ordering is the whole safety of this.
+	 * Reading requires the time to match, so a write that stops part way
+	 * leaves the old time standing next to the new checksum and the next
+	 * reader throws the lot away. Writing the time first would leave a new
+	 * time vouching for a checksum of the old contents. */
+	if (!nemo_file_xattr_set (file, ATTR_DIGEST, text))
+		return FALSE;
+	if (!nemo_file_xattr_set (file, ATTR_BYTES, stored_bytes))
+		return FALSE;
+
+	return nemo_file_xattr_set (file, ATTR_MTIME, stored_mtime);
 }

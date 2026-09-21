@@ -62,6 +62,7 @@ nemo_private_sources = [
   'nemo-win32-appearance.c',
   'nemo-cache-db.c',
   'nemo-file-digest.c',
+  'nemo-file-xattr.c',
   'nemo-thumbnail-pixbuf-utils.c',
   'nemo-thumbnail-prune.c',
   'nemo-mime-application-chooser.c',
@@ -111,6 +112,7 @@ endif
 
 if is_windows
   nemo_private_sources += 'nemo-delete-guard-win32.c'
+  nemo_private_sources += 'nemo-xattr-win32.c'
   nemo_private_sources += 'nemo-search-engine-win32.c'
   nemo_private_sources += 'nemo-associations-win32.c'
   nemo_private_sources += 'nemo-launch-win32.c'

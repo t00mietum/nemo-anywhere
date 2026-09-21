@@ -102,8 +102,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A checksum settles what two records that looked separate really were, and folds them into one. Without one, size and timestamp together are the only guess available.
 	- Checksum settled as blake3 rather than SHA-256: GChecksum's SHA-256 is plain C at 291 MB/s, and OpenSSL's is fast but costs 4.8 MB on the Windows exe for one call. blake3 is vendored under `vendor/blake3`, runs at 2459 MB/s and builds to 65,716 bytes. It checks out against the numbers blake3 publishes, which matters because a checksum written to a file outlives this program.
 	- The cache location is its own choice, not the config one - local AppData on Windows so a thumbnail database does not sync between machines.
-	- Reading "WebM" above as WebP. Either way it is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
-	- Still to do: the xattrs, swapping the draw path over, the pruning thread, and the settings page.
+	- WebP is out: the Windows sysroot has no webp pixbuf loader, and gdk-pixbuf only ever writes png, jpeg, tiff, ico and bmp. Transparency means PNG.
+	- The checksum goes on the file in the three attributes asked for, checked from outside the program so the names really are `user.blake3.b64u`, `.bytes` and `.mtime`. The Windows half is written and builds, but nothing has run it on a real NTFS volume yet - wine passes it for the wrong reason, since a colon is an ordinary character in a Linux filename.
+	- Still to do: swapping the draw path over, the pruning thread, and the settings page.
 	- Tolerant of multiple process access.
 	- Tolerant of corrupt cache (db) file.
 	- Automatic cleanup:

@@ -443,6 +443,32 @@ fCheckImageDefault(){
 }
 fCheckImageDefault
 
+## A checksum is kept on a file in three attributes, and the order they are
+## written in is the only thing standing between a torn write and a checksum
+## that vouches for contents it has never seen. Reading requires the size and
+## the time to match, so the time has to be written last: then a write that
+## stops part way leaves the old time next to the new checksum, and the reader
+## throws it away. Write the time first and a half-finished write leaves the
+## old checksum under a size and time that both match, which no reader can
+## catch. No test can hold this - the bad state is one a read cannot tell from
+## a good one.
+fCheckDigestAttrOrder(){
+	local src='source/libnemo-private/nemo-file-digest.c'
+	local body order
+
+	[[ -f "$src" ]] || return 0
+
+	body="$(awk '/^nemo_file_digest_write_attr/ { on=1 } on { print } on && /^}/ { on=0 }' "$src")"
+
+	order="$(grep -o 'nemo_file_xattr_set (file, ATTR_[A-Z]*' <<< "$body" | sed 's/.*ATTR_//' | tr '\n' ' ')"
+
+	if [[ "${order}" != "DIGEST BYTES MTIME " ]]; then
+		fEcho "FAIL: ${src}: the checksum attributes must be written DIGEST, BYTES, MTIME (got: ${order:-none})"
+		exit 2
+	fi
+}
+fCheckDigestAttrOrder
+
 ## Under MSYS2, use the Windows git that made this checkout - the msys one has
 ## its own HOME/config, so its line-ending view marks every CRLF file modified.
 GIT=(git)

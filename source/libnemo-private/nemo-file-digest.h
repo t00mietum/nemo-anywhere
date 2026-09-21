@@ -63,6 +63,26 @@ gboolean nemo_file_digest_file (GFile        *file,
 void     nemo_file_digest_to_text   (const guint8 *digest, char *text);
 gboolean nemo_file_digest_from_text (const char *text, guint8 *digest);
 
+/* The checksum a previous run left on the file itself, in three extended
+ * attributes: the checksum, and the size and time it was taken at. False
+ * unless all three are there and the other two still describe the file, since
+ * an attribute that survived an edit describes something that is gone.
+ *
+ * The point of keeping it on the file is that it travels with the file. A copy
+ * to another machine, or to a drive this program has never seen, arrives
+ * already knowing what it is. */
+gboolean nemo_file_digest_read_attr (GFile  *file,
+				     gint64  bytes,
+				     gint64  mtime,
+				     guint8 *digest);
+
+/* Leaves one there. Writing an extended attribute is slow enough to be worth
+ * doing after everything else is already done, never in front of a draw. */
+gboolean nemo_file_digest_write_attr (GFile        *file,
+				      gint64        bytes,
+				      gint64        mtime,
+				      const guint8 *digest);
+
 G_END_DECLS
 
 #endif /* NEMO_FILE_DIGEST_H */

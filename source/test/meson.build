@@ -110,6 +110,15 @@ test('File checksum test',
   args: []
 )
 
+test('File checksum attribute test',
+  executable('test-nemo-file-xattr',
+    [ 'test-nemo-file-xattr.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('File cache store test',
   executable('test-nemo-cache-db',
     [ 'test-nemo-cache-db.c' ],

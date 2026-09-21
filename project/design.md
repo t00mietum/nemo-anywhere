@@ -334,6 +334,12 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Draw counts are held in memory and written in one transaction. Scrolling a big folder draws the same file repeatedly, and the age rule works in days, so a write per draw would buy nothing.
 
+- A checksum is also left on the file itself, in three attributes: the checksum, and the size and time it was taken at. That way it travels with the file - a copy onto another machine, or onto a drive this program has never seen, arrives already knowing what it is. On Linux and the BSDs they are extended attributes in the `user` namespace; on Windows they are alternate data streams, which only NTFS and ReFS have, and the setting says so where it is switched on.
+
+- The time is written last of the three, and reading requires both the size and the time to match. A write that stops part way then leaves the old time next to the new checksum, and the next reader throws the lot away. Written the other way round, a half-finished write leaves the old checksum under a size and time that both match, which no reader can catch.
+
+- Writing an attribute is slow enough that it happens after the database is already up to date, never in front of a draw. It is also optional: a file system with nowhere to put one simply goes without, and the database still knows.
+
 - Pruning works as it did before: a worker thread well after startup, never on the path that draws a window, with rules for a source file that is gone and for anything unused past the age allowed.
 
 ### File operations
