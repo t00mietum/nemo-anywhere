@@ -333,6 +333,10 @@ action_about_nemo_callback (GtkAction *action,
 				gpointer user_data)
 {
 	const gchar *license[] = {
+		/* The copyright label escapes markup, so links go here, where GTK
+		 * makes any URL clickable. */
+		N_("Licensed under GNU GPL v2: https://opensource.org/license/GPL-2.0\n"
+		   "Nemo authors: https://github.com/linuxmint/nemo/graphs/contributors"),
 		N_("Nemo is free software; you can redistribute it and/or modify "
 		   "it under the terms of the GNU General Public License as published by "
 		   "the Free Software Foundation; version 2 of the License only."),
@@ -350,7 +354,7 @@ action_about_nemo_callback (GtkAction *action,
 	gchar *comments;
 
 	license_trans = g_strjoin ("\n\n", _(license[0]), _(license[1]),
-					     _(license[2]), NULL);
+					     _(license[2]), _(license[3]), NULL);
 
 	uptime = nemo_format_uptime (nemo_get_uptime_seconds ());
 	running = g_strdup_printf (_("Running for %s."), uptime);
@@ -362,8 +366,8 @@ action_about_nemo_callback (GtkAction *action,
 	gtk_show_about_dialog (GTK_WINDOW (user_data),
 			       "program-name", _("Nemo Anywhere"),
 			       "version", NEMO_VERSION_STRING,
-			       "copyright", "\xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)\n"
-					    "Upstream copyrights held by the Nemo authors",
+			       "copyright", "Copyright \xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)\n"
+					    "Upstream code Copyrights \xc2\xa9 Nemo authors",
 			       "website", "https://github.com/t00mietum/nemo-anywhere",
 			       "comments", comments,
 			       "license", license_trans,
