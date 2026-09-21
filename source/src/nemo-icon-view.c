@@ -113,6 +113,10 @@ struct NemoIconViewDetails
 
 	gboolean compact;
 
+	/* Set once the folder has finished loading and turned out to be mostly
+	   images, which gives it a default size of its own. */
+	gboolean mostly_images;
+
 	gulong clipboard_handler_id;
 
 	GtkWidget *icon_container;
@@ -883,7 +887,9 @@ get_default_icon_size (NemoIconView *icon_view)
 					       NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
 	} else {
 		percent = nemo_config_get_int (nemo_icon_view_preferences,
-					       NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
+					       icon_view->details->mostly_images
+						 ? NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE
+						 : NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
 	}
 
 	return nemo_icon_size_from_percent (percent);
@@ -960,6 +966,11 @@ nemo_icon_view_begin_loading (NemoView *view)
 	file = nemo_view_get_directory_as_file (view);
 	uri = nemo_file_get_uri (file);
 	icon_container = GTK_WIDGET (get_icon_container (icon_view));
+
+	/* Nothing is known about what is in here yet, so start from the ordinary
+	   default and let end_loading move it if the folder turns out to be a
+	   pile of pictures. */
+	icon_view->details->mostly_images = FALSE;
 
     nemo_icon_container_set_ok_to_load_deferred_attrs (NEMO_ICON_CONTAINER (icon_container), FALSE);
 
@@ -1044,6 +1055,72 @@ icon_view_notify_clipboard_info (NemoClipboardMonitor *monitor,
 							       get_icon_container (icon_view), icon_data);
 }
 
+/* Whether what is on screen came from the default rather than from a size this
+   folder or this window was given. Only a folder still on the default follows
+   the image default when the folder turns out to hold images. */
+static gboolean
+icon_size_is_default (NemoIconView *icon_view)
+{
+	NemoView *view = NEMO_VIEW (icon_view);
+
+	if (!nemo_global_preferences_get_remember_folder_settings () &&
+	    !NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container) {
+		return nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (view))
+		       == get_default_icon_size (icon_view);
+	}
+
+	/* -1 is not a size and not one of the old levels, so it can only mean
+	   the folder has nothing stored. */
+	return nemo_folder_settings_get_int (nemo_view_get_directory_as_file (view),
+					     icon_view->details->compact
+					       ? NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL
+					       : NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL,
+					     -1) == -1;
+}
+
+/* A folder of pictures opens bigger than an ordinary one. The size is not
+   written back anywhere: it is a default, so moving the slider still overrides
+   it, and changing the preference still moves every folder that has not been
+   given a size of its own. */
+static void
+update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
+{
+	NemoView *view = NEMO_VIEW (icon_view);
+	NemoIconContainer *container;
+	gboolean mostly_images;
+	gboolean on_default;
+
+	if (!all_files_seen || icon_view->details->compact ||
+	    NEMO_ICON_VIEW_GET_CLASS (icon_view)->use_grid_container ||
+	    !nemo_view_supports_zooming (view)) {
+		return;
+	}
+
+	mostly_images = nemo_directory_is_mostly_images (nemo_view_get_model (view));
+	if (mostly_images == icon_view->details->mostly_images) {
+		return;
+	}
+
+	on_default = icon_size_is_default (icon_view);
+	icon_view->details->mostly_images = mostly_images;
+
+	if (!on_default) {
+		return;
+	}
+
+	container = get_icon_container (icon_view);
+	if (nemo_icon_container_get_icon_size (container) == get_default_icon_size (icon_view)) {
+		return;
+	}
+
+	nemo_icon_container_set_icon_size (container, get_default_icon_size (icon_view));
+	g_signal_emit_by_name (icon_view, "zoom_level_changed");
+
+	if (nemo_view_get_active (view)) {
+		nemo_view_update_menus (view);
+	}
+}
+
 static void
 nemo_icon_view_end_loading (NemoView *view,
 			  gboolean all_files_seen)
@@ -1054,6 +1131,8 @@ nemo_icon_view_end_loading (NemoView *view,
 	NemoClipboardInfo *info;
 
 	icon_view = NEMO_ICON_VIEW (view);
+
+	update_mostly_images (icon_view, all_files_seen);
 
 	icon_container = GTK_WIDGET (get_icon_container (icon_view));
 	nemo_icon_container_end_loading (NEMO_ICON_CONTAINER (icon_container), all_files_seen);
@@ -2618,6 +2697,10 @@ nemo_icon_view_constructed (GObject *object)
                   icon_view);
     g_signal_connect_swapped (nemo_icon_view_preferences,
                   "changed::" NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE,
+                  G_CALLBACK (default_icon_size_changed_callback),
+                  icon_view);
+    g_signal_connect_swapped (nemo_icon_view_preferences,
+                  "changed::" NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE,
                   G_CALLBACK (default_icon_size_changed_callback),
                   icon_view);
     g_signal_connect_swapped (nemo_icon_view_preferences,

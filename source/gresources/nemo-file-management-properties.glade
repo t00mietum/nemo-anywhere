@@ -105,6 +105,62 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
     <property name="can-focus">False</property>
     <property name="icon-name">folder-new-symbolic</property>
   </object>
+  <object class="GtkAdjustment" id="icon_view_size_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">100</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="icon_view_image_size_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">500</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="compact_view_size_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">100</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="list_view_size_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">75</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="icon_view_size_current_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">100</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="compact_view_size_current_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">100</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkAdjustment" id="list_view_size_current_adjustment">
+    <property name="lower">38</property>
+    <property name="upper">1000</property>
+    <property name="value">75</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
+  </object>
+  <object class="GtkSizeGroup" id="views_size_label_group">
+    <property name="mode">horizontal</property>
+    <widgets>
+      <widget name="views_label_2"/>
+      <widget name="views_label_images"/>
+    </widgets>
+  </object>
   <object class="GtkListStore" id="model1">
     <columns>
       <!-- column-name gchararray -->
@@ -185,93 +241,6 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
       </row>
       <row>
         <col id="0" translatable="yes">By trashed date</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkListStore" id="model3">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">38%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">50%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">75%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">100%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">150%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">200%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">400%</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkListStore" id="model4">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">38%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">50%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">75%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">100%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">150%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">200%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">400%</col>
-      </row>
-    </data>
-  </object>
-  <object class="GtkListStore" id="model5">
-    <columns>
-      <!-- column-name gchararray -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">38%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">50%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">75%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">100%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">150%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">200%</col>
-      </row>
-      <row>
-        <col id="0" translatable="yes">400%</col>
       </row>
     </data>
   </object>
@@ -780,9 +749,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           <object class="GtkLabel" id="views_label_2">
                                                             <property name="visible">True</property>
                                                             <property name="can-focus">False</property>
-                                                            <property name="label" translatable="yes">_Zoom level:</property>
+                                                            <property name="label" translatable="yes">Icon si_ze (%):</property>
                                                             <property name="use-underline">True</property>
-                                                            <property name="mnemonic-widget">icon_view_zoom_combobox</property>
+                                                            <property name="mnemonic-widget">icon_view_size_spinbutton</property>
                                                             <property name="xalign">0</property>
                                                           </object>
                                                           <packing>
@@ -792,16 +761,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           </packing>
                                                         </child>
                                                         <child>
-                                                          <object class="GtkComboBox" id="icon_view_zoom_combobox">
+                                                          <object class="GtkSpinButton" id="icon_view_size_spinbutton">
                                                             <property name="visible">True</property>
-                                                            <property name="can-focus">False</property>
-                                                            <property name="model">model3</property>
-                                                            <child>
-                                                              <object class="GtkCellRendererText" id="renderer3"/>
-                                                              <attributes>
-                                                                <attribute name="text">0</attribute>
-                                                              </attributes>
-                                                            </child>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">icon_view_size_adjustment</property>
+                                                            <property name="numeric">True</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>
@@ -817,6 +783,49 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                       </packing>
                                                     </child>
                                                     <child>
+                                                      <object class="GtkBox" id="hbox35_images">
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">False</property>
+                                                        <property name="spacing">12</property>
+                                                        <child>
+                                                          <object class="GtkLabel" id="views_label_images">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">False</property>
+                                                            <property name="label" translatable="yes">Mostly ima_ges (%):</property>
+                                                            <property name="tooltip-text" translatable="yes">Size a folder opens at when most of what is in it is pictures</property>
+                                                            <property name="use-underline">True</property>
+                                                            <property name="mnemonic-widget">icon_view_image_size_spinbutton</property>
+                                                            <property name="xalign">0</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">False</property>
+                                                            <property name="position">0</property>
+                                                          </packing>
+                                                        </child>
+                                                        <child>
+                                                          <object class="GtkSpinButton" id="icon_view_image_size_spinbutton">
+                                                            <property name="visible">True</property>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">icon_view_image_size_adjustment</property>
+                                                            <property name="numeric">True</property>
+                                                          </object>
+                                                          <packing>
+                                                            <property name="expand">False</property>
+                                                            <property name="fill">True</property>
+                                                            <property name="position">1</property>
+                                                          </packing>
+                                                        </child>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">True</property>
+                                                        <property name="position">1</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
                                                       <object class="GtkCheckButton" id="labels_beside_icons_checkbutton">
                                                         <property name="label" translatable="yes">_Text beside icons</property>
                                                         <property name="visible">True</property>
@@ -829,7 +838,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                       <packing>
                                                         <property name="expand">False</property>
                                                         <property name="fill">False</property>
-                                                        <property name="position">1</property>
+                                                        <property name="position">2</property>
                                                       </packing>
                                                     </child>
                                                   </object>
@@ -889,9 +898,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           <object class="GtkLabel" id="views_label_4">
                                                             <property name="visible">True</property>
                                                             <property name="can-focus">False</property>
-                                                            <property name="label" translatable="yes">Z_oom level:</property>
+                                                            <property name="label" translatable="yes">Ico_n size (%):</property>
                                                             <property name="use-underline">True</property>
-                                                            <property name="mnemonic-widget">compact_view_zoom_combobox</property>
+                                                            <property name="mnemonic-widget">compact_view_size_spinbutton</property>
                                                             <property name="xalign">0</property>
                                                           </object>
                                                           <packing>
@@ -901,16 +910,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           </packing>
                                                         </child>
                                                         <child>
-                                                          <object class="GtkComboBox" id="compact_view_zoom_combobox">
+                                                          <object class="GtkSpinButton" id="compact_view_size_spinbutton">
                                                             <property name="visible">True</property>
-                                                            <property name="can-focus">False</property>
-                                                            <property name="model">model4</property>
-                                                            <child>
-                                                              <object class="GtkCellRendererText" id="renderer4"/>
-                                                              <attributes>
-                                                                <attribute name="text">0</attribute>
-                                                              </attributes>
-                                                            </child>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">compact_view_size_adjustment</property>
+                                                            <property name="numeric">True</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>
@@ -998,9 +1004,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           <object class="GtkLabel" id="views_label_3">
                                                             <property name="visible">True</property>
                                                             <property name="can-focus">False</property>
-                                                            <property name="label" translatable="yes">Zoo_m level:</property>
+                                                            <property name="label" translatable="yes">Icon _size (%):</property>
                                                             <property name="use-underline">True</property>
-                                                            <property name="mnemonic-widget">list_view_zoom_combobox</property>
+                                                            <property name="mnemonic-widget">list_view_size_spinbutton</property>
                                                             <property name="xalign">0</property>
                                                           </object>
                                                           <packing>
@@ -1010,16 +1016,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           </packing>
                                                         </child>
                                                         <child>
-                                                          <object class="GtkComboBox" id="list_view_zoom_combobox">
+                                                          <object class="GtkSpinButton" id="list_view_size_spinbutton">
                                                             <property name="visible">True</property>
-                                                            <property name="can-focus">False</property>
-                                                            <property name="model">model5</property>
-                                                            <child>
-                                                              <object class="GtkCellRendererText" id="renderer5"/>
-                                                              <attributes>
-                                                                <attribute name="text">0</attribute>
-                                                              </attributes>
-                                                            </child>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">list_view_size_adjustment</property>
+                                                            <property name="numeric">True</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>
@@ -1382,9 +1385,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           <object class="GtkLabel" id="views_current_label_2">
                                                             <property name="visible">True</property>
                                                             <property name="can-focus">False</property>
-                                                            <property name="label" translatable="yes">_Zoom level:</property>
+                                                            <property name="label" translatable="yes">Icon si_ze (%):</property>
                                                             <property name="use-underline">True</property>
-                                                            <property name="mnemonic-widget">icon_view_zoom_combobox_current</property>
+                                                            <property name="mnemonic-widget">icon_view_size_spinbutton_current</property>
                                                             <property name="xalign">0</property>
                                                           </object>
                                                           <packing>
@@ -1394,16 +1397,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           </packing>
                                                         </child>
                                                         <child>
-                                                          <object class="GtkComboBox" id="icon_view_zoom_combobox_current">
+                                                          <object class="GtkSpinButton" id="icon_view_size_spinbutton_current">
                                                             <property name="visible">True</property>
-                                                            <property name="can-focus">False</property>
-                                                            <property name="model">model3</property>
-                                                            <child>
-                                                              <object class="GtkCellRendererText" id="renderer3_current"/>
-                                                              <attributes>
-                                                                <attribute name="text">0</attribute>
-                                                              </attributes>
-                                                            </child>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">icon_view_size_current_adjustment</property>
+                                                            <property name="numeric">True</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>
@@ -1491,9 +1491,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           <object class="GtkLabel" id="views_current_label_4">
                                                             <property name="visible">True</property>
                                                             <property name="can-focus">False</property>
-                                                            <property name="label" translatable="yes">Z_oom level:</property>
+                                                            <property name="label" translatable="yes">Ico_n size (%):</property>
                                                             <property name="use-underline">True</property>
-                                                            <property name="mnemonic-widget">compact_view_zoom_combobox_current</property>
+                                                            <property name="mnemonic-widget">compact_view_size_spinbutton_current</property>
                                                             <property name="xalign">0</property>
                                                           </object>
                                                           <packing>
@@ -1503,16 +1503,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           </packing>
                                                         </child>
                                                         <child>
-                                                          <object class="GtkComboBox" id="compact_view_zoom_combobox_current">
+                                                          <object class="GtkSpinButton" id="compact_view_size_spinbutton_current">
                                                             <property name="visible">True</property>
-                                                            <property name="can-focus">False</property>
-                                                            <property name="model">model4</property>
-                                                            <child>
-                                                              <object class="GtkCellRendererText" id="renderer4_current"/>
-                                                              <attributes>
-                                                                <attribute name="text">0</attribute>
-                                                              </attributes>
-                                                            </child>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">compact_view_size_current_adjustment</property>
+                                                            <property name="numeric">True</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>
@@ -1600,9 +1597,9 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           <object class="GtkLabel" id="views_current_label_3">
                                                             <property name="visible">True</property>
                                                             <property name="can-focus">False</property>
-                                                            <property name="label" translatable="yes">Zoo_m level:</property>
+                                                            <property name="label" translatable="yes">Icon _size (%):</property>
                                                             <property name="use-underline">True</property>
-                                                            <property name="mnemonic-widget">list_view_zoom_combobox_current</property>
+                                                            <property name="mnemonic-widget">list_view_size_spinbutton_current</property>
                                                             <property name="xalign">0</property>
                                                           </object>
                                                           <packing>
@@ -1612,16 +1609,13 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                           </packing>
                                                         </child>
                                                         <child>
-                                                          <object class="GtkComboBox" id="list_view_zoom_combobox_current">
+                                                          <object class="GtkSpinButton" id="list_view_size_spinbutton_current">
                                                             <property name="visible">True</property>
-                                                            <property name="can-focus">False</property>
-                                                            <property name="model">model5</property>
-                                                            <child>
-                                                              <object class="GtkCellRendererText" id="renderer5_current"/>
-                                                              <attributes>
-                                                                <attribute name="text">0</attribute>
-                                                              </attributes>
-                                                            </child>
+                                                            <property name="can-focus">True</property>
+                                                            <property name="width-chars">5</property>
+                                                            <property name="max-width-chars">5</property>
+                                                            <property name="adjustment">list_view_size_current_adjustment</property>
+                                                            <property name="numeric">True</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>

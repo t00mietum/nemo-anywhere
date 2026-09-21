@@ -49,9 +49,10 @@
 
 /* string enum preferences */
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DEFAULT_VIEW_WIDGET "default_view_combobox"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_ZOOM_WIDGET "icon_view_zoom_combobox"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_VIEW_ZOOM_WIDGET "compact_view_zoom_combobox"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_ZOOM_WIDGET "list_view_zoom_combobox"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_SIZE_WIDGET "icon_view_size_spinbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_IMAGE_SIZE_WIDGET "icon_view_image_size_spinbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_VIEW_SIZE_WIDGET "compact_view_size_spinbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_SIZE_WIDGET "list_view_size_spinbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SORT_ORDER_WIDGET "sort_order_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET "date_format_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PATH_SEPARATOR_WIDGET "path_separator_combobox"
@@ -145,11 +146,6 @@ static const char * const default_view_values[] = {
 	"compact-view",
 	NULL
 };
-
-/* The rows of the size combos, as a per cent of the standard 64 pixels. They
-   are the old seven steps; the slider is what reaches the sizes between and
-   above them. */
-static const guint64 icon_size_percents[] = { 38, 50, 75, 100, 150, 200, 400 };
 
 static const char * const sort_order_values[] = {
 	"name",
@@ -941,6 +937,40 @@ bind_builder_uint_enum (GtkBuilder *builder,
 				      binding, g_free);
 }
 
+/* A size spin box holds a per cent of the standard 64 pixels. The widget's own
+   value is a double and the setting is a whole number. */
+static gboolean
+percent_get_mapping (GValue                *value,
+		     const NemoConfigValue *config_value,
+		     gpointer               user_data)
+{
+	g_value_set_double (value, (gdouble) config_value->i);
+	return TRUE;
+}
+
+static gboolean
+percent_set_mapping (const GValue    *value,
+		     NemoConfigValue *config_value,
+		     gpointer         user_data)
+{
+	config_value->i = (gint64) (g_value_get_double (value) + 0.5);
+	return TRUE;
+}
+
+static void
+bind_builder_percent (GtkBuilder *builder,
+		      NemoConfigGroup *settings,
+		      const char *widget_name,
+		      const char *prefs)
+{
+	nemo_config_bind_with_mapping (settings, prefs,
+				      gtk_builder_get_object (builder, widget_name),
+				      "value", NEMO_CONFIG_BIND_DEFAULT,
+				      percent_get_mapping,
+				      percent_set_mapping,
+				      NULL, NULL);
+}
+
 /* One radio button per value: only the button being switched ON writes. */
 static gboolean
 radio_mapping_set (const GValue    *gvalue,
@@ -1420,18 +1450,18 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_DEFAULT_VIEW_WIDGET,
 			   NEMO_PREFERENCES_DEFAULT_FOLDER_VIEWER,
 			   (const char **) default_view_values);
-	bind_builder_uint_enum (builder, nemo_icon_view_preferences,
-				NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_ZOOM_WIDGET,
-				NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE,
-				icon_size_percents, G_N_ELEMENTS (icon_size_percents));
-	bind_builder_uint_enum (builder, nemo_compact_view_preferences,
-				NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_VIEW_ZOOM_WIDGET,
-				NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE,
-				icon_size_percents, G_N_ELEMENTS (icon_size_percents));
-	bind_builder_uint_enum (builder, nemo_list_view_preferences,
-				NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_ZOOM_WIDGET,
-				NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE,
-				icon_size_percents, G_N_ELEMENTS (icon_size_percents));
+	bind_builder_percent (builder, nemo_icon_view_preferences,
+			      NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_SIZE_WIDGET,
+			      NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE);
+	bind_builder_percent (builder, nemo_icon_view_preferences,
+			      NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_IMAGE_SIZE_WIDGET,
+			      NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE);
+	bind_builder_percent (builder, nemo_compact_view_preferences,
+			      NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_VIEW_SIZE_WIDGET,
+			      NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
+	bind_builder_percent (builder, nemo_list_view_preferences,
+			      NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_SIZE_WIDGET,
+			      NEMO_PREFERENCES_LIST_VIEW_DEFAULT_ICON_SIZE);
 	bind_builder_enum (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_SORT_ORDER_WIDGET,
 			   NEMO_PREFERENCES_DEFAULT_SORT_ORDER,

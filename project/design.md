@@ -430,7 +430,13 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - The named steps survive as stops: 24, 32, 48, 64, 96, 128, 256, 320, 448 and 640 pixels. They are what the slider marks and what Zoom In and Zoom Out move between. The slider reaches everything in between, so the keyboard stays coarse while dragging is fine. Adding a size is a row in one table.
 
-- Both the settings and the preferences window say it as a per cent of the standard 64 pixels, so 100% is 64 and 1000% is 640.
+- Both the settings and the preferences window say it as a per cent of the standard 64 pixels, so 100% is 64 and 1000% is 640. The preferences window shows each one as a spin box, since the range no longer fits a short list.
+
+- There are two defaults for the icon view. An ordinary folder opens at 100%. A folder that is mostly images opens at 500%, which is 320 pixels, so pictures are shown at a size worth looking at without anyone reaching for the slider.
+
+- "Mostly images" means at least two images, and at least as many images as everything else put together. Folders are not counted either way, so filing pictures into sub-folders does not change the answer. The count is taken once the folder has finished loading, which is the first moment anything is known about what is in it.
+
+- The image size is a default, not a rule. The slider still moves the folder, and where "Remember per-folder settings" is on that size is what sticks. The default itself is never written back: a folder with nothing of its own keeps following whatever the setting says, and in a window that is not remembering per folder the bigger size does not follow you into the next folder.
 
 - The slider runs along the stops rather than over pixels. The range is nearly thirty times as wide at one end as the other, so spacing the marks evenly is the only way the low end stays usable.
 

@@ -770,6 +770,15 @@ test('Path list text test',
   args: []
 )
 
+test('Image folder test',
+  executable('test-nemo-image-folder',
+    [ 'test-nemo-image-folder.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Directory load clean test',
   executable('test-nemo-directory-load-clean',
     [ 'test-nemo-directory-load-clean.c' ],
