@@ -100,6 +100,7 @@
 #define NEMO_ACTION_COMPRESS "Compress"
 #define NEMO_ACTION_BACKGROUND_COMPRESS "BackgroundCompress"
 #define NEMO_ACTION_LOCATION_COMPRESS "LocationCompress"
+#define NEMO_ACTION_EXTRACT_MENU "ExtractMenu"
 #define NEMO_ACTION_EXTRACT_HERE "ExtractHere"
 #define NEMO_ACTION_EXTRACT_TO_FOLDER "ExtractToFolder"
 #define NEMO_ACTION_EXTRACT_TO "ExtractTo"
@@ -227,12 +228,14 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
     { NEMO_ACTION_COMPRESS, "selection_menu__compress_check",
      "/selection/File Actions/Compress", "selection-menu-compress" },
 
-    { NEMO_ACTION_EXTRACT_HERE, "selection_menu__extract_check",
-     "/selection/File Actions/ExtractHere", "selection-menu-extract" },
+    { NEMO_ACTION_EXTRACT_MENU, "selection_menu__extract_check",
+     "/selection/File Actions/ExtractMenu", "selection-menu-extract" },
+    { NEMO_ACTION_EXTRACT_HERE, NULL,
+     "/selection/File Actions/ExtractMenu/ExtractHere", "selection-menu-extract" },
     { NEMO_ACTION_EXTRACT_TO_FOLDER, NULL,
-     "/selection/File Actions/ExtractToFolder", "selection-menu-extract" },
+     "/selection/File Actions/ExtractMenu/ExtractToFolder", "selection-menu-extract" },
     { NEMO_ACTION_EXTRACT_TO, NULL,
-     "/selection/File Actions/ExtractTo", "selection-menu-extract" },
+     "/selection/File Actions/ExtractMenu/ExtractTo", "selection-menu-extract" },
     { NEMO_ACTION_MOUNT_ARCHIVE, NULL,
      "/selection/File Actions/MountArchive", "selection-menu-extract" },
 

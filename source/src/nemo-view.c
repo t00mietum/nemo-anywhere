@@ -9111,6 +9111,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("_Paste into folder"), "",
   /* tooltip */                  N_("Move or copy files previously selected by a Cut or Copy command into the selected folder"),
 				 G_CALLBACK (action_paste_files_into_callback) },
+  /* name, stock id, label */  { NEMO_ACTION_EXTRACT_MENU, "package-x-generic", N_("E_xtract") },
   /* name, stock id, label */  { "CopyToMenu", NULL, N_("Cop_y to") },
   /* name, stock id, label */  { "MoveToMenu", NULL, N_("M_ove to") },
   /* name, stock id */         { "Select All", NULL,
@@ -10991,6 +10992,10 @@ real_update_menus (NemoView *view)
 		   unpack, so for the ordinary selection holding no archive at
 		   all the items are absent rather than grayed. */
 		gboolean is_archives = selection_is_all_archives (selection);
+
+		action = gtk_action_group_get_action (view->details->dir_action_group,
+						      NEMO_ACTION_EXTRACT_MENU);
+		gtk_action_set_visible (action, is_archives);
 
 		action = gtk_action_group_get_action (view->details->dir_action_group,
 						      NEMO_ACTION_EXTRACT_HERE);

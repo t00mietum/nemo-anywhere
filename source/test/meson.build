@@ -828,6 +828,15 @@ test('Image folder test',
   args: []
 )
 
+test('Menu paths test',
+  executable('test-nemo-menu-paths',
+    [ 'test-nemo-menu-paths.c' ] + gresources,
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Directory load clean test',
   executable('test-nemo-directory-load-clean',
     [ 'test-nemo-directory-load-clean.c' ],
