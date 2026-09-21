@@ -116,6 +116,9 @@ struct NemoWindowSlot {
 
 	gboolean visible;
 
+	/* The location the image folder check last ran for. */
+	GFile *image_view_checked;
+
 	/* Back/Forward chain, and history list. 
 	 * The data in these lists are NemoBookmark pointers. 
 	 */
@@ -155,6 +158,7 @@ void			nemo_window_slot_set_content_view	      (NemoWindowSlot	*slot,
 								       const char		*id);
 void			nemo_window_slot_follow_default_view	      (NemoWindowSlot	*slot,
 								       const char		*default_id);
+void			nemo_window_slot_check_image_view	      (NemoWindowSlot	*slot);
 const char	       *nemo_window_slot_get_content_view_id      (NemoWindowSlot	*slot);
 gboolean		nemo_window_slot_content_view_matches_iid (NemoWindowSlot	*slot,
 								       const char		*iid);

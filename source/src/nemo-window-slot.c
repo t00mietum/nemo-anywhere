@@ -357,6 +357,8 @@ view_end_loading_cb (NemoView       *view,
 	} else if (all_files_seen) {
         NemoDirectory *directory;
 
+        nemo_window_slot_check_image_view (slot);
+
         directory = nemo_directory_get_for_file (slot->viewed_file);
 
         if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
@@ -383,6 +385,7 @@ nemo_window_slot_dispose (GObject *object)
 	nemo_window_slot_clear_forward_list (slot);
 	nemo_window_slot_clear_back_list (slot);
     nemo_window_slot_remove_extra_location_widgets (slot);
+	g_clear_object (&slot->image_view_checked);
 
 	if (slot->content_view) {
 		widget = GTK_WIDGET (slot->content_view);

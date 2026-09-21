@@ -104,6 +104,7 @@ static void load_new_location                         (NemoWindowSlot         *s
 						       gboolean                    tell_current_content_view,
 						       gboolean                    tell_new_content_view);
 static void location_has_really_changed               (NemoWindowSlot         *slot);
+static char *default_view_for_folder                  (NemoFile               *file);
 static void update_for_new_location                   (NemoWindowSlot         *slot);
 
 /* set_displayed_location:
@@ -917,7 +918,7 @@ got_file_info_for_view_selection_callback (NemoFile *file,
             if (g_strcmp0 (name, "x-nemo-search") == 0) {
                 view_id = g_strdup (NEMO_LIST_VIEW_IID);
             } else {
-                view_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
+                view_id = default_view_for_folder (file);
             }
 
             g_free (uri);
@@ -1804,10 +1805,46 @@ nemo_window_slot_stop_loading (NemoWindowSlot *slot)
         cancel_location_change (slot);
 }
 
+/* A folder that is mostly images opens in icon view unless it has a view of its
+ * own. That can only be known once its files are in, so it is FALSE for a
+ * folder nothing has loaded yet. */
+static gboolean
+folder_wants_image_view (NemoFile *file)
+{
+	NemoDirectory *directory;
+	gboolean wanted;
+
+	if (!nemo_config_get_boolean (nemo_icon_view_preferences,
+				      NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_SWITCH)) {
+		return FALSE;
+	}
+
+	directory = nemo_directory_get_for_file (file);
+	wanted = !NEMO_IS_SEARCH_DIRECTORY (directory) &&
+		 nemo_directory_are_all_files_seen (directory) &&
+		 nemo_directory_is_mostly_images (directory);
+	nemo_directory_unref (directory);
+
+	return wanted;
+}
+
+static char *
+default_view_for_folder (NemoFile *file)
+{
+	if (folder_wants_image_view (file)) {
+		return g_strdup (NEMO_ICON_VIEW_IID);
+	}
+
+	return nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
+}
+
+/* save stores the view on the folder, when per-folder settings are on. hold
+ * makes it the window's view, when they are off. */
 static void
 switch_content_view (NemoWindowSlot *slot,
 		     const char     *id,
-		     gboolean        save)
+		     gboolean        save,
+		     gboolean        hold)
 {
 	NemoFile *file;
 	char *uri;
@@ -1829,14 +1866,18 @@ switch_content_view (NemoWindowSlot *slot,
 	file = nemo_file_get (slot->location);
 
     if (!nemo_global_preferences_get_remember_folder_settings ()) {
-        nemo_window_set_ignore_meta_view_id (nemo_window_slot_get_window (slot), id);
+        if (hold) {
+            nemo_window_set_ignore_meta_view_id (nemo_window_slot_get_window (slot), id);
+        }
     } else if (save) {
         gchar *default_id;
 
         /* Picking the view that is already the default is not a per-folder choice,
-         * so pass it as the default and let it go unstored.
+         * so pass it as the default and let it go unstored. For a folder of
+         * images the default is icon view, so going back to list view there
+         * is stored and sticks.
          */
-        default_id = nemo_global_preferences_get_default_folder_viewer_preference_as_iid ();
+        default_id = default_view_for_folder (file);
         nemo_folder_settings_set (file, NEMO_METADATA_KEY_DEFAULT_VIEW, default_id, id);
         g_free (default_id);
     }
@@ -1859,7 +1900,7 @@ void
 nemo_window_slot_set_content_view (NemoWindowSlot *slot,
 				   const char     *id)
 {
-	switch_content_view (slot, id, TRUE);
+	switch_content_view (slot, id, TRUE, TRUE);
 }
 
 /* A new default view reaches folders that have none of their own saved,
@@ -1877,9 +1918,43 @@ nemo_window_slot_follow_default_view (NemoWindowSlot *slot,
 	nemo_file_unref (file);
 
 	if (saved_id == NULL) {
-		switch_content_view (slot, default_id, FALSE);
+		switch_content_view (slot, default_id, FALSE, TRUE);
 	}
 	g_free (saved_id);
+}
+
+/* Once per visit, so a switch back to list view by hand is not undone by the
+ * reload that switch itself causes. Nothing is stored and the window keeps its
+ * own view, so the next folder opens as it would have. */
+void
+nemo_window_slot_check_image_view (NemoWindowSlot *slot)
+{
+	NemoFile *file;
+	char *saved_id;
+
+	if (slot->location == NULL || slot->content_view == NULL ||
+	    (slot->image_view_checked != NULL &&
+	     g_file_equal (slot->image_view_checked, slot->location))) {
+		return;
+	}
+
+	g_set_object (&slot->image_view_checked, slot->location);
+
+	if (!nemo_window_slot_content_view_matches_iid (slot, NEMO_LIST_VIEW_IID) &&
+	    !nemo_window_slot_content_view_matches_iid (slot, NEMO_COMPACT_VIEW_IID)) {
+		return;
+	}
+
+	file = nemo_file_get (slot->location);
+	saved_id = nemo_global_preferences_get_remember_folder_settings () ?
+		nemo_folder_settings_get (file, NEMO_METADATA_KEY_DEFAULT_VIEW, NULL) : NULL;
+
+	if (saved_id == NULL && folder_wants_image_view (file)) {
+		switch_content_view (slot, NEMO_ICON_VIEW_IID, FALSE, FALSE);
+	}
+
+	g_free (saved_id);
+	nemo_file_unref (file);
 }
 
 void

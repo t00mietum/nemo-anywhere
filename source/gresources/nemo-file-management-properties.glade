@@ -803,6 +803,23 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                       </packing>
                                                     </child>
                                                     <child>
+                                                      <object class="GtkCheckButton" id="image_folder_switch_checkbutton">
+                                                        <property name="label" translatable="yes">Show folders of _pictures in icon view</property>
+                                                        <property name="tooltip-text" translatable="yes">A folder that is mostly pictures opens in icon view, unless it has a view of its own. How many count as mostly is set in the settings file.</property>
+                                                        <property name="visible">True</property>
+                                                        <property name="can-focus">True</property>
+                                                        <property name="receives-default">False</property>
+                                                        <property name="use-underline">True</property>
+                                                        <property name="xalign">0</property>
+                                                        <property name="draw-indicator">True</property>
+                                                      </object>
+                                                      <packing>
+                                                        <property name="expand">False</property>
+                                                        <property name="fill">False</property>
+                                                        <property name="position">2</property>
+                                                      </packing>
+                                                    </child>
+                                                    <child>
                                                       <object class="GtkCheckButton" id="labels_beside_icons_checkbutton">
                                                         <property name="label" translatable="yes">_Text beside icons</property>
                                                         <property name="visible">True</property>
@@ -815,7 +832,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                                       <packing>
                                                         <property name="expand">False</property>
                                                         <property name="fill">False</property>
-                                                        <property name="position">2</property>
+                                                        <property name="position">3</property>
                                                       </packing>
                                                     </child>
                                                   </object>

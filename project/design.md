@@ -486,7 +486,9 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - There are two defaults for the icon view. An ordinary folder opens at 100%. A folder that is mostly images opens at 500%, which is 320 pixels, so pictures are shown at a size worth looking at without anyone reaching for the slider.
 
-- "Mostly images" means at least two images, and at least as many images as everything else put together. Folders are not counted either way, so filing pictures into sub-folders does not change the answer. The count is taken once the folder has finished loading, which is the first moment anything is known about what is in it.
+- "Mostly images" means at least two images, and images making up at least half of the files. Both numbers are in the settings file. Folders are not counted either way, so filing pictures into sub-folders does not change the answer. The count is taken once the folder has finished loading, which is the first moment anything is known about what is in it.
+
+- Such a folder also opens in icon view when the default view is list or compact, unless it has a view of its own. Since the count waits for the load, the switch happens after it. Picking another view there by hand is saved on the folder, so it is not switched again.
 
 - The image size is a default, not a rule. The slider still moves the folder, and where "Remember per-folder settings" is on that size is what sticks. The default itself is never written back: a folder with nothing of its own keeps following whatever the setting says, and in a window that is not remembering per folder the bigger size does not follow you into the next folder.
 

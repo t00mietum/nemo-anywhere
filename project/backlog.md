@@ -45,6 +45,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 In list view, a folder of pictures shows a horizontal scrollbar even when every column fits. A folder of text files the same size does not.
+	- Opened: 20260921
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -64,9 +67,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Features and enhancements
 
 - 🔘 Put archive extraction menu items nested into a "Extract ..." item.
-
-- 🔘 Add a preference: Auto-switch to image thumbnail view for folders with mostly images.
-	- Store the tunables that define "mostly images" in the config file.
 
 - 🔘 Include uptime for the current nemo-anywhere session, in the Help|About dialog.
 
@@ -1540,6 +1540,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Add a preference: Auto-switch to image thumbnail view for folders with mostly images.
+	- Store the tunables that define "mostly images" in the config file.
+	- Closed: 20260921.
+	- A folder that is mostly images opens in icon view, at the image size, unless it has a view of its own. On by default, with a checkbox under Icon view on the Views page.
+	- The two limits are in the settings file: at least 2 images, and at least 50% of the files. Sub-folders are not counted.
+	- Going back to list view by hand in such a folder is saved on it and sticks. With per-folder settings off, the switch lasts for that visit, and the next folder opens in the window's own view.
+	- It only knows once the folder has loaded, so a folder can show in list view for a moment first.
+
 - ✅ SQLite icon cache issue reopened. More detail:
 	- Downsample the images in the database, to the largest size the user ever requested.
 		- Jpeg quality 90, with settings that favor faster decoding, potentially slower encoding if the space saving is worth it.
@@ -1590,6 +1598,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Emptying the cache left more on disk than before, because the rebuilt file sat in the journal. It is folded back in now.
 	- Pruning runs on its own thread, one process at a time, at random every 4 to 24 hours once nothing has been drawn for 5 minutes. Its settings are in the config file under `file-cache`. A damaged file is found by the check and rebuilt at the next launch.
 	- The older sweep of the shared freedesktop cache is gone, with its two settings (settled 20260921). Nothing here writes to that cache any more.
+	- Default for "Only for files smaller than" is 100 MB now, up from 1 MB. The cache limit was already 2 GiB.
 	- Tolerant of multiple process access.
 	- Tolerant of corrupt cache (db) file.
 	- Automatic cleanup:

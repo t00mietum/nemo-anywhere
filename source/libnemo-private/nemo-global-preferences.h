@@ -205,6 +205,9 @@ enum
 /* Icon View */
 #define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ICON_SIZE		"default-icon-size"
 #define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE	"default-image-icon-size"
+#define NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_IMAGES	"image-folder-min-images"
+#define NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_MIN_PERCENT	"image-folder-min-percent"
+#define NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_SWITCH		"image-folder-switch"
 #define NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS		"labels-beside-icons"
 
 /* Which text attributes appear beneath icon names */

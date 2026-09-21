@@ -212,6 +212,21 @@ field: icon-view.default-image-icon-size
 	default: 500
 	desc: Icon size for a folder that is mostly images, as a per cent of the standard 64 pixels
 
+field: icon-view.image-folder-min-images
+	type: int
+	default: 2
+	desc: Fewest images a folder needs to count as mostly images
+
+field: icon-view.image-folder-min-percent
+	type: int
+	default: 50
+	desc: Share of a folder's files, sub-folders not counted, that must be images for it to count as mostly images
+
+field: icon-view.image-folder-switch
+	type: bool
+	default: true
+	desc: Show a folder that is mostly images in icon view, unless it has a view of its own
+
 field: icon-view.labels-beside-icons
 	type: bool
 	default: false
@@ -590,7 +605,7 @@ field: preferences.tabs-open-position
 
 field: preferences.thumbnail-limit
 	type: int
-	default: 1048576
+	default: 104857600
 	desc: Largest image a thumbnail is made for, in bytes
 
 field: preferences.thumbnail-threads

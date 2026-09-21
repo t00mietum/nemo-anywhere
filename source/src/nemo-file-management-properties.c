@@ -52,6 +52,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DEFAULT_VIEW_WIDGET "default_view_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_SIZE_WIDGET "icon_view_size_spinbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_IMAGE_SIZE_WIDGET "icon_view_image_size_spinbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_IMAGE_FOLDER_SWITCH_WIDGET "image_folder_switch_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_VIEW_SIZE_WIDGET "compact_view_size_spinbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_SIZE_WIDGET "list_view_size_spinbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SORT_ORDER_WIDGET "sort_order_combobox"
@@ -1433,6 +1434,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	bind_builder_percent (builder, nemo_icon_view_preferences,
 			      NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_IMAGE_SIZE_WIDGET,
 			      NEMO_PREFERENCES_ICON_VIEW_DEFAULT_IMAGE_ICON_SIZE);
+	bind_builder_bool (builder, nemo_icon_view_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_IMAGE_FOLDER_SWITCH_WIDGET,
+			   NEMO_PREFERENCES_ICON_VIEW_IMAGE_FOLDER_SWITCH);
 	bind_builder_percent (builder, nemo_compact_view_preferences,
 			      NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_VIEW_SIZE_WIDGET,
 			      NEMO_PREFERENCES_COMPACT_VIEW_DEFAULT_ICON_SIZE);
