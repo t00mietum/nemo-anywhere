@@ -241,9 +241,14 @@ function fBuild {
 	## The linker stamps the PE header with the clock unless told otherwise, which
 	## makes two builds of the same commit differ. Set inside the snippet rather
 	## than as $env: - the mingw shell does not reliably carry ours across.
+	## meson removes a static archive before rebuilding it everywhere but here, so
+	## a thin archive still naming the object of a deleted source fails to update,
+	## and ar blames the archive itself ("No such file or directory"). One ar
+	## cannot read is dropped; thin archives cost nothing to write again.
 	$sh = @"
 export SOURCE_DATE_EPOCH="`$(git log -1 --format=%ct 2>/dev/null || echo 0)"
 if [ -f $BuildRel/build.ninja ]; then meson setup --reconfigure $BuildRel source; else meson setup -Dxmp=false $BuildRel source; fi
+find $BuildRel -name '*.a' -type f | while read -r lib; do ar t "`$lib" >/dev/null 2>&1 || { echo "dropped stale `$lib"; rm -f "`$lib"; }; done
 ninja -C $BuildRel -j $jobs
 "@
 	fMingw $sh
