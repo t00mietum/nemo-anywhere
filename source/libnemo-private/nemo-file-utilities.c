@@ -2931,3 +2931,34 @@ nemo_self_check_file_utilities (void)
 }
 
 #endif /* !NEMO_OMIT_SELF_CHECK */
+
+gboolean
+nemo_content_type_is_a (const char *content_type, const char *mime_type)
+{
+	if (content_type == NULL) {
+		return FALSE;
+	}
+
+	if (g_content_type_is_a (content_type, mime_type)) {
+		return TRUE;
+	}
+
+#ifdef G_OS_WIN32
+	{
+		g_autofree char *mime = g_content_type_get_mime_type (content_type);
+		gsize len = strlen (mime_type);
+
+		if (mime == NULL) {
+			return FALSE;
+		}
+
+		if (len >= 2 && g_str_has_suffix (mime_type, "/*")) {
+			return strncmp (mime, mime_type, len - 1) == 0;
+		}
+
+		return g_ascii_strcasecmp (mime, mime_type) == 0;
+	}
+#else
+	return FALSE;
+#endif
+}

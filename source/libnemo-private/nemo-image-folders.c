@@ -26,6 +26,7 @@
 
 #include "nemo-dir-enum.h"
 #include "nemo-file.h"
+#include "nemo-file-utilities.h"
 #include "nemo-global-preferences.h"
 
 /* Enough to cover the folders anyone moves between in a sitting. */
@@ -159,7 +160,7 @@ count_one (GFile *folder, GCancellable *cancellable, guint *images, guint *other
 		}
 
 		type = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE);
-		if (type != NULL && g_content_type_is_a (type, "image/*")) {
+		if (nemo_content_type_is_a (type, "image/*")) {
 			(*images)++;
 		} else {
 			(*others)++;
