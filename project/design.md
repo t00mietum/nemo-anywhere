@@ -322,9 +322,9 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - SQLite is linked static. It has to come through pkg-config rather than meson's `find_library`, because the cross sysroot is not on the compiler's own search path.
 
-- Three tables. `content` is one row per distinct set of file contents: the size, and the checksum once anything has bothered to compute one. `paths` is one row per uri, pointing at the contents it holds and carrying its own timestamp. `thumbnails` hangs off a content row and holds the encoded image.
+- Three tables. `files` is one row per distinct set of file contents: the size, and the checksum once anything has bothered to compute one. It holds no image, picture or not. `paths` is one row per uri, pointing at the file it holds and carrying its own timestamp. `thumbnails` is only for images; it hangs off a `files` row and holds the encoded image.
 
-- Splitting paths from contents is what lets a file that moved, or a second copy of one, find a thumbnail that is already there. It is also what a duplicate finder would need, which is why the split is drawn this way rather than around thumbnails: every file seen is a content row, and the copies of one are the paths hanging off it. A file nothing can draw has no `thumbnails` row and is otherwise an ordinary record.
+- Splitting paths from files is what lets a file that moved, or a second copy of one, find a thumbnail that is already there. It is also what a duplicate finder would need, which is why the split is drawn this way rather than around thumbnails: every file seen is a `files` row, and the copies of one are the paths hanging off it. A file nothing can draw has no `thumbnails` row and is otherwise an ordinary record.
 
 - A checksum settles what two records that looked separate really were, so learning one folds them together. The image and every other name move onto the record that stays. Without a checksum, size and timestamp together are the only guess available, and two unrelated files that happen to match both would share a thumbnail.
 

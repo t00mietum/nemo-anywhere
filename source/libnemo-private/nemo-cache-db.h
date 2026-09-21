@@ -26,19 +26,19 @@
  *
  * Three tables:
  *
- *   content     one row per distinct set of file contents - the size, and the
- *               checksum once anything has bothered to compute one
- *   paths       one row per uri, pointing at the content it holds, with its own
- *               mtime. Several rows on one content row means copies, or a file
- *               that moved
- *   thumbnails  at most one per content row, holding the encoded image
+ *   files       one row per distinct set of file contents - the size, and the
+ *               checksum once anything has bothered to compute one. No image
+ *               here, whether the file is a picture or not
+ *   paths       one row per uri, pointing at the files row it holds, with its
+ *               own mtime. Several paths on one files row means copies, or a
+ *               file that moved
+ *   thumbnails  at most one per files row, holding the encoded image
  *
- * Splitting paths from contents is what lets a file that moved, or a second copy
+ * Splitting paths from files is what lets a file that moved, or a second copy
  * of one, find a thumbnail that is already there instead of rendering it again.
  * It is also the part a future duplicate finder needs: every file it has seen is
- * a content row, and the copies of one are the paths hanging off it. A file with
- * no thumbnail - a text file, an archive - is an ordinary row here with no
- * thumbnails entry.
+ * a files row, and the copies of one are the paths hanging off it. A file with
+ * no thumbnail - a text file, an archive - has no thumbnails entry.
  *
  * Everything in the file is rebuildable from the disk, so nothing is migrated.
  * A schema from another version, or a damaged file, is thrown away and made

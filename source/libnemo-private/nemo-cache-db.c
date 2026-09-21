@@ -32,7 +32,7 @@
 
 /* Bumped when the tables change. The store is a cache, so a file written by
  * another version is thrown away rather than migrated. */
-#define SCHEMA_VERSION 1
+#define SCHEMA_VERSION 2
 
 /* How long a statement waits for another process to finish writing. Long enough
  * that a busy window wins rather than dropping its work, short enough that a
@@ -65,29 +65,29 @@ static NemoCacheDb *the_db = NULL;
 static gboolean     the_db_tried = FALSE;
 
 static const char SCHEMA[] =
-	"CREATE TABLE IF NOT EXISTS content ("
+	"CREATE TABLE IF NOT EXISTS files ("
 	"  id     INTEGER PRIMARY KEY,"
 	"  bytes  INTEGER NOT NULL,"
 	"  digest BLOB);"
-	"CREATE UNIQUE INDEX IF NOT EXISTS content_digest ON content (digest)"
+	"CREATE UNIQUE INDEX IF NOT EXISTS files_digest ON files (digest)"
 	" WHERE digest IS NOT NULL;"
 	"CREATE TABLE IF NOT EXISTS paths ("
-	"  uri        TEXT PRIMARY KEY,"
-	"  content_id INTEGER NOT NULL REFERENCES content (id) ON DELETE CASCADE,"
-	"  mtime      INTEGER NOT NULL,"
-	"  seen       INTEGER NOT NULL);"
-	"CREATE INDEX IF NOT EXISTS paths_content ON paths (content_id);"
+	"  uri     TEXT PRIMARY KEY,"
+	"  file_id INTEGER NOT NULL REFERENCES files (id) ON DELETE CASCADE,"
+	"  mtime   INTEGER NOT NULL,"
+	"  seen    INTEGER NOT NULL);"
+	"CREATE INDEX IF NOT EXISTS paths_file ON paths (file_id);"
 	"CREATE INDEX IF NOT EXISTS paths_mtime ON paths (mtime);"
 	"CREATE TABLE IF NOT EXISTS thumbnails ("
-	"  content_id INTEGER PRIMARY KEY REFERENCES content (id) ON DELETE CASCADE,"
-	"  size     INTEGER NOT NULL,"
-	"  width    INTEGER NOT NULL,"
-	"  height   INTEGER NOT NULL,"
-	"  format   INTEGER NOT NULL,"
-	"  stored   INTEGER NOT NULL,"
-	"  rendered INTEGER NOT NULL DEFAULT 0,"
-	"  renders  INTEGER NOT NULL DEFAULT 0,"
-	"  image    BLOB NOT NULL);"
+	"  file_id   INTEGER PRIMARY KEY REFERENCES files (id) ON DELETE CASCADE,"
+	"  size      INTEGER NOT NULL,"
+	"  width     INTEGER NOT NULL,"
+	"  height    INTEGER NOT NULL,"
+	"  format    INTEGER NOT NULL,"
+	"  stored    INTEGER NOT NULL,"
+	"  rendered  INTEGER NOT NULL DEFAULT 0,"
+	"  renders   INTEGER NOT NULL DEFAULT 0,"
+	"  image     BLOB NOT NULL);"
 	"CREATE INDEX IF NOT EXISTS thumbnails_rendered ON thumbnails (rendered);";
 
 /* sqlite reports a damaged file several ways depending on where it noticed. */
@@ -351,9 +351,9 @@ nemo_cache_db_get (void)
 
 /* The only one of the three that is really about the contents. */
 static gint64
-content_by_digest (NemoCacheDb *db, const NemoFileId *id)
+file_by_digest (NemoCacheDb *db, const NemoFileId *id)
 {
-	static const char sql[] = "SELECT id FROM content WHERE digest = ? AND bytes = ?";
+	static const char sql[] = "SELECT id FROM files WHERE digest = ? AND bytes = ?";
 	sqlite3_stmt *stmt;
 
 	if (!id->has_digest)
@@ -373,10 +373,10 @@ content_by_digest (NemoCacheDb *db, const NemoFileId *id)
  * A row carrying a checksum that contradicts the one in hand is not it either,
  * whatever the size and time say. */
 static gint64
-content_by_uri (NemoCacheDb *db, const char *uri, const NemoFileId *id)
+file_by_uri (NemoCacheDb *db, const char *uri, const NemoFileId *id)
 {
 	static const char sql[] =
-		"SELECT c.id FROM paths p JOIN content c ON c.id = p.content_id"
+		"SELECT c.id FROM paths p JOIN files c ON c.id = p.file_id"
 		" WHERE p.uri = ? AND p.mtime = ? AND c.bytes = ?"
 		" AND (? IS NULL OR c.digest IS NULL OR c.digest = ?)";
 	sqlite3_stmt *stmt = prep (db, sql, "find by path");
@@ -398,13 +398,13 @@ content_by_uri (NemoCacheDb *db, const char *uri, const NemoFileId *id)
  * only a record that has none may be adopted this way - one that has a checksum
  * and matched would already have been found. */
 static gint64
-content_by_stat (NemoCacheDb *db, const NemoFileId *id)
+file_by_stat (NemoCacheDb *db, const NemoFileId *id)
 {
 	static const char any[] =
-		"SELECT p.content_id FROM paths p JOIN content c ON c.id = p.content_id"
+		"SELECT p.file_id FROM paths p JOIN files c ON c.id = p.file_id"
 		" WHERE p.mtime = ? AND c.bytes = ? LIMIT 1";
 	static const char undigested[] =
-		"SELECT p.content_id FROM paths p JOIN content c ON c.id = p.content_id"
+		"SELECT p.file_id FROM paths p JOIN files c ON c.id = p.file_id"
 		" WHERE p.mtime = ? AND c.bytes = ? AND c.digest IS NULL LIMIT 1";
 	sqlite3_stmt *stmt = prep (db, id->has_digest ? undigested : any, "find by size and time");
 
@@ -419,24 +419,24 @@ content_by_stat (NemoCacheDb *db, const NemoFileId *id)
 
 /* The record for what `id` describes, or 0 if there is none yet. */
 static gint64
-content_resolve (NemoCacheDb *db, const char *uri, const NemoFileId *id)
+file_resolve (NemoCacheDb *db, const char *uri, const NemoFileId *id)
 {
-	gint64 cid;
+	gint64 fid;
 
-	cid = content_by_digest (db, id);
-	if (cid == 0)
-		cid = content_by_uri (db, uri, id);
-	if (cid == 0)
-		cid = content_by_stat (db, id);
+	fid = file_by_digest (db, id);
+	if (fid == 0)
+		fid = file_by_uri (db, uri, id);
+	if (fid == 0)
+		fid = file_by_stat (db, id);
 
-	return cid;
+	return fid;
 }
 
 static gint64
-content_add (NemoCacheDb *db, const NemoFileId *id)
+file_add (NemoCacheDb *db, const NemoFileId *id)
 {
-	static const char sql[] = "INSERT INTO content (bytes, digest) VALUES (?, ?)";
-	sqlite3_stmt *stmt = prep (db, sql, "add content");
+	static const char sql[] = "INSERT INTO files (bytes, digest) VALUES (?, ?)";
+	sqlite3_stmt *stmt = prep (db, sql, "add file");
 	gboolean      ok;
 
 	if (stmt == NULL)
@@ -445,7 +445,7 @@ content_add (NemoCacheDb *db, const NemoFileId *id)
 	sqlite3_bind_int64 (stmt, 1, id->bytes);
 	bind_digest (stmt, 2, id);
 
-	ok = db_ok (db, sqlite3_step (stmt), "add content");
+	ok = db_ok (db, sqlite3_step (stmt), "add file");
 	sqlite3_finalize (stmt);
 
 	return ok ? sqlite3_last_insert_rowid (db->handle) : 0;
@@ -454,9 +454,9 @@ content_add (NemoCacheDb *db, const NemoFileId *id)
 /* Fills in a checksum nobody had computed yet. Never replaces one, since two
  * different checksums mean two different files. */
 static gboolean
-content_learn_digest (NemoCacheDb *db, gint64 content_id, const NemoFileId *id)
+file_learn_digest (NemoCacheDb *db, gint64 file_id, const NemoFileId *id)
 {
-	static const char sql[] = "UPDATE content SET digest = ? WHERE id = ? AND digest IS NULL";
+	static const char sql[] = "UPDATE files SET digest = ? WHERE id = ? AND digest IS NULL";
 	sqlite3_stmt *stmt;
 	gboolean      ok;
 
@@ -468,7 +468,7 @@ content_learn_digest (NemoCacheDb *db, gint64 content_id, const NemoFileId *id)
 		return FALSE;
 
 	sqlite3_bind_blob (stmt, 1, id->digest, NEMO_CACHE_DIGEST_LEN, SQLITE_STATIC);
-	sqlite3_bind_int64 (stmt, 2, content_id);
+	sqlite3_bind_int64 (stmt, 2, file_id);
 
 	ok = db_ok (db, sqlite3_step (stmt), "set checksum");
 	sqlite3_finalize (stmt);
@@ -478,25 +478,25 @@ content_learn_digest (NemoCacheDb *db, gint64 content_id, const NemoFileId *id)
 
 /* The record for `id`, made if there is none. */
 static gint64
-content_for (NemoCacheDb *db, const char *uri, const NemoFileId *id)
+file_for (NemoCacheDb *db, const char *uri, const NemoFileId *id)
 {
-	gint64 cid = content_resolve (db, uri, id);
+	gint64 fid = file_resolve (db, uri, id);
 
-	if (cid == 0)
-		return content_add (db, id);
+	if (fid == 0)
+		return file_add (db, id);
 
-	content_learn_digest (db, cid, id);
+	file_learn_digest (db, fid, id);
 
-	return cid;
+	return fid;
 }
 
 /* Points a uri at a record, so the next lookup goes straight there. */
 static gboolean
-link_path (NemoCacheDb *db, const char *uri, gint64 content_id, gint64 mtime)
+link_path (NemoCacheDb *db, const char *uri, gint64 file_id, gint64 mtime)
 {
 	static const char sql[] =
-		"INSERT INTO paths (uri, content_id, mtime, seen) VALUES (?, ?, ?, ?)"
-		" ON CONFLICT (uri) DO UPDATE SET content_id = excluded.content_id,"
+		"INSERT INTO paths (uri, file_id, mtime, seen) VALUES (?, ?, ?, ?)"
+		" ON CONFLICT (uri) DO UPDATE SET file_id = excluded.file_id,"
 		" mtime = excluded.mtime, seen = excluded.seen";
 	sqlite3_stmt *stmt = prep (db, sql, "link");
 	gboolean      ok;
@@ -505,7 +505,7 @@ link_path (NemoCacheDb *db, const char *uri, gint64 content_id, gint64 mtime)
 		return FALSE;
 
 	sqlite3_bind_text (stmt, 1, uri, -1, SQLITE_STATIC);
-	sqlite3_bind_int64 (stmt, 2, content_id);
+	sqlite3_bind_int64 (stmt, 2, file_id);
 	sqlite3_bind_int64 (stmt, 3, mtime);
 	sqlite3_bind_int64 (stmt, 4, g_get_real_time () / G_USEC_PER_SEC);
 
@@ -518,15 +518,15 @@ link_path (NemoCacheDb *db, const char *uri, gint64 content_id, gint64 mtime)
 /* Two records turned out to be one file. Everything hanging off `from` moves to
  * `to`, and `from` goes. The survivor keeps its own thumbnail if it has one. */
 static gboolean
-fold_content (NemoCacheDb *db, gint64 from, gint64 to)
+fold_file (NemoCacheDb *db, gint64 from, gint64 to)
 {
 	static const char take_thumb[] =
 		"INSERT OR IGNORE INTO thumbnails"
-		" (content_id, size, width, height, format, stored, rendered, renders, image)"
+		" (file_id, size, width, height, format, stored, rendered, renders, image)"
 		" SELECT ?, size, width, height, format, stored, rendered, renders, image"
-		" FROM thumbnails WHERE content_id = ?";
-	static const char move_paths[] = "UPDATE paths SET content_id = ? WHERE content_id = ?";
-	static const char drop_old[] = "DELETE FROM content WHERE id = ?";
+		" FROM thumbnails WHERE file_id = ?";
+	static const char move_paths[] = "UPDATE paths SET file_id = ? WHERE file_id = ?";
+	static const char drop_old[] = "DELETE FROM files WHERE id = ?";
 	sqlite3_stmt *stmt;
 	gboolean      ok = TRUE;
 
@@ -563,7 +563,7 @@ fold_content (NemoCacheDb *db, gint64 from, gint64 to)
 gboolean
 nemo_cache_db_note_file (NemoCacheDb *db, const char *uri, const NemoFileId *id)
 {
-	gint64   cid;
+	gint64   fid;
 	gboolean done = FALSE;
 
 	g_return_val_if_fail (uri != NULL, FALSE);
@@ -575,8 +575,8 @@ nemo_cache_db_note_file (NemoCacheDb *db, const char *uri, const NemoFileId *id)
 	g_mutex_lock (&db->lock);
 
 	if (begin (db)) {
-		cid = content_for (db, uri, id);
-		if (cid != 0 && link_path (db, uri, cid, id->mtime))
+		fid = file_for (db, uri, id);
+		if (fid != 0 && link_path (db, uri, fid, id->mtime))
 			done = commit (db);
 		else
 			rollback (db);
@@ -595,7 +595,7 @@ nemo_cache_db_lookup_digest (NemoCacheDb *db,
 			     guint8      *digest)
 {
 	static const char sql[] =
-		"SELECT c.digest FROM paths p JOIN content c ON c.id = p.content_id"
+		"SELECT c.digest FROM paths p JOIN files c ON c.id = p.file_id"
 		" WHERE p.uri = ? AND p.mtime = ? AND c.bytes = ? AND c.digest IS NOT NULL";
 	sqlite3_stmt *stmt;
 	gboolean      found = FALSE;
@@ -650,18 +650,18 @@ nemo_cache_db_set_digest (NemoCacheDb *db, const char *uri, const NemoFileId *id
 	if (!begin (db))
 		goto out;
 
-	target = content_by_digest (db, id);
-	mine   = content_by_uri (db, uri, id);
+	target = file_by_digest (db, id);
+	mine   = file_by_uri (db, uri, id);
 
 	if (mine == 0) {
 		/* Nothing known about this path yet, or what was known is stale. */
 		if (target == 0)
-			target = content_add (db, id);
+			target = file_add (db, id);
 		done = (target != 0) && link_path (db, uri, target, id->mtime);
 	} else if (target == 0 || target == mine) {
-		done = content_learn_digest (db, mine, id);
+		done = file_learn_digest (db, mine, id);
 	} else {
-		done = fold_content (db, mine, target)
+		done = fold_file (db, mine, target)
 			&& link_path (db, uri, target, id->mtime);
 	}
 
@@ -679,20 +679,20 @@ out:
 /* Fills `record` and, when asked, the image bytes. Called with the lock held. */
 static gboolean
 read_thumbnail (NemoCacheDb         *db,
-		gint64               content_id,
+		gint64               file_id,
 		NemoThumbnailRecord *record,
 		GBytes             **image)
 {
 	static const char sql[] =
 		"SELECT size, width, height, format, stored, image FROM thumbnails"
-		" WHERE content_id = ?";
+		" WHERE file_id = ?";
 	sqlite3_stmt *stmt = prep (db, sql, "read thumbnail");
 	gboolean      found = FALSE;
 
 	if (stmt == NULL)
 		return FALSE;
 
-	sqlite3_bind_int64 (stmt, 1, content_id);
+	sqlite3_bind_int64 (stmt, 1, file_id);
 
 	if (sqlite3_step (stmt) == SQLITE_ROW) {
 		record->size   = sqlite3_column_int (stmt, 0);
@@ -725,7 +725,7 @@ nemo_cache_db_thumbnail_lookup (NemoCacheDb         *db,
 				NemoThumbnailRecord *record,
 				GBytes             **image)
 {
-	gint64   cid;
+	gint64   fid;
 	gboolean known_path;
 	gboolean found = FALSE;
 
@@ -741,22 +741,22 @@ nemo_cache_db_thumbnail_lookup (NemoCacheDb         *db,
 
 	g_mutex_lock (&db->lock);
 
-	cid = content_by_digest (db, id);
+	fid = file_by_digest (db, id);
 	known_path = FALSE;
-	if (cid == 0) {
-		cid = content_by_uri (db, uri, id);
-		known_path = (cid != 0);
+	if (fid == 0) {
+		fid = file_by_uri (db, uri, id);
+		known_path = (fid != 0);
 	}
-	if (cid == 0)
-		cid = content_by_stat (db, id);
+	if (fid == 0)
+		fid = file_by_stat (db, id);
 
-	if (cid != 0) {
-		found = read_thumbnail (db, cid, record, image);
+	if (fid != 0) {
+		found = read_thumbnail (db, fid, record, image);
 
 		/* A hit under another name, so point this one at it too and the
 		 * next lookup is direct. */
 		if (found && !known_path)
-			link_path (db, uri, cid, id->mtime);
+			link_path (db, uri, fid, id->mtime);
 	}
 
 	g_mutex_unlock (&db->lock);
@@ -776,15 +776,15 @@ nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 	 * have to go on - survives a re-render at a bigger size. */
 	static const char sql[] =
 		"INSERT INTO thumbnails"
-		" (content_id, size, width, height, format, stored, rendered, renders, image)"
+		" (file_id, size, width, height, format, stored, rendered, renders, image)"
 		" VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)"
-		" ON CONFLICT (content_id) DO UPDATE SET size = excluded.size,"
+		" ON CONFLICT (file_id) DO UPDATE SET size = excluded.size,"
 		" width = excluded.width, height = excluded.height, format = excluded.format,"
 		" stored = excluded.stored, image = excluded.image";
 	sqlite3_stmt *stmt;
 	gconstpointer data;
 	gsize         len = 0;
-	gint64        cid;
+	gint64        fid;
 	gint64        now;
 	gboolean      done = FALSE;
 
@@ -807,15 +807,15 @@ nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 	if (!begin (db))
 		goto out;
 
-	cid = content_for (db, uri, id);
-	if (cid == 0)
+	fid = file_for (db, uri, id);
+	if (fid == 0)
 		goto fail;
 
 	stmt = prep (db, sql, "store thumbnail");
 	if (stmt == NULL)
 		goto fail;
 
-	sqlite3_bind_int64 (stmt, 1, cid);
+	sqlite3_bind_int64 (stmt, 1, fid);
 	sqlite3_bind_int (stmt, 2, record->size);
 	sqlite3_bind_int (stmt, 3, record->width);
 	sqlite3_bind_int (stmt, 4, record->height);
@@ -827,7 +827,7 @@ nemo_cache_db_thumbnail_store (NemoCacheDb               *db,
 	sqlite3_finalize (stmt);
 
 	if (done)
-		done = link_path (db, uri, cid, id->mtime);
+		done = link_path (db, uri, fid, id->mtime);
 
 	if (done)
 		done = commit (db);
@@ -854,7 +854,7 @@ flush_renders (NemoCacheDb *db)
 {
 	static const char sql[] =
 		"UPDATE thumbnails SET rendered = ?, renders = renders + ?"
-		" WHERE content_id = (SELECT content_id FROM paths WHERE uri = ?)";
+		" WHERE file_id = (SELECT file_id FROM paths WHERE uri = ?)";
 	sqlite3_stmt  *stmt;
 	GHashTableIter iter;
 	gpointer       uri, count;
@@ -955,7 +955,7 @@ nemo_cache_db_thumbnail_stats (NemoCacheDb *db,
 {
 	static const char sql[] =
 		"SELECT t.renders, t.rendered FROM paths p"
-		" JOIN thumbnails t ON t.content_id = p.content_id WHERE p.uri = ?";
+		" JOIN thumbnails t ON t.file_id = p.file_id WHERE p.uri = ?";
 	sqlite3_stmt *stmt;
 	gboolean      found = FALSE;
 
@@ -1007,7 +1007,7 @@ nemo_cache_db_empty (NemoCacheDb *db)
 	done = db_ok (db, sqlite3_exec (db->handle,
 					"DELETE FROM thumbnails;"
 					"DELETE FROM paths;"
-					"DELETE FROM content;",
+					"DELETE FROM files;",
 					NULL, NULL, &err), "empty");
 	sqlite3_free (err);
 
