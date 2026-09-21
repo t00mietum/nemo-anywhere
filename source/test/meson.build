@@ -734,6 +734,15 @@ test('Window title test',
   args: []
 )
 
+test('Uptime test',
+  executable('test-nemo-uptime',
+    [ 'test-nemo-uptime.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Command template test',
   executable('test-nemo-command-template',
     [ 'test-nemo-command-template.c' ],
