@@ -45,10 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 The About box license text says "or (at your option) any later version", but the project is GPL-2.0-only.
-	- Opened: 20260921
-	- The text came from upstream. Rewording a license notice needs a decision first.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -66,12 +62,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
-
-- 🔘 The list view's icon size is which model column a row reads its icon from, so it cannot take a size that is not one of the preset steps.
-	- Opened: 20260920-230000
-	- A tree model's column count is fixed once it is built, so one column per size is a ceiling on how many sizes there can be. It wants one surface column with the size held beside it.
-	- Left out of the icon view sizing work on purpose. The list view has no size slider today and a 640px row is no use, so nothing is waiting on it.
-	- It also touches the cached icon surface, which is keyed on the column today.
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
@@ -189,6 +179,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ The About box license text says "or (at your option) any later version", but the project is GPL-2.0-only.
+	- Opened: 20260921. Closed: 20260921.
+	- Upstream Nemo is or-later, which can be narrowed to version 2 only. A few files written for the fork are version 2 only, so the whole program has to be. The text now says version 2 only.
+	- The file headers inherited from upstream still say or-later. That is right for those files and they were left alone.
+	- The lint now fails if text the program shows offers a later version.
 
 - ✅ The "expand" Chevron next to folders should more reliably appear when a formerly empty folder gains content, especially after user-initiated actions (like drag and drop contents into a previously empty folder).
 	- Opened: 20260919-125440. Closed: 20260920.
@@ -3104,6 +3100,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: workflows and issue templates removed in the fork-setup commit.
 
 ### Future and/or deferred
+
+- ✋ Let the list view's row icons be any size, not just the seven preset sizes.
+	- Opened: 20260920-230000. Deferred: 20260921.
+	- This is about list view only, the one with rows and Name, Size and Date columns. Each row has a small icon beside the file name.
+	- Zooming the list view makes those icons bigger or smaller, but only in seven fixed jumps. Icon view (the grid) can already be any size.
+	- Why: behind the scenes, list view keeps one saved copy of each row's icon per preset size, seven in all. Zooming just picks a different copy. There is no copy for an in-between size, so there is no in-between size.
+	- The fix is to keep one copy per row, drawn at whatever size is asked for.
+	- Deferred because nothing needs it yet. List view has no size slider, and huge icons in a list are no use. It becomes worth doing if list view ever gets a slider.
 
 - ✋ Make regular delete/recycle/overwrite confirmation dialogs default to OK.
 	- Opened: 20260917-125804
