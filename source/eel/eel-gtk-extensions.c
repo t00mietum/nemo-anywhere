@@ -618,3 +618,19 @@ eel_gtk_focus_is_within (GtkWidget *container)
 
     return focus == container || gtk_widget_is_ancestor (focus, container);
 }
+
+// GTK uses the same key for shortcuts and for adding to a selection, so both
+// ask this. The window picks the display; NULL takes the default one.
+GdkModifierType
+eel_gtk_primary_mask (GdkWindow *window)
+{
+    GdkDisplay *display;
+
+    display = window != NULL ? gdk_window_get_display (window) : gdk_display_get_default ();
+    if (display == NULL) {
+        return GDK_CONTROL_MASK;
+    }
+
+    return gdk_keymap_get_modifier_mask (gdk_keymap_get_for_display (display),
+                                         GDK_MODIFIER_INTENT_PRIMARY_ACCELERATOR);
+}

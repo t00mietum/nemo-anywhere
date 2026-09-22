@@ -833,7 +833,7 @@ button_pressed_callback (GtkTreeView *treeview,
         file = sort_model_path_to_file (view, path);
 
         if (using_browser) {
-            flags = (event->state & GDK_CONTROL_MASK) ?
+            flags = (event->state & eel_gtk_primary_mask (event->window)) ?
                 NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW :
                 NEMO_WINDOW_OPEN_FLAG_NEW_TAB;
         } else {

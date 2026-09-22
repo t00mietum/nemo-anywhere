@@ -64,7 +64,7 @@
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Make link</property>
-                <property name="accelerator">&lt;Primary&gt;M</property>
+                <property name="accelerator">&lt;Control&gt;M</property>
               </object>
             </child>
             <child>
@@ -85,7 +85,7 @@
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Shortcuts</property>
-                <property name="accelerator">&lt;Primary&gt;F1</property>
+                <property name="accelerator">&lt;Control&gt;F1</property>
               </object>
             </child>
           </object>
@@ -140,14 +140,14 @@
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Go to previous tab</property>
-                <property name="accelerator">&lt;Primary&gt;Page_Up</property>
+                <property name="accelerator">&lt;Control&gt;Page_Up</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Go to next tab</property>
-                <property name="accelerator">&lt;Primary&gt;Page_Down</property>
+                <property name="accelerator">&lt;Control&gt;Page_Down</property>
               </object>
             </child>
             <child>
@@ -161,14 +161,14 @@
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Move tab left</property>
-                <property name="accelerator">&lt;shift&gt;&lt;Primary&gt;Page_Up</property>
+                <property name="accelerator">&lt;shift&gt;&lt;Control&gt;Page_Up</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Move tab right</property>
-                <property name="accelerator">&lt;shift&gt;&lt;Primary&gt;Page_Down</property>
+                <property name="accelerator">&lt;shift&gt;&lt;Control&gt;Page_Down</property>
               </object>
             </child>
           </object>
@@ -285,7 +285,7 @@
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">Show/hide hidden files</property>
-                <property name="accelerator">&lt;Primary&gt;H</property>
+                <property name="accelerator">&lt;Control&gt;H</property>
               </object>
             </child>
             <child>

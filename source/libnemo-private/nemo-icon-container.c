@@ -1087,7 +1087,7 @@ reload_icon_positions (NemoIconContainer *container)
 static gboolean
 button_event_modifies_selection (GdkEventButton *event)
 {
-	return (event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) != 0;
+	return (event->state & (eel_gtk_primary_mask (event->window) | GDK_SHIFT_MASK)) != 0;
 }
 
 /* invalidate the cached label sizes for all the icons */
@@ -3108,7 +3108,7 @@ nemo_icon_container_did_not_drag (NemoIconContainer *container,
 	details = container->details;
 
 	if (details->icon_selected_on_button_down &&
-	    ((event->state & GDK_CONTROL_MASK) != 0 ||
+	    ((event->state & eel_gtk_primary_mask (event->window)) != 0 ||
 	     (event->state & GDK_SHIFT_MASK) == 0)) {
 		if (button_event_modifies_selection (event)) {
 			details->range_selection_base_icon = NULL;
@@ -4993,7 +4993,7 @@ handle_icon_double_click (NemoIconContainer *container,
 		if (!button_event_modifies_selection (event)) {
 			activate_selected_items (container);
 			return TRUE;
-		} else if ((event->state & GDK_CONTROL_MASK) == 0 &&
+		} else if ((event->state & eel_gtk_primary_mask (event->window)) == 0 &&
 			   (event->state & GDK_SHIFT_MASK) != 0) {
 			activate_selected_items_alternate (container, icon);
 			return TRUE;
@@ -5130,7 +5130,7 @@ handle_icon_button_press (NemoIconContainer *container,
 			details->range_selection_base_icon = icon;
 		}
 		if (select_range (container, start_icon, icon,
-				  (event->state & GDK_CONTROL_MASK) == 0)) {
+				  (event->state & eel_gtk_primary_mask (event->window)) == 0)) {
 			g_signal_emit (container,
 				       signals[SELECTION_CHANGED], 0);
 		}

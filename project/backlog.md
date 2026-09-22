@@ -61,10 +61,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
 
-- 🔘 For macOS, many actions that require CTRL+[something] in Linux or Windows, would more naturally be Command+[something] in macOS. (E.g. keyboard mod behavior in Finder.) Account for these combo key differences. But don't go overboard, e.g. don't require "Cmd+down arrow" to enter a folder. Keep the current keyboard behavior, just remap the sensible things from Ctrl to Cmd on macOS where it makes sense.
-	- Opened: 20260919-125440
-	- Settled 20260920: write it now rather than wait for a macOS target. There is no way to run it here, so it goes in behind a platform check and stays unverified until there is a machine to try it on.
-
 - 🔘 Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922
 	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
@@ -1611,6 +1607,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ For macOS, many actions that require CTRL+[something] in Linux or Windows, would more naturally be Command+[something] in macOS. (E.g. keyboard mod behavior in Finder.) Account for these combo key differences. But don't go overboard, e.g. don't require "Cmd+down arrow" to enter a folder. Keep the current keyboard behavior, just remap the sensible things from Ctrl to Cmd on macOS where it makes sense.
+	- Opened: 20260919-125440. Closed: 20260922.
+	- Settled 20260920: write it now rather than wait for a macOS target. There is no way to run it here, so it goes in behind a platform check and stays unverified until there is a machine to try it on.
+	- Menu shortcuts use GTK's "Primary" key, which is Cmd on macOS and Control everywhere else. The same key now adds to a selection by click, opens a new tab or window by click, zooms by scroll, and does cut, copy, paste and select all while renaming.
+	- A few stay on Control on macOS, where Cmd already means something: showing hidden files (Cmd+H hides the app), make symlink (Cmd+M minimizes), the shortcuts window (Cmd+F1) and tab switching. Keyboard moves that keep the selection stay on Control too, as GTK's own lists do.
+	- Nothing changes on Linux or Windows. Unverified on a Mac until there is one to try it on.
+	- Not done: Ctrl+click for the context menu, the macOS habit. Its own item if wanted once a Mac build exists.
 
 - ✅ Additional thumbnailer formats:
 	- Raw files including .dng

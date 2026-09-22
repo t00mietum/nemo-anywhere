@@ -266,6 +266,15 @@ test('Focus guard test',
   args: []
 )
 
+test('Primary mask test',
+  executable('test-eel-primary-mask',
+    [ 'test-eel-primary-mask.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+  ),
+  args: []
+)
+
 test('Entry context menu test',
   executable('test-nemo-entry-menu',
     [ 'test-nemo-entry-menu.c' ],
