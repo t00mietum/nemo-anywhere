@@ -987,6 +987,8 @@ finalize (GObject *object)
 		uri = nemo_file_get_uri (file);
 		nemo_thumbnail_remove_from_queue (uri);
 		g_free (uri);
+		/* A job cancelled here never comes back to clear the flag. */
+		nemo_thumbnail_note_job (FALSE);
 	}
 
 	nemo_async_destroying_file (file);
@@ -5173,6 +5175,22 @@ nemo_file_forget_held_thumbnail (NemoFile *file)
     details->thumbnail_is_up_to_date = FALSE;
 }
 
+/* A picture on its way counts as wanted, and one held with nothing more on
+ * its way as shown. One nothing was asked for is neither, so the count
+ * settles once the queue is empty. */
+void
+nemo_file_count_thumbnail (NemoFile *file, guint *shown, guint *wanted)
+{
+    NemoFileDetails *details = file->details;
+
+    if (details->is_thumbnailing) {
+        (*wanted)++;
+    } else if (details->thumbnail != NULL) {
+        (*wanted)++;
+        (*shown)++;
+    }
+}
+
 gboolean
 nemo_file_has_loaded_thumbnail (NemoFile *file)
 {
@@ -9245,6 +9263,10 @@ nemo_file_set_is_thumbnailing (NemoFile *file,
 				   gboolean is_thumbnailing)
 {
 	g_return_if_fail (NEMO_IS_FILE (file));
+
+	if (file->details->is_thumbnailing != is_thumbnailing) {
+		nemo_thumbnail_note_job (is_thumbnailing);
+	}
 
 	file->details->is_thumbnailing = is_thumbnailing;
 }

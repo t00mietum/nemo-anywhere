@@ -47,12 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Show two vertically stacked progress bars for thumbnail rendering, in the status bar:
-	- E.g.:
-		- Building  # I.e. reading files and caching them
-		- Rendering # I.e. painting the thumbnails to the view
-	- Placement: Between the "places|treeview|contents" buttons, and the [item count + other info] info in the middle.
-
 - 🔘 Idea: Instead of relying on checksum for uniqueness (which is slow to read from xattrs or scan the file).
 	- Maybe first check for unique combinations of:
 		- mtime
@@ -1595,6 +1589,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Show two vertically stacked progress bars for thumbnail rendering, in the status bar:
+	- E.g.:
+		- Building  # I.e. reading files and caching them
+		- Rendering # I.e. painting the thumbnails to the view
+	- Placement: Between the "places|treeview|contents" buttons, and the [item count + other info] info in the middle.
+	- Opened: 20260922. Closed: 20260922.
+	- The top bar is how much of the current run of thumbnails is made. The bottom one is how many of the pictures on screen are drawn, in icon view. Hovering over either gives the counts.
+	- They come up only when a run lasts more than a moment, and go away shortly after it ends. The space stays reserved, so the status text does not jump sideways.
 
 - ✅ Thumbnails:
 	- ✅ Feature: Show thumbnails for PSD format if possible. IIRC the layers are TIFF format, but maybe a special reader is needed.

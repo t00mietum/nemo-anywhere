@@ -5739,6 +5739,36 @@ update_visible_icons_cb (NemoIconContainer *container)
     return G_SOURCE_REMOVE;
 }
 
+/* Pictures on screen, for the status bar. Unlike the pass above this counts
+ * only what is inside the view, not the half screen either side. */
+void
+nemo_icon_container_count_thumbnails (NemoIconContainer *container,
+				      guint             *shown,
+				      guint             *wanted)
+{
+	double min_x, max_x, min_y, max_y;
+	GList *node;
+
+	*shown = *wanted = 0;
+
+	if (!gtk_widget_get_realized (GTK_WIDGET (container))) {
+		return;
+	}
+
+	get_view_bounds (container, &min_x, &min_y, &max_x, &max_y);
+
+	for (node = container->details->icons; node != NULL; node = node->next) {
+		NemoIcon *icon = node->data;
+
+		if (!icon->ok_to_show_thumb || !nemo_icon_container_icon_is_positioned (icon) ||
+		    screens_from_view (container, icon, min_x, min_y, max_x, max_y) > 0) {
+			continue;
+		}
+
+		nemo_file_count_thumbnail (NEMO_FILE (icon->data), shown, wanted);
+	}
+}
+
 /* The pass above waits for scrolling to stop, and until it runs an icon just
  * scrolled in shows whatever it showed last, the type icon for one never on
  * screen before. So this runs before the next frame is drawn, and only for
