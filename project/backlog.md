@@ -47,6 +47,23 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Show two vertically stacked progress bars for thumbnail rendering, in the status bar:
+	- E.g.:
+		- Building  # I.e. reading files and caching them
+		- Rendering # I.e. painting the thumbnails to the view
+	- Placement: Between the "places|treeview|contents" buttons, and the [item count + other info] info in the middle.
+
+- 🔘 Idea: Instead of relying on checksum for uniqueness (which is slow to read from xattrs or scan the file).
+	- Maybe first check for unique combinations of:
+		- mtime
+		- ctime
+		- file size
+		- local filesystem inode (if known to be stable for the filesystem - e.g. FUSE isn't)
+		- Unique filesystem mountpoint hash. (Required to differentiate non-unique inode #s per filesystem.)
+	- If that's not enough:
+		- Checksum of a fixed amount of a deterministic pseudorandom small chunk of the file (based on filesize).
+	- Only if it's still ambiguous or unreliable, then fall back to checksum.
+
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
 
