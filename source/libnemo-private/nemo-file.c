@@ -44,6 +44,7 @@
 #include "nemo-search-engine.h"
 #include "nemo-search-directory-file.h"
 #include "nemo-thumbnails.h"
+#include "nemo-thumbnail-memory.h"
 #include "nemo-trash-monitor.h"
 #include "nemo-vfs-file.h"
 #include "nemo-file-undo-operations.h"
@@ -622,6 +623,21 @@ nemo_file_set_metadata_internal (NemoFile *file,
 	}
 }
 
+/* Every picture a file holds is counted, so the memory for them has a limit. */
+static void
+set_held_thumbnail (NemoFile *file, GdkPixbuf *pixbuf)
+{
+    if (file->details->thumbnail != NULL) {
+        nemo_thumbnail_memory_released (file);
+    }
+
+    g_set_object (&file->details->thumbnail, pixbuf);
+
+    if (pixbuf != NULL) {
+        nemo_thumbnail_memory_held (file, pixbuf);
+    }
+}
+
 void
 nemo_file_clear_info (NemoFile *file)
 {
@@ -649,7 +665,7 @@ nemo_file_clear_info (NemoFile *file)
 		file->details->icon = NULL;
 	}
 
-    g_clear_object (&file->details->thumbnail);
+    set_held_thumbnail (file, NULL);
 
 	g_free (file->details->thumbnail_path);
 	file->details->thumbnail_path = NULL;
@@ -658,6 +674,7 @@ nemo_file_clear_info (NemoFile *file)
     file->details->thumbnail_type_ok = FALSE;
     file->details->thumbnail_stored_size = 0;
     file->details->thumbnail_asked_size = 0;
+    file->details->thumbnail_in_store = FALSE;
     file->details->thumbnail_from_store = FALSE;
 
 	file->details->is_launcher = FALSE;
@@ -1009,7 +1026,7 @@ finalize (GObject *object)
 	g_free (file->details->activation_uri);
 	g_clear_object (&file->details->custom_icon);
 
-    g_clear_object (&file->details->thumbnail);
+    set_held_thumbnail (file, NULL);
 
 	if (file->details->mount) {
 		g_signal_handlers_disconnect_by_func (file->details->mount, file_mount_unmounted, file);
@@ -2994,6 +3011,7 @@ update_info_internal (NemoFile *file,
 		file->details->thumbnail_asked_size = 0;
 		file->details->thumbnail_stored_size = 0;
 		file->details->thumbnailing_failed = FALSE;
+		file->details->thumbnail_in_store = FALSE;
 	}
 
 	file->details->atime = atime;
@@ -5037,11 +5055,12 @@ nemo_file_delete_thumbnail (NemoFile *file)
 
     file->details->thumbnail_ignore_shared = TRUE;
     g_clear_pointer (&file->details->thumbnail_path, g_free);
-    g_clear_object (&file->details->thumbnail);
+    set_held_thumbnail (file, NULL);
     file->details->thumbnailing_failed = FALSE;
     file->details->thumbnail_try_ruled_out = FALSE;
     file->details->thumbnail_stored_size = 0;
     file->details->thumbnail_asked_size = 0;
+    file->details->thumbnail_in_store = FALSE;
     file->details->thumbnail_from_store = FALSE;
 
     nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
@@ -5060,7 +5079,7 @@ nemo_file_take_thumbnail (NemoFile                  *file,
     details->thumbnail_stored_capped = loaded->stored_capped;
 
     if (loaded->failed) {
-        g_clear_object (&details->thumbnail);
+        set_held_thumbnail (file, NULL);
         details->thumbnailing_failed = TRUE;
         return;
     }
@@ -5071,7 +5090,7 @@ nemo_file_take_thumbnail (NemoFile                  *file,
     if (loaded->pixbuf == NULL)
         return;
 
-    g_clear_object (&details->thumbnail);
+    set_held_thumbnail (file, NULL);
 
     /* A freedesktop thumbnail of an older version of the file. */
     if (!loaded->from_store && loaded->shared_mtime != 0 &&
@@ -5080,7 +5099,7 @@ nemo_file_take_thumbnail (NemoFile                  *file,
         return;
     }
 
-    details->thumbnail = g_object_ref (loaded->pixbuf);
+    set_held_thumbnail (file, loaded->pixbuf);
     details->thumbnail_mtime = details->mtime;
     details->thumbnail_capped = loaded->capped;
 }
@@ -5129,6 +5148,17 @@ nemo_file_wants_thumbnail_ahead (NemoFile *file)
            nemo_file_thumbnail_type_ok (file);
 }
 
+gboolean
+nemo_file_wants_thumbnail_near_view (NemoFile *file)
+{
+    NemoFileDetails *details = file->details;
+
+    return details->thumbnail_in_store &&
+           details->thumbnail == NULL &&
+           !details->is_thumbnailing &&
+           nemo_file_should_show_thumbnail (file);
+}
+
 /* A picture read before anything was on screen goes back, so the file waits
  * for its turn like the rest rather than showing the moment it scrolls in. */
 void
@@ -5139,7 +5169,7 @@ nemo_file_forget_held_thumbnail (NemoFile *file)
     if (details->thumbnail == NULL)
         return;
 
-    g_clear_object (&details->thumbnail);
+    set_held_thumbnail (file, NULL);
     details->thumbnail_is_up_to_date = FALSE;
 }
 
@@ -5496,6 +5526,7 @@ nemo_file_get_icon (NemoFile *file,
 			double thumb_scale;
 
 			raw_pixbuf = g_object_ref (file->details->thumbnail);
+			nemo_thumbnail_memory_used (file);
 
 			w = gdk_pixbuf_get_width (raw_pixbuf);
 			h = gdk_pixbuf_get_height (raw_pixbuf);

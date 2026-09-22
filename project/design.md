@@ -358,7 +358,11 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - The file's own type icon stays up until its thumbnail is ready. There is no "loading" icon in between, since few themes have one and the stand-in flashed. An edited file keeps its old thumbnail until the new one is made.
 
-- A folder of pictures on a local disk has all its thumbnails made once it has loaded, strictly top down in view order. Nothing is asked for while it loads, since where a file ends up is only known once the whole folder is in. Scrolling does not change the order: a file that comes into view waits its turn, and so does a picture stored on an earlier visit. A new sort or zoom queues the folder again in its new order. What is made for a file not yet shown goes into the store only. Holding the pictures for thousands of files would cost far more memory than reading one back when it scrolls into view.
+- A folder of pictures on a local disk has all its thumbnails made once it has loaded, strictly top down in view order. Nothing is asked for while it loads, since where a file ends up is only known once the whole folder is in. Scrolling does not change the order: a file that comes into view waits its turn, and so does a picture stored on an earlier visit. A new sort or zoom queues the folder again in its new order.
+
+- Each picture is also held in memory as it is made or found in the store, still in that order, so scrolling anywhere finds it drawn already. That stops at a limit, 1 GiB by default. Past it only the pictures within two screens of the view are held. Those are read back from the store several at a time, and the picture drawn longest ago makes room, one from a folder no view shows first.
+
+- A folder that is left keeps its pictures for a minute, in case it is gone back to. Opening another folder of pictures lets them go at once.
 
 - Thumbnails are made on half the processors by default, so neighbors can finish a little out of order. None can go ahead of its place in the queue. A folder that is not mostly pictures, or is on a share, is only made as it comes into view, top down on each screen.
 

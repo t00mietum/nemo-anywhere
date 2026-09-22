@@ -37,6 +37,7 @@
 #include "nemo-selection-canvas-item.h"
 #include "nemo-desktop-utils.h"
 #include "nemo-thumbnails.h"
+#include "nemo-thumbnail-memory.h"
 #include <atk/atkaction.h>
 #include <eel/eel-accessibility.h>
 #include <eel/eel-vfs-extensions.h>
@@ -75,6 +76,10 @@
 
 #define INITIAL_UPDATE_VISIBLE_DELAY 300
 #define NORMAL_UPDATE_VISIBLE_DELAY 50
+
+/* How far above and below the view pictures are held once the memory for
+   them is used up. */
+#define NEAR_VIEW_SCREENS 2
 
 /* Button assignments. */
 #define DRAG_BUTTON 1
@@ -5201,6 +5206,11 @@ nemo_icon_container_clear (NemoIconContainer *container)
         container->details->update_visible_icons_id = 0;
     }
 
+    if (container->details->reveal_icons_id > 0) {
+        g_source_remove (container->details->reveal_icons_id);
+        container->details->reveal_icons_id = 0;
+    }
+
 	if (details->icons == NULL) {
 		return;
 	}
@@ -5596,90 +5606,182 @@ nemo_icon_container_unfreeze_updates (NemoIconContainer *container)
 	klass->unfreeze_updates (container);
 }
 
-static gboolean
-update_visible_icons_cb (NemoIconContainer *container)
+static void
+get_view_bounds (NemoIconContainer *container,
+		 double *min_x, double *min_y,
+		 double *max_x, double *max_y)
 {
 	GtkAdjustment *vadj, *hadj;
-	double min_y, max_y;
-	double min_x, max_x;
-	double x0, y0, x1, y1;
-	GList *node;
-	NemoIcon *icon;
-	gboolean visible;
 	GtkAllocation allocation;
-
-    container->details->update_visible_icons_id = 0;
 
 	hadj = gtk_scrollable_get_hadjustment (GTK_SCROLLABLE (container));
 	vadj = gtk_scrollable_get_vadjustment (GTK_SCROLLABLE (container));
 	gtk_widget_get_allocation (GTK_WIDGET (container), &allocation);
 
-	min_x = gtk_adjustment_get_value (hadj);
-	max_x = min_x + allocation.width;
+	*min_x = gtk_adjustment_get_value (hadj);
+	*max_x = *min_x + allocation.width;
 
-	min_y = gtk_adjustment_get_value (vadj);
-	max_y = min_y + allocation.height;
+	*min_y = gtk_adjustment_get_value (vadj);
+	*max_y = *min_y + allocation.height;
 
 	eel_canvas_c2w (EEL_CANVAS (container),
-			min_x, min_y, &min_x, &min_y);
+			*min_x, *min_y, min_x, min_y);
 	eel_canvas_c2w (EEL_CANVAS (container),
-			max_x, max_y, &max_x, &max_y);
+			*max_x, *max_y, max_x, max_y);
+}
+
+/* How far past the edge of the view an icon is: 0 inside it, 1 a whole
+ * screen away. */
+static double
+screens_from_view (NemoIconContainer *container, NemoIcon *icon,
+		   double min_x, double min_y, double max_x, double max_y)
+{
+	double x0, y0, x1, y1;
+	double lo, hi, start, end, page;
+
+	eel_canvas_item_get_bounds (EEL_CANVAS_ITEM (icon->item), &x0, &y0, &x1, &y1);
+	eel_canvas_item_i2w (EEL_CANVAS_ITEM (icon->item)->parent, &x0, &y0);
+	eel_canvas_item_i2w (EEL_CANVAS_ITEM (icon->item)->parent, &x1, &y1);
+
+	if (nemo_icon_container_is_layout_vertical (container)) {
+		lo = min_x; hi = max_x; start = x0; end = x1;
+	} else {
+		lo = min_y; hi = max_y; start = y0; end = y1;
+	}
+
+	page = MAX (hi - lo, 1);
+
+	if (end < lo) {
+		return (lo - end) / page;
+	}
+	if (start > hi) {
+		return (start - hi) / page;
+	}
+
+	return 0;
+}
+
+/* Not while loading. Where a file ends up is only known once the whole
+ * folder is in, and a thumbnail asked for sooner would be made out of turn. */
+static void
+start_showing_thumb (NemoIconContainer *container, NemoIcon *icon)
+{
+	NemoFile *file = NEMO_FILE (icon->data);
+
+	if (icon->ok_to_show_thumb || !container->details->ok_to_load_deferred_attrs) {
+		return;
+	}
+
+	icon->ok_to_show_thumb = TRUE;
+
+	if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
+		nemo_file_set_load_deferred_attrs (file, NEMO_FILE_LOAD_DEFERRED_ATTRS_YES);
+	}
+
+	/* A picture held already, made ahead of time, is not read from the
+	   store again. */
+	nemo_file_invalidate_attributes (file, nemo_file_has_loaded_thumbnail (file) ?
+					       NEMO_FILE_ATTRIBUTE_EXTENSION_INFO :
+					       NEMO_FILE_DEFERRED_ATTRIBUTES);
+}
+
+static gboolean
+update_visible_icons_cb (NemoIconContainer *container)
+{
+	double min_x, max_x, min_y, max_y;
+	GList *node;
+	NemoIcon *icon;
+	GList *near_view = NULL;
+	gboolean load_near;
+
+    container->details->update_visible_icons_id = 0;
+
+	/* Past the memory for pictures, only those near the view are held. */
+	load_near = container->details->ok_to_load_deferred_attrs && nemo_thumbnail_memory_full ();
+
+	get_view_bounds (container, &min_x, &min_y, &max_x, &max_y);
 
 	/* Top down, since what is asked for first is read and made first. */
 	for (node = container->details->icons; node != NULL; node = node->next) {
+		double away;
+
 		icon = node->data;
 
-		if (nemo_icon_container_icon_is_positioned (icon)) {
-			eel_canvas_item_get_bounds (EEL_CANVAS_ITEM (icon->item),
-						    &x0,
-						    &y0,
-						    &x1,
-						    &y1);
-			eel_canvas_item_i2w (EEL_CANVAS_ITEM (icon->item)->parent,
-					     &x0,
-					     &y0);
-			eel_canvas_item_i2w (EEL_CANVAS_ITEM (icon->item)->parent,
-					     &x1,
-					     &y1);
+		if (!nemo_icon_container_icon_is_positioned (icon)) {
+			continue;
+		}
 
-            gint overshoot;
+		away = screens_from_view (container, icon, min_x, min_y, max_x, max_y);
 
-			if (nemo_icon_container_is_layout_vertical (container)) {
-                overshoot = (max_x - min_x) / 2;
+		if (load_near && away <= NEAR_VIEW_SCREENS &&
+		    nemo_file_wants_thumbnail_near_view (NEMO_FILE (icon->data))) {
+			near_view = g_list_prepend (near_view, icon->data);
+		}
 
-				visible = x1 >= min_x - overshoot && x0 <= max_x + overshoot;
-			} else {
-                overshoot = (max_y - min_y) / 2;
-
-				visible = y1 >= min_y - overshoot && y0 <= max_y + overshoot;
-			}
-
-			if (visible) {
-				nemo_icon_canvas_item_set_is_visible (icon->item, TRUE);
-                NemoFile *file = NEMO_FILE (icon->data);
-
-                /* Not while loading. Where a file ends up is only known once
-                   the whole folder is in, and a thumbnail asked for sooner
-                   would be made out of turn. */
-                if (!icon->ok_to_show_thumb && container->details->ok_to_load_deferred_attrs) {
-
-                    icon->ok_to_show_thumb = TRUE;
-
-                    if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
-                        nemo_file_set_load_deferred_attrs (file, NEMO_FILE_LOAD_DEFERRED_ATTRS_YES);
-                    }
-
-                    nemo_file_invalidate_attributes (file, NEMO_FILE_DEFERRED_ATTRIBUTES);
-                }
-
-                nemo_icon_container_update_icon (container, icon);
-			} else {
-				nemo_icon_canvas_item_set_is_visible (icon->item, FALSE);
-			}
+		/* Half a screen either way counts as in view. */
+		if (away <= 0.5) {
+			nemo_icon_canvas_item_set_is_visible (icon->item, TRUE);
+			start_showing_thumb (container, icon);
+			nemo_icon_container_update_icon (container, icon);
+		} else {
+			nemo_icon_canvas_item_set_is_visible (icon->item, FALSE);
 		}
 	}
 
+	if (near_view != NULL) {
+		near_view = g_list_reverse (near_view);
+		nemo_thumbnail_load_near_view (near_view,
+					       nemo_icon_container_get_icon_size (container) *
+					       gtk_widget_get_scale_factor (GTK_WIDGET (container)));
+		g_list_free (near_view);
+	}
+
     return G_SOURCE_REMOVE;
+}
+
+/* The pass above waits for scrolling to stop, and until it runs an icon just
+ * scrolled in shows whatever it showed last, the type icon for one never on
+ * screen before. So this runs before the next frame is drawn, and only for
+ * icons coming into view for the first time: a picture held for one already
+ * is drawn with it straight away. */
+static gboolean
+reveal_new_icons_cb (NemoIconContainer *container)
+{
+	double min_x, max_x, min_y, max_y;
+	GList *node;
+
+	container->details->reveal_icons_id = 0;
+
+	if (!container->details->ok_to_load_deferred_attrs) {
+		return G_SOURCE_REMOVE;
+	}
+
+	get_view_bounds (container, &min_x, &min_y, &max_x, &max_y);
+
+	for (node = container->details->icons; node != NULL; node = node->next) {
+		NemoIcon *icon = node->data;
+
+		if (icon->ok_to_show_thumb || !nemo_icon_container_icon_is_positioned (icon) ||
+		    screens_from_view (container, icon, min_x, min_y, max_x, max_y) > 0.5) {
+			continue;
+		}
+
+		nemo_icon_canvas_item_set_is_visible (icon->item, TRUE);
+		start_showing_thumb (container, icon);
+		nemo_icon_container_update_icon (container, icon);
+	}
+
+	return G_SOURCE_REMOVE;
+}
+
+static void
+queue_reveal_new_icons (NemoIconContainer *container)
+{
+	if (container->details->reveal_icons_id == 0) {
+		container->details->reveal_icons_id =
+			g_idle_add_full (GDK_PRIORITY_REDRAW - 10, (GSourceFunc) reveal_new_icons_cb,
+					 container, NULL);
+	}
 }
 
 static void
@@ -5700,6 +5802,7 @@ handle_vadjustment_changed (GtkAdjustment *adjustment,
 			    NemoIconContainer *container)
 {
 	if (!nemo_icon_container_is_layout_vertical (container)) {
+		queue_reveal_new_icons (container);
 		queue_update_visible_icons (container, NORMAL_UPDATE_VISIBLE_DELAY);
 	}
 }
@@ -5709,6 +5812,7 @@ handle_hadjustment_changed (GtkAdjustment *adjustment,
 			    NemoIconContainer *container)
 {
 	if (nemo_icon_container_is_layout_vertical (container)) {
+		queue_reveal_new_icons (container);
 		queue_update_visible_icons (container, NORMAL_UPDATE_VISIBLE_DELAY);
 	}
 }

@@ -261,6 +261,9 @@ gboolean                nemo_file_has_loaded_thumbnail              (NemoFile   
 /* Not drawn yet and nothing asked about it, but a thumbnail could be made:
  * what a folder rendered ahead of time queues. */
 gboolean                nemo_file_wants_thumbnail_ahead             (NemoFile                   *file);
+/* Made already and waiting in the store, not held, so it can be read back
+ * cheaply once it is near the view. */
+gboolean                nemo_file_wants_thumbnail_near_view         (NemoFile                   *file);
 void                    nemo_file_forget_held_thumbnail             (NemoFile                   *file);
 gboolean                nemo_file_should_show_directory_item_count  (NemoFile                   *file);
 gboolean                nemo_file_should_show_type                  (NemoFile                   *file);

@@ -153,6 +153,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Scrolling down can still cause the last already cached thumbnails to render (e.g. if you scroll to the bottom soon after entering the folder), while none of the ones above (as judged by scrolling up) are not yet rendered in the file view.
+	- Opened: 20260922
+	- Closed: 20260922.
+	- ✅ Expected behavior: Render all thumbnails to the view in approximate order of the current sort order. (Only varying by threads that return earlier.)
+	- The pictures were made in order, but one never on screen was only kept in the store and read back once it scrolled in. So scrolling back up showed type icons for a moment.
+	- Each picture is now held as it is made or found, up to a new "Keep in memory" setting on the Preview page, 1 GiB by default. Past it, the pictures within two screens of the view are read back ahead, and the one drawn longest ago makes room.
+	- A folder that is left keeps its pictures for a minute, or until another folder of pictures is opened.
+
 - ✅ Thumbnail rendering is still trying to follow the thumbnails in the view.
 	- Opened: 20260921
 	- Closed: 20260922.

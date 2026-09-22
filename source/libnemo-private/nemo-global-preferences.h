@@ -44,6 +44,7 @@ G_BEGIN_DECLS
 /* The file cache and when it is cleaned up. */
 #define NEMO_FILE_CACHE_GROUP				"file-cache"
 #define NEMO_FILE_CACHE_MAX_SIZE_GIB			"max-size-gib"
+#define NEMO_FILE_CACHE_MEMORY_GIB			"memory-gib"
 #define NEMO_FILE_CACHE_MAX_AGE_DAYS			"max-age-days"
 #define NEMO_FILE_CACHE_DROP_MISSING			"drop-missing"
 #define NEMO_FILE_CACHE_SAVE_CHECKSUM			"save-checksum"

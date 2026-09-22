@@ -122,6 +122,11 @@ field: file-cache.max-size-gib
 	default: 2
 	desc: Largest the file cache may get, in GiB. The least recently drawn thumbnails go first. 0 for no limit
 
+field: file-cache.memory-gib
+	type: float
+	default: 1
+	desc: Most memory the thumbnails held ready to draw may take, in GiB. Past it only those near the view are held. 0 holds only what is on screen
+
 field: file-cache.max-age-days
 	type: int
 	default: 180
