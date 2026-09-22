@@ -51,7 +51,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- "Contents" and "Size" don't mean much. Better:
 		- Folder count
 		- File count
-		- File size (adds up live - counting largest files in the tree first).
+		- File size
+			- Adds up live
+			- Counting largest files in the tree first
+				- Which will require gathering the list first, which is fine.
+					- That will at least allow "File count" to populate early.
 	- Remove "Help" button
 
 - 🔘 Additional thumbnailer formats:
