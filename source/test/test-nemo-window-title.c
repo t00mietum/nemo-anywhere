@@ -1,4 +1,4 @@
-/* The window title names the program and then the folder, so a taskbar button
+/* The window title names the folder and then the program, so a taskbar button
  * says which program it belongs to. The folder part is whatever the tabs show,
  * which is a name or a full path depending on the preference, so this only
  * checks the wrapping around it. */
@@ -42,7 +42,7 @@ check_long_one_is_truncated (void)
 	location_title = g_strnfill (240, 'a');
 	left = g_strnfill (88, 'a');
 	right = g_strnfill (89, 'a');
-	expected = g_strdup_printf ("Nemo Anywhere - '%s...%s'", left, right);
+	expected = g_strdup_printf ("%s...%s - Nemo Anywhere", left, right);
 
 	check_is (location_title, expected);
 
@@ -57,19 +57,27 @@ main (int argc, char *argv[])
 {
 	/* A folder name, which is what the title holds with the full-path
 	   preference off. */
-	check_is ("Documents", "Nemo Anywhere - 'Documents'");
-	check_is ("Home", "Nemo Anywhere - 'Home'");
+	check_is ("Documents", "Documents - Nemo Anywhere");
+	check_is ("Home", "Home - Nemo Anywhere");
 
 	/* A path, which is what it holds with the preference on. Both separators,
 	   since the display separator follows the platform. */
 	check_is ("/home/somebody/Documents",
-		  "Nemo Anywhere - '/home/somebody/Documents'");
+		  "/home/somebody/Documents - Nemo Anywhere");
 	check_is ("C:\\Users\\somebody\\Documents",
-		  "Nemo Anywhere - 'C:\\Users\\somebody\\Documents'");
+		  "C:\\Users\\somebody\\Documents - Nemo Anywhere");
+
+	/* A space anywhere in it, folder or parent, puts the whole thing in
+	   quotes, so the " - " before the program name cannot be mistaken for
+	   part of it. */
+	check_is ("My Documents", "\"My Documents\" - Nemo Anywhere");
+	check_is ("/home/some body/Documents",
+		  "\"/home/some body/Documents\" - Nemo Anywhere");
+	check_is ("a\tb", "\"a\tb\" - Nemo Anywhere");
 
 	/* A drive root keeps the name the sidebar gives it, not a bare separator.
 	   That was a bug once; see the closed item in the backlog. */
-	check_is ("Windows (C:)", "Nemo Anywhere - 'Windows (C:)'");
+	check_is ("Windows (C:)", "\"Windows (C:)\" - Nemo Anywhere");
 
 	/* Nothing to name yet - a window that has not loaded a location. */
 	check_is (NULL, "Nemo Anywhere");
@@ -77,7 +85,8 @@ main (int argc, char *argv[])
 
 	/* A quote in a folder name is left alone, so the title can be ambiguous.
 	   Escaping it would read worse than the odd name does. */
-	check_is ("it's mine", "Nemo Anywhere - 'it's mine'");
+	check_is ("it's mine", "\"it's mine\" - Nemo Anywhere");
+	check_is ("say \"hi\"", "\"say \"hi\"\" - Nemo Anywhere");
 
 	check_long_one_is_truncated ();
 
