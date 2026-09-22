@@ -31,6 +31,7 @@
 #include "nemo-global-preferences.h"
 #include "nemo-file-utilities.h"
 #include "nemo-file-digest.h"
+#include "nemo-thumbnail-memory.h"
 #include <math.h>
 #include <eel/eel-graphic-effects.h>
 #include <eel/eel-string.h>
@@ -86,6 +87,7 @@ typedef struct {
     guint had_thumbnail : 1;    /* a smaller one is already stored */
     guint save_checksum : 1;    /* write the checksum onto the file too */
     guint ahead : 1;            /* not on screen yet; only the store wants it */
+    guint load_only : 1;        /* already made; read it back to hold near the view */
 } NemoThumbnailInfo;
 
 /* How it works:
@@ -319,9 +321,29 @@ thumbnail_ahead_already_stored (gpointer image_uri)
 
     if (file != NULL) {
         nemo_file_set_is_thumbnailing (file, FALSE);
+        file->details->thumbnail_in_store = TRUE;
         if (nemo_file_get_load_deferred_attrs (file) != NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
             nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
         }
+        nemo_file_unref (file);
+    }
+
+    g_free (image_uri);
+
+    return G_SOURCE_REMOVE;
+}
+
+/* Read back to be held near the view, and it was not there after all. */
+static gboolean
+thumbnail_not_loaded (gpointer image_uri)
+{
+    NemoFile *file;
+
+    file = nemo_file_get_by_uri ((char *) image_uri);
+
+    if (file != NULL) {
+        nemo_file_set_is_thumbnailing (file, FALSE);
+        file->details->thumbnail_in_store = FALSE;
         nemo_file_unref (file);
     }
 
@@ -335,6 +357,7 @@ typedef struct {
     char *uri;
     time_t mtime;
     gboolean ahead;
+    gboolean near_view;     /* wanted near the view, so held whatever it costs */
     NemoThumbnailLoaded loaded;
 } RenderDone;
 
@@ -354,14 +377,22 @@ thumbnail_render_done (gpointer data)
         /* Edited while it was being drawn, so what was drawn is stale. */
         if (file->details->mtime != done->mtime) {
             nemo_file_invalidate_attributes (file, NEMO_FILE_ATTRIBUTE_THUMBNAIL);
-        } else if (done->ahead &&
-                   nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
-            /* Still not in view. Holding the picture for every file in a big
-               folder would cost far more memory than reading it back from the
-               store once the file scrolls in. */
+        } else if (done->ahead && !done->near_view &&
+                   nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO &&
+                   !nemo_thumbnail_memory_has_room (done->loaded.pixbuf)) {
+            /* Still not in view, and the memory for pictures is used up. It is
+               read back from the store once it comes near the view. */
+            file->details->thumbnail_in_store = done->loaded.from_store;
         } else {
+            gboolean seen = nemo_file_get_load_deferred_attrs (file) != NEMO_FILE_LOAD_DEFERRED_ATTRS_NO;
+
             nemo_file_take_thumbnail (file, &done->loaded);
-            nemo_file_changed (file);
+
+            /* One never on screen is drawn from what it holds when it gets
+               there, so there is nothing to redraw now. */
+            if (seen || done->near_view) {
+                nemo_file_changed (file);
+            }
         }
 
         nemo_file_unref (file);
@@ -546,6 +577,29 @@ remove_from_hash_table (NemoThumbnailInfo *info)
     free_thumbnail_info (info);
 }
 
+/* Thumbnail thread. A picture already in the store, decoded here and handed
+ * to the file as if it had just been made. */
+static gboolean
+hand_over_stored (NemoThumbnailInfo *info, gboolean near_view)
+{
+    RenderDone *done = g_new0 (RenderDone, 1);
+
+    nemo_thumbnail_load (info->image_uri, &info->id, NULL, info->size, &done->loaded);
+
+    if (done->loaded.pixbuf == NULL) {
+        g_free (done);
+        return FALSE;
+    }
+
+    done->uri = g_strdup (info->image_uri);
+    done->mtime = info->original_file_mtime;
+    done->ahead = TRUE;
+    done->near_view = near_view;
+    g_idle_add_full (G_PRIORITY_HIGH_IDLE, thumbnail_render_done, done, NULL);
+
+    return TRUE;
+}
+
 /* Thumbnail thread */
 static void
 thumbnail_thread (gpointer data,
@@ -570,6 +624,15 @@ thumbnail_thread (gpointer data,
         get_file_mtime (info->image_uri, &info->original_file_mtime, &info->id);
     }
 
+    if (info->load_only) {
+        if (!hand_over_stored (info, TRUE)) {
+            g_idle_add_full (G_PRIORITY_HIGH_IDLE, thumbnail_not_loaded,
+                             g_strdup (info->image_uri), NULL);
+        }
+        remove_from_hash_table (info);
+        return;
+    }
+
     time (&current_time);
 
     /* Don't try to create a thumbnail if the file was modified recently.
@@ -591,6 +654,15 @@ thumbnail_thread (gpointer data,
 
     if (db != NULL && already_stored (db, info)) {
         DEBUG ("(Thumbnail Thread) Already stored: %s", info->image_uri);
+
+        /* Read back now, in its turn and on this thread, so it is drawn
+           already when the view gets to it. */
+        if (info->ahead && !nemo_thumbnail_memory_full () && hand_over_stored (info, FALSE)) {
+            save_digest_on_file (info);
+            remove_from_hash_table (info);
+            return;
+        }
+
         g_idle_add_full (G_PRIORITY_HIGH_IDLE,
                          info->ahead ? thumbnail_ahead_already_stored :
                                        thumbnail_thread_notify_file_changed,
@@ -741,7 +813,11 @@ feeder_thread (GTask        *task,
                     existing_info->original_file_mtime = feeder_info->original_file_mtime;
                     existing_info->id = feeder_info->id;
                     existing_info->size = MAX (existing_info->size, feeder_info->size);
-                    if (feeder_info->ahead) {
+                    if (feeder_info->load_only) {
+                        /* Already on its way, made or read. Where it is
+                           stays as it is. */
+                    } else if (feeder_info->ahead) {
+                        existing_info->load_only = FALSE;
                         /* Queued again in view order: takes the new place,
                            which only counts once the queue is sorted. */
                         existing_info->ahead = TRUE;
@@ -752,6 +828,7 @@ feeder_thread (GTask        *task,
                            place, or the last file in a folder could be made
                            first just by looking at it. */
                         existing_info->ahead = FALSE;
+                        existing_info->load_only = FALSE;
                     }
                 }
                 DEBUG ("(Add thumbnail) Unlocking mutex");
@@ -834,7 +911,7 @@ finalize_thumbnailer (void)
 
 /* Mainloop */
 static void
-queue_render (NemoFile *file, int size, gboolean ahead, gint64 order)
+queue_render (NemoFile *file, int size, gboolean ahead, gboolean load_only, gint64 order)
 {
     time_t file_mtime = 0;
     static gsize once_init = 0;
@@ -867,7 +944,7 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 order)
 
         real_file = nemo_file_get_by_uri (uri);
         if (real_file != NULL) {
-            queue_render (real_file, size, ahead, order);
+            queue_render (real_file, size, ahead, load_only, order);
             nemo_file_unref (real_file);
         }
 
@@ -904,6 +981,7 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 order)
                                                    NEMO_FILE_CACHE_SAVE_CHECKSUM);
     info->order = order;
     info->ahead = ahead;
+    info->load_only = load_only;
     info->cmd_type = THUMBNAIL_ADD;
 
     nemo_file_set_is_thumbnailing (file, TRUE);
@@ -918,17 +996,30 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 order)
 /* A file that a folder queued ahead has placed keeps that place, so asking
  * again because it scrolled into view, grew or changed cannot move it up.
  * Anything else is first come first served, ahead of every folder. */
+static gint64 asked = 0;
+
 void
 nemo_create_thumbnail (NemoFile *file, int size)
 {
-    static gint64 asked = 0;
     gint64 order = file->details->thumbnail_order;
 
     if (order == 0) {
         order = G_MININT64 + ++asked;
     }
 
-    queue_render (file, size, FALSE, order);
+    queue_render (file, size, FALSE, FALSE, order);
+}
+
+/* Only reads back what is made already, so nothing is made out of turn, and
+ * that is cheap enough to go ahead of every folder still being made. */
+void
+nemo_thumbnail_load_near_view (GList *files, int size)
+{
+    GList *l;
+
+    for (l = files; l != NULL; l = l->next) {
+        queue_render (l->data, size, TRUE, TRUE, G_MININT64 + ++asked);
+    }
 }
 
 /* Every file gets its place, in the order given, whether it needs making now
@@ -951,7 +1042,7 @@ nemo_thumbnail_render_ahead (GList *files, int size)
         file->details->thumbnail_order = -(band << 32) + place++;
 
         if (nemo_file_is_thumbnailing (file) || nemo_file_wants_thumbnail_ahead (file)) {
-            queue_render (file, size, TRUE, file->details->thumbnail_order);
+            queue_render (file, size, TRUE, FALSE, file->details->thumbnail_order);
         }
     }
 }

@@ -111,6 +111,12 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
     <property name="step-increment">0.5</property>
     <property name="page-increment">4</property>
   </object>
+  <object class="GtkAdjustment" id="file_cache_memory_adjustment">
+    <property name="upper">64</property>
+    <property name="value">1</property>
+    <property name="step-increment">0.25</property>
+    <property name="page-increment">1</property>
+  </object>
   <object class="GtkAdjustment" id="file_cache_age_adjustment">
     <property name="upper">3650</property>
     <property name="value">180</property>
@@ -185,6 +191,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
       <widget name="preview_label_0"/>
       <widget name="preview_label_1"/>
       <widget name="hbox_file_cache_size_label"/>
+      <widget name="hbox_file_cache_memory_label"/>
       <widget name="hbox_file_cache_age_label"/>
       <widget name="preview_label_2"/>
     </widgets>
@@ -4130,6 +4137,63 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                         </packing>
                                       </child>
                                       <child>
+                                        <object class="GtkBox" id="hbox_file_cache_memory">
+                                          <property name="visible">True</property>
+                                          <property name="can-focus">False</property>
+                                          <property name="spacing">12</property>
+                                          <child>
+                                            <object class="GtkLabel" id="hbox_file_cache_memory_label">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="label" translatable="yes">_Keep in memory:</property>
+                                              <property name="use-underline">True</property>
+                                              <property name="mnemonic-widget">file_cache_memory_spinbutton</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="position">0</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkSpinButton" id="file_cache_memory_spinbutton">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">True</property>
+                                              <property name="tooltip-text" translatable="yes">Thumbnails kept ready to draw, so scrolling finds them drawn already. Past this, only those near the view are kept. 0 keeps only what is on screen.</property>
+                                              <property name="width-chars">6</property>
+                                              <property name="max-width-chars">6</property>
+                                              <property name="adjustment">file_cache_memory_adjustment</property>
+                                              <property name="digits">2</property>
+                                              <property name="numeric">True</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">True</property>
+                                              <property name="position">1</property>
+                                            </packing>
+                                          </child>
+                                          <child>
+                                            <object class="GtkLabel" id="hbox_file_cache_memory_unit">
+                                              <property name="visible">True</property>
+                                              <property name="can-focus">False</property>
+                                              <property name="label" translatable="yes">GiB</property>
+                                              <property name="xalign">0</property>
+                                            </object>
+                                            <packing>
+                                              <property name="expand">False</property>
+                                              <property name="fill">False</property>
+                                              <property name="position">2</property>
+                                            </packing>
+                                          </child>
+                                        </object>
+                                        <packing>
+                                          <property name="expand">False</property>
+                                          <property name="fill">True</property>
+                                          <property name="position">1</property>
+                                        </packing>
+                                      </child>
+                                      <child>
                                         <object class="GtkBox" id="hbox_file_cache_age">
                                           <property name="visible">True</property>
                                           <property name="can-focus">False</property>
@@ -4183,7 +4247,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                         <packing>
                                           <property name="expand">False</property>
                                           <property name="fill">True</property>
-                                          <property name="position">1</property>
+                                          <property name="position">2</property>
                                         </packing>
                                       </child>
                                       <child>
@@ -4199,7 +4263,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                         <packing>
                                           <property name="expand">False</property>
                                           <property name="fill">False</property>
-                                          <property name="position">2</property>
+                                          <property name="position">3</property>
                                         </packing>
                                       </child>
                                       <child>
@@ -4215,7 +4279,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                         <packing>
                                           <property name="expand">False</property>
                                           <property name="fill">False</property>
-                                          <property name="position">3</property>
+                                          <property name="position">4</property>
                                         </packing>
                                       </child>
                                       <child>
@@ -4269,7 +4333,7 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                         <packing>
                                           <property name="expand">False</property>
                                           <property name="fill">True</property>
-                                          <property name="position">4</property>
+                                          <property name="position">5</property>
                                         </packing>
                                       </child>
                                       </object>

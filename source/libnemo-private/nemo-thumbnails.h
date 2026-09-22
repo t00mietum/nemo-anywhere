@@ -56,6 +56,9 @@ void       nemo_create_thumbnail                (NemoFile *file, int size);
  * on screen into the store, first to last. Scrolling cannot move one up. The
  * picture is only held for a file that came into view meanwhile. */
 void       nemo_thumbnail_render_ahead          (GList *files, int size);
+/* Reads back pictures already made for files near the view, to hold them.
+ * Used once the memory for pictures is used up. */
+void       nemo_thumbnail_load_near_view        (GList *files, int size);
 int        nemo_thumbnail_size_step             (int size);
 
 /* The store first, and the freedesktop cache only if the store has nothing.

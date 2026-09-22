@@ -48,6 +48,7 @@
 #include <gdk/gdkx.h>
 #endif
 
+#include <libnemo-private/nemo-thumbnail-memory.h>
 #ifdef G_OS_WIN32
 #include "nemo-view-win32.h"
 #include <libnemo-private/nemo-clipboard-win32.h>
@@ -3054,6 +3055,7 @@ nemo_view_destroy (GtkWidget *object)
 	}
 
 	if (view->details->model) {
+		nemo_thumbnail_memory_folder_hidden (view->details->model);
 		nemo_directory_unref (view->details->model);
 		view->details->model = NULL;
 	}
@@ -11535,6 +11537,11 @@ load_directory (NemoView *view,
 	old_directory = view->details->model;
 	nemo_directory_ref (directory);
 	view->details->model = directory;
+	/* Shown first, so a reload of the same folder never counts as leaving it. */
+	nemo_thumbnail_memory_folder_shown (directory);
+	if (old_directory != NULL) {
+		nemo_thumbnail_memory_folder_hidden (old_directory);
+	}
 	nemo_directory_unref (old_directory);
 
 	old_file = view->details->directory_as_file;

@@ -58,6 +58,7 @@
 #include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-desktop-utils.h>
+#include <libnemo-private/nemo-thumbnail-memory.h>
 
 #define DEBUG_FLAG NEMO_DEBUG_ICON_VIEW
 #include <libnemo-private/nemo-debug.h>
@@ -1172,6 +1173,10 @@ render_folder_ahead (NemoIconView *icon_view, gboolean just_loaded)
 	    !nemo_file_is_local (folder) ||
 	    nemo_file_is_on_a_share (folder)) {
 		return;
+	}
+
+	if (just_loaded) {
+		nemo_thumbnail_memory_flush_hidden ();
 	}
 
 	files = nemo_icon_container_get_data_in_order (container);

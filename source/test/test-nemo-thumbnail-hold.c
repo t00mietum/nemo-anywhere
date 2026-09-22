@@ -24,7 +24,8 @@
  * theme's "image-loading", which few themes have. So a file flashed through a
  * stand-in on its way to a thumbnail, and an edited file dropped its old picture
  * for the type icon before the new one was made. And a folder rendered ahead of
- * time must not end up holding every picture in it. */
+ * time holds its pictures only while the memory for them lasts; past that, one
+ * is read back once it is near the view. */
 
 #include <config.h>
 
@@ -39,6 +40,7 @@
 #include <libnemo-private/nemo-file-private.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-icon-info.h>
+#include <libnemo-private/nemo-thumbnail-memory.h>
 #include <libnemo-private/nemo-thumbnails.h>
 
 #include "test-scratch.h"
@@ -161,9 +163,19 @@ stored (NemoFile *file)
 }
 
 static void
+set_memory_gib (double gib)
+{
+	nemo_config_set_double (nemo_config_get_group (NEMO_FILE_CACHE_GROUP),
+				NEMO_FILE_CACHE_MEMORY_GIB, gib);
+}
+
+/* With no memory for pictures, only the one in view holds its picture. */
+static void
 test_ahead (NemoFile *off_screen, NemoFile *scrolled_in)
 {
 	GList *files = NULL;
+
+	set_memory_gib (0);
 
 	check (nemo_file_wants_thumbnail_ahead (off_screen));
 	check (nemo_file_wants_thumbnail_ahead (scrolled_in));
@@ -184,6 +196,46 @@ test_ahead (NemoFile *off_screen, NemoFile *scrolled_in)
 
 	check (stored (off_screen));
 	check (off_screen->details->thumbnail == NULL);
+	check (nemo_file_wants_thumbnail_near_view (off_screen));
+
+	/* Near the view now: read back and held, memory or not. */
+	files = g_list_append (NULL, off_screen);
+	nemo_thumbnail_load_near_view (files, 128);
+	g_list_free (files);
+	check (wait_until (has_thumbnail, off_screen));
+	check (!nemo_file_wants_thumbnail_near_view (off_screen));
+	nemo_file_forget_held_thumbnail (off_screen);
+}
+
+static gboolean
+holds_picture (NemoFile *file)
+{
+	return file->details->thumbnail != NULL && !nemo_file_is_thumbnailing (file);
+}
+
+/* With room, a file never on screen holds its picture as soon as it is made,
+ * and one made on an earlier visit is read back in its turn. So scrolling
+ * finds both drawn already. */
+static void
+test_ahead_held (NemoFile *made_now, NemoFile *made_before)
+{
+	GList *files = NULL;
+
+	set_memory_gib (1);
+
+	check (nemo_file_wants_thumbnail_ahead (made_now));
+	check (nemo_file_wants_thumbnail_ahead (made_before));
+	check (stored (made_before));
+
+	files = g_list_append (files, made_before);
+	files = g_list_append (files, made_now);
+	nemo_thumbnail_render_ahead (files, 128);
+	g_list_free (files);
+
+	check (wait_until (holds_picture, made_before));
+	check (wait_until (holds_picture, made_now));
+	check (nemo_file_get_load_deferred_attrs (made_now) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO);
+	check (nemo_thumbnail_memory_bytes () > 0);
 }
 
 int
@@ -193,7 +245,7 @@ main (int argc, char **argv)
 	g_autofree char *dir = NULL;
 	g_autofree char *uri = NULL;
 	NemoDirectory *directory;
-	NemoFile *files[3];
+	NemoFile *files[4];
 	int client, i;
 
 	gtk_init_check (&argc, &argv);
@@ -212,7 +264,7 @@ main (int argc, char **argv)
 
 	dir = g_build_filename (tmp, "pictures", NULL);
 	check (g_mkdir (dir, 0755) == 0);
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		g_autofree char *name = g_strdup_printf ("shot-%d.png", i);
 		g_autofree char *path = g_build_filename (dir, name, NULL);
 
@@ -221,7 +273,7 @@ main (int argc, char **argv)
 
 	/* A picture changed in the last two seconds is left alone in case it is
 	   still being written. Back-dating them skips the wait. */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		g_autofree char *name = g_strdup_printf ("shot-%d.png", i);
 		g_autofree char *path = g_build_filename (dir, name, NULL);
 		g_autoptr (GFile) location = g_file_new_for_path (path);
@@ -242,7 +294,7 @@ main (int argc, char **argv)
 	}
 	check (nemo_directory_are_all_files_seen (directory));
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		g_autofree char *name = g_strdup_printf ("%s/shot-%d.png", uri, i);
 
 		files[i] = nemo_file_get_by_uri (name);
@@ -251,8 +303,9 @@ main (int argc, char **argv)
 	test_icon_while_made (files[0]);
 	test_old_picture_kept (files[0]);
 	test_ahead (files[1], files[2]);
+	test_ahead_held (files[3], files[1]);
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		nemo_file_unref (files[i]);
 	}
 	nemo_directory_file_monitor_remove (directory, &client);

@@ -303,6 +303,7 @@ struct NemoIconContainerDetails {
 
     gint ok_to_load_deferred_attrs;
     guint update_visible_icons_id;
+    guint reveal_icons_id;
 
     GQueue *lazy_icon_load_queue;
     guint lazy_icon_load_id;

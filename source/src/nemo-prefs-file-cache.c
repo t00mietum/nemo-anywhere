@@ -314,6 +314,9 @@ nemo_prefs_file_cache_setup (GtkBuilder *builder)
 	nemo_config_bind (group, NEMO_FILE_CACHE_MAX_SIZE_GIB,
 			  gtk_builder_get_object (builder, "file_cache_size_spinbutton"),
 			  "value", NEMO_CONFIG_BIND_DEFAULT);
+	nemo_config_bind (group, NEMO_FILE_CACHE_MEMORY_GIB,
+			  gtk_builder_get_object (builder, "file_cache_memory_spinbutton"),
+			  "value", NEMO_CONFIG_BIND_DEFAULT);
 	nemo_config_bind_with_mapping (group, NEMO_FILE_CACHE_MAX_AGE_DAYS,
 				       gtk_builder_get_object (builder, "file_cache_age_spinbutton"),
 				       "value", NEMO_CONFIG_BIND_DEFAULT,

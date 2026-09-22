@@ -84,6 +84,7 @@ nemo_private_sources = [
   'nemo-selection-canvas-item.c',
   'nemo-separator-action.c',
   'nemo-signaller.c',
+  'nemo-thumbnail-memory.c',
   'nemo-thumbnails.c',
   'nemo-trash-monitor.c',
   'nemo-tree-view-drag-dest.c',

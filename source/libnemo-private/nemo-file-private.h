@@ -130,6 +130,9 @@ struct NemoFileDetails
     eel_boolean_bit thumbnail_from_store : 1;
     /* Set by a refresh, so the freedesktop copy stops being used. */
     eel_boolean_bit thumbnail_ignore_shared : 1;
+    /* The store has a picture for it that is not held, to be read back once
+     * the file is near the view. */
+    eel_boolean_bit thumbnail_in_store : 1;
 
 	GList *mime_list; /* If this is a directory, the list of MIME types in it. */
 
