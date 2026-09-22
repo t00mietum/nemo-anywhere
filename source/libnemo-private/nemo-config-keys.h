@@ -247,7 +247,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "preferences", "tab-width-min-percent", NEMO_CONFIG_INT, "10", NULL, NULL, "Narrowest a tab may get, as a percentage of the tab strip" },
 	{ "preferences", "tabs-open-position", NEMO_CONFIG_ENUM, "after-current-tab", NULL, enum_TabPosition, "Where a new tab goes" },
 	{ "preferences", "thumbnail-limit", NEMO_CONFIG_INT, "104857600", NULL, NULL, "Largest image a thumbnail is made for, in bytes" },
-	{ "preferences", "thumbnail-threads", NEMO_CONFIG_INT, "-1", NULL, NULL, "Threads used to make thumbnails, -1 to decide automatically. Takes effect on restart." },
+	{ "preferences", "thumbnail-threads", NEMO_CONFIG_INT, "-1", NULL, NULL, "Threads used to make thumbnails, -1 for half the processors. Takes effect on restart." },
 	{ "preferences", "tooltips-in-icon-view", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "preferences", "tooltips-in-list-view", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "preferences", "tooltips-show-access-date", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },

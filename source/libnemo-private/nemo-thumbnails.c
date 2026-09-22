@@ -69,7 +69,6 @@
 typedef enum {
     THUMBNAIL_ADD,
     THUMBNAIL_REMOVE,
-    THUMBNAIL_BUMP,
     THUMBNAIL_THREAD_EXIT
 } ThumbnailCommandType;
 
@@ -80,7 +79,7 @@ typedef struct {
     time_t original_file_mtime;
     NemoFileId id;              /* bytes and mtime, and later the checksum */
     int size;                   /* largest size asked for, in pixels */
-    gint64 add_time;
+    gint64 order;               /* lower goes first */
     ThumbnailCommandType cmd_type;
     guint cancelled : 1;
     guint read_anyway : 1;      /* making it reads the whole file, so checksum it too */
@@ -90,25 +89,26 @@ typedef struct {
 } NemoThumbnailInfo;
 
 /* How it works:
- * 
- * When nemo_create_thumbnail(), nemo_thumbnail_remove_from_queue or nemo_thumbnail_prioritize are called,
+ *
+ * When nemo_create_thumbnail(), nemo_thumbnail_render_ahead() or nemo_thumbnail_remove_from_queue are called,
  * a new NemoThumbnailInfo is made, with info->cmd_type set based on the method called.
  *
  * These are added to the feeder queue, which feeds the feeder_task thread. When a new info arrives, it gets
  * processed based on info->cmd_type.
 
- * - nemo_create_thumbnail (THUMBNAIL_ADD): The info is looked up by uri in thumbnails_to_make_hash. If
- *   the info is already there, the existing info's mtime is updated, and the info gets pushed to the front
- *   of the threadpool queue. Otherwise, the incoming info is added to thumbnails_to_make_hash, and pushed
- *   to the threadpool queue.
+ * - THUMBNAIL_ADD: The info is looked up by uri in thumbnails_to_make_hash. If the info is already there, the
+ *   existing info's mtime and size are updated. It keeps its place, unless the add comes from a folder being
+ *   queued again in view order, which gives it the new one. Otherwise, the incoming info is added to
+ *   thumbnails_to_make_hash, and pushed to the threadpool queue.
  *
  * - nemo_thumbnail_remove_from_queue (THUMBNAIL_REMOVE): The info is looked up by uri in thumbnails_to_make_hash.
  *   If the info is found, it gets removed from thumbnails_to_make_hash, and info->cancelled is set to TRUE, so when
  *   it comes up in the threadpool queue, it is ignored and freed.
  *
- * - nemo_thumbnail_prioritize (THUMBNAIL_BUMP): The info is looked up by uri in thumbnails_to_make_hash. If found,
- *   it gets moved to the front of the threadpool queue.
- *
+ * The pool runs in `order`, lowest first. A folder queued ahead gets a band, and each file its place in the
+ * view within the band, so it is made top down whatever is scrolled into view meanwhile. A newer band goes
+ * before what is left of an older one. A file asked for on its own goes before every band, first come first
+ * served, unless a band already gave it a place.
  *
  * - No mutex locking occurs in the public methods, only in the feeder and threadpool threads.
  * - NemoThumbnailInfos are garbage-collected in the threadpool worker only.
@@ -137,16 +137,9 @@ get_max_threads (void) {
 
     gint pref = nemo_config_get_int (nemo_preferences, NEMO_PREFERENCES_MAX_THUMBNAIL_THREADS);
 
+    /* Half, so a folder of pictures cannot take the whole machine. */
     if (pref == -1) {
-        if (num_processors >= 8) {
-            max_threads = 4;
-        }
-        else if (num_processors >= 4) {
-            max_threads = 2;
-        }
-        else {
-            max_threads = 1;
-        }
+        max_threads = num_processors / 2;
     } else {
         max_threads = pref;
     }
@@ -163,14 +156,14 @@ get_max_threads (void) {
 }
 
 static gint
-lifo_sorter (gconstpointer a,
-             gconstpointer b,
-             gpointer      data)
+order_sorter (gconstpointer a,
+              gconstpointer b,
+              gpointer      data)
 {
-    gint64 ta = ((const NemoThumbnailInfo *) a)->add_time;
-    gint64 tb = ((const NemoThumbnailInfo *) b)->add_time;
+    gint64 oa = ((const NemoThumbnailInfo *) a)->order;
+    gint64 ob = ((const NemoThumbnailInfo *) b)->order;
 
-    return tb > ta ? +1 : ta == tb ? 0 : -1;
+    return oa > ob ? +1 : oa == ob ? 0 : -1;
 }
 
 static gboolean
@@ -478,14 +471,21 @@ nemo_thumbnail_encode (GdkPixbuf *pixbuf, NemoThumbnailFormat *format)
 }
 
 /* Checksums the file when making the thumbnail reads all of it anyway, which
- * costs a second pass over bytes the page cache still holds. */
+ * costs a second pass over bytes the page cache still holds. One worked out
+ * on an earlier visit is read back instead: a folder queued ahead asks about
+ * every file in it, and on a second visit most are stored already. */
 static void
-learn_digest (NemoThumbnailInfo *info)
+learn_digest (NemoCacheDb *db, NemoThumbnailInfo *info)
 {
     g_autoptr (GFile) file = NULL;
 
     if (!info->read_anyway || info->id.has_digest)
         return;
+
+    if (nemo_cache_db_lookup_digest (db, info->image_uri, info->id.bytes, info->id.mtime, info->id.digest)) {
+        info->id.has_digest = TRUE;
+        return;
+    }
 
     file = g_file_new_for_uri (info->image_uri);
     if (g_file_peek_path (file) == NULL)
@@ -587,7 +587,7 @@ thumbnail_thread (gpointer data,
 
     db = nemo_cache_db_get ();
 
-    learn_digest (info);
+    learn_digest (db, info);
 
     if (db != NULL && already_stored (db, info)) {
         DEBUG ("(Thumbnail Thread) Already stored: %s", info->image_uri);
@@ -745,12 +745,13 @@ feeder_thread (GTask        *task,
                         /* Queued again in view order: takes the new place,
                            which only counts once the queue is sorted. */
                         existing_info->ahead = TRUE;
-                        existing_info->add_time = feeder_info->add_time;
+                        existing_info->order = feeder_info->order;
                         resort = TRUE;
                     } else {
+                        /* Scrolled into view while it waits. It keeps its
+                           place, or the last file in a folder could be made
+                           first just by looking at it. */
                         existing_info->ahead = FALSE;
-                        existing_info->add_time = g_get_monotonic_time ();
-                        g_thread_pool_move_to_front ((GThreadPool *) tpool, existing_info);
                     }
                 }
                 DEBUG ("(Add thumbnail) Unlocking mutex");
@@ -772,22 +773,6 @@ feeder_thread (GTask        *task,
                 DEBUG ("(Remove from queue) Unlocking mutex");
                 g_mutex_unlock (&thumbnails_mutex);
                 break;
-            case THUMBNAIL_BUMP:
-                if (!thumbnails_to_make_hash)
-                    break;
-
-                DEBUG ("(Prioritize) Locking mutex");
-                g_mutex_lock (&thumbnails_mutex);
-                existing_info = g_hash_table_lookup (thumbnails_to_make_hash, feeder_info->image_uri);
-
-                if (existing_info) {
-                    DEBUG ("(Prioritize) Moving to front: %s", feeder_info->image_uri);
-                    existing_info->add_time = g_get_monotonic_time ();
-                    g_thread_pool_move_to_front ((GThreadPool *) tpool, existing_info);
-                }
-                DEBUG ("(Prioritize) Unlocking mutex");
-                g_mutex_unlock (&thumbnails_mutex);
-                break;
             case THUMBNAIL_THREAD_EXIT:
                 DEBUG ("(Finalize) Received THUMBNAIL_THREAD_EXIT, cancelling");
                 g_cancellable_cancel (cancellable);
@@ -801,7 +786,7 @@ feeder_thread (GTask        *task,
            queues thousands at a time. */
         if (resort && g_async_queue_length (feeder_queue) <= 0) {
             g_mutex_lock (&thumbnails_mutex);
-            g_thread_pool_set_sort_function ((GThreadPool *) tpool, (GCompareDataFunc) lifo_sorter, NULL);
+            g_thread_pool_set_sort_function ((GThreadPool *) tpool, (GCompareDataFunc) order_sorter, NULL);
             g_mutex_unlock (&thumbnails_mutex);
             resort = FALSE;
         }
@@ -849,7 +834,7 @@ finalize_thumbnailer (void)
 
 /* Mainloop */
 static void
-queue_render (NemoFile *file, int size, gboolean ahead, gint64 add_time)
+queue_render (NemoFile *file, int size, gboolean ahead, gint64 order)
 {
     time_t file_mtime = 0;
     static gsize once_init = 0;
@@ -860,7 +845,7 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 add_time)
         tpool = g_thread_pool_new ((GFunc) thumbnail_thread, NULL,
                                    get_max_threads (),
                                    FALSE, NULL);
-        g_thread_pool_set_sort_function ((GThreadPool *) tpool, (GCompareDataFunc) lifo_sorter, NULL);
+        g_thread_pool_set_sort_function ((GThreadPool *) tpool, (GCompareDataFunc) order_sorter, NULL);
 
         feeder_queue = g_async_queue_new ();
         cancellable = g_cancellable_new ();
@@ -882,7 +867,7 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 add_time)
 
         real_file = nemo_file_get_by_uri (uri);
         if (real_file != NULL) {
-            queue_render (real_file, size, ahead, add_time);
+            queue_render (real_file, size, ahead, order);
             nemo_file_unref (real_file);
         }
 
@@ -917,7 +902,7 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 add_time)
     info->had_thumbnail = file->details->thumbnail_stored_size > 0;
     info->save_checksum = nemo_config_get_boolean (nemo_config_get_group (NEMO_FILE_CACHE_GROUP),
                                                    NEMO_FILE_CACHE_SAVE_CHECKSUM);
-    info->add_time = add_time;
+    info->order = order;
     info->ahead = ahead;
     info->cmd_type = THUMBNAIL_ADD;
 
@@ -930,31 +915,44 @@ queue_render (NemoFile *file, int size, gboolean ahead, gint64 add_time)
     g_async_queue_push (feeder_queue, info);
 }
 
+/* A file that a folder queued ahead has placed keeps that place, so asking
+ * again because it scrolled into view, grew or changed cannot move it up.
+ * Anything else is first come first served, ahead of every folder. */
 void
 nemo_create_thumbnail (NemoFile *file, int size)
 {
-    queue_render (file, size, FALSE, g_get_monotonic_time ());
+    static gint64 asked = 0;
+    gint64 order = file->details->thumbnail_order;
+
+    if (order == 0) {
+        order = G_MININT64 + ++asked;
+    }
+
+    queue_render (file, size, FALSE, order);
 }
 
-/* The queue runs newest first, so a folder queued in view order would be
- * drawn from the bottom up. Each file here is stamped a little older than the
- * one before it, and all of them far below any clock reading, so they go top
- * down and anything drawn on demand still goes first. Each call gets a band
- * above the last one's: a folder queued again, or the next folder opened,
- * goes ahead of what is left of the one before rather than taking turns
- * with it. */
+/* Every file gets its place, in the order given, whether it needs making now
+ * or not: one already drawn may be asked for again at a bigger size. Each call
+ * gets a band before the last one's, so a folder queued again, or the next
+ * folder opened, goes ahead of what is left of the one before rather than
+ * taking turns with it. */
 void
 nemo_thumbnail_render_ahead (GList *files, int size)
 {
     static gint64 band = 0;
-    gint64 stamp;
+    gint64 place = 0;
     GList *l;
 
     band++;
-    stamp = G_MININT64 / 2 + (band << 32);
 
     for (l = files; l != NULL; l = l->next) {
-        queue_render (l->data, size, TRUE, stamp--);
+        NemoFile *file = l->data;
+
+        file->details->thumbnail_order = -(band << 32) + place++;
+
+        if (nemo_file_is_thumbnailing (file) || nemo_file_wants_thumbnail_ahead (file)) {
+            queue_render (file, size, TRUE, file->details->thumbnail_order);
+        }
     }
 }
 
@@ -973,26 +971,6 @@ nemo_thumbnail_remove_from_queue (const char *file_uri)
 
 #if DEBUG_THREADS
     g_message ("Push to feeder (Remove) %i items in feeder", g_async_queue_length (feeder_queue));
-#endif
-
-    g_async_queue_push (feeder_queue, info);
-}
-
-/* Mainloop */
-void
-nemo_thumbnail_prioritize (const char *file_uri)
-{
-    if (feeder_queue == NULL)
-        return;
-
-    NemoThumbnailInfo *info;
-
-    info = g_new0 (NemoThumbnailInfo, 1);
-    info->image_uri = g_strdup (file_uri);
-    info->cmd_type = THUMBNAIL_BUMP;
-
-#if DEBUG_THREADS
-    g_message ("Push to feeder (Bump) %i items in feeder", g_async_queue_length (feeder_queue));
 #endif
 
     g_async_queue_push (feeder_queue, info);

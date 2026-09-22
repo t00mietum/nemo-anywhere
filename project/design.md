@@ -358,7 +358,9 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - The file's own type icon stays up until its thumbnail is ready. There is no "loading" icon in between, since few themes have one and the stand-in flashed. An edited file keeps its old thumbnail until the new one is made.
 
-- A folder of pictures on a local disk has all its thumbnails made once it has loaded, top down in view order, behind anything already on screen. What is made for a file not yet shown goes into the store only. Holding the pictures for thousands of files would cost far more memory than reading one back when it scrolls into view.
+- A folder of pictures on a local disk has all its thumbnails made once it has loaded, strictly top down in view order. Nothing is asked for while it loads, since where a file ends up is only known once the whole folder is in. Scrolling does not change the order: a file that comes into view waits its turn, and so does a picture stored on an earlier visit. A new sort or zoom queues the folder again in its new order. What is made for a file not yet shown goes into the store only. Holding the pictures for thousands of files would cost far more memory than reading one back when it scrolls into view.
+
+- Thumbnails are made on half the processors by default, so neighbors can finish a little out of order. None can go ahead of its place in the queue. A folder that is not mostly pictures, or is on a share, is only made as it comes into view, top down on each screen.
 
 - Photoshop files are read by a small reader of our own, since gdk-pixbuf has none. A .psd or .psb carries a flattened copy of the picture after its layers, and that is all a thumbnail needs, so the layers are skipped. It is shrunk while it is decoded, so a large file never sits in memory at full size. Grayscale, indexed, RGB and CMYK are read; Lab, multichannel and 32 bit files are not.
 

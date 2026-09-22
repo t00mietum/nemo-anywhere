@@ -1022,7 +1022,9 @@ redo_layout_internal (NemoIconContainer *container)
 	}
 
 	nemo_icon_container_update_scroll_region (container);
-    queue_update_visible_icons (container, INITIAL_UPDATE_VISIBLE_DELAY);
+    queue_update_visible_icons (container, container->details->ok_to_load_deferred_attrs ?
+                                           NORMAL_UPDATE_VISIBLE_DELAY :
+                                           INITIAL_UPDATE_VISIBLE_DELAY);
 
 	process_pending_icon_to_reveal (container);
 	process_pending_icon_to_rename (container);
@@ -5387,7 +5389,7 @@ nemo_icon_container_for_each (NemoIconContainer *container,
 }
 
 GList *
-nemo_icon_container_get_unshown_in_order (NemoIconContainer *container)
+nemo_icon_container_get_data_in_order (NemoIconContainer *container)
 {
 	GList *icons, *l, *data = NULL;
 
@@ -5401,9 +5403,7 @@ nemo_icon_container_get_unshown_in_order (NemoIconContainer *container)
 	for (l = icons; l != NULL; l = l->next) {
 		NemoIcon *icon = l->data;
 
-		if (!icon->ok_to_show_thumb) {
-			data = g_list_prepend (data, icon->data);
-		}
+		data = g_list_prepend (data, icon->data);
 	}
 	g_list_free (icons);
 
@@ -5625,7 +5625,8 @@ update_visible_icons_cb (NemoIconContainer *container)
 	eel_canvas_c2w (EEL_CANVAS (container),
 			max_x, max_y, &max_x, &max_y);
 
-	for (node = g_list_last (container->details->icons); node != NULL; node = node->prev) {
+	/* Top down, since what is asked for first is read and made first. */
+	for (node = container->details->icons; node != NULL; node = node->next) {
 		icon = node->data;
 
 		if (nemo_icon_container_icon_is_positioned (icon)) {
@@ -5657,7 +5658,10 @@ update_visible_icons_cb (NemoIconContainer *container)
 				nemo_icon_canvas_item_set_is_visible (icon->item, TRUE);
                 NemoFile *file = NEMO_FILE (icon->data);
 
-                if (!icon->ok_to_show_thumb) {
+                /* Not while loading. Where a file ends up is only known once
+                   the whole folder is in, and a thumbnail asked for sooner
+                   would be made out of turn. */
+                if (!icon->ok_to_show_thumb && container->details->ok_to_load_deferred_attrs) {
 
                     icon->ok_to_show_thumb = TRUE;
 
@@ -5666,10 +5670,6 @@ update_visible_icons_cb (NemoIconContainer *container)
                     }
 
                     nemo_file_invalidate_attributes (file, NEMO_FILE_DEFERRED_ATTRIBUTES);
-                } else {
-                    gchar *uri = nemo_file_get_uri (file);
-                    nemo_thumbnail_prioritize (uri);
-                    g_free (uri);
                 }
 
                 nemo_icon_container_update_icon (container, icon);
@@ -8135,7 +8135,8 @@ nemo_icon_container_update_icon (NemoIconContainer *container,
         NemoFile *file = NEMO_FILE (icon->data);
 
         ok = icon->ok_to_show_thumb ||
-             (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD);
+             (container->details->ok_to_load_deferred_attrs &&
+              nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD);
     }
 
     NEMO_ICON_CONTAINER_GET_CLASS (container)->update_icon (container, icon, ok);
@@ -8153,8 +8154,9 @@ nemo_icon_container_set_ok_to_load_deferred_attrs (NemoIconContainer *container,
 {
     container->details->ok_to_load_deferred_attrs = ok;
 
+    /* Nothing on screen has asked for a thumbnail yet, so no long wait. */
     if (ok) {
-        queue_update_visible_icons (container, INITIAL_UPDATE_VISIBLE_DELAY);
+        queue_update_visible_icons (container, NORMAL_UPDATE_VISIBLE_DELAY);
     }
 }
 

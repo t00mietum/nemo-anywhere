@@ -261,7 +261,7 @@ static char **get_default_column_order                           (NemoListView *
 static void   set_columns_settings_from_metadata_and_preferences (NemoListView *list_view);
 static void   queue_update_visible_icons (NemoListView *view, gint delay);
 static gint   nemo_list_view_get_icon_size (NemoView *view);
-static void   prioritize_visible_files (NemoListView *view);
+static void   mark_visible_files (NemoListView *view);
 
 G_DEFINE_TYPE (NemoListView, nemo_list_view, NEMO_TYPE_VIEW);
 
@@ -2991,7 +2991,7 @@ focus_in_event_callback (GtkWidget *widget, GdkEventFocus *event, gpointer user_
 }
 
 static void
-prioritize_visible_files (NemoListView *view)
+mark_visible_files (NemoListView *view)
 {
     NemoFile *last_file;
     // GList *queue_list, *l;
@@ -3015,11 +3015,10 @@ prioritize_visible_files (NemoListView *view)
     end_y = bin_y + vrect.height + (vrect.height / 2);
 
     last_file = NULL;
-    cy = end_y;
+    cy = start_y;
 
-    // Images that start out un-thumbnailed end up resolving in reverse
-    // order, so work bottom-up here.
-    while (cy > start_y) {
+    /* Top down, since what is asked for first is read and made first. */
+    while (cy < end_y) {
         if (gtk_tree_view_get_path_at_pos (view->details->tree_view,
                                            1, cy,
                                            &path, NULL, NULL, NULL)) {
@@ -3037,12 +3036,7 @@ prioritize_visible_files (NemoListView *view)
             if (file != NULL && file != last_file) {
                 last_file = file;
 
-                if (nemo_file_is_thumbnailing (file)) {
-                    gchar *uri = nemo_file_get_uri (file);
-
-                    nemo_thumbnail_prioritize (uri);
-                    g_free (uri);
-                } else if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
+                if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO) {
                     /* First time in view: mark it and pull deferred attrs once,
                      * rather than re-invalidating on every debounced scroll (the
                      * icon-container twin guards the same way). */
@@ -3054,14 +3048,14 @@ prioritize_visible_files (NemoListView *view)
             nemo_file_unref (file);
         }
 
-        cy -= stepdown;
+        cy += stepdown;
     }
 }
 
 static gboolean
 update_visible_icons_cb (NemoListView *view)
 {
-    prioritize_visible_files (view);
+    mark_visible_files (view);
 
     view->details->update_visible_icons_id = 0;
     return G_SOURCE_REMOVE;
