@@ -1286,6 +1286,5 @@ nemo_main_application_get_singleton (void)
     return nemo_application_initialize_singleton (NEMO_TYPE_MAIN_APPLICATION,
                                                   "application-id", "org.NemoAnywhere",
                                                   "flags", G_APPLICATION_HANDLES_OPEN | G_APPLICATION_NON_UNIQUE,
-                                                  "register-session", TRUE,
                                                   NULL);
 }

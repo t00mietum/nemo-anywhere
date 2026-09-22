@@ -45,10 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Every copy past the first gets refused by the XFCE session manager, which logs a critical ("An object is already exported ... org_NemoAnywhere") and a failed waitpid for each one. All copies register as a session client under the same app id.
-	- Opened: 20260921-180500
-	- Harmless to the app so far. Likely fix is to register only the first copy, or not at all.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -179,6 +175,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Every copy past the first gets refused by the XFCE session manager, which logs a critical ("An object is already exported ... org_NemoAnywhere") and a failed waitpid for each one. All copies register as a session client under the same app id.
+	- Opened: 20260921-180500
+	- Closed: 20260921-182000
+	- Fixed: no copy registers now. It was carried over from upstream and nothing used it. Logout is still held off during a copy, since that asks the session manager directly.
+	- Note: a lint check fails if registering comes back.
 
 - ✅ Bug: When changing to list view after being in an image folder, the zoom level still doesn't reliably change back to defined.
 	- Created 20260921-170804 by JC. Closed: 20260921.
