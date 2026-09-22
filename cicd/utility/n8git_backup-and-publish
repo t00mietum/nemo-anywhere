@@ -136,22 +136,21 @@ fMain(){
 	## Backup excludes, generic first: intermediates and dev builds that a build
 	## regenerates. Release builds, installers, packages, source, project docs, and
 	## the repo's own assets/ (the README demo gif) all stay in.
-	baseCmdArgs+=("-x*/.git/*" "-x*/versions/*")
+	baseCmdArgs+=("-x*/.git" "-x*/versions")
 	## Rust: keep the final release binaries, drop debug profiles and every
 	## intermediate. rar's '*' spans '/', so the '*/target/*/' forms also cover
-	## per-target cross-compile trees.
-	baseCmdArgs+=("-x*/target/debug/*" "-x*/target/*/debug/*" "-x*/target/lint/*" "-x*/target/profiling/*")
-	baseCmdArgs+=("-x*/target/*/deps/*" "-x*/target/*/build/*" "-x*/target/*/incremental/*" "-x*/target/*/.fingerprint/*" "-x*/target/*/examples/*")
+	## per-target cross-compile trees. A bare dir pattern drops the dir and all it
+	## holds, so no 'dir/*' twin is needed; 'dir/*' alone would leave the empty dir.
+	baseCmdArgs+=("-x*/target/debug" "-x*/target/*/debug" "-x*/target/lint" "-x*/target/profiling")
+	baseCmdArgs+=("-x*/target/*/deps" "-x*/target/*/build" "-x*/target/*/incremental" "-x*/target/*/.fingerprint" "-x*/target/*/examples")
 	## Python and Node: fetched or regenerated wholesale. 'dist' is deliberately
 	## absent - that's where the release packages land.
-	baseCmdArgs+=("-x*/__pycache__/*" "-x*/.venv/*" "-x*/.mypy_cache/*" "-x*/.pytest_cache/*" "-x*/.ruff_cache/*" "-x*/node_modules/*")
-	## Compiler and build caches, all regenerated on demand. Excluding the dir as
-	## well as its contents stops rar walking in to test every entry.
-	baseCmdArgs+=("-x*/.zig-cache" "-x*/.zig-cache/*" "-x*/zig-cache" "-x*/zig-cache/*")
-	baseCmdArgs+=("-x*/.ccache" "-x*/.ccache/*" "-x*/.ccls-cache" "-x*/.ccls-cache/*" "-x*/CMakeFiles" "-x*/CMakeFiles/*")
-	baseCmdArgs+=("-x*/.cache" "-x*/.cache/*" "-x*/.gradle" "-x*/.gradle/*" "-x*/.dart_tool" "-x*/.dart_tool/*")
-	baseCmdArgs+=("-x*/.next" "-x*/.next/*" "-x*/.turbo" "-x*/.turbo/*" "-x*/.parcel-cache" "-x*/.parcel-cache/*" "-x*/.sass-cache" "-x*/.sass-cache/*")
-	baseCmdArgs+=("-x*/.stack-work" "-x*/.stack-work/*" "-x*/.tox" "-x*/.tox/*" "-x*/.nox" "-x*/.nox/*")
+	baseCmdArgs+=("-x*/__pycache__" "-x*/.venv" "-x*/.mypy_cache" "-x*/.pytest_cache" "-x*/.ruff_cache" "-x*/node_modules")
+	## Compiler and build caches, all regenerated on demand.
+	baseCmdArgs+=("-x*/.zig-cache" "-x*/zig-cache" "-x*/.ccache" "-x*/.ccls-cache" "-x*/CMakeFiles")
+	baseCmdArgs+=("-x*/.cache" "-x*/.gradle" "-x*/.dart_tool")
+	baseCmdArgs+=("-x*/.next" "-x*/.turbo" "-x*/.parcel-cache" "-x*/.sass-cache")
+	baseCmdArgs+=("-x*/.stack-work" "-x*/.tox" "-x*/.nox")
 	## Audit scratch trees: each holds a full copy of the build, so this runs to
 	## hundreds of MB. The reports beside them are small and stay in.
 	baseCmdArgs+=("-x*/panoplia/working/audit-*")
@@ -162,10 +161,9 @@ fMain(){
 	## 'core.<pid>'. Note this would also catch a source file literally named 'core.*'.
 	baseCmdArgs+=("-xcore" "-xcore.*")
 	## Wallpaper-sized source stills that never ship.
-	baseCmdArgs+=("-x*/private/backgrounds/*")
+	baseCmdArgs+=("-x*/private/backgrounds")
 	## The linked-in vault of external resources (GBs of game assets and the like).
-	## Excluding the dir too, not just its contents, stops rar walking into it.
-	baseCmdArgs+=("-x*/assets-vault" "-x*/assets-vault/*")
+	baseCmdArgs+=("-x*/assets-vault")
 	## GFS-rotated history (demo gifs/videos, logs). Matching the timestamp+role
 	## shape that gfs-rotate.bash writes keeps this to its own output, and the
 	## newest of each set is named '_latest', which is deliberately not listed.
