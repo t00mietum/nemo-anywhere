@@ -50,6 +50,8 @@ static const char * const widget_ids[] = {
 	"file_cache_usage_label",
 	"file_cache_cleanup_button",
 	"file_cache_empty_button",
+	"close_bar",
+	"close_button",
 	NULL
 };
 
