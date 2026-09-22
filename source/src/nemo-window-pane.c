@@ -1433,8 +1433,7 @@ nemo_window_pane_remove_slot_unsafe (NemoWindowPane *pane,
 					   G_CALLBACK (notebook_switch_page_cb),
 					   pane);
 
-	gtk_notebook_set_show_tabs (notebook,
-				    gtk_notebook_get_n_pages (notebook) > 1);
+	/* The notebook's own remove already set the tab strip, preference included. */
 	pane->slots = g_list_remove (pane->slots, slot);
 }
 

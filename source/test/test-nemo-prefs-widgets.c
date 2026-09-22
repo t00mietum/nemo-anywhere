@@ -31,6 +31,7 @@ static const char * const widget_ids[] = {
 	"views_current_tab",
 	"list_view_row_shading_checkbutton",
 	"rename_selects_whole_name_checkbutton",
+	"always_show_tabs_checkbutton",
 	"image_folder_switch_checkbutton",
 	/* The size spin boxes. The Current tab finds its copies by adding
 	   "_current", so a rename there is silent in a different way again. */
