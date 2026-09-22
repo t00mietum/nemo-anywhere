@@ -45,12 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
-	- Opened: 20260903-130431
-	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
-	- Note: a crash now leaves a report behind. That part is under Done.
-	- Left: an actual crash to read. Nothing is known about the cause yet.
-
 ### Features and enhancements
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
@@ -158,6 +152,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
+	- Opened: 20260903-130431
+	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
+	- Note: a crash now leaves a report behind. That part is under Done.
+	- Left: an actual crash to read. Nothing is known about the cause yet.
+	- 20260921-180912: No longer reproducible.
 
 - ✅ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
 	- Opened: 20260804-133646
