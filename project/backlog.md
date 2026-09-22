@@ -45,6 +45,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Every copy past the first gets refused by the XFCE session manager, which logs a critical ("An object is already exported ... org_NemoAnywhere") and a failed waitpid for each one. All copies register as a session client under the same app id.
+	- Opened: 20260921-180500
+	- Harmless to the app so far. Likely fix is to register only the first copy, or not at all.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -60,6 +64,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
 	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
+	- Captured inside the real session on 20260921, with the current build: no critical at all. Not with the session's own environment, not with criticals made fatal under a debugger, and none from any of the 28 menu launches in today's session log. Likely fixed along the way by the config and startup work, but nothing pins which change did it.
 
 ### Features and enhancements
 
