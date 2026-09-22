@@ -75,7 +75,7 @@ if ! docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$container"; the
 			|| skip_or_die "could not build image nemo-build-deps"
 	fi
 	fEcho "creating container ${container}"
-	docker run -d --init --ulimit core=0 --shm-size=2g --name "$container" \
+	docker run -d --init --ulimit core=0 --shm-size=2g --cpus "$(( $(nproc) / 2 ))" --name "$container" \
 		-v "${repo}:/src" nemo-build-deps:latest sleep infinity >/dev/null \
 		|| skip_or_die "could not create container '${container}'"
 fi

@@ -71,7 +71,27 @@ cores="$(nproc 2>/dev/null || echo 2)"
 (( CICD_MAX_JOBS >= 1 )) || CICD_MAX_JOBS=1
 export CICD_MAX_JOBS
 
+## Job counts alone do not hold a run to half the machine: link-time optimization
+## runs threads of its own under each ninja job, and rar uses every core. So the
+## whole run goes inside one user scope with a CPU quota, which everything it
+## starts inherits. With no user systemd manager only the job counts apply.
+if [[ -z "${CICD_CPU_CAPPED:-}" ]] && command -v systemd-run >/dev/null 2>&1 \
+	&& systemd-run --user --scope -q true >/dev/null 2>&1; then
+	export CICD_CPU_CAPPED=1
+	exec systemd-run --user --scope -q -p "CPUQuota=$(( cores * 50 ))%" bash "${BASH_SOURCE[0]}" "${@}"
+fi
+
 source "${here}/config.bash"
+
+## A container's processes sit in docker's cgroup, not in this run's scope, so
+## each gets the same cap directly. It sticks to the container, which is the
+## point: a build run by hand in there is held to it too.
+declare -p CICD_CONTAINERS &>/dev/null || CICD_CONTAINERS=()
+for ctr in "${CICD_CONTAINERS[@]}"; do
+	if docker inspect "$ctr" >/dev/null 2>&1; then
+		docker update --cpus "${CICD_MAX_JOBS}" "$ctr" >/dev/null 2>&1 || true
+	fi
+done
 source "${here}/utility/include/gfs-rotate.bash"                  ## gfs_rotate() for the profiler artifacts
 source "${here}/utility/include/source-date.bash"                 ## fSetSourceDate() for reproducible builds
 declare -p FMT_CMD &>/dev/null || FMT_CMD=()                      ## tolerate a config without the fmt stage
@@ -338,6 +358,7 @@ fEcho_Clean
 fEcho_Clean "Repo root ...........: ${root}"
 fEcho_Clean "Remote sync .........: $( ((no_sync)) && echo '(skipped --no-sync)' || echo 'fetch + fast-forward before building' )"
 fEcho_Clean "Build jobs ..........: ${CICD_MAX_JOBS} (half of ${cores} cores)"
+fEcho_Clean "CPU cap .............: $( [[ -n "${CICD_CPU_CAPPED:-}" ]] && echo "$(( cores * 50 ))% (user scope)" || echo 'job counts only (no user systemd)' )"
 fEcho_Clean "Format ..............: ${FMT_CMD[*]:-(skipped)}"
 fEcho_Clean "Debug build .........: ${DEBUG_BUILD_CMD[*]}"
 fEcho_Clean "Tests ...............: ${TEST_CMD[*]}"

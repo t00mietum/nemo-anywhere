@@ -1120,7 +1120,6 @@ nemo_window_view_visible (NemoWindow *window,
 			slot = l->data;
 
 			nemo_window_slot_update_title (slot);
-			nemo_window_slot_update_icon (slot);
 		}
 	}
 
@@ -2407,16 +2406,6 @@ nemo_window_init (NemoWindow *window)
 				  window);
 }
 
-static NemoIconInfo *
-real_get_icon (NemoWindow *window,
-               NemoWindowSlot *slot)
-{
-        return nemo_file_get_icon (slot->viewed_file, 48, 0,
-                       gtk_widget_get_scale_factor (GTK_WIDGET (window)),
-				       NEMO_FILE_ICON_FLAGS_IGNORE_VISITING |
-				       NEMO_FILE_ICON_FLAGS_USE_MOUNT_ICON);
-}
-
 static void
 real_window_close (NemoWindow *window)
 {
@@ -2450,7 +2439,6 @@ nemo_window_class_init (NemoWindowClass *class)
 	wclass->button_press_event = nemo_window_button_press_event;
 	wclass->delete_event = nemo_window_delete_event;
 
-	class->get_icon = real_get_icon;
 	class->close = real_window_close;
 
 	properties[PROP_DISABLE_CHROME] =

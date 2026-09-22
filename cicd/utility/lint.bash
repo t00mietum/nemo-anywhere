@@ -28,6 +28,14 @@ bash "${here}/lint-identity.bash"
 bash "${here}/lint-prose.bash"
 bash "${here}/vendor-themes.bash" --self-test
 
+## The app icons are cut from assets/logo.png by hand, so a new logo can sit there
+## with the old icons still shipping. Needs Pillow, which not every box has.
+if python3 -c 'import PIL' 2>/dev/null; then
+	python3 "${here}/gen-app-icon.py" --check
+else
+	echo "[ app icon check skipped: no Pillow ]"
+fi
+
 ## The content scrub is kept outside the repo, so a fresh clone without the
 ## private tree still lints.
 scrub="$(cd "${here}/../.." && pwd)/../private/hooks/scrub.bash"

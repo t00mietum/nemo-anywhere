@@ -50,7 +50,7 @@ if ! docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; the
 		docker build -t nemo-winbuild-deps:latest "${ROOT}/cicd/win/" >/dev/null || fDie "could not build image nemo-winbuild-deps"
 	fi
 	fEcho "creating container ${CONTAINER}"
-	docker run -d --init --ulimit core=0 --shm-size=2g --name "$CONTAINER" \
+	docker run -d --init --ulimit core=0 --shm-size=2g --cpus "$(( $(nproc) / 2 ))" --name "$CONTAINER" \
 		-v "${ROOT}:/src" nemo-winbuild-deps:latest sleep infinity >/dev/null || fDie "could not create container '${CONTAINER}'"
 fi
 ## A reboot leaves it stopped, with no restart policy.

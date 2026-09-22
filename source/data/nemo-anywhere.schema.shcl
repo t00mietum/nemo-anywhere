@@ -209,7 +209,7 @@ field: icon-view.default-icon-size
 
 field: icon-view.default-image-icon-size
 	type: int
-	default: 250
+	default: 500
 	desc: Icon size for a folder that is mostly images, as a per cent of the standard 64 pixels
 
 field: icon-view.image-folder-min-images

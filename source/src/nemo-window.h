@@ -82,8 +82,6 @@ typedef struct {
 
         void   (* sync_title) (NemoWindow *window,
 			       NemoWindowSlot *slot);
-        NemoIconInfo * (* get_icon) (NemoWindow *window,
-                                         NemoWindowSlot *slot);
 
         void   (* prompt_for_location) (NemoWindow *window, const char *initial);
         void   (* close) (NemoWindow *window);

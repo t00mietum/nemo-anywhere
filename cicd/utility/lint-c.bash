@@ -462,6 +462,26 @@ fCheckHeldIconSize(){
 }
 fCheckHeldIconSize
 
+## Windows show the program's icon, set once as the default. Upstream set each
+## window to its folder's icon, so a taskbar full of them showed generic folders
+## and nothing said which program they were.
+fCheckWindowIcon(){
+	local stray
+
+	if ! grep -q -F 'gtk_window_set_default_icon_name ("nemo-anywhere")' source/src/nemo-application.c; then
+		fEcho "FAIL: source/src/nemo-application.c: the program icon must be the default window icon"
+		exit 2
+	fi
+
+	stray="$(grep -n -E 'gtk_window_set_icon(_name)? \(' source/src/nemo-window*.c source/src/nemo-file-management-properties.c || true)"
+	if [[ -n "$stray" ]]; then
+		fEcho "FAIL: a main window or the preferences sets its own icon over the program's:"
+		fEcho "${stray}"
+		exit 2
+	fi
+}
+fCheckWindowIcon
+
 ## A checksum is kept on a file in three attributes, and the order they are
 ## written in is the only thing standing between a torn write and a checksum
 ## that vouches for contents it has never seen. Reading requires the size and

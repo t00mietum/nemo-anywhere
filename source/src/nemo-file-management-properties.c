@@ -1614,8 +1614,6 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     g_signal_connect (dialog, "destroy",
                       G_CALLBACK (on_dialog_destroy), builder);
 
-	gtk_window_set_icon_name (GTK_WINDOW (dialog), "folder");
-
 	if (window) {
 		gtk_window_set_transient_for (GTK_WINDOW (dialog), window);
 	}

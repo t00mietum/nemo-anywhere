@@ -86,6 +86,9 @@ DEBUG_BUILD_CMD=(bash "${DOCKER_RUN}" "debug build" "
 ## -j is passed through for the same reason it is above. Same wrapper, so a
 ## down/absent daemon skips-with-warning instead of aborting the gate.
 TEST_CMD=(bash "${DOCKER_RUN}" "tests" "NEMO_TEST_JOBS=${CICD_MAX_JOBS:-2} bash /src/cicd/linux/run-tests.bash")
+## Held to CICD_MAX_JOBS cores each, since the run's own CPU cap cannot reach
+## inside them.
+CICD_CONTAINERS=(nemo-build nemo-build-jammy nemo-winbuild)
 
 ## Stage 3 (after tests): lints - READY. cicd/utility/lint.bash runs the C check
 ## over the CHANGED C files and shellcheck over the project's own scripts.
