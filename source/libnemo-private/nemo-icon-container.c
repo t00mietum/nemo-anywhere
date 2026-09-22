@@ -1056,13 +1056,16 @@ unschedule_redo_layout (NemoIconContainer *container)
 	}
 }
 
+/* Ahead of the redraw, or one frame is painted with the old positions. A
+   picture that came back shorter than the icon it replaced then shows with its
+   name pulled up under it, and drops back down a frame later. */
 static void
 schedule_redo_layout (NemoIconContainer *container)
 {
 	if (container->details->idle_id == 0
 	    && container->details->has_been_allocated) {
-		container->details->idle_id = g_idle_add
-			(redo_layout_callback, container);
+		container->details->idle_id = g_idle_add_full
+			(GDK_PRIORITY_REDRAW - 10, redo_layout_callback, container, NULL);
 	}
 }
 
@@ -5739,31 +5742,18 @@ update_visible_icons_cb (NemoIconContainer *container)
     return G_SOURCE_REMOVE;
 }
 
-/* Pictures on screen, for the status bar. Unlike the pass above this counts
- * only what is inside the view, not the half screen either side. */
+/* Every picture in the folder, for the status bar, on screen or not. */
 void
 nemo_icon_container_count_thumbnails (NemoIconContainer *container,
 				      guint             *shown,
 				      guint             *wanted)
 {
-	double min_x, max_x, min_y, max_y;
 	GList *node;
 
 	*shown = *wanted = 0;
 
-	if (!gtk_widget_get_realized (GTK_WIDGET (container))) {
-		return;
-	}
-
-	get_view_bounds (container, &min_x, &min_y, &max_x, &max_y);
-
 	for (node = container->details->icons; node != NULL; node = node->next) {
 		NemoIcon *icon = node->data;
-
-		if (!icon->ok_to_show_thumb || !nemo_icon_container_icon_is_positioned (icon) ||
-		    screens_from_view (container, icon, min_x, min_y, max_x, max_y) > 0) {
-			continue;
-		}
 
 		nemo_file_count_thumbnail (NEMO_FILE (icon->data), shown, wanted);
 	}
@@ -8264,16 +8254,27 @@ nemo_icon_container_update_icon (NemoIconContainer *container,
                                  NemoIcon          *icon)
 {
     gboolean ok = FALSE;
+    EelDRect before, after;
 
-    if (icon != NULL) {
-        NemoFile *file = NEMO_FILE (icon->data);
-
-        ok = icon->ok_to_show_thumb ||
-             (container->details->ok_to_load_deferred_attrs &&
-              nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD);
+    if (icon == NULL) {
+        NEMO_ICON_CONTAINER_GET_CLASS (container)->update_icon (container, icon, ok);
+        return;
     }
 
+    ok = icon->ok_to_show_thumb ||
+         (container->details->ok_to_load_deferred_attrs &&
+          nemo_file_get_load_deferred_attrs (NEMO_FILE (icon->data)) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD);
+
+    before = nemo_icon_canvas_item_get_icon_rectangle (icon->item);
     NEMO_ICON_CONTAINER_GET_CLASS (container)->update_icon (container, icon, ok);
+    after = nemo_icon_canvas_item_get_icon_rectangle (icon->item);
+
+    /* A thumbnail is rarely the size of the type icon it replaces. The row
+       keeps its baseline only once the icon is laid out again. */
+    if (after.x1 - after.x0 != before.x1 - before.x0 ||
+        after.y1 - after.y0 != before.y1 - before.y0) {
+        schedule_redo_layout (container);
+    }
 }
 
 gint

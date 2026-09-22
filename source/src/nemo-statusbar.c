@@ -137,14 +137,17 @@ thumb_tick_cb (gpointer user_data)
 
     slot = bar->window != NULL ? nemo_window_get_active_slot (bar->window) : NULL;
 
-    if (slot != NULL && NEMO_IS_ICON_VIEW (slot->content_view)) {
+    if (slot != NULL && NEMO_IS_ICON_VIEW (slot->content_view) &&
+        nemo_file_should_show_thumbnail (nemo_view_get_directory_as_file (slot->content_view))) {
         nemo_icon_container_count_thumbnails (
             nemo_icon_view_get_icon_container (NEMO_ICON_VIEW (slot->content_view)),
             &shown, &wanted);
     }
 
+    nemo_thumbnail_rendered_for_bar (done, waiting, &shown, &wanted);
+
     set_bar (bar->build_bar, _("Building thumbnails: %u of %u"), done, done + waiting);
-    set_bar (bar->render_bar, _("Rendering thumbnails in view: %u of %u"), shown, wanted);
+    set_bar (bar->render_bar, _("Rendering thumbnails: %u of %u"), shown, wanted);
     show_thumb_bars (bar, TRUE);
 
     return G_SOURCE_CONTINUE;

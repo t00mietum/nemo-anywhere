@@ -47,6 +47,17 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Folder properties dialog:
+	- "Contents" and "Size" don't mean much. Better:
+		- Folder count
+		- File count
+		- File size (adds up live - counting largest files in the tree first).
+	- Remove "Help" button
+
+- 🔘 Additional thumbnailer formats:
+	- Raw files including .dng
+	- jp2 (JPEG 2000 in general)
+
 - 🔘 Idea: Instead of relying on checksum for uniqueness (which is slow to read from xattrs or scan the file).
 	- Maybe first check for unique combinations of:
 		- mtime
@@ -163,6 +174,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Thumbnails "jump" up, then back down (and also in width), when entering an image folder.
+	- Opened: 20260922
+	- Closed: 20260922.
+	- A picture that came back shorter or wider than the type icon before it kept the old spot until the next full layout. Its name moved up under it, then dropped back down.
+	- An icon whose picture changes size is now laid out again before the next frame is drawn.
 
 - ✅ Scrolling down can still cause the last already cached thumbnails to render (e.g. if you scroll to the bottom soon after entering the folder), while none of the ones above (as judged by scrolling up) are not yet rendered in the file view.
 	- Opened: 20260922
@@ -1589,6 +1606,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Thumbnail scan progress bars:
+	- Currently wrong: The "displayed" bar goes to 100% quickly, based on what is currently shown, and changes upon scrolling.
+	- Fix to be correct: The displayed bar should use the total image count as the denominator, and should never be ahead of the "scanning" progress bar.
+	- Opened: 20260922. Closed: 20260922.
+	- The bottom bar counts every picture in the folder now, on screen or not, and never reads further along than the top one. In list view it follows the top bar.
 
 - ✅ Show two vertically stacked progress bars for thumbnail rendering, in the status bar:
 	- E.g.:
