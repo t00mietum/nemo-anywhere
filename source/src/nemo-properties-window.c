@@ -105,8 +105,8 @@ struct NemoPropertiesWindowDetails {
 	unsigned int name_row;
 	char *pending_name;
 
-	GtkLabel *directory_contents_title_field;
-	GtkLabel *directory_contents_value_field;
+	GtkLabel *folders_value_field;
+	GtkLabel *files_value_field;
 	GtkLabel *size_value_field;
 	guint update_directory_contents_timeout_id;
 	guint update_files_timeout_id;
@@ -128,10 +128,6 @@ struct NemoPropertiesWindowDetails {
 	GList *mime_list;
 
 	gboolean deep_count_finished;
-
-	guint total_count;
-	goffset total_size;
-    guint hidden_count;
 
 	guint long_operation_underway;
 
@@ -2019,31 +2015,54 @@ file_size_for_display (goffset size)
 	return text;
 }
 
+static char *
+format_deep_count (guint count, guint hidden, gboolean unreadable, gboolean counting)
+{
+	g_autofree char *count_str = NULL;
+	g_autofree char *hidden_str = NULL;
+	char *text;
+
+	if (count == 0 && hidden == 0 && counting) {
+		return g_strdup ("...");
+	}
+
+	count_str = g_strdup_printf ("%'u", count);
+	if (hidden > 0) {
+		hidden_str = g_strdup_printf ("%'u", hidden);
+		text = g_strdup_printf (_("%1$s (and %2$s hidden)"), count_str, hidden_str);
+	} else {
+		text = g_strdup (count_str);
+	}
+
+	if (unreadable) {
+		char *temp = text;
+		text = g_strconcat (temp, " ", _("(some unreadable)"), NULL);
+		g_free (temp);
+	}
+
+	return text;
+}
+
 static void
 directory_contents_value_field_update (NemoPropertiesWindow *window)
 {
 	NemoRequestStatus file_status, status;
 	gchar *text, *temp;
-	guint directory_count;
-	guint file_count;
-	guint total_count;
-	guint unreadable_directory_count;
-    guint hidden_count;
-    guint total_hidden;
-	goffset total_size;
-	gboolean used_two_lines;
+	guint directory_count, file_count, unreadable;
+	guint hidden_directory_count, hidden_file_count;
+	guint total_directories = 0, total_files = 0;
+	guint total_hidden_directories = 0, total_hidden_files = 0;
+	gboolean any_unreadable = FALSE;
+	goffset total_size = 0;
+	goffset file_size;
+	gboolean multi;
 	NemoFile *file;
 	GList *l;
-	guint file_unreadable;
-	goffset file_size;
 
 	g_assert (NEMO_IS_PROPERTIES_WINDOW (window));
 
 	status = NEMO_REQUEST_DONE;
-	total_count = window->details->total_count;
-	total_size = window->details->total_size;
-    total_hidden = window->details->hidden_count;
-	unreadable_directory_count = FALSE;
+	multi = is_multi_file_window (window);
 
 	for (l = window->details->target_files; l; l = l->next) {
 		file = NEMO_FILE (l->data);
@@ -2057,22 +2076,27 @@ directory_contents_value_field_update (NemoPropertiesWindow *window)
 			file_status = nemo_file_get_deep_counts (file,
 					 &directory_count,
 					 &file_count,
-					 &file_unreadable,
-                     &hidden_count,
+					 &unreadable,
+					 &hidden_directory_count,
+					 &hidden_file_count,
 					 &file_size,
 					 TRUE);
-			total_count += (file_count + directory_count);
+			/* A selected folder counts as one of the selection's folders,
+			 * but a lone folder only reports what is inside it. */
+			total_directories += directory_count + (multi ? 1 : 0);
+			total_files += file_count;
+			total_hidden_directories += hidden_directory_count;
+			total_hidden_files += hidden_file_count;
 			total_size += file_size;
-			total_hidden += hidden_count;
-			if (file_unreadable) {
-				unreadable_directory_count = TRUE;
+			if (unreadable) {
+				any_unreadable = TRUE;
 			}
 
 			if (file_status != NEMO_REQUEST_DONE) {
 				status = file_status;
 			}
 		} else {
-			++total_count;
+			++total_files;
 			total_size += nemo_file_get_size (file);
 		}
 	}
@@ -2086,62 +2110,14 @@ directory_contents_value_field_update (NemoPropertiesWindow *window)
 		return;
 	}
 
-	text = NULL;
-	used_two_lines = FALSE;
-
-	if (total_count == 0) {
-		switch (status) {
-		case NEMO_REQUEST_DONE:
-			if (unreadable_directory_count == 0) {
-				text = g_strdup (_("nothing"));
-			} else {
-				text = g_strdup (_("unreadable"));
-			}
-
-			break;
-                case NEMO_REQUEST_NOT_STARTED:
-                case NEMO_REQUEST_IN_PROGRESS:
-		default:
-			text = g_strdup ("...");
-		}
-	} else {
-		if (total_hidden > 0) {
-			text = g_strdup_printf (ngettext("%1$s item (and %2$s hidden)", "%1$s items (and %2$s hidden)", total_count),
-						g_strdup_printf("%'d", total_count),
-						g_strdup_printf("%'d", total_hidden));
-		} else {
-			text = g_strdup_printf (ngettext("%1$s item", "%1$s items", total_count),
-						g_strdup_printf("%'d", total_count));
-		}
-
-		if (unreadable_directory_count != 0) {
-			temp = text;
-			text = g_strconcat (temp, "\n",
-					    _("(some contents unreadable)"),
-					    NULL);
-			g_free (temp);
-			used_two_lines = TRUE;
-		}
-	}
-
-	gtk_label_set_text (window->details->directory_contents_value_field,
-			    text);
+	text = format_deep_count (total_directories, total_hidden_directories,
+				  any_unreadable, status != NEMO_REQUEST_DONE);
+	gtk_label_set_text (window->details->folders_value_field, text);
 	g_free (text);
 
-	/* Also set the title field here, with a trailing carriage return &
-	 * space if the value field has two lines. This is a hack to get the
-	 * "Contents:" title to line up with the first line of the
-	 * 2-line value. Maybe there's a better way to do this, but I
-	 * couldn't think of one.
-	 */
-	text = g_strdup (_("Contents:"));
-	if (used_two_lines) {
-		temp = text;
-		text = g_strconcat (temp, "\n ", NULL);
-		g_free (temp);
-	}
-	gtk_label_set_text (window->details->directory_contents_title_field,
-			    text);
+	text = format_deep_count (total_files, total_hidden_files,
+				  FALSE, status != NEMO_REQUEST_DONE);
+	gtk_label_set_text (window->details->files_value_field, text);
 	g_free (text);
 
 	/* Update the file size field with the selection or directory's total file size. */
@@ -2203,11 +2179,6 @@ attach_directory_contents_value_field (NemoPropertiesWindow *window,
 	NemoFile *file;
 
 	value_field = attach_value_label (grid, sibling, "");
-
-	g_assert (window->details->directory_contents_value_field == NULL);
-	window->details->directory_contents_value_field = value_field;
-
-	gtk_label_set_line_wrap (value_field, TRUE);
 
 	for (l = window->details->target_files; l; l = l->next) {
 		file = NEMO_FILE (l->data);
@@ -2277,16 +2248,16 @@ static void
 append_directory_contents_fields (NemoPropertiesWindow *window,
 				  GtkGrid *grid)
 {
-	GtkLabel *title_field, *value_field;
+	GtkLabel *title_field;
 
-	title_field = attach_title_field (grid, "");
-	window->details->directory_contents_title_field = title_field;
-	gtk_label_set_line_wrap (title_field, TRUE);
-
-	value_field = attach_directory_contents_value_field
+	title_field = attach_title_field (grid, _("Folders:"));
+	window->details->folders_value_field = attach_directory_contents_value_field
 		(window, grid, GTK_WIDGET (title_field));
+	gtk_label_set_mnemonic_widget (title_field, GTK_WIDGET (window->details->folders_value_field));
 
-	gtk_label_set_mnemonic_widget (title_field, GTK_WIDGET(value_field));
+	title_field = attach_title_field (grid, _("Files:"));
+	window->details->files_value_field = attach_value_label (grid, GTK_WIDGET (title_field), "");
+	gtk_label_set_mnemonic_widget (title_field, GTK_WIDGET (window->details->files_value_field));
 }
 
 /* append_size_field ()
@@ -2315,8 +2286,7 @@ append_size_field (NemoPropertiesWindow *window,
 static GtkWidget *
 create_page_with_hbox (GtkStack *stack,
 		       const char *name,
-		       const char *title,
-		       const char *help_uri)
+		       const char *title)
 {
 	GtkWidget *hbox;
 
@@ -2329,7 +2299,6 @@ create_page_with_hbox (GtkStack *stack,
 	gtk_container_set_border_width (GTK_CONTAINER (hbox), STACK_INNER_BORDER);
 	gtk_box_set_spacing (GTK_BOX (hbox), 12);
 	gtk_stack_add_titled(stack, hbox, name, title);
-	g_object_set_data_full (G_OBJECT (hbox), "help-uri", g_strdup (help_uri), g_free);
 
 	return hbox;
 }
@@ -2337,8 +2306,7 @@ create_page_with_hbox (GtkStack *stack,
 static GtkWidget *
 create_page_with_vbox (GtkStack *stack,
 		       const char *name,
-		       const char *title,
-		       const char *help_uri)
+		       const char *title)
 {
 	GtkWidget *vbox;
 	g_assert (GTK_IS_STACK (stack));
@@ -2349,7 +2317,6 @@ create_page_with_vbox (GtkStack *stack,
 	gtk_widget_show (vbox);
 	gtk_container_set_border_width (GTK_CONTAINER (vbox), STACK_INNER_BORDER);
 	gtk_stack_add_titled(stack, vbox, name, title);
-	g_object_set_data_full (G_OBJECT (vbox), "help-uri", g_strdup (help_uri), g_free);
 
 	return vbox;
 }
@@ -3061,8 +3028,7 @@ create_basic_page (NemoPropertiesWindow *window)
 	GtkWidget *icon_pixmap_widget;
 	GtkWidget *volume_usage;
 	GtkWidget *hbox, *vbox;
-	hbox = create_page_with_hbox (window->details->stack, "basic", _("Basic"),
-				      "help:gnome-help/nemo-file-properties-basic");
+	hbox = create_page_with_hbox (window->details->stack, "basic", _("Basic"));
 
 	/* Icon pixmap */
 
@@ -4573,8 +4539,7 @@ create_permissions_page (NemoPropertiesWindow *window)
 	GList *file_list;
 
 	vbox = create_page_with_vbox (window->details->stack, "permissions",
-				      _("Permissions"),
-				      "help:gnome-help/nemo-file-properties-permissions");
+				      _("Permissions"));
 
 	file_list = window->details->original_files;
 
@@ -4877,7 +4842,6 @@ create_open_with_page (NemoPropertiesWindow *window)
 	gtk_widget_show (vbox);
 	g_free (mime_type);
 
-	g_object_set_data_full (G_OBJECT (vbox), "help-uri", g_strdup ("help:gnome-help/files-open"), g_free);
 	gtk_container_set_border_width (GTK_CONTAINER (vbox), STACK_INNER_BORDER);
 	gtk_stack_add_titled (window->details->stack,
 				  vbox, "open_with", _("Open with"));
@@ -5018,7 +4982,6 @@ create_properties_window (StartupData *startup_data)
 	append_extension_pages (window);
 
 	gtk_dialog_add_buttons (GTK_DIALOG (window),
-				_("Help"), GTK_RESPONSE_HELP,
 				_("Close"), GTK_RESPONSE_CLOSE,
 				NULL);
 
@@ -5271,26 +5234,7 @@ static void
 real_response (GtkDialog *dialog,
 	       int        response)
 {
-	GError *error = NULL;
-	NemoPropertiesWindow *window = NEMO_PROPERTIES_WINDOW (dialog);
-	GtkWidget *curpage;
-	const char *helpuri;
-
 	switch (response) {
-	case GTK_RESPONSE_HELP:
-		curpage = gtk_stack_get_visible_child (window->details->stack);
-		helpuri = g_object_get_data (G_OBJECT (curpage), "help-uri");
-		gtk_show_uri (gtk_window_get_screen (GTK_WINDOW (dialog)),
-			      helpuri ? helpuri : "help:gnome-help/files",
-			      gtk_get_current_event_time (),
-			      &error);
-		if (error != NULL) {
-			eel_show_error_dialog (_("There was an error displaying help."), error->message,
-					       GTK_WINDOW (dialog));
-			g_error_free (error);
-		}
-		break;
-
 	case GTK_RESPONSE_NONE:
 	case GTK_RESPONSE_CLOSE:
 	case GTK_RESPONSE_DELETE_EVENT:

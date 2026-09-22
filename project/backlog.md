@@ -47,17 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Folder properties dialog:
-	- "Contents" and "Size" don't mean much. Better:
-		- Folder count
-		- File count
-		- File size
-			- Adds up live
-			- Counting largest files in the tree first
-				- Which will require gathering the list first, which is fine.
-					- That will at least allow "File count" to populate early.
-	- Remove "Help" button
-
 - 🔘 Additional thumbnailer formats:
 	- Raw files including .dng
 	- jp2 (JPEG 2000 in general)
@@ -1625,6 +1614,22 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Folder properties dialog:
+	- "Contents" and "Size" don't mean much. Better:
+		- Folder count
+		- File count
+		- File size
+			- Adds up live
+			- Counting largest files in the tree first
+				- Which will require gathering the list first, which is fine.
+					- That will at least allow "File count" to populate early.
+	- Remove "Help" button
+	- Opened: 20260922. Closed: 20260922.
+	- "Contents" is now two lines, Folders and Files, each with its hidden count beside it, as in "12 (and 3 hidden)". Both count up live while the folder is walked, and so does Size.
+	- Largest first was left out. The size of each file comes with the listing, so the total is final the moment the listing is, and a second pass in size order would only make it later.
+	- With several items selected, a selected folder counts as one of the folders. A lone folder shows only what is inside it.
+	- The Help button is gone. It opened GNOME help pages, which this project does not have.
 
 - ✅ Change window title to path (with quotes if it has spaces), then "Nemo Anywhere". Formally:
 	`["][preceeding path/][folder]["] - Nemo Anywhere`

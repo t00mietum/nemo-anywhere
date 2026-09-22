@@ -252,7 +252,8 @@ NemoRequestStatus   nemo_file_get_deep_counts                   (NemoFile       
 									 guint                          *directory_count,
 									 guint                          *file_count,
 									 guint                          *unreadable_directory_count,
-                                     guint                          *hidden_count,
+                                     guint                          *hidden_directory_count,
+                                     guint                          *hidden_file_count,
 									 goffset                         *total_size,
 									 gboolean                        force);
 gboolean                nemo_file_should_show_thumbnail             (NemoFile                   *file);
@@ -619,7 +620,8 @@ typedef struct {
 							  guint                  *directory_count,
 							  guint                  *file_count,
 							  guint                  *unreadable_directory_count,
-                              guint                  *hidden_count,
+                              guint                  *hidden_directory_count,
+                              guint                  *hidden_file_count,
 							  goffset       *total_size);
 	gboolean              (* get_date)               (NemoFile           *file,
 							  NemoDateType        type,
