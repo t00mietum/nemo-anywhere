@@ -1077,7 +1077,7 @@ handle_close_accelerator (GtkWindow *window,
 	g_assert (event != NULL);
 	g_assert (user_data == NULL);
 
-	if (event->state & GDK_CONTROL_MASK && event->keyval == GDK_KEY_w) {
+	if (event->state & eel_gtk_primary_mask (event->window) && event->keyval == GDK_KEY_w) {
 		gtk_widget_hide (GTK_WIDGET (window));
 		return TRUE;
 	}

@@ -29,6 +29,7 @@
 
 #include "eel-editable-label.h"
 #include "eel-accessibility.h"
+#include "eel-gtk-extensions.h"
 #include <libgail-util/gailmisc.h>
 
 #include <glib/gi18n-lib.h>
@@ -216,6 +217,7 @@ eel_editable_label_class_init (EelEditableLabelClass *class)
   GObjectClass *gobject_class = G_OBJECT_CLASS (class);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (class);
   GtkBindingSet *binding_set;
+  GdkModifierType primary;
 
   gobject_class->set_property = eel_editable_label_set_property;
   gobject_class->get_property = eel_editable_label_get_property;
@@ -362,6 +364,7 @@ eel_editable_label_class_init (EelEditableLabelClass *class)
    */
 
   binding_set = gtk_binding_set_by_class (class);
+  primary = eel_gtk_primary_mask (NULL);
 
   /* Moving the insertion point */
   add_move_binding (binding_set, GDK_KEY_Right, 0,
@@ -444,12 +447,12 @@ eel_editable_label_class_init (EelEditableLabelClass *class)
   
   /* Select all
    */
-  gtk_binding_entry_add_signal (binding_set, GDK_KEY_a, GDK_CONTROL_MASK,
+  gtk_binding_entry_add_signal (binding_set, GDK_KEY_a, primary,
                                 "move_cursor", 3,
                                 GTK_TYPE_MOVEMENT_STEP, GTK_MOVEMENT_BUFFER_ENDS,
                                 G_TYPE_INT, -1,
 				G_TYPE_BOOLEAN, FALSE);
-  gtk_binding_entry_add_signal (binding_set, GDK_KEY_a, GDK_CONTROL_MASK,
+  gtk_binding_entry_add_signal (binding_set, GDK_KEY_a, primary,
                                 "move_cursor", 3,
                                 GTK_TYPE_MOVEMENT_STEP, GTK_MOVEMENT_BUFFER_ENDS,
                                 G_TYPE_INT, 1,
@@ -494,11 +497,11 @@ eel_editable_label_class_init (EelEditableLabelClass *class)
 
   /* Cut/copy/paste */
 
-  gtk_binding_entry_add_signal (binding_set, GDK_KEY_x, GDK_CONTROL_MASK,
+  gtk_binding_entry_add_signal (binding_set, GDK_KEY_x, primary,
 				"cut_clipboard", 0);
-  gtk_binding_entry_add_signal (binding_set, GDK_KEY_c, GDK_CONTROL_MASK,
+  gtk_binding_entry_add_signal (binding_set, GDK_KEY_c, primary,
 				"copy_clipboard", 0);
-  gtk_binding_entry_add_signal (binding_set, GDK_KEY_v, GDK_CONTROL_MASK,
+  gtk_binding_entry_add_signal (binding_set, GDK_KEY_v, primary,
 				"paste_clipboard", 0);
 
   gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, GDK_SHIFT_MASK,

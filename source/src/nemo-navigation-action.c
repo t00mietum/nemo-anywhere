@@ -230,7 +230,7 @@ is_new_tab_event(GdkEventButton *event) {
 	   as new_tab_action only if it's an actual button press to prevent
 	   calling new_tab_action the third time. */
 	return (event->button == 2
-		|| (event->button == 1 && event->state & GDK_CONTROL_MASK))
+		|| (event->button == 1 && event->state & eel_gtk_primary_mask (event->window)))
 	       && event->type == GDK_BUTTON_PRESS;
 }
 

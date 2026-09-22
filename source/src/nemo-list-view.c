@@ -743,7 +743,7 @@ activate_selected_items_alternate (NemoListView *view,
 static gboolean
 button_event_modifies_selection (GdkEventButton *event)
 {
-	return (event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) != 0;
+	return (event->state & (eel_gtk_primary_mask (event->window) | GDK_SHIFT_MASK)) != 0;
 }
 
 static void
@@ -760,7 +760,7 @@ nemo_list_view_did_not_drag (NemoListView *view,
 	if (gtk_tree_view_get_path_at_pos (tree_view, event->x, event->y,
 					   &path, NULL, NULL, NULL)) {
 		if ((event->button == 1 || event->button == 2)
-		    && ((event->state & GDK_CONTROL_MASK) != 0 ||
+		    && ((event->state & eel_gtk_primary_mask (event->window)) != 0 ||
 			(event->state & GDK_SHIFT_MASK) == 0)
 		    && view->details->row_selected_on_button_down) {
 			if (!button_event_modifies_selection (event)) {
@@ -1636,7 +1636,7 @@ button_press_callback (GtkWidget *widget, GdkEventButton *event, gpointer callba
 			}
 
 			if ((event->button == 1 || event->button == 2) &&
-			    ((event->state & GDK_CONTROL_MASK) != 0 ||
+			    ((event->state & eel_gtk_primary_mask (event->window)) != 0 ||
 			     (event->state & GDK_SHIFT_MASK) == 0)) {
 				view->details->row_selected_on_button_down = gtk_tree_selection_path_is_selected (selection, path);
 				if (view->details->row_selected_on_button_down) {
@@ -2002,7 +2002,7 @@ key_press_callback (GtkWidget *widget, GdkEventKey *event, gpointer callback_dat
 		break;
 	case GDK_KEY_v:
 		/* Eat Control + v to not enable type ahead */
-		if ((event->state & GDK_CONTROL_MASK) != 0) {
+		if ((event->state & eel_gtk_primary_mask (event->window)) != 0) {
 			handled = TRUE;
 		}
 		break;

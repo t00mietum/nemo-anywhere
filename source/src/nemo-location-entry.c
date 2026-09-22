@@ -39,6 +39,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <eel/eel-gtk-extensions.h>
 #include <eel/eel-vfs-extensions.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-entry.h>
@@ -135,7 +136,7 @@ entry_would_have_inserted_characters (const GdkEventKey *event)
 		return FALSE;
 	default:
 		if (event->keyval >= 0x20 && event->keyval <= 0xFF) {
-			if ((event->state & GDK_CONTROL_MASK) != 0) {
+			if ((event->state & (GDK_CONTROL_MASK | eel_gtk_primary_mask (event->window))) != 0) {
 				return FALSE;
 			}
 			if ((event->state & GDK_MOD1_MASK) != 0) {
@@ -215,7 +216,7 @@ editable_event_after_callback (GtkEntry *entry,
 	 * they can validly be used to extend the selection.
 	 */
 	if ((keyevent->keyval == GDK_KEY_Right || keyevent->keyval == GDK_KEY_End) &&
-	    !(keyevent->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) && 
+	    !(keyevent->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK | eel_gtk_primary_mask (keyevent->window))) &&
 	    gtk_editable_get_selection_bounds (editable, NULL, NULL)) {
 		set_position_and_selection_to_end (editable);
 	}

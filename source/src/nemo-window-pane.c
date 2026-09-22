@@ -42,6 +42,7 @@
 
 #include <glib/gi18n.h>
 
+#include <eel/eel-gtk-extensions.h>
 #include <libnemo-private/nemo-clipboard.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-entry.h>
@@ -381,7 +382,7 @@ path_bar_button_released_callback (GtkWidget *widget,
 
 		if (event->button == 2 && mask == 0) {
 			flags = NEMO_WINDOW_OPEN_FLAG_NEW_TAB;
-		} else if (event->button == 1 && mask == GDK_CONTROL_MASK) {
+		} else if (event->button == 1 && mask == eel_gtk_primary_mask (event->window)) {
 			flags = NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW;
 		}
 

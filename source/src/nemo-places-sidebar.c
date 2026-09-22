@@ -3545,7 +3545,7 @@ bookmarks_key_press_event_cb (GtkWidget             *widget,
 
       if ((event->state & modifiers) == GDK_SHIFT_MASK) {
           flags = NEMO_WINDOW_OPEN_FLAG_NEW_TAB;
-      } else if ((event->state & modifiers) == GDK_CONTROL_MASK) {
+      } else if ((event->state & modifiers) == eel_gtk_primary_mask (event->window)) {
           flags = NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW;
       }
 
@@ -3899,7 +3899,7 @@ bookmarks_button_press_event_cb (GtkWidget             *widget,
 
 		if (nemo_config_get_boolean (nemo_preferences,
 					    NEMO_PREFERENCES_ALWAYS_USE_BROWSER)) {
-			flags = (event->state & GDK_CONTROL_MASK) ?
+			flags = (event->state & eel_gtk_primary_mask (event->window)) ?
 				NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW :
 				NEMO_WINDOW_OPEN_FLAG_NEW_TAB;
 		} else {
