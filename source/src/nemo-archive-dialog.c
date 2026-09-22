@@ -62,6 +62,7 @@ typedef struct {
 	GtkWidget *delete_check;
 
 	GtkWidget *compress_button;
+	GtkWidget *options_scroll;
 
 	GList     *files;		/* GFile *, owned */
 	gboolean   whole_folder;	/* the selection is all the folder shows */
@@ -414,6 +415,33 @@ expander_toggled (GObject       *expander,
 	self->center_x = x + (self->width_before + deco_width) / 2;
 	self->center_y = y + (self->height_before + deco_height) / 2;
 	self->recenter_wanted = TRUE;
+
+	/* On a short screen the options scroll rather than grow the dialog past
+	   the bottom. The closed dialog is what the rest of it needs. */
+	if (gtk_expander_get_expanded (GTK_EXPANDER (expander))) {
+		GdkWindow *gdk_window = gtk_widget_get_window (self->dialog);
+		GdkMonitor *monitor = NULL;
+		GdkRectangle area;
+
+		if (gdk_window != NULL) {
+			monitor = gdk_display_get_monitor_at_window (gtk_widget_get_display (self->dialog),
+								     gdk_window);
+		}
+
+		if (monitor != NULL) {
+			GtkScrolledWindow *scroll = GTK_SCROLLED_WINDOW (self->options_scroll);
+			int room, natural;
+
+			gdk_monitor_get_workarea (monitor, &area);
+			room = MAX (120, area.height - self->height_before - deco_height);
+			gtk_widget_get_preferred_height (gtk_bin_get_child (GTK_BIN (scroll)), NULL, &natural);
+
+			/* A shown window only grows to its minimum, so the minimum is
+			   what sets the height here. */
+			gtk_scrolled_window_set_max_content_height (scroll, room);
+			gtk_scrolled_window_set_min_content_height (scroll, MIN (natural, room));
+		}
+	}
 }
 
 static void
@@ -435,7 +463,14 @@ build_options (ArchiveDialog *self,
 	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
 	gtk_widget_set_margin_top (grid, 6);
 	gtk_widget_set_margin_start (grid, 12);
-	gtk_container_add (GTK_CONTAINER (expander), grid);
+
+	self->options_scroll = gtk_scrolled_window_new (NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (self->options_scroll),
+					GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (self->options_scroll), TRUE);
+	gtk_scrolled_window_set_propagate_natural_width (GTK_SCROLLED_WINDOW (self->options_scroll), TRUE);
+	gtk_container_add (GTK_CONTAINER (self->options_scroll), grid);
+	gtk_container_add (GTK_CONTAINER (expander), self->options_scroll);
 
 	self->level_scale = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL,
 						      NEMO_ARCHIVE_LEVEL_STORE,

@@ -69,9 +69,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- 🔘 For photo folders, render a whole folder from top-down (in order listed in the view), rather than on-demand.
 	- Created 20260921-170804 by JC.
 
-- 🔘 Add a small "Close" button (alt+C) in the right side of an "always visible" bar at the bottom of the Preferences dialog. (Both Enter and Esc activates.) It should be independent of the scrollbar area.
-	- Created 20260921-170804 by JC.
-
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
 
@@ -83,10 +80,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-161500
 	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
 	- The demo lint fails if a drag goes back in while the guard is still at 1, so this cannot be forgotten.
-
-- 🔘 The Compress dialog is taller than a 540px screen once Options is expanded, and its buttons fall off the bottom.
-	- Opened: 20260919-161500
-	- Found while writing the demo, at 960x540. The preferences dialog was checked down to 1024x600 and fits; this one was not.
 
 - Stop here for a next release.
 
@@ -1562,6 +1555,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Add a small "Close" button (alt+C) in the right side of an "always visible" bar at the bottom of the Preferences dialog. (Both Enter and Esc activates.) It should be independent of the scrollbar area.
+	- Created 20260921-170804 by JC. Closed: 20260921.
+	- A bar under every page holds Close, outside the scrolling. Close is the default button, so Enter closes unless the focused control uses the key itself, and Escape closes too. On the Context menus page Alt+C also reaches the Copy box, so there it takes a second press.
+
+- ✅ The Compress dialog is taller than a 540px screen once Options is expanded, and its buttons fall off the bottom.
+	- Opened: 20260919-161500. Closed: 20260921.
+	- Found while writing the demo, at 960x540. The preferences dialog was checked down to 1024x600 and fits; this one was not.
+	- The options scroll when the screen is too short for them, so the buttons stay on screen. On a taller screen nothing changes.
 
 - ✅ On Linux, the new nemo-anywhere icon is not shown for the desktop launcher. And the running program shows a generic "Folder" icon.
 	- Opened: 20260921-165228

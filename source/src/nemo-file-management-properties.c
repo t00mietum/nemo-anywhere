@@ -1201,12 +1201,28 @@ page_content (GtkBuilder *builder, const char *id, gint *border)
    sizing to Views alone left Display and Behavior scrolling from the start.
    Measured rather than fixed, because the same page is a different height under
    a different theme, font size or translation. */
+/* Escape closes, as it does any dialog. Connected after, so a widget that
+   uses the key itself, such as a cell being edited, gets it first. */
+static gboolean
+dialog_key_press (GtkWidget   *dialog,
+		  GdkEventKey *event,
+		  gpointer     user_data)
+{
+	if (event->keyval == GDK_KEY_Escape &&
+	    (event->state & gtk_accelerator_get_default_mod_mask ()) == 0) {
+		gtk_widget_destroy (dialog);
+		return GDK_EVENT_STOP;
+	}
+
+	return GDK_EVENT_PROPAGATE;
+}
+
 static void
 size_dialog_to_longest_page (GtkBuilder *builder,
 			     GtkWidget  *dialog,
 			     GtkWindow  *parent)
 {
-	GtkWidget *sidebar;
+	GtkWidget *sidebar, *bar;
 	GdkRectangle work;
 	GtkRequisition wanted;
 	double scale = text_scale ();
@@ -1261,6 +1277,13 @@ size_dialog_to_longest_page (GtkBuilder *builder,
 		content_height = MAX (content_height, page_height + border);
 	}
 
+	/* The close bar sits under every page, outside the scrolling. */
+	bar = GTK_WIDGET (gtk_builder_get_object (builder, "close_bar"));
+	if (bar != NULL) {
+		gtk_widget_get_preferred_size (bar, &wanted, NULL);
+		content_height += wanted.height + 1;
+	}
+
 	height = MAX (content_height, (gint) (PREFERENCES_MIN_HEIGHT * scale));
 
 	if (height > work.height * 9 / 10) {
@@ -1295,7 +1318,7 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
                                               GtkWindow   *window,
                                               const gchar *initial_page)
 {
-	GtkWidget *dialog;
+	GtkWidget *dialog, *close_button;
 
 	/* setup UI */
 	nemo_file_management_properties_size_group_create (builder,
@@ -1610,6 +1633,13 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 
 	g_signal_connect (dialog, "delete-event",
 			  G_CALLBACK (gtk_widget_destroy), NULL);
+	g_signal_connect_after (dialog, "key-press-event",
+				G_CALLBACK (dialog_key_press), NULL);
+
+	close_button = GTK_WIDGET (gtk_builder_get_object (builder, "close_button"));
+	g_signal_connect_swapped (close_button, "clicked",
+				  G_CALLBACK (gtk_widget_destroy), dialog);
+	gtk_widget_grab_default (close_button);
 
     g_signal_connect (dialog, "destroy",
                       G_CALLBACK (on_dialog_destroy), builder);
