@@ -416,6 +416,27 @@ fCheckSliderMargin(){
 }
 fCheckSliderMargin
 
+## An icon whose picture changes size has to be laid out again before the next
+## paint, or its name jumps up under a short thumbnail and back down a frame later.
+fCheckIconRelayout(){
+	local src='source/libnemo-private/nemo-icon-container.c' body
+
+	[[ -f "$src" ]] || return 0
+
+	body="$(awk '/^schedule_redo_layout \(/,/^}/' "$src")"
+	if ! grep -q -F 'GDK_PRIORITY_REDRAW' <<< "$body"; then
+		fEcho "FAIL: ${src}: schedule_redo_layout must run ahead of the redraw"
+		exit 2
+	fi
+
+	body="$(awk '/^nemo_icon_container_update_icon \(/,/^}/' "$src")"
+	if ! grep -q -F 'schedule_redo_layout' <<< "$body"; then
+		fEcho "FAIL: ${src}: nemo_icon_container_update_icon must relayout when the picture changes size"
+		exit 2
+	fi
+}
+fCheckIconRelayout
+
 ## Sizing a folder of images reads: either the folder's own image size, which is
 ## already stored, or the image default, which has to stay a default so the
 ## preference can still move it. Writing here would pin a folder at whatever the

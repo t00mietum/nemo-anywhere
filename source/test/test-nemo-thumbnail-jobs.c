@@ -109,7 +109,7 @@ test_counting (void)
 }
 
 static void
-test_count_in_view (void)
+test_count_held (void)
 {
 	NemoFile *waiting = fake_file ("waiting.png");
 	NemoFile *held = fake_file ("held.png");
@@ -143,6 +143,56 @@ test_count_in_view (void)
 	nemo_file_unref (none);
 }
 
+/* A picture nothing has asked for yet still counts toward the total, and one
+ * in the store is ready though not held. */
+static void
+test_count_whole_folder (void)
+{
+	NemoFile *later = fake_file ("later.png");
+	NemoFile *stored = fake_file ("stored.png");
+	NemoFile *failed = fake_file ("failed.png");
+	guint shown = 0, wanted = 0;
+
+	later->details->thumbnail_type_ok = TRUE;
+	stored->details->thumbnail_in_store = TRUE;
+	failed->details->thumbnail_type_ok = TRUE;
+	failed->details->thumbnailing_failed = TRUE;
+
+	nemo_file_count_thumbnail (later, &shown, &wanted);
+	nemo_file_count_thumbnail (stored, &shown, &wanted);
+	nemo_file_count_thumbnail (failed, &shown, &wanted);
+	check (shown == 1);
+	check (wanted == 2);
+
+	nemo_file_unref (later);
+	nemo_file_unref (stored);
+	nemo_file_unref (failed);
+}
+
+static void
+test_rendered_never_ahead (void)
+{
+	guint shown, wanted;
+
+	/* 90 of 100 read back from the store, 1 of 4 built. */
+	shown = 90;
+	wanted = 100;
+	nemo_thumbnail_rendered_for_bar (1, 3, &shown, &wanted);
+	check (shown == 25);
+	check (wanted == 100);
+
+	/* Behind the build bar stays where it is. */
+	shown = 10;
+	nemo_thumbnail_rendered_for_bar (1, 3, &shown, &wanted);
+	check (shown == 10);
+
+	/* Nothing to count follows the build bar. */
+	shown = wanted = 0;
+	nemo_thumbnail_rendered_for_bar (2, 6, &shown, &wanted);
+	check (shown == 2);
+	check (wanted == 8);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -159,7 +209,9 @@ main (int argc, char **argv)
 	nemo_global_preferences_init ();
 
 	test_counting ();
-	test_count_in_view ();
+	test_count_held ();
+	test_count_whole_folder ();
+	test_rendered_never_ahead ();
 
 	if (failures == 0)
 		g_print ("nemo-thumbnail-jobs: all checks passed\n");

@@ -5175,9 +5175,9 @@ nemo_file_forget_held_thumbnail (NemoFile *file)
     details->thumbnail_is_up_to_date = FALSE;
 }
 
-/* A picture on its way counts as wanted, and one held with nothing more on
- * its way as shown. One nothing was asked for is neither, so the count
- * settles once the queue is empty. */
+/* Every picture counts toward the total, made or not. One held or already in
+ * the store is done, unless a bigger copy is on its way. One that could not
+ * be made is neither, or the count could never reach the total. */
 void
 nemo_file_count_thumbnail (NemoFile *file, guint *shown, guint *wanted)
 {
@@ -5185,9 +5185,13 @@ nemo_file_count_thumbnail (NemoFile *file, guint *shown, guint *wanted)
 
     if (details->is_thumbnailing) {
         (*wanted)++;
-    } else if (details->thumbnail != NULL) {
+    } else if (details->thumbnail != NULL || details->thumbnail_in_store) {
         (*wanted)++;
         (*shown)++;
+    } else if (!details->thumbnailing_failed &&
+               !details->thumbnail_access_problem &&
+               nemo_file_thumbnail_type_ok (file)) {
+        (*wanted)++;
     }
 }
 
