@@ -45,6 +45,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Each change of folder logs a GTK critical: `gtk_widget_draw: assertion '!widget->priv->alloc_needed' failed`.
+	- Opened: 20260922-160500
+	- Seen once per folder change, entering a folder of pictures from the address bar. Present before the thumbnail jump fix.
+
 ### Features and enhancements
 
 - 🔘 Folder properties dialog:
