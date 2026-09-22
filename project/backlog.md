@@ -51,17 +51,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: a crash now leaves a report behind. That part is under Done.
 	- Left: an actual crash to read. Nothing is known about the cause yet.
 
-- 🛠️ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
-	- Opened: 20260804-133646
-	- Note: the Windows half, and a second warning logged once per file, are fixed and filed under Done. Whether the Linux host case has the same cause as the Windows one is untested.
-	- Found: what produces that exact pair is a signal connected to a settings group that is not open yet. The group handles are NULL until the settings are read, and about seventy places connect to one. Reproduced on demand by starting with no session bus, which is what leaves the store unopened.
-	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
-	- Not reproduced on the Linux host either, with the current build run against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
-	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
-	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
-	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
-	- Captured inside the real session on 20260921, with the current build: no critical at all. Not with the session's own environment, not with criticals made fatal under a debugger, and none from any of the 28 menu launches in today's session log. Likely fixed along the way by the config and startup work, but nothing pins which change did it.
-
 ### Features and enhancements
 
 - 🔘 Thumbnails:
@@ -175,6 +164,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Startup logs a dozen pairs of "invalid (NULL) pointer instance" / `g_signal_connect_data` criticals on this host. Harmless so far - the window comes up fine - and not tied to the release build; the day-to-day container build does the same thing here.
+	- Opened: 20260804-133646
+	- Closed: 20260921. No longer reproduces.
+	- Note: the Windows half, and a second warning logged once per file, are fixed and filed under Done. Whether the Linux host case has the same cause as the Windows one is untested.
+	- Found: what produces that exact pair is a signal connected to a settings group that is not open yet. The group handles are NULL until the settings are read, and about seventy places connect to one. Reproduced on demand by starting with no session bus, which is what leaves the store unopened.
+	- Not reproduced in the build container. None of these produced a single critical: with and without a session bus, with and without the desktop's own settings present (the container has the full cinnamon schema set already), with a home full of bookmarks including missing and remote ones, bare launch and with a location, with and without the desktop flag.
+	- Not reproduced on the Linux host either, with the current build run against the real session's own surroundings: the live config, gvfs and the xdg portals up, at-spi, the xapp GTK module, the XFCE environment variables, and the GTK and icon themes the session is actually set to. Bare launch, with a location, and with the desktop flag; and a second launch forwarding to a running first one, which was the best remaining theory for why the store would not be open yet.
+	- Also not the build version: the copy installed here from July, which predates both the resource fix and the config rewrite, is clean in the same harness.
+	- Also seen, and not the same thing: with no display at all the default icon theme is NULL, and connecting to it logs the same pair once. Only one pair, and only where there is no screen, so it is not what the real session is doing.
+	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
+	- Captured inside the real session on 20260921, with the current build: no critical at all. Not with the session's own environment, not with criticals made fatal under a debugger, and none from any of the 28 menu launches in today's session log. Likely fixed along the way by the config and startup work, but nothing pins which change did it.
 
 - ✅ Every copy past the first gets refused by the XFCE session manager, which logs a critical ("An object is already exported ... org_NemoAnywhere") and a failed waitpid for each one. All copies register as a session client under the same app id.
 	- Opened: 20260921-180500
