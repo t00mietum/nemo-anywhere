@@ -1,0 +1,288 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
+
+/* nemo-magick.c - thumbnails made by ImageMagick, where it is installed.
+
+   Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; version 2 of the
+   License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the
+   Free Software Foundation, Inc., 51 Franklin Street, Suite 500,
+   Boston, MA 02110-1335, USA.
+*/
+
+#include <config.h>
+
+#include "nemo-magick.h"
+
+#include <string.h>
+
+#define TIMEOUT_SECONDS 30
+
+/* Raster formats only. Whether the installed copy can read one depends on how
+ * it was built, and one it cannot read just fails like any bad file. */
+static const struct {
+	const char *extension;
+	const char *coder;
+} formats[] = {
+	{ "jp2",  "JP2" },
+	{ "jpf",  "JP2" },
+	{ "jpx",  "JP2" },
+	{ "j2k",  "J2K" },
+	{ "j2c",  "J2C" },
+	{ "jpc",  "JPC" },
+	{ "jpm",  "JPM" },
+	{ "heic", "HEIC" },
+	{ "heif", "HEIC" },
+	{ "avif", "AVIF" },
+	{ "jxl",  "JXL" },
+	{ "webp", "WEBP" },
+	{ "exr",  "EXR" },
+	{ "hdr",  "HDR" },
+	{ "dds",  "DDS" },
+	{ "tga",  "TGA" },
+	{ "pcx",  "PCX" },
+	{ "sgi",  "SGI" },
+	{ "ras",  "SUN" },
+	{ "dpx",  "DPX" },
+	{ "cin",  "CIN" },
+	{ "fits", "FITS" },
+	{ "fit",  "FITS" },
+	{ "fts",  "FITS" },
+	{ "qoi",  "QOI" },
+	{ "xcf",  "XCF" },
+	{ "pict", "PICT" },
+	{ "pct",  "PICT" },
+	{ "jng",  "JNG" },
+	{ "miff", "MIFF" },
+	{ "pfm",  "PFM" },
+	/* Raw files the reader of our own does not know. */
+	{ "crw",  "CRW" },
+	{ "mrw",  "MRW" },
+	{ "x3f",  "X3F" },
+};
+
+static gpointer
+find_program (gpointer data)
+{
+	char *found = g_find_program_in_path ("magick");
+
+#ifndef G_OS_WIN32
+	/* ImageMagick 6, which several distributions still ship, has no magick.
+	 * On Windows convert.exe is the system's FAT to NTFS converter, so the
+	 * old name is never tried there. */
+	if (found == NULL) {
+		found = g_find_program_in_path ("convert");
+	}
+#endif
+
+	return found;
+}
+
+const char *
+nemo_magick_program (void)
+{
+	static GOnce once = G_ONCE_INIT;
+
+	return g_once (&once, find_program, NULL);
+}
+
+const char *
+nemo_magick_coder (const char *name)
+{
+	const char *slash, *dot;
+	guint i;
+
+	if (name == NULL) {
+		return NULL;
+	}
+
+	slash = strrchr (name, '/');
+#ifdef G_OS_WIN32
+	{
+		const char *back = strrchr (name, '\\');
+
+		if (back != NULL && (slash == NULL || back > slash)) {
+			slash = back;
+		}
+	}
+#endif
+	dot = strrchr (slash != NULL ? slash : name, '.');
+	if (dot == NULL) {
+		return NULL;
+	}
+
+	for (i = 0; i < G_N_ELEMENTS (formats); i++) {
+		if (g_ascii_strcasecmp (dot + 1, formats[i].extension) == 0) {
+			return formats[i].coder;
+		}
+	}
+
+	return NULL;
+}
+
+gboolean
+nemo_magick_type_ok (const char *uri)
+{
+	return uri != NULL && g_str_has_prefix (uri, "file:") &&
+	       nemo_magick_coder (uri) != NULL && nemo_magick_program () != NULL;
+}
+
+gchar **
+nemo_magick_argv (const char *program, const char *coder, int size)
+{
+	GPtrArray *argv = g_ptr_array_new ();
+
+	g_ptr_array_add (argv, g_strdup (program));
+
+	/* One huge or hostile file gives up rather than taking the machine with
+	 * it. The time limit ends it before the thumbnailer's own timeout does. */
+	g_ptr_array_add (argv, g_strdup ("-limit"));
+	g_ptr_array_add (argv, g_strdup ("memory"));
+	g_ptr_array_add (argv, g_strdup ("256MiB"));
+	g_ptr_array_add (argv, g_strdup ("-limit"));
+	g_ptr_array_add (argv, g_strdup ("map"));
+	g_ptr_array_add (argv, g_strdup ("512MiB"));
+	g_ptr_array_add (argv, g_strdup ("-limit"));
+	g_ptr_array_add (argv, g_strdup ("disk"));
+	g_ptr_array_add (argv, g_strdup ("1GiB"));
+	g_ptr_array_add (argv, g_strdup ("-limit"));
+	g_ptr_array_add (argv, g_strdup ("time"));
+	g_ptr_array_add (argv, g_strdup ("25"));
+
+	/* The file comes in on stdin and the PNG goes out on stdout. A file name
+	 * is never seen, since ImageMagick reads things into one: a prefix as a
+	 * format, and %d as a frame number, which 6 and 7 even escape
+	 * differently. The format is named rather than guessed, and only the
+	 * first frame of a file of many is read. */
+	g_ptr_array_add (argv, g_strdup_printf ("%s:-[0]", coder));
+
+	g_ptr_array_add (argv, g_strdup ("-auto-orient"));
+	g_ptr_array_add (argv, g_strdup ("-strip"));
+	g_ptr_array_add (argv, g_strdup ("-thumbnail"));
+	g_ptr_array_add (argv, g_strdup_printf ("%dx%d>", size, size));
+	g_ptr_array_add (argv, g_strdup ("png:-"));
+	g_ptr_array_add (argv, NULL);
+
+	return (gchar **) g_ptr_array_free (argv, FALSE);
+}
+
+typedef struct {
+	GSubprocess *proc;
+	GMainLoop   *loop;
+	GBytes      *out;
+	gboolean     timed_out;
+} Run;
+
+static gboolean
+run_timed_out (gpointer data)
+{
+	Run *run = data;
+
+	run->timed_out = TRUE;
+	g_subprocess_force_exit (run->proc);
+
+	return G_SOURCE_REMOVE;
+}
+
+static void
+run_finished (GObject *source, GAsyncResult *result, gpointer data)
+{
+	Run *run = data;
+
+	g_subprocess_communicate_finish (G_SUBPROCESS (source), result, &run->out, NULL, NULL);
+	g_main_loop_quit (run->loop);
+}
+
+static GdkPixbuf *
+decode_png (GBytes *bytes)
+{
+	g_autoptr (GdkPixbufLoader) loader = gdk_pixbuf_loader_new_with_type ("png", NULL);
+	gboolean ok, closed;
+	GdkPixbuf *pixbuf;
+
+	if (loader == NULL) {
+		return NULL;
+	}
+	ok = gdk_pixbuf_loader_write_bytes (loader, bytes, NULL);
+	closed = gdk_pixbuf_loader_close (loader, NULL);
+	if (!ok || !closed) {
+		return NULL;
+	}
+	pixbuf = gdk_pixbuf_loader_get_pixbuf (loader);
+
+	return pixbuf != NULL ? g_object_ref (pixbuf) : NULL;
+}
+
+GdkPixbuf *
+nemo_magick_load_uri (const char *uri, int size)
+{
+	g_autofree char *path = NULL;
+	g_autoptr (GSubprocessLauncher) launcher = NULL;
+	g_auto (GStrv) argv = NULL;
+	const char *program, *coder;
+	GMainContext *context;
+	GSource *timeout;
+	GdkPixbuf *pixbuf = NULL;
+	Run run = { 0 };
+
+	if (!nemo_magick_type_ok (uri)) {
+		return NULL;
+	}
+	path = g_filename_from_uri (uri, NULL, NULL);
+	if (path == NULL) {
+		return NULL;
+	}
+	program = nemo_magick_program ();
+	coder = nemo_magick_coder (path);
+	argv = nemo_magick_argv (program, coder, CLAMP (size, 1, 4096));
+
+	launcher = g_subprocess_launcher_new (G_SUBPROCESS_FLAGS_STDOUT_PIPE |
+					      G_SUBPROCESS_FLAGS_STDERR_SILENCE);
+	g_subprocess_launcher_set_stdin_file_path (launcher, path);
+
+	/* Private context so the wait and the timeout run here rather than on
+	 * whatever context this worker thread happens to be running under. */
+	context = g_main_context_new ();
+	g_main_context_push_thread_default (context);
+
+	run.proc = g_subprocess_launcher_spawnv (launcher, (const gchar * const *) argv, NULL);
+	if (run.proc != NULL) {
+		run.loop = g_main_loop_new (context, FALSE);
+		g_subprocess_communicate_async (run.proc, NULL, NULL, run_finished, &run);
+
+		timeout = g_timeout_source_new_seconds (TIMEOUT_SECONDS);
+		g_source_set_callback (timeout, run_timed_out, &run, NULL);
+		g_source_attach (timeout, context);
+
+		/* A killed child closes its output, so the loop still ends. */
+		g_main_loop_run (run.loop);
+
+		if (run.timed_out) {
+			g_warning ("ImageMagick took longer than %d seconds, gave up on %s",
+				   TIMEOUT_SECONDS, path);
+		} else if (run.out != NULL && g_subprocess_get_successful (run.proc)) {
+			pixbuf = decode_png (run.out);
+		}
+
+		g_source_destroy (timeout);
+		g_source_unref (timeout);
+		g_main_loop_unref (run.loop);
+		g_object_unref (run.proc);
+	}
+
+	g_clear_pointer (&run.out, g_bytes_unref);
+	g_main_context_pop_thread_default (context);
+	g_main_context_unref (context);
+
+	return pixbuf;
+}

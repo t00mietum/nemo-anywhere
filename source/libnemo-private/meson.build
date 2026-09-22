@@ -67,6 +67,7 @@ nemo_private_sources = [
   'nemo-image-folders.c',
   'nemo-psd.c',
   'nemo-raw.c',
+  'nemo-magick.c',
   'nemo-thumbnail-pixbuf-utils.c',
   'nemo-mime-application-chooser.c',
   'nemo-module.c',
