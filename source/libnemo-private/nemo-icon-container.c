@@ -5386,6 +5386,30 @@ nemo_icon_container_for_each (NemoIconContainer *container,
 			call_icon_callback, &callback_and_data);
 }
 
+GList *
+nemo_icon_container_get_unshown_in_order (NemoIconContainer *container)
+{
+	GList *icons, *l, *data = NULL;
+
+	g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), NULL);
+
+	icons = g_list_copy (container->details->icons);
+	if (container->details->auto_layout) {
+		nemo_icon_container_sort_icons (container, &icons);
+	}
+
+	for (l = icons; l != NULL; l = l->next) {
+		NemoIcon *icon = l->data;
+
+		if (!icon->ok_to_show_thumb) {
+			data = g_list_prepend (data, icon->data);
+		}
+	}
+	g_list_free (icons);
+
+	return g_list_reverse (data);
+}
+
 static int
 selection_changed_at_idle_callback (gpointer data)
 {

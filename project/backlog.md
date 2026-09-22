@@ -53,12 +53,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Thumbnails:
-	- 🔘 Feature: Show thumbnails for PSD format.
-	- 🔘 Bug: When rendering thumbnails, there is often flashing when changing between generic icon, and rendered thumbnail.
-	- 🔘 For photo folders, render a whole folder from top-down (in order listed in the view), rather than on-demand.
-	- Created 20260921-170804 by JC.
-
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
 
@@ -1563,6 +1557,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Thumbnails:
+	- ✅ Feature: Show thumbnails for PSD format if possible. IIRC the layers are TIFF format, but maybe a special reader is needed.
+		- A small reader of our own. It reads the flattened copy of the picture a .psd or .psb keeps after its layers, so the layers are never read. Grayscale, indexed, RGB and CMYK, 8 or 16 bit. Lab and 32 bit files still show the type icon.
+	- ✅ Bug: When rendering thumbnails, there is often flashing when changing between generic icon, and rendered thumbnail.
+		- Two causes. While a thumbnail was made the icon switched to a "loading" icon, which most themes do not have, so a stand-in flashed in between. And an edited file dropped its old thumbnail for the type icon until the new one was ready. Now the type icon stays until the picture is there, and an edited file keeps its old picture until then.
+	- ✅ For photo folders, render a whole folder from top-down (in order listed in the view), rather than on-demand.
+		- A folder of pictures on a local disk gets every thumbnail made once it loads, in view order, behind whatever is on screen. Ones not yet shown go into the cache without being held in memory.
+	- Created 20260921-170804 by JC. Closed: 20260921.
 
 - ✅ Add a small "Close" button (alt+C) in the right side of an "always visible" bar at the bottom of the Preferences dialog. (Both Enter and Esc activates.) It should be independent of the scrollbar area.
 	- Created 20260921-170804 by JC. Closed: 20260921.

@@ -49,6 +49,7 @@
 #include <glib/gstdio.h>
 #include <libnemo-private/nemo-posix-compat.h>
 #include <libnemo-private/nemo-file-utilities.h>
+#include <libnemo-private/nemo-psd.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -1164,7 +1165,8 @@ nemo_desktop_thumbnail_factory_can_make (NemoDesktopThumbnailFactory *factory,
 
   g_mutex_unlock (&factory->priv->lock);
 
-  return thumb != NULL || mimetype_supported_by_gdk_pixbuf (mime_type);
+  return thumb != NULL || mimetype_supported_by_gdk_pixbuf (mime_type) ||
+         nemo_psd_type_ok (mime_type);
 }
 
 /**
@@ -1489,6 +1491,9 @@ nemo_desktop_thumbnail_factory_generate_thumbnail_at_size (NemoDesktopThumbnailF
         }
     }
       
+  if (!disabled && pixbuf == NULL && nemo_psd_type_ok (mime_type))
+    pixbuf = nemo_psd_load_uri (uri, size);
+
   if (pixbuf == NULL)
     return NULL;
 

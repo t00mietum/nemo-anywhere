@@ -356,6 +356,12 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Reload makes the folder's thumbnails again, as it always has. It forgets the stored copy and stops using the freedesktop one for those files. The freedesktop cache itself is left alone.
 
+- The file's own type icon stays up until its thumbnail is ready. There is no "loading" icon in between, since few themes have one and the stand-in flashed. An edited file keeps its old thumbnail until the new one is made.
+
+- A folder of pictures on a local disk has all its thumbnails made once it has loaded, top down in view order, behind anything already on screen. What is made for a file not yet shown goes into the store only. Holding the pictures for thousands of files would cost far more memory than reading one back when it scrolls into view.
+
+- Photoshop files are read by a small reader of our own, since gdk-pixbuf has none. A .psd or .psb carries a flattened copy of the picture after its layers, and that is all a thumbnail needs, so the layers are skipped. It is shrunk while it is decoded, so a large file never sits in memory at full size. Grayscale, indexed, RGB and CMYK are read; Lab, multichannel and 32 bit files are not.
+
 - Pruning runs on a worker thread over a connection of its own, so it never holds up a draw. Each pass checks the file for damage, forgets local files that are gone, drops thumbnails not drawn for too long, then drops the least recently drawn until the file is under its size limit, and last hands the freed space back to the disk.
 
 - A file is only forgotten when its folder is still there. A whole folder missing is more often a drive that is not plugged in. Shares are skipped, and so is any folder that is slow to answer, since one that is not answering costs about twenty seconds per question.

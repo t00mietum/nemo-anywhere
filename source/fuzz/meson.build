@@ -57,6 +57,14 @@ fuzzCommandTemplate = executable('fuzz-command-template',
   link_args: fuzzLinkArgs,
 )
 
+fuzzPsd = executable('fuzz-psd',
+  [ 'fuzz-psd.c' ] + fuzzDriver,
+  include_directories: [ rootInclude, ],
+  dependencies: [ gtk, nemo_private ],
+  c_args:    fuzzCArgs,
+  link_args: fuzzLinkArgs,
+)
+
 # The three binary Office parsers. Each helper is a program of its own, so the
 # target includes its source whole and renames the main out of the way rather
 # than turning the parser into a library nothing else would use. The zip-of-xml
@@ -114,6 +122,19 @@ fuzzCommandTemplateCorpus = files(
   'corpus/command-template/backslashes',
 )
 
+fuzzPsdCorpus = files(
+  'corpus/psd/empty',
+  'corpus/psd/rgb-raw',
+  'corpus/psd/rgb-packed-alpha',
+  'corpus/psd/psb-16bit',
+  'corpus/psd/gray-shrunk',
+  'corpus/psd/indexed',
+  'corpus/psd/cmyk',
+  'corpus/psd/truncated',
+  'corpus/psd/bad-count',
+  'corpus/psd/short-literal',
+)
+
 fuzzXlsCorpus = files(
   'corpus/xls/empty',
   'corpus/xls/bof-eof',
@@ -158,6 +179,7 @@ if not get_option('fuzzing')
   test('Settings parser fuzz corpus test',  fuzzShcl,            args: fuzzShclCorpus,            env: fuzzTestEnv)
   test('Drag payload fuzz corpus test',     fuzzDnd,             args: fuzzDndCorpus,             env: fuzzTestEnv)
   test('Command template fuzz corpus test', fuzzCommandTemplate, args: fuzzCommandTemplateCorpus, env: fuzzTestEnv)
+  test('Photoshop fuzz corpus test',        fuzzPsd,             args: fuzzPsdCorpus,             env: fuzzTestEnv)
   test('Workbook fuzz corpus test',         fuzzXls,             args: fuzzXlsCorpus,             env: fuzzTestEnv)
   test('Presentation fuzz corpus test',     fuzzPpt,             args: fuzzPptCorpus,             env: fuzzTestEnv)
   test('Word document fuzz corpus test',    fuzzDoc,             args: fuzzDocCorpus,             env: fuzzTestEnv)
