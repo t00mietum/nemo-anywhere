@@ -162,7 +162,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "desktop", "use-desktop-grid", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "icon-view", "captions", NEMO_CONFIG_STRING_LIST, NULL, deflist_icon_view_captions, NULL, "Extra details shown under an icon" },
 	{ "icon-view", "default-icon-size", NEMO_CONFIG_INT, "100", NULL, NULL, "Icon size as a per cent of the standard 64 pixels" },
-	{ "icon-view", "default-image-icon-size", NEMO_CONFIG_INT, "250", NULL, NULL, "Icon size for a folder that is mostly images, as a per cent of the standard 64 pixels" },
+	{ "icon-view", "default-image-icon-size", NEMO_CONFIG_INT, "500", NULL, NULL, "Icon size for a folder that is mostly images, as a per cent of the standard 64 pixels" },
 	{ "icon-view", "image-folder-min-images", NEMO_CONFIG_INT, "2", NULL, NULL, "Fewest images a folder needs to count as mostly images" },
 	{ "icon-view", "image-folder-min-percent", NEMO_CONFIG_INT, "50", NULL, NULL, "Share of a folder's files, sub-folders not counted, that must be images for it to count as mostly images" },
 	{ "icon-view", "image-folder-switch", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Show a folder that is mostly images in icon view, unless it has a view of its own" },

@@ -639,6 +639,10 @@ nemo_application_startup (GApplication *app)
 	init_icons_and_styles ();
 	init_gtk_accels ();
 
+	/* Every window shows the program's icon. Upstream showed the folder's,
+	   which in a taskbar says nothing about which program it is. */
+	gtk_window_set_default_icon_name ("nemo-anywhere");
+
 	/* initialize nemo modules */
 	nemo_splash_note (_("Loading extensions"));
 	nemo_module_setup ();

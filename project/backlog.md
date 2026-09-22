@@ -81,6 +81,26 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - Stop here for a next release.
 
+- 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
+	- Opened: 20260821-150232
+	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
+	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
+
+- 🔘 Native renamer:
+	- Opened: 20260908-111526
+	- Robust rename that surpasses Thunar Renamer and Directory Opus in functionality, simplicity, and repeatability (e.g. saveable templates).
+	- For media types, be at least as robust as "CamHauler" (formerly "Rapid Photo Downloader Pro" and may get yet another rename), including move functionality.
+		- With an option to preserve restoration attributes in xattrs [e.g. original name, datetimes, etc.]
+
+- 🔘 Feature: Find duplicate files and directories
+	- Opened: 20260908-111526
+	- Smart duplicate file and directory finder with smart, useful options.
+	- Cache content hashes in local SQLite as well as optionally xattrs.
+	- And related, smart:
+		- Deduper for CoW systems.
+		- Dupe deleter.
+			- Optionally, create hardlinks under a per-volume, dot-hidden, "deleted-duplicate-hardlinks" directory (with a "readme.txt" in each describing the purpose, and a datetime-stamped log of each run.
+
 - 🔘 Selectable metadata to include for media titles in icon mode. (E.g. px size, capture date, megapixel, framerate for video, Avg bitrate for audio and video, codec, etc.)
 
 - 🔬 Installers: architecture always detected, a version option, and a stable install that still works before any stable release exists.
@@ -108,26 +128,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
 	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
 	- The dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
-
-- 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
-	- Opened: 20260821-150232
-	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
-	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
-
-- 🔘 Native renamer:
-	- Opened: 20260908-111526
-	- Robust rename that surpasses Thunar Renamer and Directory Opus in functionality, simplicity, and repeatability (e.g. saveable templates).
-	- For media types, be at least as robust as "CamHauler" (formerly "Rapid Photo Downloader Pro" and may get yet another rename), including move functionality.
-		- With an option to preserve restoration attributes in xattrs [e.g. original name, datetimes, etc.]
-
-- 🔘 Feature: Find duplicate files and directories
-	- Opened: 20260908-111526
-	- Smart duplicate file and directory finder with smart, useful options.
-	- Cache content hashes in local SQLite as well as optionally xattrs.
-	- And related, smart:
-		- Deduper for CoW systems.
-		- Dupe deleter.
-			- Optionally, create hardlinks under a per-volume, dot-hidden, "deleted-duplicate-hardlinks" directory (with a "readme.txt" in each describing the purpose, and a datetime-stamped log of each run.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
@@ -1546,6 +1546,24 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ On Linux, the new nemo-anywhere icon is not shown for the desktop launcher. And the running program shows a generic "Folder" icon.
+	- Opened: 20260921-165228
+	- Closed: 20260921.
+	- The app icons were still the old folder-and-submarine. The logo changed on 20260919 and the icons cut from it were never redone. They are now, the Windows exe icon too, and the lint fails if they drift from the logo again.
+	- Every window used to take the icon of the folder it showed, as upstream did. Windows now all show the program's icon.
+	- The dogfood menu entry picks up the new icon on the next dogfood run.
+
+- ✅ No step in CICD should consume more than 50% CPU.
+	- Opened: 20260921-165228
+	- Closed: 20260921.
+	- Job counts were already half the cores, but link-time optimization and rar run threads of their own past that. A full run now goes inside a user scope with a CPU quota of half the machine, and the three build containers carry the same cap.
+	- The Windows pipeline still only caps its job counts.
+
+- ✅ New default "mostly images" icon size: 320.
+	- Opened: 20260921-165228
+	- Closed: 20260921.
+	- 500%, which is 320 pixels.
 
 - ✅ Remove Nemo authors from the actual Help|About|License button-expanded text. That text is only for the license title, link, and text.
 	- Closed: 20260921.

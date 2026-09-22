@@ -6,13 +6,16 @@ by the resource compiler) and the hicolor app icons the Linux install and the
 in-binary icon theme read. Output is committed, so no build step depends on this
 script. Re-run it after changing the logo.
 
-Syntax: gen-app-icon.py [<repo-root>]
+With --check nothing is written. It fails if a committed icon no longer looks
+like the logo, which is how a new logo went unnoticed for two days.
+
+Syntax: gen-app-icon.py [--check] [<repo-root>]
 """
 
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 # The exe carries every size Windows asks for, from the file list up to the
 # 256 the large-icon views and the alt-tab switcher use.
@@ -23,11 +26,49 @@ ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
 THEME_SIZES = (16, 22, 24, 32, 48, 64, 128, 256)
 
 
+# Per channel, out of 255. Enough to let a different Pillow resample a little
+# differently, far short of a different picture.
+CHECK_TOLERANCE = 8
+
+
+def check(root, logo):
+    apps = os.path.join(root, "source", "data", "icons", "hicolor", "apps")
+    stale = []
+    for size in THEME_SIZES:
+        path = os.path.join(apps, "%dx%d" % (size, size), "nemo-anywhere.png")
+        want = logo.resize((size, size), Image.LANCZOS)
+        try:
+            have = Image.open(path).convert("RGBA")
+        except OSError:
+            stale.append(path)
+            continue
+        if have.size != want.size:
+            stale.append(path)
+            continue
+        worst = max(hi for _, hi in ImageChops.difference(have, want).getextrema())
+        if worst > CHECK_TOLERANCE:
+            stale.append(path)
+
+    if stale:
+        print("[ FAIL: app icons do not match assets/logo.png; run cicd/utility/gen-app-icon.py ]")
+        for path in stale:
+            print("  " + os.path.relpath(path, root))
+        return 1
+    print("[ OK: app icons match the logo ]")
+    return 0
+
+
 def main(argv):
-    root = argv[1] if len(argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..")
+    args = argv[1:]
+    checking = "--check" in args
+    args = [a for a in args if a != "--check"]
+    root = args[0] if args else os.path.join(os.path.dirname(__file__), "..", "..")
     root = os.path.abspath(root)
 
     logo = Image.open(os.path.join(root, "assets", "logo.png")).convert("RGBA")
+
+    if checking:
+        return check(root, logo)
 
     ico = os.path.join(root, "source", "src", "nemo-anywhere.ico")
     logo.save(ico, format="ICO", sizes=[(s, s) for s in ICO_SIZES])
