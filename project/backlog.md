@@ -45,6 +45,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 Bug: When changing to list view after being in an image folder, the zoom level still doesn't reliably change back to defined.
+	- Created 20260921-170804 by JC.
+
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -62,6 +65,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Left to find: what the real X session has that a private display does not. Needs one capture run from inside that session; the exact command is in the private notes.
 
 ### Features and enhancements
+
+- 🔘 Thumbnails:
+	- 🔘 Feature: Show thumbnails for PSD format.
+	- 🔘 Bug: When rendering thumbnails, there is often flashing when changing between generic icon, and rendered thumbnail.
+	- 🔘 For photo folders, render a whole folder from top-down (in order listed in the view), rather than on-demand.
+	- Created 20260921-170804 by JC.
+
+- 🔘 Add a small "Close" button (alt+C) in the right side of an "always visible" bar at the bottom of the Preferences dialog. (Both Enter and Esc activates.) It should be independent of the scrollbar area.
+	- Created 20260921-170804 by JC.
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
