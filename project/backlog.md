@@ -47,12 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🛠️ Additional thumbnailer formats:
-	- Raw files including .dng
-	- jp2 (JPEG 2000 in general)
-	- Done: raw files. A small reader of our own draws the JPEG preview each camera stores in the file, so nothing new is linked. DNG, CR2, CR3, NEF, ARW, RAF, RW2, ORF, PEF, SRW and most other TIFF based raws.
-	- Left: jp2. There is no way around a decoder library here, and none of the Windows builds has one yet, so it waits on a call about adding it.
-
 - 🔘 Idea: Instead of relying on checksum for uniqueness (which is slow to read from xattrs or scan the file).
 	- Maybe first check for unique combinations of:
 		- mtime
@@ -129,6 +123,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
 	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
 	- The dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
+	- ImageMagick thumbnails have not run on Windows. Things to see there: no console window flashes up, and the packed exe's file hooks, which every program it starts inherits, do not upset `magick.exe`.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
@@ -1616,6 +1611,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Additional thumbnailer formats:
+	- Raw files including .dng
+	- jp2 (JPEG 2000 in general)
+	- Closed: 20260922.
+	- Raw files: a small reader of our own draws the JPEG preview each camera stores in the file, so nothing new is linked. DNG, CR2, CR3, NEF, ARW, RAF, RW2, ORF, PEF, SRW and most other TIFF based raws.
+	- jp2 and more: handed to ImageMagick when it is installed, one file per run in the background. That also covers HEIC, AVIF, EXR, DDS, TGA, FITS and the older raw containers, and any format on the list that a later ImageMagick learns. Nothing new is linked.
 
 - ✅ Folder properties dialog:
 	- "Contents" and "Size" don't mean much. Better:

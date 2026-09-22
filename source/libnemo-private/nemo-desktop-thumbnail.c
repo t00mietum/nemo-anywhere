@@ -51,6 +51,7 @@
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-psd.h>
 #include <libnemo-private/nemo-raw.h>
+#include <libnemo-private/nemo-magick.h>
 
 #define SECONDS_BETWEEN_STATS 10
 
@@ -1167,7 +1168,8 @@ nemo_desktop_thumbnail_factory_can_make (NemoDesktopThumbnailFactory *factory,
   g_mutex_unlock (&factory->priv->lock);
 
   return thumb != NULL || mimetype_supported_by_gdk_pixbuf (mime_type) ||
-         nemo_psd_type_ok (mime_type) || nemo_raw_type_ok (mime_type);
+         nemo_psd_type_ok (mime_type) || nemo_raw_type_ok (mime_type) ||
+         nemo_magick_type_ok (uri);
 }
 
 /**
@@ -1497,6 +1499,9 @@ nemo_desktop_thumbnail_factory_generate_thumbnail_at_size (NemoDesktopThumbnailF
 
   if (!disabled && pixbuf == NULL && nemo_raw_type_ok (mime_type))
     pixbuf = nemo_raw_load_uri (uri, size);
+
+  if (!disabled && pixbuf == NULL && nemo_magick_type_ok (uri))
+    pixbuf = nemo_magick_load_uri (uri, size);
 
   if (pixbuf == NULL)
     return NULL;

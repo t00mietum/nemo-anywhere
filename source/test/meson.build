@@ -855,6 +855,15 @@ test('Camera raw reader test',
   args: []
 )
 
+test('ImageMagick thumbnail test',
+  executable('test-nemo-magick',
+    [ 'test-nemo-magick.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Thumbnail hold test',
   executable('test-nemo-thumbnail-hold',
     [ 'test-nemo-thumbnail-hold.c' ],
