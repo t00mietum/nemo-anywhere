@@ -80,6 +80,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-125440
 	- Settled 20260920: write it now rather than wait for a macOS target. There is no way to run it here, so it goes in behind a platform check and stays unverified until there is a machine to try it on.
 
+- 🔘 Allow moving tabs to other nemo-anywhere windows.
+	- Opened: 20260922
+	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
+
 - 🔘 Put the drag-move scene back in the demo once the delete test guard's compile-time arm is at 0.
 	- Opened: 20260919-161500
 	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
@@ -178,6 +182,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ With the tab bar set to show for a single tab, closing a tab down to one hid it anyway.
+	- Opened: 20260922. Closed: 20260922.
+	- Found while adding the Preferences checkbox. Closing a tab reset the tab bar from the tab count alone and skipped the setting.
 
 - ✅ Each change of folder logs a GTK critical: `gtk_widget_draw: assertion '!widget->priv->alloc_needed' failed`.
 	- Opened: 20260922-160500
@@ -1617,6 +1625,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ New option in Preferences: "Always show at least one tab".
+	- Opened: 20260922. Closed: 20260922.
+	- The setting was already in the settings file. It now has a checkbox under Behavior, "Show the tab bar even with only one tab".
+
+- ✅ Anytime a new window is spawned from an existing window (e.g. Ctrl+N or dragging a second tab off the window to open it in a new one), it should be in its own process.
+	- Opened: 20260922. Closed: 20260922.
+	- Already the case since 20260905, with "Open each new window as its own process" on under Behavior, which is the default. Checked again for Ctrl+N and for a tab dragged off the window: each comes up as a new process.
+	- With the setting off, both stay in the one process, as before.
 
 - ✅ Thumbnail scan progress bars:
 	- Currently wrong: The "displayed" bar goes to 100% quickly, based on what is currently shown, and changes upon scrolling.

@@ -113,6 +113,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DETECT_CONTENT_MEDIA_WIDGET "media_detect_content_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_ADVANCED_PERMISSIONS_WIDGET "show_advanced_permissions_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_START_WITH_DUAL_PANE_WIDGET "start_with_dual_pane_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_ALWAYS_SHOW_TABS_WIDGET "always_show_tabs_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_REMEMBER_FOLDER_SETTINGS_WIDGET "remember_folder_settings_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_BOOKMARKS_IN_TO_MENUS_WIDGET "bookmarks_in_to_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_PLACES_IN_TO_MENUS_WIDGET "places_in_to_checkbutton"
@@ -1556,6 +1557,10 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
     bind_builder_bool (builder, nemo_preferences,
                        NEMO_FILE_MANAGEMENT_PROPERTIES_START_WITH_DUAL_PANE_WIDGET,
                        NEMO_PREFERENCES_START_WITH_DUAL_PANE);
+
+    bind_builder_bool (builder, nemo_preferences,
+                       NEMO_FILE_MANAGEMENT_PROPERTIES_ALWAYS_SHOW_TABS_WIDGET,
+                       NEMO_PREFERENCES_ALWAYS_SHOW_TABS);
 
     bind_builder_bool (builder, nemo_preferences,
                        NEMO_FILE_MANAGEMENT_PROPERTIES_BOOKMARKS_IN_TO_MENUS_WIDGET,
