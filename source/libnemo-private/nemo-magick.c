@@ -28,6 +28,10 @@
 
 #define TIMEOUT_SECONDS 30
 
+/* ImageMagick holds all of its input in memory before decoding it, so past
+ * this the file is left alone. */
+#define MAX_FILE_BYTES (256 * 1024 * 1024)
+
 /* Raster formats only. Whether the installed copy can read one depends on how
  * it was built, and one it cannot read just fails like any bad file. */
 static const struct {
@@ -227,7 +231,8 @@ GdkPixbuf *
 nemo_magick_load_uri (const char *uri, int size)
 {
 	g_autofree char *path = NULL;
-	g_autoptr (GSubprocessLauncher) launcher = NULL;
+	g_autoptr (GMappedFile) mapped = NULL;
+	g_autoptr (GBytes) input = NULL;
 	g_auto (GStrv) argv = NULL;
 	const char *program, *coder;
 	GMainContext *context;
@@ -242,23 +247,30 @@ nemo_magick_load_uri (const char *uri, int size)
 	if (path == NULL) {
 		return NULL;
 	}
+	/* Mapped rather than read, so the file is not copied on its way down the
+	 * pipe. A stdin that is the file itself would be cheaper still, but GLib
+	 * only offers that on Unix. */
+	mapped = g_mapped_file_new (path, FALSE, NULL);
+	if (mapped == NULL || g_mapped_file_get_length (mapped) > MAX_FILE_BYTES) {
+		return NULL;
+	}
+	input = g_mapped_file_get_bytes (mapped);
+
 	program = nemo_magick_program ();
 	coder = nemo_magick_coder (path);
 	argv = nemo_magick_argv (program, coder, CLAMP (size, 1, 4096));
-
-	launcher = g_subprocess_launcher_new (G_SUBPROCESS_FLAGS_STDOUT_PIPE |
-					      G_SUBPROCESS_FLAGS_STDERR_SILENCE);
-	g_subprocess_launcher_set_stdin_file_path (launcher, path);
 
 	/* Private context so the wait and the timeout run here rather than on
 	 * whatever context this worker thread happens to be running under. */
 	context = g_main_context_new ();
 	g_main_context_push_thread_default (context);
 
-	run.proc = g_subprocess_launcher_spawnv (launcher, (const gchar * const *) argv, NULL);
+	run.proc = g_subprocess_newv ((const gchar * const *) argv,
+				      G_SUBPROCESS_FLAGS_STDIN_PIPE | G_SUBPROCESS_FLAGS_STDOUT_PIPE |
+				      G_SUBPROCESS_FLAGS_STDERR_SILENCE, NULL);
 	if (run.proc != NULL) {
 		run.loop = g_main_loop_new (context, FALSE);
-		g_subprocess_communicate_async (run.proc, NULL, NULL, run_finished, &run);
+		g_subprocess_communicate_async (run.proc, input, NULL, run_finished, &run);
 
 		timeout = g_timeout_source_new_seconds (TIMEOUT_SECONDS);
 		g_source_set_callback (timeout, run_timed_out, &run, NULL);
