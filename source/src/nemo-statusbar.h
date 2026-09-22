@@ -54,6 +54,13 @@ struct _NemoStatusBar
     GtkWidget *separator;
     GtkWidget *hide_button;
     GtkWidget *show_button;
+
+    GtkWidget *thumb_bars;
+    GtkWidget *build_bar;
+    GtkWidget *render_bar;
+    guint thumb_tick_id;
+    guint thumb_busy_ticks;
+    guint thumb_idle_ticks;
 };
 
 struct _NemoStatusBarClass

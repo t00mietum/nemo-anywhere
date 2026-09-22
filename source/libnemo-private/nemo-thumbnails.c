@@ -1047,6 +1047,77 @@ nemo_thumbnail_render_ahead (GList *files, int size)
     }
 }
 
+/* Counted on the main loop, from the file's thumbnailing flag, so a job
+ * folded into one already queued is not counted twice. A batch runs from the
+ * queue leaving empty to its going empty again. */
+static guint jobs_waiting = 0;
+static guint jobs_done = 0;
+static GList *job_watchers = NULL;
+
+typedef struct {
+    NemoThumbnailJobsFunc func;
+    gpointer    data;
+} JobWatcher;
+
+void
+nemo_thumbnail_note_job (gboolean started)
+{
+    GList *l;
+
+    if (!started) {
+        if (jobs_waiting > 0) {
+            jobs_waiting--;
+            jobs_done++;
+        }
+        return;
+    }
+
+    if (jobs_waiting++ > 0) {
+        return;
+    }
+
+    jobs_done = 0;
+
+    for (l = job_watchers; l != NULL; l = l->next) {
+        JobWatcher *watcher = l->data;
+
+        watcher->func (watcher->data);
+    }
+}
+
+void
+nemo_thumbnail_jobs (guint *done, guint *waiting)
+{
+    *done = jobs_done;
+    *waiting = jobs_waiting;
+}
+
+void
+nemo_thumbnail_watch_jobs (NemoThumbnailJobsFunc func, gpointer data)
+{
+    JobWatcher *watcher = g_new0 (JobWatcher, 1);
+
+    watcher->func = func;
+    watcher->data = data;
+    job_watchers = g_list_prepend (job_watchers, watcher);
+}
+
+void
+nemo_thumbnail_unwatch_jobs (NemoThumbnailJobsFunc func, gpointer data)
+{
+    GList *l;
+
+    for (l = job_watchers; l != NULL; l = l->next) {
+        JobWatcher *watcher = l->data;
+
+        if (watcher->func == func && watcher->data == data) {
+            job_watchers = g_list_delete_link (job_watchers, l);
+            g_free (watcher);
+            return;
+        }
+    }
+}
+
 /* Mainloop */
 void
 nemo_thumbnail_remove_from_queue (const char *file_uri)

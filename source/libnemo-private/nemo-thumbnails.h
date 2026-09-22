@@ -84,6 +84,19 @@ void       nemo_thumbnail_pad_top_and_bottom    (GdkPixbuf **pixbuf,
 /* Queue handling: */
 void       nemo_thumbnail_remove_from_queue     (const char   *file_uri);
 
+/* Progress, for the status bar. Only nemo-file.c notes a job, as the file's
+ * thumbnailing flag goes on or off. `func` is called as the queue starts on
+ * a new batch. */
+typedef void (*NemoThumbnailJobsFunc) (gpointer data);
+
+void       nemo_thumbnail_note_job              (gboolean               started);
+void       nemo_thumbnail_jobs                  (guint                 *done,
+                                                 guint                 *waiting);
+void       nemo_thumbnail_watch_jobs            (NemoThumbnailJobsFunc  func,
+                                                 gpointer               data);
+void       nemo_thumbnail_unwatch_jobs          (NemoThumbnailJobsFunc  func,
+                                                 gpointer               data);
+
 gboolean   nemo_thumbnail_factory_check_status          (void);
 
 #endif /* NEMO_THUMBNAILS_H */

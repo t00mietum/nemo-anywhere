@@ -864,6 +864,15 @@ test('Thumbnail memory test',
   args: []
 )
 
+test('Thumbnail jobs test',
+  executable('test-nemo-thumbnail-jobs',
+    [ 'test-nemo-thumbnail-jobs.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Thumbnail order test',
   executable('test-nemo-thumbnail-order',
     [ 'test-nemo-thumbnail-order.c' ],
