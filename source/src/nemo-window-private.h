@@ -127,6 +127,7 @@ struct NemoWindowDetails
         gchar *ignore_meta_view_id;
         gint ignore_meta_icon_size;	/* 0 when nothing is pinned */
         gint ignore_meta_image_icon_size;	/* the same, for a folder of pictures */
+        gint ignore_meta_list_icon_size;	/* and for list view */
         GList *ignore_meta_visible_columns;
         GList *ignore_meta_column_order;
         gchar *ignore_meta_sort_column;

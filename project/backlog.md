@@ -45,9 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Bug: When changing to list view after being in an image folder, the zoom level still doesn't reliably change back to defined.
-	- Created 20260921-170804 by JC.
-
 - 🛠️ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
@@ -184,6 +181,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Bug: When changing to list view after being in an image folder, the zoom level still doesn't reliably change back to defined.
+	- Created 20260921-170804 by JC. Closed: 20260921.
+	- With per-folder settings off, list view and icon view shared one held size on the window, and their sizes and defaults differ. Whichever view wrote it first decided what the other one opened at. List view holds its own size now.
+
+- ✅ The Windows test box built with link-time optimization one job at a time, because its MSYS2 had no `make`. Installed there, and the Windows pipeline stops with the fix named if it is missing.
+	- Opened: 20260921. Closed: 20260921.
 
 - ✅ The Windows dogfood build was 18 days old. Only a run of the Windows pipeline by hand ever updated it.
 	- Opened: 20260921. Closed: 20260921.

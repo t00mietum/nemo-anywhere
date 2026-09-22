@@ -1097,7 +1097,7 @@ icon_view_notify_clipboard_info (NemoClipboardMonitor *monitor,
    a default so the preference can still move it.
 
    With per-folder settings off the window holds a size for pictures apart from
-   the one list view shares, so neither leaks into the other. */
+   the plain one, so neither leaks into the other. */
 static gint
 size_for_mostly_images (NemoIconView *icon_view)
 {

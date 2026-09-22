@@ -441,11 +441,12 @@ fCheckImageDefault(){
 }
 fCheckImageDefault
 
-## With per-folder settings off the window holds two icon sizes, one for a
-## folder of pictures and one that list view shares. Anything in the icon view
+## With per-folder settings off the window holds three icon sizes: plain and
+## pictures for the icon view, and one for list view. Anything in the icon view
 ## reaching past held_icon_size/hold_icon_size to the window picks one without
 ## asking which kind of folder is in front, and that is how the picture size
-## once ended up on the rows of the next list.
+## once ended up on the rows of the next list. List view touches only its own,
+## or the icon view's 64 turns up on the next list after a folder of pictures.
 fCheckHeldIconSize(){
 	local src='source/src/nemo-icon-view.c'
 	local stray
@@ -456,6 +457,13 @@ fCheckHeldIconSize(){
 
 	if [[ -n "$stray" ]]; then
 		fEcho "FAIL: ${src}: read or write the window's held icon size through held_icon_size/hold_icon_size:"
+		fEcho "${stray}"
+		exit 2
+	fi
+
+	stray="$(grep -n -E 'nemo_window_[gs]et_ignore_meta_(image_)?icon_size' source/src/nemo-list-view.c || true)"
+	if [[ -n "$stray" ]]; then
+		fEcho "FAIL: source/src/nemo-list-view.c: list view holds its size in the window's list slot only:"
 		fEcho "${stray}"
 		exit 2
 	fi

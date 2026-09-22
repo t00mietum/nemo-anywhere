@@ -245,7 +245,10 @@ function fBuild {
 	## a thin archive still naming the object of a deleted source fails to update,
 	## and ar blames the archive itself ("No such file or directory"). One ar
 	## cannot read is dropped; thin archives cost nothing to write again.
+	## gcc runs the link-time optimization jobs through make, and with none on
+	## PATH it does them one at a time with only a warning.
 	$sh = @"
+command -v make >/dev/null 2>&1 || { echo "no make in MSYS2, so LTO would run serially: pacman -S make"; exit 3; }
 export SOURCE_DATE_EPOCH="`$(git log -1 --format=%ct 2>/dev/null || echo 0)"
 if [ -f $BuildRel/build.ninja ]; then meson setup --reconfigure $BuildRel source; else meson setup -Dxmp=false $BuildRel source; fi
 find $BuildRel -name '*.a' -type f | while read -r lib; do ar t "`$lib" >/dev/null 2>&1 || { echo "dropped stale `$lib"; rm -f "`$lib"; }; done
