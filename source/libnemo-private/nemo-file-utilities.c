@@ -143,8 +143,21 @@ nemo_compute_title_path_for_location (GFile *location)
 	return path;
 }
 
+static gboolean
+has_space (const char *text)
+{
+	for (; *text != '\0'; text = g_utf8_next_char (text)) {
+		if (g_unichar_isspace (g_utf8_get_char (text))) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 /* The window title names the program as well as the folder, so a taskbar button
-   or a window switcher tells our window from any other file manager's. The tabs
+   or a window switcher tells our window from any other file manager's. The
+   folder goes first, since a narrow taskbar button cuts from the end. Quotes
+   only go on when a space would otherwise blur where the name stops. The tabs
    keep the bare folder title, since the window around them already says it. */
 char *
 nemo_compute_window_title (const char *location_title)
@@ -157,7 +170,11 @@ nemo_compute_window_title (const char *location_title)
 	}
 
 	shortened = eel_str_middle_truncate (location_title, WINDOW_TITLE_LIMIT);
-	title = g_strdup_printf (_("Nemo Anywhere - '%s'"), shortened);
+	if (has_space (shortened)) {
+		title = g_strdup_printf (_("\"%s\" - Nemo Anywhere"), shortened);
+	} else {
+		title = g_strdup_printf (_("%s - Nemo Anywhere"), shortened);
+	}
 	g_free (shortened);
 
 	return title;

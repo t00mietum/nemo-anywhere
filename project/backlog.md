@@ -1626,6 +1626,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Change window title to path (with quotes if it has spaces), then "Nemo Anywhere". Formally:
+	`["][preceeding path/][folder]["] - Nemo Anywhere`
+	- Opened: 20260922. Closed: 20260922.
+	- The title now reads `Documents - Nemo Anywhere`, or `"My Documents" - Nemo Anywhere` with a space. With the full path shown it is the whole path in the same place, quoted if any part of it has a space.
+	- This reverses the order settled on 20260917 ("Nemo Anywhere - 'PATH'"). The folder first is the usual order for a window title, and a narrow taskbar button cuts from the end.
+	- The format test was updated to the new order rather than kept on the old one, and has new checks for the quotes.
+
 - ✅ New option in Preferences: "Always show at least one tab".
 	- Opened: 20260922. Closed: 20260922.
 	- The setting was already in the settings file. It now has a checkbox under Behavior, "Show the tab bar even with only one tab".

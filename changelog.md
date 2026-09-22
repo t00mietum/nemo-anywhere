@@ -56,6 +56,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The single-file Windows build starts far faster. Nearly all of its startup went on unpacking the couple of thousand loose theme and icon files it carried; those now live inside the executable itself. Nothing about how themes are chosen or dropped in changes.
 - The window appears at the size and place you left it as soon as it exists, rather than waiting for the first folder to finish loading.
 - The Owner column shows the user name alone. The name with the display name after it moved to the new Owner - name column.
+- The window title puts the folder first and the program name after it, as `Documents - Nemo Anywhere`. A name or path with a space in it is put in double quotes.
 
 ### Fixed
 
