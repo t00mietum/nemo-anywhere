@@ -45,10 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 Each change of folder logs a GTK critical: `gtk_widget_draw: assertion '!widget->priv->alloc_needed' failed`.
-	- Opened: 20260922-160500
-	- Seen once per folder change, entering a folder of pictures from the address bar. Present before the thumbnail jump fix.
-
 ### Features and enhancements
 
 - 🔘 Folder properties dialog:
@@ -178,6 +174,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Each change of folder logs a GTK critical: `gtk_widget_draw: assertion '!widget->priv->alloc_needed' failed`.
+	- Opened: 20260922-160500
+	- Closed: 20260922-193500
+	- Seen once per folder change, entering a folder of pictures from the address bar. Present before the thumbnail jump fix.
+	- The path bar and the address bar faded into each other. The fade paints the bar going out, and the address bar had just asked to be resized for its clear icon, so a paint before the next layout hit the critical. Upstream nemo logs it too.
+	- The two now swap with no fade.
 
 - ✅ Thumbnails "jump" up, then back down (and also in width), when entering an image folder.
 	- Opened: 20260922

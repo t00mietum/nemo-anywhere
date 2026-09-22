@@ -437,6 +437,22 @@ fCheckIconRelayout(){
 }
 fCheckIconRelayout
 
+## A transition on the path bar / location bar stack paints the bar going out
+## while its resize can still be pending, which logs a GTK critical on a folder
+## change.
+fCheckToolbarStack(){
+	local src='source/src/nemo-toolbar.c' types
+
+	[[ -f "$src" ]] || return 0
+
+	types="$(grep -E -o 'GTK_STACK_TRANSITION_TYPE_[A-Z_]+' "$src" | sort -u || true)"
+	if [[ "$types" != 'GTK_STACK_TRANSITION_TYPE_NONE' ]]; then
+		fEcho "FAIL: ${src}: the path bar stack must switch with no transition"
+		exit 2
+	fi
+}
+fCheckToolbarStack
+
 ## Sizing a folder of images reads: either the folder's own image size, which is
 ## already stored, or the image default, which has to stay a default so the
 ## preference can still move it. Writing here would pin a folder at whatever the
