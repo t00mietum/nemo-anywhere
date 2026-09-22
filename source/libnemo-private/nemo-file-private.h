@@ -123,6 +123,8 @@ struct NemoFileDetails
     gint thumbnail_want_size;
     gint thumbnail_stored_size;
     gint thumbnail_asked_size;
+    /* Its place in the render queue, given by a folder queued ahead. 0 if none. */
+    gint64 thumbnail_order;
     eel_boolean_bit thumbnail_capped : 1;          /* held smaller than its source */
     eel_boolean_bit thumbnail_stored_capped : 1;   /* the stored copy was cut down */
     eel_boolean_bit thumbnail_from_store : 1;

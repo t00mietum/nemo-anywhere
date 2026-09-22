@@ -5122,12 +5122,25 @@ nemo_file_wants_thumbnail_ahead (NemoFile *file)
 
     return details->load_deferred_attrs == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO &&
            details->thumbnail == NULL &&
-           details->thumbnail_path == NULL &&
            details->can_read &&
            !details->is_thumbnailing &&
            !details->thumbnailing_failed &&
            nemo_file_should_show_thumbnail (file) &&
            nemo_file_thumbnail_type_ok (file);
+}
+
+/* A picture read before anything was on screen goes back, so the file waits
+ * for its turn like the rest rather than showing the moment it scrolls in. */
+void
+nemo_file_forget_held_thumbnail (NemoFile *file)
+{
+    NemoFileDetails *details = file->details;
+
+    if (details->thumbnail == NULL)
+        return;
+
+    g_clear_object (&details->thumbnail);
+    details->thumbnail_is_up_to_date = FALSE;
 }
 
 gboolean

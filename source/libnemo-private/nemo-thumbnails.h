@@ -48,12 +48,13 @@ typedef struct {
 } NemoThumbnailLoaded;
 
 /* Queues a render at `size` pixels, rounded up to a step. A file already
- * queued keeps its place and takes the larger of the two sizes. */
+ * queued keeps its place and takes the larger of the two sizes. One that a
+ * folder queued ahead has placed goes in that place. */
 void       nemo_create_thumbnail                (NemoFile *file, int size);
 
-/* Renders files not yet on screen into the store, first to last, behind
- * anything asked for by a draw. The picture is only held for a file that
- * came into view meanwhile. */
+/* Places every file in `files` in that order, and renders the ones not yet
+ * on screen into the store, first to last. Scrolling cannot move one up. The
+ * picture is only held for a file that came into view meanwhile. */
 void       nemo_thumbnail_render_ahead          (GList *files, int size);
 int        nemo_thumbnail_size_step             (int size);
 
@@ -79,7 +80,6 @@ void       nemo_thumbnail_pad_top_and_bottom    (GdkPixbuf **pixbuf,
                                                  gint        extra_height);
 /* Queue handling: */
 void       nemo_thumbnail_remove_from_queue     (const char   *file_uri);
-void       nemo_thumbnail_prioritize            (const char   *file_uri);
 
 gboolean   nemo_thumbnail_factory_check_status          (void);
 

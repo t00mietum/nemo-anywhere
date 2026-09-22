@@ -1737,12 +1737,15 @@ lacks_extension_info (NemoFile *file)
 }
 
 /* Any file of a type that can be drawn might be in the file cache, so it is
- * asked about, not only a file the freedesktop cache has a copy of. */
+ * asked about, not only a file the freedesktop cache has a copy of. One still
+ * waiting in the render queue is not: its turn there reads it, so a picture
+ * stored on an earlier visit is not shown out of turn either. */
 static gboolean
 lacks_thumbnail (NemoFile *file)
 {
     return file->details->load_deferred_attrs > NEMO_FILE_LOAD_DEFERRED_ATTRS_NO &&
 		!file->details->thumbnail_is_up_to_date &&
+		!file->details->is_thumbnailing &&
 		(file->details->thumbnail_path != NULL || nemo_file_thumbnail_type_ok (file)) &&
         nemo_file_should_show_thumbnail (file);
 }

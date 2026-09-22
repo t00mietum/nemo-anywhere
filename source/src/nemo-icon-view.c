@@ -117,6 +117,8 @@ struct NemoIconViewDetails
 	/* Set once the folder has finished loading and turned out to be mostly
 	   images, which gives it a default size of its own. */
 	gboolean mostly_images;
+	guint render_ahead_id;
+	gboolean render_ahead_again;
 
 	gulong clipboard_handler_id;
 
@@ -1011,6 +1013,8 @@ nemo_icon_view_begin_loading (NemoView *view)
 	   default and let end_loading move it if the folder turns out to be a
 	   pile of pictures. */
 	icon_view->details->mostly_images = FALSE;
+	g_clear_handle_id (&icon_view->details->render_ahead_id, g_source_remove);
+	icon_view->details->render_ahead_again = FALSE;
 
     nemo_icon_container_set_ok_to_load_deferred_attrs (NEMO_ICON_CONTAINER (icon_container), FALSE);
 
@@ -1151,16 +1155,17 @@ update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
 	}
 }
 
-/* A folder of pictures gets all of them made now, top down, rather than each
- * one only once it scrolls into view. Only on a local disk: over a network
- * this would read every picture in the folder whether it is looked at or not. */
+/* A folder of pictures gets all of them made now, strictly top down in the
+ * order the view shows them, rather than each one only once it scrolls into
+ * view. Only on a local disk: over a network this would read every picture in
+ * the folder whether it is looked at or not. */
 static void
-render_folder_ahead (NemoIconView *icon_view)
+render_folder_ahead (NemoIconView *icon_view, gboolean just_loaded)
 {
 	NemoView *view = NEMO_VIEW (icon_view);
 	NemoFile *folder = nemo_view_get_directory_as_file (view);
 	NemoIconContainer *container = get_icon_container (icon_view);
-	GList *files, *l, *wanted = NULL;
+	GList *files, *l;
 
 	if (!icon_view->details->mostly_images ||
 	    folder == NULL ||
@@ -1169,28 +1174,59 @@ render_folder_ahead (NemoIconView *icon_view)
 		return;
 	}
 
-	/* The first files a folder lists are read up front and drawn off screen,
-	   in whatever order the disk gave them. Taken over here, so they go in
-	   their turn like the rest. One already queued is queued again in its
-	   place. */
-	files = nemo_icon_container_get_unshown_in_order (container);
-	for (l = files; l != NULL; l = l->next) {
+	files = nemo_icon_container_get_data_in_order (container);
+
+	/* The first files a folder lists are read before anything is on screen,
+	   in whatever order the disk gave them. Nothing has drawn them yet, so
+	   they are taken over here and go in their turn like the rest. */
+	for (l = files; just_loaded && l != NULL; l = l->next) {
 		NemoFile *file = l->data;
 
 		if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD) {
 			nemo_file_set_load_deferred_attrs (file, NEMO_FILE_LOAD_DEFERRED_ATTRS_NO);
-		}
-		if (nemo_file_is_thumbnailing (file) || nemo_file_wants_thumbnail_ahead (file)) {
-			wanted = g_list_prepend (wanted, file);
+			nemo_file_forget_held_thumbnail (file);
 		}
 	}
-	g_list_free (files);
 
-	wanted = g_list_reverse (wanted);
-	nemo_thumbnail_render_ahead (wanted,
+	nemo_thumbnail_render_ahead (files,
 				     nemo_icon_container_get_icon_size (container) *
 				     gtk_widget_get_scale_factor (GTK_WIDGET (icon_view)));
-	g_list_free (wanted);
+	g_list_free (files);
+}
+
+static gboolean
+render_folder_ahead_again (gpointer data)
+{
+	NemoIconView *icon_view = data;
+
+	icon_view->details->render_ahead_id = 0;
+	if (icon_view->details->render_ahead_again) {
+		icon_view->details->render_ahead_again = FALSE;
+		render_folder_ahead (icon_view, FALSE);
+	}
+
+	return G_SOURCE_REMOVE;
+}
+
+/* A new sort changes which file is first, and a new size what each is made
+ * at, so the folder is queued again. Straight away, or a picture redrawn at
+ * the new size meanwhile would be made out of turn. A slider drag is a new
+ * size every step, so the steps after the first wait until it settles. */
+static void
+queue_render_folder_ahead (NemoIconView *icon_view)
+{
+	if (!icon_view->details->mostly_images) {
+		return;
+	}
+
+	if (icon_view->details->render_ahead_id == 0) {
+		render_folder_ahead (icon_view, FALSE);
+	} else {
+		g_source_remove (icon_view->details->render_ahead_id);
+		icon_view->details->render_ahead_again = TRUE;
+	}
+
+	icon_view->details->render_ahead_id = g_timeout_add (300, render_folder_ahead_again, icon_view);
 }
 
 static void
@@ -1210,7 +1246,7 @@ nemo_icon_view_end_loading (NemoView *view,
 	nemo_icon_container_end_loading (NEMO_ICON_CONTAINER (icon_container), all_files_seen);
 
 	if (all_files_seen) {
-		render_folder_ahead (icon_view);
+		render_folder_ahead (icon_view, TRUE);
 	}
 
 	monitor = nemo_clipboard_monitor_get ();
@@ -1256,6 +1292,7 @@ set_icon_size (NemoIconView *view,
     }
 
 	nemo_icon_container_set_icon_size (icon_container, new_size);
+	queue_render_folder_ahead (view);
 
 	g_signal_emit_by_name (view, "zoom_level_changed");
 
@@ -1403,6 +1440,7 @@ nemo_icon_view_set_sort_criterion_by_sort_type (NemoIconView     *icon_view,
 
 	set_sort_criterion (icon_view, sort, TRUE);
 	nemo_icon_container_sort (get_icon_container (icon_view));
+	queue_render_folder_ahead (icon_view);
 	nemo_icon_view_reveal_selection (NEMO_VIEW (icon_view));
 }
 
@@ -1419,6 +1457,7 @@ action_reversed_order_callback (GtkAction *action,
 			       gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)),
 			       TRUE)) {
 		nemo_icon_container_sort (get_icon_container (icon_view));
+		queue_render_folder_ahead (icon_view);
 		nemo_icon_view_reveal_selection (NEMO_VIEW (icon_view));
 	}
 }
@@ -1654,6 +1693,7 @@ nemo_icon_view_reset_to_defaults (NemoView *view)
 		(icon_container, get_default_directory_keep_aligned ());
 
 	nemo_icon_container_sort (icon_container);
+	queue_render_folder_ahead (icon_view);
 
 	update_layout_menus (icon_view);
 
@@ -2700,6 +2740,7 @@ nemo_icon_view_finalize (GObject *object)
 
 	icon_view = NEMO_ICON_VIEW (object);
 
+	g_clear_handle_id (&icon_view->details->render_ahead_id, g_source_remove);
 	g_free (icon_view->details);
 
 	g_signal_handlers_disconnect_by_func (nemo_preferences,

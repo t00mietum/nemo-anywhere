@@ -153,6 +153,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Bugs
 
+- ✅ Thumbnail rendering is still trying to follow the thumbnails in the view.
+	- Opened: 20260921
+	- Closed: 20260922.
+	- Observed incorrect behavior:
+		- If you immediately scroll to the bottom of a long list of thumbnails, it starts rendering those, long before the "top-down" would get there.
+		- If you scroll up (to previously unrendered thumbnails), even before the bottom ones finish rendering, it will begin rendering those ones new to "in-view", immediately.
+	- Intended behavior: Depending on the sort order, whatever image is first, gets rendered as a thumbnail first. Whatever is last, gets rendered as a thumbnail last. Nothing the *user* can do, should be able to make the last icon render earlier. It goes purely sequentially.
+	- This might have nothing to do with the file reader/thumbnail render, and more to do with the thumbnail reading from the database, and rendering to the thumbnail pane. *Both* should be queued sequentially, top-down.
+	- But can be multithreaded. E.g. use up to half of available cores for reading and rendering thumbnails, but still queue them in order - even if they might wind up rendering slightly out of order. But that's due to multithreading, not user activity.
+	- A folder of pictures on a local disk is now made top down in the order the view shows it. Scrolling cannot move a file up, and a thumbnail stored on an earlier visit waits its turn too. A new sort or zoom queues the folder again in its new order. Thumbnails start once the folder has finished loading, and up to half the processors make them.
+	- A folder that is not mostly pictures, or is on a share, is still only made as it comes into view. Each screenful goes top down.
+
 - ✅ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.

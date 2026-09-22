@@ -855,6 +855,15 @@ test('Thumbnail hold test',
   args: []
 )
 
+test('Thumbnail order test',
+  executable('test-nemo-thumbnail-order',
+    [ 'test-nemo-thumbnail-order.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Menu paths test',
   executable('test-nemo-menu-paths',
     [ 'test-nemo-menu-paths.c' ] + gresources,
