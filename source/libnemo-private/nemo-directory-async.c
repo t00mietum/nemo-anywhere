@@ -2659,7 +2659,7 @@ deep_count_one (DeepCountState *state,
 	if (nemo_dir_enum_file_type (info) == G_FILE_TYPE_DIRECTORY) {
 		/* Count the directory. */
         if (hidden) {
-            file->details->deep_hidden_count += 1;
+            file->details->deep_hidden_directory_count += 1;
         } else {
             file->details->deep_directory_count += 1;
         }
@@ -2674,7 +2674,7 @@ deep_count_one (DeepCountState *state,
 	} else {
 		/* Even non-regular files count as files. */
         if (hidden) {
-            file->details->deep_hidden_count += 1;
+            file->details->deep_hidden_file_count += 1;
         } else {
             file->details->deep_file_count += 1;
         }
@@ -2937,7 +2937,8 @@ deep_count_start (NemoDirectory *directory,
 	file->details->deep_directory_count = 0;
 	file->details->deep_file_count = 0;
 	file->details->deep_unreadable_count = 0;
-    file->details->deep_hidden_count = 0;
+    file->details->deep_hidden_directory_count = 0;
+    file->details->deep_hidden_file_count = 0;
 	file->details->deep_size = 0;
 	directory->details->deep_count_file = file;
 

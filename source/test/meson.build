@@ -891,6 +891,15 @@ test('Menu paths test',
   args: []
 )
 
+test('Deep counts test',
+  executable('test-nemo-deep-counts',
+    [ 'test-nemo-deep-counts.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Directory load clean test',
   executable('test-nemo-directory-load-clean',
     [ 'test-nemo-directory-load-clean.c' ],

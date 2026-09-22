@@ -115,7 +115,8 @@ search_directory_file_get_deep_counts (NemoFile *file,
 				       guint *directory_count,
 				       guint *file_count,
 				       guint *unreadable_directory_count,
-                       guint *hidden_count,
+                       guint *hidden_directory_count,
+                       guint *hidden_file_count,
 				       goffset *total_size)
 {
 	NemoFile *dir_file;
@@ -149,8 +150,11 @@ search_directory_file_get_deep_counts (NemoFile *file,
 		/* FIXME: Maybe we want to calculate this? */
 		*total_size = 0;
 	}
-    if (hidden_count != NULL) {
-        *hidden_count = 0;
+    if (hidden_directory_count != NULL) {
+        *hidden_directory_count = 0;
+    }
+    if (hidden_file_count != NULL) {
+        *hidden_file_count = 0;
     }
 
 	nemo_file_list_free (file_list);
