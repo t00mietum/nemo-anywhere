@@ -47,9 +47,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Additional thumbnailer formats:
+- 🛠️ Additional thumbnailer formats:
 	- Raw files including .dng
 	- jp2 (JPEG 2000 in general)
+	- Done: raw files. A small reader of our own draws the JPEG preview each camera stores in the file, so nothing new is linked. DNG, CR2, CR3, NEF, ARW, RAF, RW2, ORF, PEF, SRW and most other TIFF based raws.
+	- Left: jp2. There is no way around a decoder library here, and none of the Windows builds has one yet, so it waits on a call about adding it.
 
 - 🔘 Idea: Instead of relying on checksum for uniqueness (which is slow to read from xattrs or scan the file).
 	- Maybe first check for unique combinations of:
