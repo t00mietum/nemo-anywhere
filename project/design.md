@@ -368,6 +368,10 @@ The file cache is the fourth store. It is a private SQLite database under the us
 
 - Photoshop files are read by a small reader of our own, since gdk-pixbuf has none. A .psd or .psb carries a flattened copy of the picture after its layers, and that is all a thumbnail needs, so the layers are skipped. It is shrunk while it is decoded, so a large file never sits in memory at full size. Grayscale, indexed, RGB and CMYK are read; Lab, multichannel and 32 bit files are not.
 
+- Camera raw files are read by another small reader of our own. Nothing here can develop sensor data, and a library that can is large and slow. Every camera also stores a finished JPEG preview in the file for its own screen, so that is what gets drawn. The reader walks the file's directories, takes the smallest preview that still covers the draw, and decodes it already shrunk. Previews under 320 pixels are passed over while a bigger one exists, since the small ones are often letterboxed. The file's own orientation is applied, since the preview is stored the way the sensor saw it.
+	- The TIFF based files are covered this way: DNG, CR2, NEF, ARW, PEF, RW2, SRW and kin. ORF keeps its preview in the maker note, which is read too. RAF and CR3 are other containers and have a path each. Canon CRW, Minolta MRW and Sigma X3F are not read.
+	- A thumbnail takes a few milliseconds and reads a few directories and one JPEG, never the sensor data. So a raw file is not checksummed as a side effect of its thumbnail, the way a file read in full is.
+
 - Pruning runs on a worker thread over a connection of its own, so it never holds up a draw. Each pass checks the file for damage, forgets local files that are gone, drops thumbnails not drawn for too long, then drops the least recently drawn until the file is under its size limit, and last hands the freed space back to the disk.
 
 - A file is only forgotten when its folder is still there. A whole folder missing is more often a drive that is not plugged in. Shares are skipped, and so is any folder that is slow to answer, since one that is not answering costs about twenty seconds per question.

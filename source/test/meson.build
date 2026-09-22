@@ -846,6 +846,15 @@ test('Photoshop reader test',
   args: []
 )
 
+test('Camera raw reader test',
+  executable('test-nemo-raw',
+    [ 'test-nemo-raw.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Thumbnail hold test',
   executable('test-nemo-thumbnail-hold',
     [ 'test-nemo-thumbnail-hold.c' ],

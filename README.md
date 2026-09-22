@@ -174,7 +174,7 @@ Everything that makes Nemo worth porting:
 
 - The thumbnail cache is cleaned up once in a while, rather than growing forever.
 
-- A folder of pictures has all its thumbnails made as soon as it opens, top down, not only the ones scrolled to. Photoshop files get thumbnails too.
+- A folder of pictures has all its thumbnails made as soon as it opens, top down, not only the ones scrolled to. Photoshop and camera raw files get thumbnails too.
 
 - Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema. Editing it by hand does the same thing as changing the setting in the dialog.
 
