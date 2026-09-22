@@ -84,7 +84,6 @@
 /* Time in seconds to cache getpwuid results */
 #define GETPWUID_CACHE_TIME (5*60)
 
-#define ICON_NAME_THUMBNAIL_LOADING   "image-loading"
 
 #undef NEMO_FILE_DEBUG_REF
 #undef NEMO_FILE_DEBUG_REF_VALGRIND
@@ -5055,19 +5054,24 @@ nemo_file_take_thumbnail (NemoFile                  *file,
     NemoFileDetails *details = file->details;
 
     details->thumbnail_is_up_to_date = TRUE;
-    g_clear_object (&details->thumbnail);
 
     details->thumbnail_from_store = loaded->from_store;
     details->thumbnail_stored_size = loaded->stored_size;
     details->thumbnail_stored_capped = loaded->stored_capped;
 
     if (loaded->failed) {
+        g_clear_object (&details->thumbnail);
         details->thumbnailing_failed = TRUE;
         return;
     }
 
+    /* Nothing stored for the file as it is now. A picture of an older
+       version stays up until the new one is made, rather than dropping to
+       the type icon in between. get_icon asks for the new one. */
     if (loaded->pixbuf == NULL)
         return;
+
+    g_clear_object (&details->thumbnail);
 
     /* A freedesktop thumbnail of an older version of the file. */
     if (!loaded->from_store && loaded->shared_mtime != 0 &&
@@ -5109,6 +5113,21 @@ want_bigger_thumbnail (NemoFile *file, int want, int held)
         details->thumbnail_asked_size = step;
         nemo_create_thumbnail (file, step);
     }
+}
+
+gboolean
+nemo_file_wants_thumbnail_ahead (NemoFile *file)
+{
+    NemoFileDetails *details = file->details;
+
+    return details->load_deferred_attrs == NEMO_FILE_LOAD_DEFERRED_ATTRS_NO &&
+           details->thumbnail == NULL &&
+           details->thumbnail_path == NULL &&
+           details->can_read &&
+           !details->is_thumbnailing &&
+           !details->thumbnailing_failed &&
+           nemo_file_should_show_thumbnail (file) &&
+           nemo_file_thumbnail_type_ok (file);
 }
 
 gboolean
@@ -5517,6 +5536,18 @@ nemo_file_get_icon (NemoFile *file,
 
 			want_bigger_thumbnail (file, modified_size, MAX (w, h));
 
+			if (file->details->thumbnail_mtime != file->details->mtime &&
+			    file->details->thumbnail_is_up_to_date &&
+			    file->details->can_read &&
+			    !file->details->is_thumbnailing &&
+			    !file->details->thumbnailing_failed &&
+			    nemo_file_thumbnail_type_ok (file)) {
+				int step = nemo_thumbnail_size_step (modified_size);
+
+				file->details->thumbnail_asked_size = step;
+				nemo_create_thumbnail (file, step);
+			}
+
 			if (file->details->thumbnail_from_store) {
 				g_autofree char *uri = nemo_file_get_uri (file);
 
@@ -5578,11 +5609,10 @@ nemo_file_get_icon (NemoFile *file,
 	}
 #endif
 
-    if (file->details->is_thumbnailing &&
-	    flags & NEMO_FILE_ICON_FLAGS_USE_THUMBNAILS)
-		gicon = g_themed_icon_new (ICON_NAME_THUMBNAIL_LOADING);
-	else
-		gicon = nemo_file_get_gicon (file, flags);
+	/* No "loading" icon while a thumbnail is made. Few themes have one, so
+	   it drew as a stand-in that flashed between the type icon and the
+	   picture. The type icon stays up until the picture is ready. */
+	gicon = nemo_file_get_gicon (file, flags);
 
 	if (gicon) {
 		icon = nemo_icon_info_lookup (gicon, size, scale);

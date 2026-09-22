@@ -36,6 +36,7 @@ targets=(
 	"fuzz-xls|xls"
 	"fuzz-ppt|ppt"
 	"fuzz-doc|doc"
+	"fuzz-psd|psd"
 )
 
 case "${1:-}" in

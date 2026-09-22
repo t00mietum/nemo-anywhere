@@ -837,6 +837,24 @@ test('Image folder test',
   args: []
 )
 
+test('Photoshop reader test',
+  executable('test-nemo-psd',
+    [ 'test-nemo-psd.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
+test('Thumbnail hold test',
+  executable('test-nemo-thumbnail-hold',
+    [ 'test-nemo-thumbnail-hold.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Menu paths test',
   executable('test-nemo-menu-paths',
     [ 'test-nemo-menu-paths.c' ] + gresources,

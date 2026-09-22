@@ -47,6 +47,7 @@
 #include <libnemo-private/nemo-dnd.h>
 #include <libnemo-private/nemo-file-dnd.h>
 #include <libnemo-private/nemo-file-utilities.h>
+#include <libnemo-private/nemo-thumbnails.h>
 #include <libnemo-private/nemo-ui-utilities.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-icon-container.h>
@@ -1150,6 +1151,48 @@ update_mostly_images (NemoIconView *icon_view, gboolean all_files_seen)
 	}
 }
 
+/* A folder of pictures gets all of them made now, top down, rather than each
+ * one only once it scrolls into view. Only on a local disk: over a network
+ * this would read every picture in the folder whether it is looked at or not. */
+static void
+render_folder_ahead (NemoIconView *icon_view)
+{
+	NemoView *view = NEMO_VIEW (icon_view);
+	NemoFile *folder = nemo_view_get_directory_as_file (view);
+	NemoIconContainer *container = get_icon_container (icon_view);
+	GList *files, *l, *wanted = NULL;
+
+	if (!icon_view->details->mostly_images ||
+	    folder == NULL ||
+	    !nemo_file_is_local (folder) ||
+	    nemo_file_is_on_a_share (folder)) {
+		return;
+	}
+
+	/* The first files a folder lists are read up front and drawn off screen,
+	   in whatever order the disk gave them. Taken over here, so they go in
+	   their turn like the rest. One already queued is queued again in its
+	   place. */
+	files = nemo_icon_container_get_unshown_in_order (container);
+	for (l = files; l != NULL; l = l->next) {
+		NemoFile *file = l->data;
+
+		if (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD) {
+			nemo_file_set_load_deferred_attrs (file, NEMO_FILE_LOAD_DEFERRED_ATTRS_NO);
+		}
+		if (nemo_file_is_thumbnailing (file) || nemo_file_wants_thumbnail_ahead (file)) {
+			wanted = g_list_prepend (wanted, file);
+		}
+	}
+	g_list_free (files);
+
+	wanted = g_list_reverse (wanted);
+	nemo_thumbnail_render_ahead (wanted,
+				     nemo_icon_container_get_icon_size (container) *
+				     gtk_widget_get_scale_factor (GTK_WIDGET (icon_view)));
+	g_list_free (wanted);
+}
+
 static void
 nemo_icon_view_end_loading (NemoView *view,
 			  gboolean all_files_seen)
@@ -1165,6 +1208,10 @@ nemo_icon_view_end_loading (NemoView *view,
 
 	icon_container = GTK_WIDGET (get_icon_container (icon_view));
 	nemo_icon_container_end_loading (NEMO_ICON_CONTAINER (icon_container), all_files_seen);
+
+	if (all_files_seen) {
+		render_folder_ahead (icon_view);
+	}
 
 	monitor = nemo_clipboard_monitor_get ();
 	info = nemo_clipboard_monitor_get_clipboard_info (monitor);

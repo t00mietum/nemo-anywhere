@@ -50,6 +50,11 @@ typedef struct {
 /* Queues a render at `size` pixels, rounded up to a step. A file already
  * queued keeps its place and takes the larger of the two sizes. */
 void       nemo_create_thumbnail                (NemoFile *file, int size);
+
+/* Renders files not yet on screen into the store, first to last, behind
+ * anything asked for by a draw. The picture is only held for a file that
+ * came into view meanwhile. */
+void       nemo_thumbnail_render_ahead          (GList *files, int size);
 int        nemo_thumbnail_size_step             (int size);
 
 /* The store first, and the freedesktop cache only if the store has nothing.
