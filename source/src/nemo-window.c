@@ -2362,6 +2362,7 @@ nemo_window_init (NemoWindow *window)
     window->details->ignore_meta_view_id = NULL;
     window->details->ignore_meta_icon_size = 0;
     window->details->ignore_meta_image_icon_size = 0;
+    window->details->ignore_meta_list_icon_size = 0;
     window->details->ignore_meta_visible_columns = NULL;
     window->details->ignore_meta_column_order = NULL;
     window->details->ignore_meta_sort_column = NULL;
@@ -2683,8 +2684,8 @@ nemo_window_set_ignore_meta_icon_size (NemoWindow *window, gint size)
     window->details->ignore_meta_icon_size = size;
 }
 
-/* Kept apart from the plain size, which list view shares. A zoom in a folder
-   of pictures must not follow the window into the next list. */
+/* Kept apart from the plain size. A zoom in a folder of pictures must not
+   follow the window into the next folder that is not one. */
 gint
 nemo_window_get_ignore_meta_image_icon_size (NemoWindow *window)
 {
@@ -2697,11 +2698,27 @@ nemo_window_set_ignore_meta_image_icon_size (NemoWindow *window, gint size)
     window->details->ignore_meta_image_icon_size = size;
 }
 
+/* List view has its own, since its sizes and default are not the icon view's.
+   Sharing one let an icon view that opened a folder of pictures leave 64 behind
+   for the next list. */
+gint
+nemo_window_get_ignore_meta_list_icon_size (NemoWindow *window)
+{
+    return window->details->ignore_meta_list_icon_size;
+}
+
+void
+nemo_window_set_ignore_meta_list_icon_size (NemoWindow *window, gint size)
+{
+    window->details->ignore_meta_list_icon_size = size;
+}
+
 void
 nemo_window_forget_ignore_meta_icon_sizes (NemoWindow *window)
 {
     window->details->ignore_meta_icon_size = 0;
     window->details->ignore_meta_image_icon_size = 0;
+    window->details->ignore_meta_list_icon_size = 0;
 }
 
 GList *

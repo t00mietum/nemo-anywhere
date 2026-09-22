@@ -176,6 +176,8 @@ gint         nemo_window_get_ignore_meta_icon_size (NemoWindow *window);
 void         nemo_window_set_ignore_meta_icon_size (NemoWindow *window, gint size);
 gint         nemo_window_get_ignore_meta_image_icon_size (NemoWindow *window);
 void         nemo_window_set_ignore_meta_image_icon_size (NemoWindow *window, gint size);
+gint         nemo_window_get_ignore_meta_list_icon_size (NemoWindow *window);
+void         nemo_window_set_ignore_meta_list_icon_size (NemoWindow *window, gint size);
 void         nemo_window_forget_ignore_meta_icon_sizes (NemoWindow *window);
 GList       *nemo_window_get_ignore_meta_visible_columns (NemoWindow *window);
 void         nemo_window_set_ignore_meta_visible_columns (NemoWindow *window, GList *list);

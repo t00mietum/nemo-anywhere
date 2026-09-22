@@ -4706,7 +4706,7 @@ set_icon_size_from_metadata_and_preferences (NemoListView *list_view)
                 size = get_default_icon_size ();
             } else {
                 gint pinned;
-                pinned = nemo_window_get_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
+                pinned = nemo_window_get_ignore_meta_list_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
 
                 size = pinned > 0 ? snap_to_step (pinned) : get_default_icon_size ();
             }
@@ -5488,7 +5488,7 @@ nemo_list_view_set_icon_size (NemoListView *view,
         uri = nemo_file_get_uri (file);
 
         if (!eel_uri_is_search (uri)) {
-            nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_size);
+            nemo_window_set_ignore_meta_list_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_size);
         }
 
         g_free (uri);
@@ -5758,7 +5758,7 @@ default_icon_size_changed_callback (gpointer callback_data)
 	 */
 	if (view_is_frontmost (NEMO_VIEW (list_view)) &&
 	    !nemo_global_preferences_get_remember_folder_settings ()) {
-		nemo_window_set_ignore_meta_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), 0);
+		nemo_window_set_ignore_meta_list_icon_size (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), 0);
 	}
 
 	set_icon_size_from_metadata_and_preferences (list_view);
