@@ -306,9 +306,11 @@ nemo_toolbar_constructed (GObject *obj)
     gtk_widget_set_margin_right (GTK_WIDGET (tool_box), 6);
 
     /* Container to hold the location and pathbars */
+    /* No crossfade. The fade paints the bar going out with gtk_widget_draw, and
+     * the location bar has just queued a resize for its clear/go icon on every
+     * folder change, so a paint that beats the next layout logs a GTK critical. */
     self->priv->stack = gtk_stack_new();
-    gtk_stack_set_transition_type (GTK_STACK (self->priv->stack), GTK_STACK_TRANSITION_TYPE_CROSSFADE);
-    gtk_stack_set_transition_duration (GTK_STACK (self->priv->stack), 150);
+    gtk_stack_set_transition_type (GTK_STACK (self->priv->stack), GTK_STACK_TRANSITION_TYPE_NONE);
 
     /* Regular Path Bar */
     hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
