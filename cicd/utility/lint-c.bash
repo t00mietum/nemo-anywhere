@@ -490,6 +490,20 @@ fCheckWindowIcon(){
 }
 fCheckWindowIcon
 
+## Every copy is its own process under one app id, so a session manager
+## takes the first one to register and refuses the rest. Nothing here needs
+## registering; the logout block during a copy asks the session manager itself.
+fCheckNoSessionRegister(){
+	local stray
+	stray="$(grep -rn -F 'register-session' source/src source/libnemo-private || true)"
+	if [[ -n "$stray" ]]; then
+		fEcho "FAIL: no copy may register with the session manager:"
+		fEcho "${stray}"
+		exit 2
+	fi
+}
+fCheckNoSessionRegister
+
 ## A checksum is kept on a file in three attributes, and the order they are
 ## written in is the only thing standing between a torn write and a checksum
 ## that vouches for contents it has never seen. Reading requires the size and
