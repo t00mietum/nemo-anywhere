@@ -108,6 +108,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - With the tab bar set to show for a single tab, closing a tab down to one hid it anyway.
 
+- When another program removed files one after another, the status bar could go on counting a few that were already gone.
+
 ## v1.0.0-beta2 - 2026-08-04
 
 ### Notes

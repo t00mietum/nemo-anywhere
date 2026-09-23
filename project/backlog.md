@@ -45,10 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 After every file in a folder was removed by another program, icon view's status bar still counted 4 items.
-	- Opened: 20260923.
-	- Seen once, with 60 files removed one at a time. The view itself was empty. A delete from inside the app, in list view, counted 0 as it should.
-
 ### Features and enhancements
 
 - 🔘 RE Delete/move test guard:
@@ -59,11 +55,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Opened: 20260923-065221
 	- 🔘 If the guard in armed, skip all redundant native prompts.
 		- Opened: 20260923-065221
+		- Note: which prompt came up twice was not noted. It was an ordinary one, not one that needs a real choice such as "cannot trash, delete instead?" or the copy links or contents question. Needs steps to reproduce if no obvious one turns up.
 	- 🔘 Bug: The list of files can easily be too long for the dialog box.
 		- Opened: 20260923-065221
 		- Solution:
 			- Dialog a max size:
 				- 1/2 of the shortest dimension and 1/4 the longest
+					- Note: on a landscape screen that is 1/4 of the width and 1/2 of the height. On a portrait screen, the other way around.
 				- Make wider first, to fit long paths without wrapping, if possible.
 			- Dialog a min size:
 				- No wider than needed for the longest path, and the OK cancel buttons at the bottom.
@@ -186,6 +184,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ After every file in a folder was removed by another program, icon view's status bar still counted 4 items.
+	- Opened: 20260923. Closed: 20260923-161106.
+	- Seen once, with 60 files removed one at a time. The view itself was empty. A delete from inside the app, in list view, counted 0 as it should.
+	- Note: seen on Linux.
+	- Reproduced: every view, not just icon view. With files removed a tenth of a second apart, the count stayed a few too high for good.
+	- Cause: the count was read on a timer that starts with the first change of a burst. The last few changes were still waiting to go in when it went off, and nothing counted again after.
+	- Fixed: the count is read again after each batch of changes goes in. Files added one at a time by another program were checked the same way.
+	- Swept: the view has one place that puts changes in, so there is no second site to cover.
 
 - ✅ After deleting all the contents of a view, the horizontal scrollbar appears.
 	- And it still appears seemingly randomly (when not looking), even though the view has plenty of room in the rules for shrinking content.

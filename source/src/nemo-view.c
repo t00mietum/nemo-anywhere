@@ -3854,6 +3854,11 @@ process_old_files (NemoView *view)
 
 		g_signal_emit (view, signals[END_FILE_CHANGES], 0);
 
+		/* The status timer starts with the first change of a burst, so it
+		   can go off while the last few are still queued here. Counting
+		   again after they are in is what leaves the count right. */
+		schedule_update_status (view);
+
 		if (files_changed != NULL) {
 			selection = nemo_view_get_selection (view);
 			files = file_and_directory_list_to_files (files_changed);
