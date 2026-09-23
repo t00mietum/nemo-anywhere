@@ -71,10 +71,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- If the file list is still too long, give the list section a scrollbar.
 				- But the buttons get dedicated space at the bottom that can't be scrolled, nor pushed below the screen real-estate.
 
-- 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
-- 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
-	- Opened: 20260919-125440
-
 - 🔘 Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922
 	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
@@ -89,6 +85,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A copy tries a clone first at any size, then a plain copy. A clone of a tiny file can cost more than it saves.
 	- Pick a size below which a copy skips the clone. See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md#copy-on-write-clones).
 
+- **Stop here for a next release**.
+
+- 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
+- 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
+	- Opened: 20260919-125440
+
 - 🔘 Metadata-aware Nemo Anywhere:
 	- 🔘 When creating a file, also log its known information to the database.
 	- 🔘 When doing anything that involves changing any part of the full file path of one or more folders or files, update the information in the file database.
@@ -97,8 +99,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- 🔘 Allow adding, editing, and searching for tags.
 		- Store in the file database, and base64url 32-bit hashes of them in xattrs.
 	- And do all this with minimal slowdown!
-
-- **Stop here for a next release**.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
