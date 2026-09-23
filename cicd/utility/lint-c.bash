@@ -336,6 +336,24 @@ fCheckStaleSamples(){
 }
 fCheckStaleSamples
 
+## The status bar count is read on a timer that starts with the first change
+## of a burst, while the changes themselves go in on a shorter one. Files
+## removed one after another by some other program left the count a few too
+## high, for good, since nothing counted again once the last ones were in.
+fCheckStatusAfterChanges(){
+	local src='source/src/nemo-view.c'
+	local body
+
+	[[ -f "$src" ]] || return 0
+
+	body="$(awk '/^process_old_files / { on=1 } on { print } on && /^}/ { on=0 }' "$src")"
+	if ! grep -q -F 'schedule_update_status (view)' <<<"$body"; then
+		fEcho "FAIL: ${src}: process_old_files must schedule a status update once the changes are in"
+		exit 2
+	fi
+}
+fCheckStatusAfterChanges
+
 ## The list view runs in fixed-height mode, which halves what a big folder
 ## costs to load. GTK only allows it while every column sizes FIXED, and it
 ## goes wrong quietly rather than loudly: a column left to size itself makes
