@@ -1,5 +1,5 @@
 /* The rule behind the drop confirmation: which action, and which setting,
- * and the trash exception. The dialog itself is not driven here - only the
+ * and the trash and delete test guard exceptions. The dialog itself is not driven here - only the
  * decision that puts it up. */
 
 #include <config.h>
@@ -9,6 +9,7 @@
 
 #include <libnemo-private/nemo-config.h>
 #include <libnemo-private/nemo-dnd.h>
+#include <libnemo-private/nemo-delete-testguard.h>
 #include <libnemo-private/nemo-global-preferences.h>
 
 #include "test-scratch.h"
@@ -21,6 +22,31 @@ set_prefs (gboolean move, gboolean copy)
 	nemo_config_set_boolean (nemo_preferences, NEMO_PREFERENCES_CONFIRM_DRAG_COPY, copy);
 }
 
+static void
+set_guard (gboolean on)
+{
+	nemo_config_set_boolean (nemo_config_get_group (NEMO_DEBUG_GROUP),
+				 NEMO_PREFERENCES_TESTGUARD_ALL_DELETES, on);
+}
+
+/* Armed, the guard asks about the move itself, so the drop does not. A copy
+   is not the guard's business and still asks. */
+static void
+check_armed (void)
+{
+	gboolean armed;
+
+	set_prefs (TRUE, TRUE);
+	set_guard (TRUE);
+	armed = nemo_delete_testguard_armed ();
+	check (armed);
+	if (!armed) {
+		return;
+	}
+	check (!nemo_drag_confirm_needed (GDK_ACTION_MOVE, "file:///tmp"));
+	check (nemo_drag_confirm_needed (GDK_ACTION_COPY, "file:///tmp"));
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -28,8 +54,21 @@ main (int argc, char *argv[])
 
 	tmp = test_scratch_config_home ("nemo-drag-confirm-test-XXXXXX");
 
+	/* The guard is on by default and takes over the move question, so it is
+	   off for everything but its own check at the end. The variable would beat
+	   the setting, and it is read once, so it goes before anything asks. */
+	g_unsetenv (NEMO_TESTGUARD_ENV_VAR);
+
 	gtk_init (&argc, &argv);
 	nemo_global_preferences_init ();
+	set_guard (FALSE);
+
+	/* A build compiled armed cannot be quieted, so the rest has nothing to
+	   say about it. */
+	if (NEMO_TESTGUARD_ALL_DELETES) {
+		check_armed ();
+		goto done;
+	}
 
 	/* Defaults: a move asks, a copy does not. */
 	check (nemo_drag_confirm_needed (GDK_ACTION_MOVE, "file:///tmp"));
@@ -74,6 +113,9 @@ main (int argc, char *argv[])
 		g_list_free (uris);
 	}
 
+	check_armed ();
+
+done:
 	nemo_config_shutdown ();
 	g_free (tmp);
 

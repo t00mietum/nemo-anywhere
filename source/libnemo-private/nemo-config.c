@@ -935,6 +935,16 @@ nemo_config_is_ready (void)
 	return config_ready;
 }
 
+gboolean
+nemo_config_get_default_boolean (const char *group, const char *key)
+{
+	const NemoConfigKey *k = find_key (group, key);
+
+	g_return_val_if_fail (k != NULL && k->type == NEMO_CONFIG_BOOL, FALSE);
+
+	return g_strcmp0 (k->def, "true") == 0;
+}
+
 char *
 nemo_config_get_path (void)
 {

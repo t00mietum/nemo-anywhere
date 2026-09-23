@@ -47,28 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 RE Delete/move test guard:
-	- ✅ Originally opened 20260917-125536:
-		- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
-		- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
-	- 🔘 Set it to 0 in code, but default to 1 in the default config file (including my local config).
-		- Opened: 20260923-065221
-	- 🔘 If the guard in armed, skip all redundant native prompts.
-		- Opened: 20260923-065221
-		- Note: which prompt came up twice was not noted. It was an ordinary one, not one that needs a real choice such as "cannot trash, delete instead?" or the copy links or contents question. Needs steps to reproduce if no obvious one turns up.
-	- 🔘 Bug: The list of files can easily be too long for the dialog box.
-		- Opened: 20260923-065221
-		- Solution:
-			- Dialog a max size:
-				- 1/2 of the shortest dimension and 1/4 the longest
-					- Note: on a landscape screen that is 1/4 of the width and 1/2 of the height. On a portrait screen, the other way around.
-				- Make wider first, to fit long paths without wrapping, if possible.
-			- Dialog a min size:
-				- No wider than needed for the longest path, and the OK cancel buttons at the bottom.
-				- And for introductory text to not be too wrapped to comfortably read.
-			- If the file list is still too long, give the list section a scrollbar.
-				- But the buttons get dedicated space at the bottom that can't be scrolled, nor pushed below the screen real-estate.
-
 - 🔘 Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922
 	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
@@ -77,6 +55,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-161500
 	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
 	- The demo lint fails if a drag goes back in while the guard is still at 1, so this cannot be forgotten.
+	- Note: unblocked 20260923. The compile-time arm is 0, and the demo turns the setting off. The lint now fails if a drag goes back in while any of the define, the demo's settings or the default would arm it.
 
 - 🔘 Copying a tiny file makes a CoW clone of it, where a plain copy would do better.
 	- Opened: 20260923-114627
@@ -1643,6 +1622,34 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ RE Delete/move test guard:
+	- ✅ Originally opened 20260917-125536:
+		- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
+		- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
+	- ✅ Set it to 0 in code, but default to 1 in the default config file (including my local config).
+		- Opened: 20260923-065221. Closed: 20260923-162417.
+		- Done: the define is 0 and `debug.testguard-all-deletes` is on by default, so a settings file with nothing in it is armed. Nothing needed changing in a local settings file. Before the settings file is read, the default answers too.
+		- Done: the demo turns the setting off, and its lint now reads the demo's settings and the default as well as the define.
+	- ✅ If the guard in armed, skip all redundant native prompts.
+		- Opened: 20260923-065221. Closed: 20260923-162417.
+		- Note: which prompt came up twice was not noted. It was an ordinary one, not one that needs a real choice such as "cannot trash, delete instead?" or the copy links or contents question. Needs steps to reproduce if no obvious one turns up.
+		- Fixed: the drop question for a move. A drag that moves files asked "move these?", then the guard asked about the same move. Armed, the drop no longer asks; a copy still does, since the guard does not cover copies.
+		- Swept: delete, trash, empty trash and the many-items ask were already replaced by the guard. The "cannot trash" and conflict questions need a real choice and stay. If another one shows up twice, reopen with the steps.
+	- ✅ Bug: The list of files can easily be too long for the dialog box.
+		- Opened: 20260923-065221. Closed: 20260923-162417.
+		- Solution:
+			- Dialog a max size:
+				- 1/2 of the shortest dimension and 1/4 the longest
+					- Note: on a landscape screen that is 1/4 of the width and 1/2 of the height. On a portrait screen, the other way around.
+				- Make wider first, to fit long paths without wrapping, if possible.
+			- Dialog a min size:
+				- No wider than needed for the longest path, and the OK cancel buttons at the bottom.
+				- And for introductory text to not be too wrapped to comfortably read.
+			- If the file list is still too long, give the list section a scrollbar.
+				- But the buttons get dedicated space at the bottom that can't be scrolled, nor pushed below the screen real-estate.
+		- Fixed: the paths and call stack sit in a scroll box, and the buttons have their own row under it. The dialog is only as big as its text, up to the caps above, and takes width before height. The headline wraps but keeps about 30 characters.
+		- Verified: capped at 480 by 540 on a 1920 by 1080 screen and 540 by 480 on the same screen turned portrait. On 1024 by 768 it goes a little past a quarter of the width to keep the headline readable.
 
 - ✅ For macOS, many actions that require CTRL+[something] in Linux or Windows, would more naturally be Command+[something] in macOS. (E.g. keyboard mod behavior in Finder.) Account for these combo key differences. But don't go overboard, e.g. don't require "Cmd+down arrow" to enter a folder. Keep the current keyboard behavior, just remap the sensible things from Ctrl to Cmd on macOS where it makes sense.
 	- Opened: 20260919-125440. Closed: 20260922.

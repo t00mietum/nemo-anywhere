@@ -114,7 +114,7 @@ field: compact-view.default-icon-size
 
 field: debug.testguard-all-deletes
 	type: bool
-	default: false
+	default: true
 	desc: Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for
 
 field: file-cache.max-size-gib
