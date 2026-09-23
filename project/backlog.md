@@ -45,19 +45,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 After deleting all the contents of a view, the horizontal scrollbar appears.
+
 ### Features and enhancements
 
-- 🔘 Idea: Instead of relying on checksum for uniqueness (which is slow to read from xattrs or scan the file).
-	- Maybe first check for unique combinations of:
-		- mtime
-		- ctime
-		- file size
-		- local filesystem inode (if known to be stable for the filesystem - e.g. FUSE isn't)
-		- Unique filesystem mountpoint hash. (Required to differentiate non-unique inode #s per filesystem.)
-	- If that's not enough:
-		- Checksum of a fixed amount of a deterministic pseudorandom small chunk of the file (based on filesize).
-	- Only if it's still ambiguous or unreliable, then fall back to checksum.
+- 🔘 RE Delete/move test guard:
+	- ✅ Originally opened 20260917-125536:
+		- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
+		- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
+	- 🔘 Set it to 0 in code, but default to 1 in the default config file (including my local config).
+		- Opened: 20260923-065221
+	- 🔘 If the guard in armed, skip all redundant native prompts.
+		- Opened: 20260923-065221
+	- 🔘 Bug: The list of files can easily be too long for the dialog box.
+		- Opened: 20260923-065221
+		- Solution:
+			- Dialog a max size:
+				- 1/2 of the shortest dimension and 1/4 the longest
+				- Make wider first, to fit long paths without wrapping, if possible.
+			- Dialog a min size:
+				- No wider than needed for the longest path, and the OK cancel buttons at the bottom.
+				- And for introductory text to not be too wrapped to comfortably read.
+			- If the file list is still too long, give the list section a scrollbar.
+				- But the buttons get dedicated space at the bottom that can't be scrolled, nor pushed below the screen real-estate.
 
+- 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
 
@@ -70,7 +82,21 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
 	- The demo lint fails if a drag goes back in while the guard is still at 1, so this cannot be forgotten.
 
-- Stop here for a next release.
+- 🔘 Copying a tiny file makes a CoW clone of it, where a plain copy would do better.
+	- Opened: 20260923-114627
+	- A copy tries a clone first at any size, then a plain copy. A clone of a tiny file can cost more than it saves.
+	- Pick a size below which a copy skips the clone. See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md#copy-on-write-clones).
+
+- 🔘 Metadata-aware Nemo Anywhere:
+	- 🔘 When creating a file, also log its known information to the database.
+	- 🔘 When doing anything that involves changing any part of the full file path of one or more folders or files, update the information in the file database.
+	- 🔘 When doing anything that requires full file content to pass through the program, landing in a local directory:
+		- Calculate known file information for every file involved - including first, middle, last, and full hashes on the file; log it to the database, and add/update xattrs/AFS to the file for the blake3 hash info.
+	- 🔘 Allow adding, editing, and searching for tags.
+		- Store in the file database, and base64url 32-bit hashes of them in xattrs.
+	- And do all this with minimal slowdown!
+
+- **Stop here for a next release**.
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
@@ -88,9 +114,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Smart duplicate file and directory finder with smart, useful options.
 	- Cache content hashes in local SQLite as well as optionally xattrs.
 	- And related, smart:
-		- Deduper for CoW systems.
-		- Dupe deleter.
-			- Optionally, create hardlinks under a per-volume, dot-hidden, "deleted-duplicate-hardlinks" directory (with a "readme.txt" in each describing the purpose, and a datetime-stamped log of each run.
+		- Deduper for CoW systems. It never deletes, trashes, moves or hardlinks.
+	- Design: [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
 
 - 🔘 Selectable metadata to include for media titles in icon mode. (E.g. px size, capture date, megapixel, framerate for video, Avg bitrate for audio and video, codec, etc.)
 
@@ -105,11 +130,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260919-132409
 	- Windows has the portable exe and the zip today, and `install.ps1` for an install with a menu entry and PATH.
 	- Wants signing first, or it trips the same warnings the exe does.
-
-- 🔘 Put the delete test guard's compile-time arm back to 0 before the next STABLE release.
-	- Opened: 20260917-125536
-	- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
-	- The define only ever arms. At 1 nothing turns it off. At 0 the `NEMO_TESTGUARD_ALL_DELETES` environment variable and the `debug.testguard-all-deletes` setting arm it instead, so a shipping build can still be armed when needed.
 
 - 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
