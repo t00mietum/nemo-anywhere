@@ -45,6 +45,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 After every file in a folder was removed by another program, icon view's status bar still counted 4 items.
+	- Opened: 20260923.
+	- Seen once, with 60 files removed one at a time. The view itself was empty. A delete from inside the app, in list view, counted 0 as it should.
+
 ### Features and enhancements
 
 - 🔘 RE Delete/move test guard:
