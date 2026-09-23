@@ -312,6 +312,30 @@ fCheckColumnExpand(){
 }
 fCheckColumnExpand
 
+## Column samples only ever grow, so a file that leaves keeps its widths in
+## every column but Name. That held a scrollbar on a folder with nothing left
+## needing it, emptied or not. A removal marks the samples stale, and a layout
+## whose minimums overflow while they are stale samples the folder again.
+fCheckStaleSamples(){
+	local src='source/src/nemo-list-view.c'
+	local body
+
+	[[ -f "$src" ]] || return 0
+
+	body="$(awk '/^drop_name_sample / { on=1 } on { print } on && /^}/ { on=0 }' "$src")"
+	if ! grep -q -F 'samples_stale = TRUE' <<<"$body"; then
+		fEcho "FAIL: ${src}: drop_name_sample must mark the samples stale"
+		exit 2
+	fi
+
+	body="$(awk '/^layout_columns / { on=1 } on { print } on && /^}/ { on=0 }' "$src")"
+	if ! grep -q -F 'resample_rows_soon' <<<"$body"; then
+		fEcho "FAIL: ${src}: layout_columns must resample stale samples when the minimums overflow"
+		exit 2
+	fi
+}
+fCheckStaleSamples
+
 ## The list view runs in fixed-height mode, which halves what a big folder
 ## costs to load. GTK only allows it while every column sizes FIXED, and it
 ## goes wrong quietly rather than loudly: a column left to size itself makes
