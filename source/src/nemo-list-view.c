@@ -121,12 +121,15 @@ struct NemoListViewDetails {
 	GtkWidget *column_editor;
 
 	/* Column auto-sizing. samples holds, per column id, what has been seen in
-	 * it - grown a row at a time as the model fills in, never walked whole,
-	 * and thrown away when the folder changes. laid_out_width is the width
-	 * the current widths were worked out for, so a column dragged wider by
-	 * hand survives until something really changes. */
+	 * it - grown a row at a time as the model fills in, walked whole only in
+	 * the case under resample_rows_cb, and thrown away when the folder
+	 * changes. laid_out_width is the width the current widths were worked
+	 * out for, so a column dragged wider by hand survives until something
+	 * really changes. */
 	GHashTable *samples;
 	guint resize_columns_id;
+	guint resample_id;
+	gboolean samples_stale;
 	gint column_floor;
 	gint column_pad;
 	gint column_ellipsis;
@@ -3360,7 +3363,9 @@ samples_measure (ColumnSamples *samples,
 }
 
 /* A file leaving the folder takes its name out of the reckoning, or a folder
-   emptied of its long names would keep the width they asked for. */
+   emptied of its long names would keep the width they asked for. What it held
+   in the other columns stays until resample_rows_cb, since those are kept by
+   text and another file may share it. */
 static void
 drop_name_sample (NemoListView *view,
 		  NemoFile     *file)
@@ -3371,20 +3376,30 @@ drop_name_sample (NemoListView *view,
 		return;
 	}
 
+	view->details->samples_stale = TRUE;
+
 	samples = g_hash_table_lookup (view->details->samples, "name");
 	if (samples != NULL && samples->values != NULL &&
 	    g_hash_table_remove (samples->values, file)) {
 		samples->fit = -1;
-		resize_columns_soon (view);
 	}
+
+	resize_columns_soon (view);
 }
 
 static void
 forget_samples (NemoListView *view)
 {
+	/* Whatever called this measures again from nothing, or has a new folder. */
+	if (view->details->resample_id != 0) {
+		g_source_remove (view->details->resample_id);
+		view->details->resample_id = 0;
+	}
+
 	if (view->details->samples != NULL) {
 		g_hash_table_remove_all (view->details->samples);
 	}
+	view->details->samples_stale = FALSE;
 
 	/* So the next allocation is not mistaken for one that changed nothing. */
 	view->details->laid_out_width = -1;
@@ -3819,6 +3834,57 @@ remeasure_rows (NemoListView *view)
 	resize_columns_soon (view);
 }
 
+/* Samples only ever grow, so files that leave a folder leave their widths
+   behind. A size or a type that is gone can hold its column wide enough to
+   put a scrollbar on a folder that no longer needs one, emptied or not. So
+   when the minimums overflow and files have left since the last full count,
+   what is left is sampled again. Only then: it is a walk of the folder, about
+   a third of a second at five thousand rows. The width worked out for each
+   text stays, since the text itself has not changed. */
+static gboolean
+resample_rows_cb (gpointer user_data)
+{
+	NemoListView *view = NEMO_LIST_VIEW (user_data);
+	GHashTableIter iter;
+	gpointer value;
+
+	view->details->resample_id = 0;
+	view->details->samples_stale = FALSE;
+
+	if (view->details->samples != NULL) {
+		g_hash_table_iter_init (&iter, view->details->samples);
+		while (g_hash_table_iter_next (&iter, NULL, &value)) {
+			ColumnSamples *samples = value;
+
+			if (samples->values != NULL) {
+				g_hash_table_remove_all (samples->values);
+			}
+			samples->widest = 0;
+			samples->fit = -1;
+		}
+	}
+
+	if (view->details->model != NULL) {
+		gtk_tree_model_foreach (GTK_TREE_MODEL (view->details->model),
+					measure_row_foreach, view);
+	}
+
+	resize_columns_soon (view);
+
+	return G_SOURCE_REMOVE;
+}
+
+/* Put off while files keep going and the layout keeps coming back to it, so
+   a big delete walks the folder once, at the end. */
+static void
+resample_rows_soon (NemoListView *view)
+{
+	if (view->details->resample_id != 0) {
+		g_source_remove (view->details->resample_id);
+	}
+	view->details->resample_id = g_timeout_add (300, resample_rows_cb, view);
+}
+
 /* Hand every visible column a width for a view `available` wide. Between them
    they come to exactly that wherever the minimums allow it, and to more where
    they do not, in which case the view scrolls sideways. The rule itself is in
@@ -3932,6 +3998,17 @@ layout_columns (NemoListView *view,
 	}
 
 	nemo_column_layout_distribute (items, n_columns, available, widths);
+
+	if (view->details->samples_stale) {
+		gint least = 0;
+
+		for (i = 0; i < n_columns; i++) {
+			least += items[i].min_width;
+		}
+		if (least > available) {
+			resample_rows_soon (view);
+		}
+	}
 
 	view->details->applying_layout = TRUE;
 	for (i = 0; i < n_columns; i++) {
@@ -5887,6 +5964,11 @@ nemo_list_view_dispose (GObject *object)
     if (list_view->details->resize_columns_id > 0) {
         g_source_remove (list_view->details->resize_columns_id);
         list_view->details->resize_columns_id = 0;
+    }
+
+    if (list_view->details->resample_id > 0) {
+        g_source_remove (list_view->details->resample_id);
+        list_view->details->resample_id = 0;
     }
 
     if (list_view->details->user_width_settle_id > 0) {

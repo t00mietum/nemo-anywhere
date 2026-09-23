@@ -45,8 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 After deleting all the contents of a view, the horizontal scrollbar appears.
-
 ### Features and enhancements
 
 - 🔘 RE Delete/move test guard:
@@ -184,6 +182,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ After deleting all the contents of a view, the horizontal scrollbar appears.
+	- And it still appears seemingly randomly (when not looking), even though the view has plenty of room in the rules for shrinking content.
+	- Opened: 20260923-144941. Closed: 20260923.
+	- Cause: column widths only ever grew while a folder was open. A file that left took its name with it and nothing else, so a wide size or type from a file already gone still held its column open. Enough of that and the least the columns could take was more than the view, so it scrolled with nothing on screen needing it. Emptying a folder is the plain case, and files coming and going in the background is the random one.
+	- Fixed: once files have left, a layout that would scroll measures the folder again from what is there. It only walks the folder in that case, so a big folder pays nothing while it fits.
+	- Still possible: a file whose size or type changes to something narrower keeps its old width until then too. Left alone, since it can only matter once a scrollbar would show, and then the next removal clears it.
 
 - ✅ With the tab bar set to show for a single tab, closing a tab down to one hid it anyway.
 	- Opened: 20260922. Closed: 20260922.
