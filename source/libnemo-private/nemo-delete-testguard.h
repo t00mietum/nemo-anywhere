@@ -45,7 +45,9 @@
  * below only ever arms: at 1 every run of the build asks and neither of the
  * other two can take that back. At 0 the NEMO_TESTGUARD_ALL_DELETES
  * environment variable decides, either way, and with nothing there the
- * debug.testguard-all-deletes setting does.
+ * debug.testguard-all-deletes setting does. That setting is on by default
+ * while the removal it was built for is still unexplained, so a build asks
+ * unless it has been told not to.
  *
  * It compiles in whichever way the define is set, so a build already in use
  * can be armed without replacing it. Quiet, all it costs a delete is one
@@ -60,7 +62,7 @@
 
 /* 1 arms every run of this build, whatever the environment or the settings
    file say. Leave at 0 for a shipping build. */
-#define NEMO_TESTGUARD_ALL_DELETES 1
+#define NEMO_TESTGUARD_ALL_DELETES 0
 
 /* 1/true/yes/on, or 0/false/no/off. Beats the setting in both directions, so
    a run can be quieted as well as armed. */
@@ -121,5 +123,12 @@ char *nemo_delete_testguard_describe_move      (GList *files,
 						GFile *destination);
 char *nemo_delete_testguard_describe_overwrite (GFile *source,
 						GFile *target);
+
+/* Largest the dialog may get on a monitor with this work area: a quarter of
+   the long side and half of the short one. */
+void  nemo_delete_testguard_dialog_caps (int  area_width,
+					 int  area_height,
+					 int *max_width,
+					 int *max_height);
 
 #endif /* NEMO_DELETE_TESTGUARD_H */

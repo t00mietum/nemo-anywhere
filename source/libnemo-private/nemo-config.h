@@ -114,6 +114,10 @@ NemoConfigGroup *nemo_config_get_group       (const char *group);
 gboolean         nemo_config_is_ready        (void);
 char            *nemo_config_get_path        (void);
 
+/* A bool key's declared default. Safe before nemo_config_init(), for the
+ * callers above that need an answer before there is a file to read. */
+gboolean         nemo_config_get_default_boolean (const char *group, const char *key);
+
 gboolean   nemo_config_get_boolean (NemoConfigGroup *group, const char *key);
 gint       nemo_config_get_int     (NemoConfigGroup *group, const char *key);
 /* Same key, full width. The store is 64-bit; the gint form is the convenience

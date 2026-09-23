@@ -38,6 +38,7 @@
 #include <glib/gi18n.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-global-preferences.h>
+#include <libnemo-private/nemo-delete-testguard.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-dnd-win32.h>
 #endif
@@ -1030,6 +1031,11 @@ nemo_drag_confirm_needed (GdkDragAction action,
 
 	switch (action) {
 	case GDK_ACTION_MOVE:
+		/* Armed, the test guard asks about every move job, so this would
+		   be the same question twice. */
+		if (nemo_delete_testguard_armed ()) {
+			return FALSE;
+		}
 		return nemo_config_get_boolean (nemo_preferences,
 						NEMO_PREFERENCES_CONFIRM_DRAG_MOVE);
 	case GDK_ACTION_COPY:

@@ -8,7 +8,8 @@
  * answer. The child exits 0 armed, 1 quiet, so the parent just reads a status.
  *
  * Also checks the two dialogs that name a pair of paths, since the two the
- * wrong way round would read as the opposite of what is happening.
+ * wrong way round would read as the opposite of what is happening, and the
+ * size caps that keep a long list from pushing the buttons off the screen.
  *
  * Runs against a throwaway config root. */
 
@@ -29,11 +30,16 @@
 #define CHILD_QUIET  1
 #define CHILD_BROKEN 2
 
-/* "store" writes the setting and stops; "read" reports what arming decided. */
+/* "store" writes the setting and stops; "read" reports what arming decided,
+   and "early" does the same before the settings file has been read. */
 static int
 run_as_child (const char *mode)
 {
 	NemoConfigGroup *debug;
+
+	if (strcmp (mode, "early") == 0) {
+		return nemo_delete_testguard_armed () ? CHILD_ARMED : CHILD_QUIET;
+	}
 
 	nemo_config_init ();
 
@@ -143,6 +149,23 @@ check_wording (void)
 	g_object_unref (target);
 }
 
+/* A quarter of the long side and half of the short one, whichever way round
+   the screen is. */
+static void
+check_caps (void)
+{
+	int width, height;
+
+	nemo_delete_testguard_dialog_caps (1920, 1080, &width, &height);
+	check (width == 480 && height == 540);
+
+	nemo_delete_testguard_dialog_caps (1080, 1920, &width, &height);
+	check (width == 540 && height == 480);
+
+	nemo_delete_testguard_dialog_caps (1000, 1000, &width, &height);
+	check (width == 250 && height == 500);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -153,6 +176,7 @@ main (int argc, char *argv[])
 	}
 
 	check_wording ();
+	check_caps ();
 
 	store_on  = test_scratch_dir ("nemo-testguard-on-XXXXXX", NULL);
 	store_off = test_scratch_dir ("nemo-testguard-off-XXXXXX", NULL);
@@ -169,9 +193,17 @@ main (int argc, char *argv[])
 		check (spawn_child (argv[0], "store-on", NULL) == CHILD_ARMED);
 		check (spawn_child (argv[0], "read", "0") == CHILD_ARMED);
 	} else {
-		/* Nothing set anywhere. */
-		test_scratch_point_config_at (store_off);
+		/* Nothing set anywhere. Quiet until 20260923, when the setting
+		   became on by default:
 		check (spawn_child (argv[0], "read", NULL) == CHILD_QUIET);
+		*/
+		test_scratch_point_config_at (store_off);
+		check (spawn_child (argv[0], "read", NULL) == CHILD_ARMED);
+
+		/* Before the settings file is read, the default answers, and the
+		   variable still beats it. */
+		check (spawn_child (argv[0], "early", NULL) == CHILD_ARMED);
+		check (spawn_child (argv[0], "early", "0") == CHILD_QUIET);
 
 		/* The setting on its own. */
 		test_scratch_point_config_at (store_on);
@@ -197,7 +229,7 @@ main (int argc, char *argv[])
 	g_free (store_off);
 
 	if (failures == 0)
-		g_print ("nemo-delete-testguard: arming order and move/overwrite wording hold\n");
+		g_print ("nemo-delete-testguard: arming order, move/overwrite wording and size caps hold\n");
 
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

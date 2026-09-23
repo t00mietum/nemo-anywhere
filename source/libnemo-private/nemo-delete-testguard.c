@@ -112,9 +112,10 @@ nemo_delete_testguard_armed (void)
 	}
 
 	/* A delete can be reached from local_command_line, before the settings
-	   file has been read. Nothing is stored yet, so the answer is no. */
+	   file has been read. Nothing is known yet, so the default answers. */
 	if (!nemo_config_is_ready ()) {
-		return FALSE;
+		return nemo_config_get_default_boolean (NEMO_DEBUG_GROUP,
+							NEMO_PREFERENCES_TESTGUARD_ALL_DELETES);
 	}
 
 	return nemo_config_get_boolean (nemo_config_get_group (NEMO_DEBUG_GROUP),
@@ -271,29 +272,130 @@ build_detail (GList      *files,
 	return detail;
 }
 
+void
+nemo_delete_testguard_dialog_caps (int  area_width,
+				   int  area_height,
+				   int *max_width,
+				   int *max_height)
+{
+	if (area_width >= area_height) {
+		*max_width = area_width / 4;
+		*max_height = area_height / 2;
+	} else {
+		*max_width = area_width / 2;
+		*max_height = area_height / 4;
+	}
+}
+
+/* The dialog has no parent, and GTK centers one of those on the monitor the
+   pointer is on, so that is the one to measure. */
+static GdkMonitor *
+dialog_monitor (GdkDisplay *display)
+{
+	GdkSeat *seat = gdk_display_get_default_seat (display);
+	GdkDevice *pointer = seat != NULL ? gdk_seat_get_pointer (seat) : NULL;
+	GdkMonitor *monitor = NULL;
+
+	if (pointer != NULL) {
+		int x, y;
+
+		gdk_device_get_position (pointer, NULL, &x, &y);
+		monitor = gdk_display_get_monitor_at_point (display, x, y);
+	}
+	if (monitor == NULL) {
+		monitor = gdk_display_get_primary_monitor (display);
+	}
+	if (monitor == NULL) {
+		monitor = gdk_display_get_monitor (display, 0);
+	}
+
+	return monitor;
+}
+
+/* Forty paths and a call stack can be taller than the screen, so the detail
+   scrolls and the buttons keep their own row below it. The window is only as
+   big as its text wants, up to the caps above, and it takes width before
+   height so a long path stays on one line where it can. */
 static gboolean
 show_dialog (gpointer _data)
 {
 	AskData *data = _data;
 	GtkWidget *dialog;
+	GtkWidget *content;
+	GtkWidget *header;
+	GtkWidget *icon;
+	GtkWidget *headline;
+	GtkWidget *scroll;
+	GtkWidget *detail;
+	GdkMonitor *monitor;
+	char *markup;
 	int response;
 
-	dialog = gtk_message_dialog_new (NULL,
-					 0,
-					 GTK_MESSAGE_WARNING,
-					 GTK_BUTTONS_NONE,
-					 "%s", data->primary);
-
-	gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
-						  "%s", data->detail);
+	dialog = gtk_dialog_new ();
+	gtk_window_set_title (GTK_WINDOW (dialog), "Delete/overwrite test guard");
+	gtk_window_set_position (GTK_WINDOW (dialog), GTK_WIN_POS_CENTER);
+	gtk_window_set_urgency_hint (GTK_WINDOW (dialog), TRUE);
+	gtk_window_set_keep_above (GTK_WINDOW (dialog), TRUE);
 
 	gtk_dialog_add_button (GTK_DIALOG (dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
 	gtk_dialog_add_button (GTK_DIALOG (dialog), GTK_STOCK_OK, GTK_RESPONSE_OK);
 	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_CANCEL);
 
-	gtk_window_set_title (GTK_WINDOW (dialog), "Delete/overwrite test guard");
-	gtk_window_set_urgency_hint (GTK_WINDOW (dialog), TRUE);
-	gtk_window_set_keep_above (GTK_WINDOW (dialog), TRUE);
+	content = gtk_dialog_get_content_area (GTK_DIALOG (dialog));
+	gtk_container_set_border_width (GTK_CONTAINER (content), 12);
+	gtk_box_set_spacing (GTK_BOX (content), 12);
+
+	header = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+	icon = gtk_image_new_from_icon_name ("dialog-warning", GTK_ICON_SIZE_DIALOG);
+	gtk_widget_set_valign (icon, GTK_ALIGN_START);
+	gtk_box_pack_start (GTK_BOX (header), icon, FALSE, FALSE, 0);
+
+	/* Wraps, but never so narrow that it is hard to read. */
+	markup = g_markup_printf_escaped ("<b>%s</b>", data->primary);
+	headline = gtk_label_new (NULL);
+	gtk_label_set_markup (GTK_LABEL (headline), markup);
+	g_free (markup);
+	gtk_label_set_line_wrap (GTK_LABEL (headline), TRUE);
+	gtk_label_set_width_chars (GTK_LABEL (headline), 30);
+	gtk_label_set_max_width_chars (GTK_LABEL (headline), 60);
+	gtk_label_set_xalign (GTK_LABEL (headline), 0.0);
+	gtk_widget_set_valign (headline, GTK_ALIGN_CENTER);
+	gtk_box_pack_start (GTK_BOX (header), headline, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (content), header, FALSE, FALSE, 0);
+
+	detail = gtk_label_new (data->detail);
+	gtk_label_set_selectable (GTK_LABEL (detail), TRUE);
+	gtk_label_set_xalign (GTK_LABEL (detail), 0.0);
+	gtk_label_set_yalign (GTK_LABEL (detail), 0.0);
+	g_object_set (detail, "margin", 6, NULL);
+
+	scroll = gtk_scrolled_window_new (NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
+					GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scroll), GTK_SHADOW_IN);
+	gtk_scrolled_window_set_propagate_natural_width (GTK_SCROLLED_WINDOW (scroll), TRUE);
+	gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (scroll), TRUE);
+	gtk_container_add (GTK_CONTAINER (scroll), detail);
+	gtk_box_pack_start (GTK_BOX (content), scroll, TRUE, TRUE, 0);
+
+	monitor = dialog_monitor (gtk_widget_get_display (dialog));
+	if (monitor != NULL) {
+		GdkRectangle area;
+		GdkGeometry geometry = { 0 };
+
+		gdk_monitor_get_workarea (monitor, &area);
+		nemo_delete_testguard_dialog_caps (area.width, area.height,
+						   &geometry.max_width, &geometry.max_height);
+		gtk_window_set_geometry_hints (GTK_WINDOW (dialog), NULL, &geometry,
+					       GDK_HINT_MAX_SIZE);
+	}
+
+	gtk_widget_show_all (content);
+
+	/* A selectable label takes the focus and selects all of itself, and
+	   a stray Enter should mean Cancel. */
+	gtk_widget_grab_focus (gtk_dialog_get_widget_for_response (GTK_DIALOG (dialog),
+								   GTK_RESPONSE_CANCEL));
 
 	response = gtk_dialog_run (GTK_DIALOG (dialog));
 	gtk_widget_destroy (dialog);

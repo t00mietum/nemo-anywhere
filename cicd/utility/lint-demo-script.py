@@ -64,7 +64,8 @@ def main():
 
     ## Every setting the demo writes has to still exist, or the run silently
     ## configures nothing and the recording comes out with the wrong defaults.
-    schema = set(re.findall(r"(?m)^field:\s*(\S+)", SCHEMA.read_text()))
+    schema_text = SCHEMA.read_text()
+    schema = set(re.findall(r"(?m)^field:\s*(\S+)", schema_text))
     written = settings_written(tree)
     if not written:
         fail("no settings found in the recorder - has START_SETTINGS been renamed?")
@@ -78,12 +79,19 @@ def main():
         if col in SECRET_COLUMNS:
             fail(f"demo shows the '{col}' column, which prints a real account name")
 
-    ## A move or a trash on camera hits the delete test guard while its compile-time
-    ## arm is at 1, so the recording would show its dialog and call stack instead of
-    ## the feature. Once that goes back to 0 this check lifts by itself.
-    armed = re.search(r"(?m)^#define\s+NEMO_TESTGUARD_ALL_DELETES\s+(\d)",
+    ## A move or a trash on camera hits the delete test guard while it is armed, so
+    ## the recording would show its dialog and call stack instead of the feature.
+    ## The compile-time arm beats everything. Below it the demo's own settings
+    ## decide, and with nothing there the schema default does.
+    forced = re.search(r"(?m)^#define\s+NEMO_TESTGUARD_ALL_DELETES\s+(\d)",
         GUARD_H.read_text())
-    if armed and armed.group(1) == "1" and re.search(r"\.drag\s*\(", source):
+    default = re.search(r"(?m)^field:\s*debug\.testguard-all-deletes\n(?:\t.*\n)*?\tdefault:\s*(\S+)",
+        schema_text)
+    setting = written.get("debug.testguard-all-deletes")
+    if setting is None:
+        setting = default.group(1) if default else "false"
+    armed = (forced and forced.group(1) == "1") or setting == "true"
+    if armed and re.search(r"\.drag\s*\(", source):
         fail("demo drags files while the delete test guard is armed - the guard's "
             "dialog would be what the scene shows")
 
@@ -100,3 +108,4 @@ if __name__ == "__main__":
 
 ##	History:
 ##		- 20260919 JC: Created.
+##		- 20260923 JC: Guard check also reads the demo settings and the schema default.

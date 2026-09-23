@@ -859,6 +859,8 @@ START_SETTINGS = {
     "preferences.sort-directories-first": "true",
     "list-view.row-shading": "true",
     "search.group-by-folder": "false",
+    # the delete test guard is on by default for now, and its dialog is not a feature
+    "debug.testguard-all-deletes": "false",
 }
 
 def render_settings(values):

@@ -142,7 +142,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ NEMO_ARCHIVE_COMMANDS_GROUP, NEMO_ARCHIVE_STATE_KEY_STORE_LINKS, NEMO_CONFIG_BOOL, "true", NULL, NULL, "What the Compress dialog starts from next time", NEMO_CONFIG_KEY_STATE },
 	{ "compact-view", "all-columns-have-same-width", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "compact-view", "default-icon-size", NEMO_CONFIG_INT, "100", NULL, NULL, "Icon size as a per cent of the standard 64 pixels" },
-	{ "debug", "testguard-all-deletes", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for" },
+	{ "debug", "testguard-all-deletes", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Ask before every trash and delete, naming the code that asked. Scaffolding for finding a removal nothing accounts for" },
 	{ "file-cache", "max-size-gib", NEMO_CONFIG_FLOAT, "2", NULL, NULL, "Largest the file cache may get, in GiB. The least recently drawn thumbnails go first. 0 for no limit" },
 	{ "file-cache", "memory-gib", NEMO_CONFIG_FLOAT, "1", NULL, NULL, "Most memory the thumbnails held ready to draw may take, in GiB. Past it only those near the view are held. 0 holds only what is on screen" },
 	{ "file-cache", "max-age-days", NEMO_CONFIG_INT, "180", NULL, NULL, "Drop a thumbnail not drawn for this many days. 0 to keep them however old" },
