@@ -156,6 +156,8 @@ Everything that makes Nemo worth porting:
 
 - Links are never followed on a delete or a move. Only the link goes. Copying a link asks whether to keep it a link or copy what it points to.
 
+- Make link asks what to make: a symlink or a hardlink, or on Windows a junction, with a relative or an absolute path.
+
 - Windows `.lnk` shortcuts work on Linux too. One to a folder goes to that folder, one to a file opens the file, and each shows its target's icon. The Windows path inside is matched to a drive or share this machine has mounted. When there is no sure match it says so instead of guessing.
 
 - Only a window can trash, delete or move files. Another program on the session bus can't, which Nemo's old desktop interface allowed.

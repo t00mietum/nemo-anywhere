@@ -47,41 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🛠️ Windows `.lnk` file support on macOS and Linux
-	- Opened: 20260924-104933
-	- ✅ They should behave mostly as they do on Windows:
-		- ✅ .lnk to folders, should *change the directory* to that path
-			- Rather than the way folder symlinks work, which is to place that folder virtually in the current path.
-		- ✅ .lnk to files, should be treated exactly as symlinks to documents and programs do now, except:
-			- The document is opened in the .lnk target's directory, or the program is executed in that directory.
-			- Done: the shortcut's own "Start in" folder is used when it can be found here, as on Windows. Otherwise the target's folder.
-			- Note: arguments in the shortcut are left out. They were written for a Windows program.
-		- ✅ Folder, program, and document icons should display correctly.
-			- Done: taken from what the shortcut records, never from the target. The extension is hidden and the shortcut overlay applies, as on Windows.
-	- ✅ If an .lnk file has a Windows-style path in it, try to resolve it. (But don't edit it.) That means, in part:
-		- ✅ It could be on a windows machine over a network share. If so, try to resolve the path to it's accurate network location.
-			- Done: matched by server and share name to a kernel or gvfs mount. An unmounted share opens as smb:// where gvfs can.
-		- ✅ If it's on a local filesystem, try to reinterpret the path to an existing local one.
-			- Done: the drive is found by its volume serial. Then the path relative to the shortcut is tried.
-		- But don't work SO hard that it guesses incorrectly, that would be worse than being unable to resolve.
-			- Done: no match means a message naming the path. Two names that differ only in case count as no match.
-	- Note: on macOS only the relative path and smb:// are tried until that target is built, since the drive and mount lookups read Linux's tables.
-	- 🔘 Update the functionality of the "Make symlink ..." menu item:
-		- New name: "Make link ..."
-		- A dialog opens, with options:
-			- "Link type(s)"             ## Radio button options below
-				- Label: "N folder(s):"  ## Only show the label if both files and folders are selected; if only folders, collapse the grouping.
-					- Junction[s]        ## The default for Windows folders if supported.
-					- Symlink[s]         ## The default otherwise
-				- Label: "N file(s):"    ## Only shown if both files and folders are selected; if only files, collapse the grouping.
-					- Symlink[s]         ## The default otherwise
-					- Hardlink[s]        ## Flyover text with urgent warning about the risks.
-			- "Path"                     ## Radio button options (section disabled if everything is Hardlinks and/or Junctions)
-				- Relative
-				- Absolute
-			- Buttons
-				- Cancel, OK
-
 - **Stop here for a next release**.
 
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
@@ -138,6 +103,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
 	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
 	- The dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
+	- The Make link dialog, junctions and hardlinks made from it, and the junction job test have only been cross-built.
 	- ImageMagick thumbnails have not run on Windows. Things to see there: no console window flashes up, and the packed exe's file hooks, which every program it starts inherits, do not upset `magick.exe`.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
@@ -1649,6 +1615,45 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Windows `.lnk` file support on macOS and Linux
+	- Opened: 20260924-104933
+	- Closed: 20260924-113840
+	- ✅ They should behave mostly as they do on Windows:
+		- ✅ .lnk to folders, should *change the directory* to that path
+			- Rather than the way folder symlinks work, which is to place that folder virtually in the current path.
+		- ✅ .lnk to files, should be treated exactly as symlinks to documents and programs do now, except:
+			- The document is opened in the .lnk target's directory, or the program is executed in that directory.
+			- Done: the shortcut's own "Start in" folder is used when it can be found here, as on Windows. Otherwise the target's folder.
+			- Note: arguments in the shortcut are left out. They were written for a Windows program.
+		- ✅ Folder, program, and document icons should display correctly.
+			- Done: taken from what the shortcut records, never from the target. The extension is hidden and the shortcut overlay applies, as on Windows.
+	- ✅ If an .lnk file has a Windows-style path in it, try to resolve it. (But don't edit it.) That means, in part:
+		- ✅ It could be on a windows machine over a network share. If so, try to resolve the path to it's accurate network location.
+			- Done: matched by server and share name to a kernel or gvfs mount. An unmounted share opens as smb:// where gvfs can.
+		- ✅ If it's on a local filesystem, try to reinterpret the path to an existing local one.
+			- Done: the drive is found by its volume serial. Then the path relative to the shortcut is tried.
+		- But don't work SO hard that it guesses incorrectly, that would be worse than being unable to resolve.
+			- Done: no match means a message naming the path. Two names that differ only in case count as no match.
+	- Note: on macOS only the relative path and smb:// are tried until that target is built, since the drive and mount lookups read Linux's tables.
+	- ✅ Update the functionality of the "Make symlink ..." menu item:
+		- New name: "Make link ..."
+		- A dialog opens, with options:
+			- "Link type(s)"             ## Radio button options below
+				- Label: "N folder(s):"  ## Only show the label if both files and folders are selected; if only folders, collapse the grouping.
+					- Junction[s]        ## The default for Windows folders if supported.
+					- Symlink[s]         ## The default otherwise
+				- Label: "N file(s):"    ## Only shown if both files and folders are selected; if only files, collapse the grouping.
+					- Symlink[s]         ## The default otherwise
+					- Hardlink[s]        ## Flyover text with urgent warning about the risks.
+			- "Path"                     ## Radio button options (section disabled if everything is Hardlinks and/or Junctions)
+				- Relative
+				- Absolute
+			- Buttons
+				- Cancel, OK
+		- Done: the dialog is in, on every platform. Junctions only show on Windows. The last choices are remembered, relative is the default, and a hardlink is never picked for anyone.
+		- Note: the OK button reads "Make link" or "Make links", since buttons are named for what they do.
+		- Note: this also covers the relative or absolute symlink option from the private notes.
 
 - ✅ Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922. Closed: 20260924-095019.

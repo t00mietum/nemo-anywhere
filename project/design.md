@@ -435,6 +435,12 @@ Copying a link asks what should be at the far end. A link can stay a link or be 
 
 - A move always takes a link as the link. Taking the contents would empty the folder the link points at, which is not what was asked to go. The dialog still offers a different kind of link on a move, but the copy option is grayed out.
 
+- Make link asks what to make, one row for the folders and one for the files. Folders get a junction or a symlink on Windows and a symlink elsewhere. Files get a symlink or a hardlink. A path row picks relative or absolute for whatever comes out a symlink, and goes gray when nothing does.
+	- Relative is the default. It keeps working when a whole tree is moved or mounted somewhere else, which is the usual reason to link inside one. It is worked out from where both ends really are, with symlinked folders resolved, so the link points where it looks like it should. Between two Windows drives there is no relative path, and the link keeps the absolute one.
+	- A hardlink is never picked for anyone, even where a symlink cannot be made. It is the one choice that can cost something: a program that saves by replacing the file splits the two names apart without a word. Its tooltip says so.
+	- The last choices are kept in the settings file and offered next time, where the folder allows them.
+	- Windows with no symlink privilege still gets the menu item, since a junction and a hardlink need none. The symlink choices are gray, with a line saying why.
+
 #### Archives
 
 Archives are written by libarchive, with the `7z` and `rar` commands as optional extras rather than the primary route. Linking a library needs nothing installed on the user's machine, writes the tar, zip and 7z families natively, and reports real per-file progress through the ordinary job queue. What it cannot do on the write side is why the commands are still reached for: no rar at all, and no split volumes, solid blocks, duplicate references or 7z encryption. Where an installed command can honor one of those it is used, and where nothing can the option is grayed out rather than hidden.

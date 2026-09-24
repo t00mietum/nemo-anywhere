@@ -129,6 +129,9 @@ typedef struct {
 	   source holds. Only meaningful once link_choice_set is TRUE. */
 	NemoLinkChoice link_choice;
 	gboolean link_choice_set;
+	/* From the Make link dialog. Only meaningful once link_options_set. */
+	NemoLinkOptions link_options;
+	gboolean link_options_set;
 	NemoCopyCallback  done_callback;
 	gpointer done_callback_data;
 } CopyMoveJob;
@@ -6447,6 +6450,61 @@ win_create_symlink (GFile *dest, const char *target_path, GError **error)
 }
 #endif
 
+/* The kind of link the Make link dialog asked for. A relative symlink needs
+   both ends local; anywhere else it quietly keeps the absolute path. */
+static gboolean
+make_chosen_link (CopyMoveJob *job, GFile *src, GFile *dest, GFile *dest_dir,
+		  const char *abs_target, GError **error)
+{
+	const NemoLinkOptions *options = &job->link_options;
+	GCancellable *cancellable = job->common.cancellable;
+	char *src_path = g_file_get_path (src);
+	char *dest_path = g_file_get_path (dest);
+	char *dir_path = g_file_get_path (dest_dir);
+	char *text = NULL;
+	gboolean is_dir, ok;
+
+	is_dir = g_file_query_file_type (src, G_FILE_QUERY_INFO_NONE, cancellable) == G_FILE_TYPE_DIRECTORY;
+
+	if (!is_dir && options->file_hardlink) {
+		if (src_path == NULL || dest_path == NULL) {
+			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+					     _("Hardlinks can only be made in a local folder."));
+			ok = FALSE;
+		} else {
+			ok = nemo_link_create_hard (src_path, dest_path, error);
+		}
+#ifdef G_OS_WIN32
+	} else if (dest_path == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("Symlinks can only be created in a local folder."));
+		ok = FALSE;
+	} else if (is_dir && options->folder_junction) {
+		ok = nemo_link_create (abs_target, dest_path, NULL, NEMO_LINK_JUNCTION, error);
+#endif
+	} else {
+		if (options->relative && src_path != NULL && dir_path != NULL) {
+			text = nemo_link_relative_target (src_path, dir_path);
+		}
+		if (text == NULL) {
+			text = g_strdup (abs_target);
+		}
+#ifdef G_OS_WIN32
+		ok = nemo_link_create (text, dest_path, NULL,
+				       is_dir ? NEMO_LINK_DIR_SYMLINK : NEMO_LINK_FILE_SYMLINK, error);
+#else
+		ok = g_file_make_symbolic_link (dest, text, cancellable, error);
+#endif
+	}
+
+	g_free (text);
+	g_free (src_path);
+	g_free (dest_path);
+	g_free (dir_path);
+
+	return ok;
+}
+
 static void
 link_file (CopyMoveJob *job,
 	   GFile *src, GFile *dest_dir,
@@ -6490,7 +6548,9 @@ link_file (CopyMoveJob *job,
 	path = get_abs_path_for_symlink (src);
 	if (path == NULL) {
 		not_local = TRUE;
-	} else if (
+	} else if (job->link_options_set
+		   ? make_chosen_link (job, src, dest, dest_dir, path, &error)
+		   :
 #ifdef G_OS_WIN32
 		   /* For a shortcut, dest is rewritten to a .lnk on success and the
 		    * bookkeeping below records that file instead. */
@@ -6568,6 +6628,11 @@ link_file (CopyMoveJob *job,
 		if (not_local) {
 			secondary = f (_("Symbolic links only supported for local files"));
 			details = NULL;
+		} else if (job->link_options_set && error != NULL) {
+			/* A hardlink or a junction can fail for reasons of its own,
+			   and the message says which. */
+			secondary = f (_("There was an error creating the link in %F."), dest_dir);
+			details = error->message;
 		} else if (error != NULL && IS_IO_ERROR (error, NOT_SUPPORTED)) {
 			secondary = f (_("The target doesn't support symbolic links."));
 			details = NULL;
@@ -6698,6 +6763,7 @@ start_link_job (GList *files,
 		GFile *target_dir,
 		GtkWindow *parent_window,
 		gboolean symlink,
+		const NemoLinkOptions *options,
 		NemoCopyCallback  done_callback,
 		gpointer done_callback_data)
 {
@@ -6707,6 +6773,10 @@ start_link_job (GList *files,
 	job->done_callback = done_callback;
 	job->done_callback_data = done_callback_data;
 	job->want_symlink = symlink;
+	if (options != NULL) {
+		job->link_options = *options;
+		job->link_options_set = TRUE;
+	}
 	job->files = eel_g_object_list_copy (files);
 	job->destination = g_object_ref (target_dir);
 	if (relative_item_points != NULL &&
@@ -6741,7 +6811,7 @@ nemo_file_operations_link (GList *files,
 			       NemoCopyCallback  done_callback,
 			       gpointer done_callback_data)
 {
-	start_link_job (files, relative_item_points, target_dir, parent_window, FALSE,
+	start_link_job (files, relative_item_points, target_dir, parent_window, FALSE, NULL,
 			done_callback, done_callback_data);
 }
 
@@ -6990,6 +7060,7 @@ void
 nemo_file_operations_symlink (const GList *item_uris,
 			      GArray *relative_item_points,
 			      const char *target_dir,
+			      const NemoLinkOptions *options,
 			      GtkWidget *parent_view,
 			      NemoCopyCallback  done_callback,
 			      gpointer done_callback_data)
@@ -7005,7 +7076,7 @@ nemo_file_operations_symlink (const GList *item_uris,
 		parent_window = (GtkWindow *) gtk_widget_get_ancestor (parent_view, GTK_TYPE_WINDOW);
 	}
 
-	start_link_job (locations, relative_item_points, dest, parent_window, TRUE,
+	start_link_job (locations, relative_item_points, dest, parent_window, TRUE, options,
 			done_callback, done_callback_data);
 
 	g_list_free_full (locations, g_object_unref);

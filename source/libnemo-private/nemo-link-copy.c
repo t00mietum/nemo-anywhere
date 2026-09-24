@@ -10,10 +10,18 @@
 #include <config.h>
 #include "nemo-link-copy.h"
 
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <glib/gi18n.h>
+
+#include "nemo-global-preferences.h"
 
 #ifdef G_OS_WIN32
 #include "nemo-link-win32.h"
+#else
+#include <unistd.h>
 #endif
 
 NemoLinkKind
@@ -393,6 +401,416 @@ nemo_link_choice_ask (GtkWindow      *parent,
 	}
 
 	gtk_widget_destroy (dialog);
+
+	return response == GTK_RESPONSE_OK;
+}
+
+gboolean
+nemo_link_create_hard (const char  *existing_path,
+                       const char  *link_path,
+                       GError     **error)
+{
+#ifdef G_OS_WIN32
+	return nemo_win32_link_create_hard (existing_path, link_path, error);
+#else
+	int saved;
+
+	if (link (existing_path, link_path) == 0) {
+		return TRUE;
+	}
+
+	saved = errno;
+	if (saved == EXDEV) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("A hardlink has to be on the same drive as the original."));
+	} else {
+		g_set_error_literal (error, G_IO_ERROR, g_io_error_from_errno (saved),
+				     g_strerror (saved));
+	}
+
+	return FALSE;
+#endif
+}
+
+/* The folder as it really is. A folder that cannot be resolved is left as
+   spelled, cleaned up. */
+static char *
+real_dir (const char *dir)
+{
+#ifndef G_OS_WIN32
+	char *real = realpath (dir, NULL);
+
+	if (real != NULL) {
+		char *copy = g_strdup (real);
+
+		free (real);
+		return copy;
+	}
+#endif
+	return g_canonicalize_filename (dir, NULL);
+}
+
+static char **
+split_path (const char *path)
+{
+	char **parts = g_strsplit_set (path, G_DIR_SEPARATOR_S "/", -1);
+	GPtrArray *kept = g_ptr_array_new ();
+	int i;
+
+	for (i = 0; parts[i] != NULL; i++) {
+		if (parts[i][0] != '\0') {
+			g_ptr_array_add (kept, g_strdup (parts[i]));
+		}
+	}
+	g_strfreev (parts);
+	g_ptr_array_add (kept, NULL);
+
+	return (char **) g_ptr_array_free (kept, FALSE);
+}
+
+static gboolean
+same_part (const char *a, const char *b)
+{
+#ifdef G_OS_WIN32
+	char *fa = g_utf8_casefold (a, -1);
+	char *fb = g_utf8_casefold (b, -1);
+	gboolean same = strcmp (fa, fb) == 0;
+
+	g_free (fa);
+	g_free (fb);
+	return same;
+#else
+	return strcmp (a, b) == 0;
+#endif
+}
+
+char *
+nemo_link_relative_target (const char *target_path,
+                           const char *dir)
+{
+	char *target_parent, *target_base, *real_parent, *real_target, *real_link_dir;
+	char **from, **to;
+	GString *text;
+	int common = 0, i;
+	char *answer = NULL;
+
+	/* The target itself is not resolved, since it may be a link that is
+	   meant to be pointed at. */
+	target_parent = g_path_get_dirname (target_path);
+	target_base = g_path_get_basename (target_path);
+	real_parent = real_dir (target_parent);
+	real_target = g_build_filename (real_parent, target_base, NULL);
+	real_link_dir = real_dir (dir);
+
+	from = split_path (real_link_dir);
+	to = split_path (real_target);
+
+	while (from[common] != NULL && to[common] != NULL && same_part (from[common], to[common])) {
+		common++;
+	}
+
+#ifdef G_OS_WIN32
+	/* The first part is the drive or the server. There is no way up and over. */
+	if (common == 0) {
+		goto out;
+	}
+#endif
+
+	text = g_string_new (NULL);
+	for (i = common; from[i] != NULL; i++) {
+		g_string_append (text, text->len > 0 ? G_DIR_SEPARATOR_S ".." : "..");
+	}
+	for (i = common; to[i] != NULL; i++) {
+		if (text->len > 0) {
+			g_string_append (text, G_DIR_SEPARATOR_S);
+		}
+		g_string_append (text, to[i]);
+	}
+	if (text->len == 0) {
+		g_string_append (text, ".");
+	}
+	answer = g_string_free (text, FALSE);
+
+#ifdef G_OS_WIN32
+ out:
+#endif
+	g_strfreev (from);
+	g_strfreev (to);
+	g_free (target_parent);
+	g_free (target_base);
+	g_free (real_parent);
+	g_free (real_target);
+	g_free (real_link_dir);
+
+	return answer;
+}
+
+void
+nemo_link_options_initial (guint            supported,
+                           gboolean         last_junction,
+                           gboolean         last_hardlink,
+                           gboolean         last_relative,
+                           NemoLinkOptions *options)
+{
+	gboolean junction_ok = (supported & NEMO_LINK_JUNCTION) != 0;
+	gboolean dir_symlink_ok = (supported & NEMO_LINK_DIR_SYMLINK) != 0;
+
+	options->folder_junction = junction_ok && (last_junction || !dir_symlink_ok);
+	/* Never picked just because a symlink cannot be made. It is the one
+	   choice here that can cost something, so it is only ever chosen. */
+	options->file_hardlink = last_hardlink;
+	options->relative = last_relative;
+}
+
+gboolean
+nemo_link_options_makes_symlinks (const NemoLinkOptions *options,
+                                  int                    n_folders,
+                                  int                    n_files)
+{
+	return (n_folders > 0 && !options->folder_junction) ||
+	       (n_files > 0 && !options->file_hardlink);
+}
+
+typedef struct {
+	GtkWidget *dialog;
+	GtkWidget *folder_junction;
+	GtkWidget *file_hardlink;
+	GtkWidget *relative;
+	GtkWidget *absolute;
+	GtkWidget *path_label;
+	int        n_folders;
+	int        n_files;
+	guint      supported;
+} MakeLinkDialog;
+
+static void
+read_options (MakeLinkDialog *d, NemoLinkOptions *options)
+{
+	options->folder_junction = d->folder_junction != NULL &&
+		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (d->folder_junction));
+	options->file_hardlink = d->file_hardlink != NULL &&
+		gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (d->file_hardlink));
+	options->relative = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (d->relative));
+}
+
+static void
+update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
+{
+	NemoLinkOptions options;
+	gboolean uses_path, folders_ok, files_ok;
+
+	read_options (d, &options);
+
+	uses_path = nemo_link_options_makes_symlinks (&options, d->n_folders, d->n_files);
+	gtk_widget_set_sensitive (d->path_label, uses_path);
+	gtk_widget_set_sensitive (d->relative, uses_path);
+	gtk_widget_set_sensitive (d->absolute, uses_path);
+
+	/* Nothing is made until every row holds a choice this folder allows. */
+	folders_ok = d->n_folders == 0 ||
+		     (d->supported & (options.folder_junction ? NEMO_LINK_JUNCTION : NEMO_LINK_DIR_SYMLINK));
+	files_ok = d->n_files == 0 || options.file_hardlink ||
+		   (d->supported & NEMO_LINK_FILE_SYMLINK);
+	gtk_dialog_set_response_sensitive (GTK_DIALOG (d->dialog), GTK_RESPONSE_OK,
+					   folders_ok && files_ok);
+}
+
+static GtkWidget *
+add_choice (GtkGrid *grid, int row, int column, GtkWidget *group,
+	    const char *label, gboolean allowed, gboolean active)
+{
+	GtkWidget *button;
+
+	button = gtk_radio_button_new_with_mnemonic_from_widget (
+			group != NULL ? GTK_RADIO_BUTTON (group) : NULL, label);
+	gtk_widget_set_sensitive (button, allowed);
+	if (active) {
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+	}
+	gtk_grid_attach (grid, button, column, row, 1, 1);
+
+	return button;
+}
+
+static GtkWidget *
+add_row_label (GtkGrid *grid, int row, const char *text)
+{
+	GtkWidget *label = gtk_label_new (text);
+
+	gtk_widget_set_halign (label, GTK_ALIGN_START);
+	gtk_grid_attach (grid, label, 0, row, 1, 1);
+
+	return label;
+}
+
+gboolean
+nemo_link_options_ask (GtkWindow       *parent,
+                       GFile           *destination,
+                       int              n_folders,
+                       int              n_files,
+                       NemoLinkOptions *options)
+{
+	MakeLinkDialog d = { 0 };
+	GtkWidget *area, *box, *grid, *note;
+	GList *children, *l;
+	char *dest_path, *dest_name, *primary, *secondary, *text;
+	const char *why = NULL;
+	gboolean both = n_folders > 0 && n_files > 0;
+	int total = n_folders + n_files;
+	int row = 0;
+	int response;
+
+	d.n_folders = n_folders;
+	d.n_files = n_files;
+
+	dest_path = destination != NULL ? g_file_get_path (destination) : NULL;
+#ifdef G_OS_WIN32
+	d.supported = nemo_link_kinds_supported (dest_path);
+#else
+	/* A remote folder can take a symlink as well, through GIO. */
+	d.supported = NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK;
+#endif
+	g_free (dest_path);
+
+	nemo_link_options_initial (d.supported,
+				   nemo_config_get_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FOLDER_KIND) == 0,
+				   nemo_config_get_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FILE_KIND) == 1,
+				   nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_LINK_RELATIVE),
+				   options);
+
+	if (total == 1) {
+		primary = g_strdup (_("Make a link"));
+	} else {
+		primary = g_strdup_printf (ngettext ("Make links to %d item", "Make links to %d items", total), total);
+	}
+	dest_name = destination != NULL ? g_file_get_basename (destination) : NULL;
+	secondary = g_strdup_printf (ngettext ("The new link goes in \"%s\".",
+					       "The new links go in \"%s\".", total),
+				     dest_name != NULL ? dest_name : "");
+	g_free (dest_name);
+
+	d.dialog = gtk_message_dialog_new (parent, 0, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE, NULL);
+	g_object_set (d.dialog, "text", primary, "secondary-text", secondary, NULL);
+	g_free (primary);
+	g_free (secondary);
+
+	gtk_dialog_add_button (GTK_DIALOG (d.dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
+	gtk_dialog_add_button (GTK_DIALOG (d.dialog),
+			       ngettext ("_Make link", "_Make links", total), GTK_RESPONSE_OK);
+	gtk_dialog_set_default_response (GTK_DIALOG (d.dialog), GTK_RESPONSE_OK);
+
+	grid = gtk_grid_new ();
+	gtk_widget_set_halign (grid, GTK_ALIGN_START);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), 12);
+	gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+
+	if (n_folders > 0) {
+		GtkWidget *group = NULL;
+		int column = 1;
+
+		if (both) {
+			text = g_strdup_printf (ngettext ("%d folder:", "%d folders:", n_folders), n_folders);
+			add_row_label (GTK_GRID (grid), row, text);
+			g_free (text);
+		} else {
+			add_row_label (GTK_GRID (grid), row, _("Link type:"));
+		}
+#ifdef G_OS_WIN32
+		d.folder_junction = add_choice (GTK_GRID (grid), row, column++, NULL,
+						ngettext ("_Junction", "_Junctions", n_folders),
+						(d.supported & NEMO_LINK_JUNCTION) != 0,
+						options->folder_junction);
+		group = d.folder_junction;
+#endif
+		add_choice (GTK_GRID (grid), row, column, group,
+			    ngettext ("_Symlink", "_Symlinks", n_folders),
+			    (d.supported & NEMO_LINK_DIR_SYMLINK) != 0,
+			    !options->folder_junction);
+		row++;
+	}
+
+	if (n_files > 0) {
+		GtkWidget *symlink;
+
+		if (both) {
+			text = g_strdup_printf (ngettext ("%d file:", "%d files:", n_files), n_files);
+			add_row_label (GTK_GRID (grid), row, text);
+			g_free (text);
+		} else {
+			add_row_label (GTK_GRID (grid), row, _("Link type:"));
+		}
+		symlink = add_choice (GTK_GRID (grid), row, 1, NULL,
+				      ngettext ("S_ymlink", "S_ymlinks", n_files),
+				      (d.supported & NEMO_LINK_FILE_SYMLINK) != 0,
+				      !options->file_hardlink);
+		d.file_hardlink = add_choice (GTK_GRID (grid), row, 2, symlink,
+					      ngettext ("_Hardlink", "_Hardlinks", n_files),
+					      TRUE, options->file_hardlink);
+		gtk_widget_set_tooltip_text (d.file_hardlink,
+			_("Careful: a hardlink is a second name for the same file, not a pointer to it. "
+			  "Editing through either name changes both, but many programs save by replacing "
+			  "the file, which quietly splits the two apart. Space is freed only when every "
+			  "name is deleted. Both names have to be on the same drive."));
+		row++;
+	}
+
+	d.path_label = add_row_label (GTK_GRID (grid), row, _("Path:"));
+	d.relative = add_choice (GTK_GRID (grid), row, 1, NULL, _("_Relative"), TRUE, options->relative);
+	d.absolute = add_choice (GTK_GRID (grid), row, 2, d.relative, _("_Absolute"), TRUE, !options->relative);
+	gtk_widget_set_tooltip_text (d.relative,
+		_("Keeps working when the link and what it points to are moved together."));
+	gtk_widget_set_tooltip_text (d.absolute,
+		_("Keeps working when the link is moved on its own."));
+
+	/* Say why something is grayed out. */
+	if (d.supported == 0) {
+		why = _("This folder cannot hold symlinks or junctions.");
+	} else if (!(d.supported & NEMO_LINK_FILE_SYMLINK)) {
+		why = _("Symlinks need Developer Mode turned on, or nemo running as administrator.");
+	}
+
+	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+	gtk_box_pack_start (GTK_BOX (box), grid, FALSE, FALSE, 0);
+	if (why != NULL) {
+		note = gtk_label_new (why);
+		gtk_widget_set_halign (note, GTK_ALIGN_START);
+		gtk_label_set_line_wrap (GTK_LABEL (note), TRUE);
+		gtk_box_pack_start (GTK_BOX (box), note, FALSE, FALSE, 0);
+	}
+
+	area = gtk_message_dialog_get_message_area (GTK_MESSAGE_DIALOG (d.dialog));
+	gtk_box_pack_start (GTK_BOX (area), box, FALSE, FALSE, 6);
+	gtk_widget_show_all (box);
+
+	/* Any change rechecks the lot. */
+	children = gtk_container_get_children (GTK_CONTAINER (grid));
+	for (l = children; l != NULL; l = l->next) {
+		if (GTK_IS_RADIO_BUTTON (l->data)) {
+			g_signal_connect (l->data, "toggled", G_CALLBACK (update_make_link_dialog), &d);
+		}
+	}
+	g_list_free (children);
+	update_make_link_dialog (NULL, &d);
+
+	response = gtk_dialog_run (GTK_DIALOG (d.dialog));
+
+	if (response == GTK_RESPONSE_OK) {
+		read_options (&d, options);
+		if (n_folders > 0 && d.folder_junction != NULL) {
+			nemo_config_set_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FOLDER_KIND,
+					      options->folder_junction ? 0 : 1);
+		}
+		if (n_files > 0) {
+			nemo_config_set_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FILE_KIND,
+					      options->file_hardlink ? 1 : 0);
+		}
+		if (nemo_link_options_makes_symlinks (options, n_folders, n_files)) {
+			nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_LINK_RELATIVE,
+						 options->relative);
+		}
+	}
+
+	gtk_widget_destroy (d.dialog);
 
 	return response == GTK_RESPONSE_OK;
 }

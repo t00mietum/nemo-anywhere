@@ -427,6 +427,20 @@ link_copy_job = executable('test-nemo-link-copy-job',
 test('Link copy keeps the link', link_copy_job, args: [ 'keep' ])
 test('Link copy follows the link', link_copy_job, args: [ 'copy' ])
 
+make_link_job = executable('test-nemo-make-link-job',
+  [ 'test-nemo-make-link-job.c', 'test.c' ],
+  include_directories: [ rootInclude, ],
+  dependencies: [ gtk, nemo_private, test_scratch ],
+  c_args: nemo_definitions,
+)
+
+test('Make link relative', make_link_job, args: [ 'relative' ])
+test('Make link absolute', make_link_job, args: [ 'absolute' ])
+test('Make link hardlink', make_link_job, args: [ 'hardlink' ])
+if is_windows
+  test('Make link junction', make_link_job, args: [ 'junction' ])
+endif
+
 link_delete_job = executable('test-nemo-link-delete-job',
   [ 'test-nemo-link-delete-job.c', 'test.c' ],
   include_directories: [ rootInclude, ],

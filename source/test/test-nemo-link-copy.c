@@ -13,6 +13,9 @@
 #include <gio/gio.h>
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
+#ifndef G_OS_WIN32
+#include <unistd.h>
+#endif
 
 #include <libnemo-private/nemo-link-copy.h>
 
@@ -189,6 +192,141 @@ check_destination_support (const char *dir)
 	g_free (real_file);
 }
 
+/* How the Make link dialog spells a relative symlink. */
+static void
+check_relative_spelling (const char *dir)
+{
+	char *from = g_build_filename (dir, "sp", "a", NULL);
+	char *deep = g_build_filename (dir, "sp", "b", "c", NULL);
+	char *target = g_build_filename (deep, "t.txt", NULL);
+	char *beside = g_build_filename (from, "x.txt", NULL);
+	char *want = g_build_filename ("..", "b", "c", "t.txt", NULL);
+	char *text;
+
+	g_mkdir_with_parents (from, 0700);
+	g_mkdir_with_parents (deep, 0700);
+	check (g_file_set_contents (target, "t", 1, NULL));
+
+	text = nemo_link_relative_target (target, from);
+	check (g_strcmp0 (text, want) == 0);
+	g_free (text);
+
+	text = nemo_link_relative_target (beside, from);
+	check (g_strcmp0 (text, "x.txt") == 0);
+	g_free (text);
+
+	/* A link to the folder it sits in. */
+	text = nemo_link_relative_target (from, from);
+	check (g_strcmp0 (text, ".") == 0);
+	g_free (text);
+
+#ifdef G_OS_WIN32
+	/* No way from one drive to another. */
+	text = nemo_link_relative_target ("D:\\x\\t.txt", "C:\\y");
+	check (text == NULL);
+	g_free (text);
+#else
+	/* Reached through a symlinked folder, the spelling is from where the
+	   link really sits, or it would point somewhere else. */
+	{
+		char *alias = g_build_filename (dir, "alias", NULL);
+		char *made = g_build_filename (alias, "made", NULL);
+		char *contents = NULL;
+
+		check (symlink (from, alias) == 0);
+		text = nemo_link_relative_target (target, alias);
+		check (g_strcmp0 (text, want) == 0);
+		check (text != NULL && symlink (text, made) == 0);
+		check (g_file_get_contents (made, &contents, NULL, NULL) &&
+		       g_strcmp0 (contents, "t") == 0);
+		g_free (contents);
+		g_free (text);
+		g_remove (made);
+		g_remove (alias);
+		g_free (made);
+		g_free (alias);
+	}
+#endif
+
+	g_free (want);
+	g_free (beside);
+	g_free (target);
+	g_free (deep);
+	g_free (from);
+}
+
+static void
+check_link_options (void)
+{
+	NemoLinkOptions options;
+
+	nemo_link_options_initial (NEMO_LINK_ANY, TRUE, FALSE, TRUE, &options);
+	check (options.folder_junction && !options.file_hardlink && options.relative);
+
+	/* No junctions here, whatever was chosen last time. */
+	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK, TRUE, TRUE, FALSE, &options);
+	check (!options.folder_junction && options.file_hardlink && !options.relative);
+
+	/* Windows without the symlink privilege: folders fall back to a junction,
+	   but a file is never pushed onto a hardlink. */
+	nemo_link_options_initial (NEMO_LINK_JUNCTION, FALSE, FALSE, TRUE, &options);
+	check (options.folder_junction && !options.file_hardlink);
+
+	/* The path choice matters only while something comes out a symlink. */
+	options.folder_junction = TRUE;
+	options.file_hardlink = TRUE;
+	check (!nemo_link_options_makes_symlinks (&options, 2, 3));
+	options.file_hardlink = FALSE;
+	check (nemo_link_options_makes_symlinks (&options, 2, 3));
+	check (!nemo_link_options_makes_symlinks (&options, 2, 0));
+	options.folder_junction = FALSE;
+	check (nemo_link_options_makes_symlinks (&options, 1, 0));
+}
+
+static void
+check_hardlink (const char *dir)
+{
+	char *first = g_build_filename (dir, "hard-1", NULL);
+	char *second = g_build_filename (dir, "hard-2", NULL);
+	char *missing = g_build_filename (dir, "hard-missing", NULL);
+	char *third = g_build_filename (dir, "hard-3", NULL);
+	char *contents = NULL;
+	GError *error = NULL;
+	FILE *fp;
+
+	check (g_file_set_contents (first, "one", -1, NULL));
+	check (nemo_link_create_hard (first, second, &error));
+	g_clear_error (&error);
+
+	/* Written in place through one name, seen through the other. */
+	fp = g_fopen (second, "ab");
+	check (fp != NULL);
+	if (fp != NULL) {
+		fputs ("two", fp);
+		fclose (fp);
+	}
+	check (g_file_get_contents (first, &contents, NULL, NULL) &&
+	       g_strcmp0 (contents, "onetwo") == 0);
+	g_free (contents);
+
+	/* A taken name comes back as EXISTS, which the job retries under
+	   another name. */
+	check (!nemo_link_create_hard (first, second, &error));
+	check (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_EXISTS));
+	g_clear_error (&error);
+
+	check (!nemo_link_create_hard (missing, third, &error));
+	check (error != NULL);
+	g_clear_error (&error);
+
+	g_remove (second);
+	g_remove (first);
+	g_free (third);
+	g_free (missing);
+	g_free (second);
+	g_free (first);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -210,6 +348,11 @@ main (int argc, char **argv)
 	check_kinds (dir);
 	check_relative_target (dir);
 	check_choice_defaults ();
+	check_link_options ();
+	check_hardlink (dir);
+	if (symlinks) {
+		check_relative_spelling (dir);
+	}
 	check_destination_support (dir);
 
 	g_free (dir);
