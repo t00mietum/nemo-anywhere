@@ -263,7 +263,7 @@ check_link_options (void)
 	/* Every open starts the same way. */
 	nemo_link_options_initial (NEMO_LINK_ANY, &options);
 	check (options.folder_kind == NEMO_MAKE_JUNCTION && options.file_kind == NEMO_MAKE_SYMLINK &&
-	       options.relative);
+	       !options.relative);
 
 	/* No junctions here. */
 	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK, &options);
