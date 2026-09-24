@@ -24,7 +24,7 @@ Thanks for looking. This is a small, independent hard fork of [linuxmint/nemo](h
 
 ## Before anything else
 
-Report issues [here](https://github.com/t00mietum/nemo-anywhere/issues), never to Linux Mint or the Cinnamon team. This fork is not affiliated with them and nothing from it goes upstream. [fork.md](fork.md) has the provenance.
+Report issues [here](https://github.com/yottacore/nemo-anywhere/issues), never to Linux Mint or the Cinnamon team. This fork is not affiliated with them and nothing from it goes upstream. [fork.md](fork.md) has the provenance.
 
 Check [project/backlog.md](project/backlog.md) first. A lot of what looks like a missing feature is already sitting there, sometimes with a note on why it has not been done.
 
@@ -46,7 +46,7 @@ If it involves a file operation, say whether the source and destination were on 
 
 ## Reporting a security problem
 
-Do not open a public issue for anything that could be exploited. Use a [private security advisory](https://github.com/t00mietum/nemo-anywhere/security/advisories/new), which is the only private channel this repository has.
+Do not open a public issue for anything that could be exploited. Use a [private security advisory](https://github.com/yottacore/nemo-anywhere/security/advisories/new), which is the only private channel this repository has.
 
 ## Suggesting a feature
 

@@ -1026,7 +1026,7 @@ def seg_drag(r, t, m):
         m.at(ROW_ARROW, row(0), dur=0.6, settle=1.2)
 
 def seg_outro(r, t, m):
-    with Banner(r, "github.com/t00mietum/nemo-anywhere"):
+    with Banner(r, "github.com/yottacore/nemo-anywhere"):
         m.rest()
         time.sleep(1.0)
 

@@ -12,7 +12,7 @@
 ##		  removes exactly what was installed. Nothing is touched before the plan
 ##		  is printed and confirmed.
 ##	Syntax:
-##		& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1'))) [options]
+##		& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.ps1'))) [options]
 ##			-Release dev|stable     which release to take (default: stable)
 ##			-Target  user|system    where to install (default: user)
 ##			-From    PATH|URL       install this archive instead of a release
@@ -71,7 +71,7 @@
 	so this is the way to see them there.
 
 .EXAMPLE
-	& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))
+	& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.ps1')))
 
 	The one-liner: installs the latest stable release for the current user.
 
@@ -100,7 +100,7 @@ param(
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Configuration
 
-$Repo    = "t00mietum/nemo-anywhere"
+$Repo    = "yottacore/nemo-anywhere"
 $InstallerVersion = "1.1.0"
 $AppName = "Nemo Anywhere"
 $ExeName = "nemo-anywhere"

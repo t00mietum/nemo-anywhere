@@ -7,7 +7,7 @@
 
 ![Made with](https://img.shields.io/badge/Made%20with-C-1f425f.svg)
 ![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)
-[![Release](https://img.shields.io/github/v/release/t00mietum/nemo-anywhere?include_prereleases&label=release)](https://github.com/t00mietum/nemo-anywhere/releases)
+[![Release](https://img.shields.io/github/v/release/yottacore/nemo-anywhere?include_prereleases&label=release)](https://github.com/yottacore/nemo-anywhere/releases)
 
 </div>
 <!--
@@ -230,7 +230,7 @@ Drop a theme folder into the icons directory beside your settings file and it ap
 
 ## Installation
 
-Everything is on the [releases page](https://github.com/t00mietum/nemo-anywhere/releases). Pick whichever of the three below suits you. Building from source is for working on it, not for using it.
+Everything is on the [releases page](https://github.com/yottacore/nemo-anywhere/releases). Pick whichever of the three below suits you. Building from source is for working on it, not for using it.
 
 ### Packages and installers
 
@@ -249,13 +249,13 @@ One command. It downloads the right build for the machine, verifies its checksum
 Linux, BSD, macOS, WSL:
 
 ~~~bash
-bash <(curl -fsSL https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.bash)
+bash <(curl -fsSL https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.bash)
 ~~~
 
 Windows, or anywhere else with PowerShell. It is a full installer on its own, not a wrapper around the one above:
 
 ~~~powershell
-& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.ps1')))
+& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.ps1')))
 ~~~
 
 Add `--uninstall` (or `-Uninstall`) to reverse it. Reinstalling over an existing copy is fine - it replaces it.
@@ -284,7 +284,7 @@ The reference Linux build happens in a container, so no development packages are
 You need Docker (or Podman with a Docker alias) and git. Everything else is fetched by the build. The first run builds the container image, which takes a few minutes, and later runs reuse it.
 
 ~~~bash
-git clone https://github.com/t00mietum/nemo-anywhere.git
+git clone https://github.com/yottacore/nemo-anywhere.git
 cd nemo-anywhere
 cicd/hooks/install.bash          # merge gate as a pre-push hook
 cicd/cicd.bash --gate            # build, test and lint
