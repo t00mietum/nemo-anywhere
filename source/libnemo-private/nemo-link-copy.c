@@ -825,16 +825,28 @@ confirm_hardlinks (GtkWindow *parent, int n_files)
 static void
 set_shortcut_tooltip (GtkWidget *button)
 {
+	gtk_widget_set_tooltip_text (button,
+		_("A Windows shortcut file (.lnk) that opens a folder, file or program at its "
+		  "original location. On Windows, it's limited to programs that use the Windows "
+		  "shell library, such as Explorer. Off Windows, only Nemo Anywhere can use them. "
+		  "Everything else sees a small file of that name."));
+}
+
+static void
+set_symlink_tooltip (GtkWidget *button)
+{
 #ifdef G_OS_WIN32
 	gtk_widget_set_tooltip_text (button,
-		_("A shortcut, the same kind Explorer makes."));
+		_("Points to the original by its path. Programs treat it as the original. "
+		  "The computer opening the link follows the path, so over a network share an "
+		  "absolute one can lead to that computer's own disk, and Windows skips symlinks "
+		  "on shares by default. Making one needs Developer Mode or admin rights."));
 #else
 	gtk_widget_set_tooltip_text (button,
-		_("A Windows shortcut, saved as a .lnk file. Nemo Anywhere follows it here, "
-		  "and Windows does too when it is portable; other programs here see a small "
-		  "file. Unlike a symlink it is an ordinary file, so it copies, zips and syncs "
-		  "anywhere as it is. A link to a folder opens that folder, rather than "
-		  "showing its contents here."));
+		_("Points to the original by its path. Programs treat it as the original. "
+		  "The computer opening the link follows the path, so over a network share an "
+		  "absolute one can lead to that computer's own disk, and Windows skips symlinks "
+		  "on shares by default."));
 #endif
 }
 
@@ -911,16 +923,22 @@ nemo_link_options_ask (GtkWindow       *parent,
 						ngettext ("_Junction", "_Junctions", n_folders),
 						(d.supported & NEMO_LINK_JUNCTION) != 0,
 						options->folder_kind == NEMO_MAKE_JUNCTION);
+		gtk_widget_set_tooltip_text (d.folder_junction,
+			_("Points to a folder by its full path. It is followed by the computer that "
+			  "holds it, so it works the same for everyone on a network share, and needs "
+			  "no special rights. Folders only, on a drive of this computer, and only on "
+			  "NTFS or ReFS."));
 		group = d.folder_junction;
 #endif
 		group = add_choice (GTK_GRID (grid), row, column++, group,
 				    ngettext ("_Symlink", "_Symlinks", n_folders),
 				    (d.supported & NEMO_LINK_DIR_SYMLINK) != 0,
 				    options->folder_kind == NEMO_MAKE_SYMLINK);
-		/* Under the file row's Link when both rows show, so the two line up
+		set_symlink_tooltip (group);
+		/* Under the file row's Shortcut when both rows show, so the two line up
 		   rather than sitting under Hardlink. */
 		d.folder_shortcut = add_choice (GTK_GRID (grid), row, both ? 3 : column, group,
-						ngettext ("_Link", "_Links", n_folders),
+						ngettext ("Sh_ortcut", "Sh_ortcuts", n_folders),
 						TRUE, options->folder_kind == NEMO_MAKE_SHORTCUT);
 		set_shortcut_tooltip (d.folder_shortcut);
 		row++;
@@ -940,6 +958,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 				      ngettext ("S_ymlink", "S_ymlinks", n_files),
 				      (d.supported & NEMO_LINK_FILE_SYMLINK) != 0,
 				      options->file_kind == NEMO_MAKE_SYMLINK);
+		set_symlink_tooltip (symlink);
 		d.file_hardlink = add_choice (GTK_GRID (grid), row, 2, symlink,
 					      ngettext ("_Hardlink", "_Hardlinks", n_files),
 					      TRUE, options->file_kind == NEMO_MAKE_HARDLINK);
@@ -950,7 +969,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 			  "the file, which quietly splits the two apart. Space is freed only when every "
 			  "name is deleted. Both names have to be on the same drive."));
 		d.file_shortcut = add_choice (GTK_GRID (grid), row, 3, symlink,
-					      ngettext ("L_ink", "L_inks", n_files),
+					      ngettext ("Shortc_ut", "Shortc_uts", n_files),
 					      TRUE, options->file_kind == NEMO_MAKE_SHORTCUT);
 		set_shortcut_tooltip (d.file_shortcut);
 		row++;
@@ -960,14 +979,16 @@ nemo_link_options_ask (GtkWindow       *parent,
 	d.relative = add_choice (GTK_GRID (grid), row, 1, NULL, _("_Relative"), TRUE, options->relative);
 	d.absolute = add_choice (GTK_GRID (grid), row, 2, d.relative, _("_Absolute"), TRUE, !options->relative);
 	gtk_widget_set_tooltip_text (d.relative,
-		_("Keeps working when the link and what it points to are moved together."));
+		_("Keeps working when the link and the original move together. Stops working "
+		  "when either one moves alone."));
 	gtk_widget_set_tooltip_text (d.absolute,
-		_("Keeps working when the link is moved on its own."));
+		_("Keeps working when the link is moved. Stops working when the original is "
+		  "moved, or its drive letter or mount point changes."));
 	row++;
 
 	/* A shortcut holds any of these at once, and is followed by the first
 	   that still leads somewhere. */
-	d.lnk_label = add_row_label (GTK_GRID (grid), row, _("Link paths:"));
+	d.lnk_label = add_row_label (GTK_GRID (grid), row, _("Shortcut paths:"));
 	d.lnk_absolute = add_check (GTK_GRID (grid), row, 1, _("A_bsolute"),
 				    (options->lnk_parts & NEMO_LNK_ABSOLUTE) != 0);
 	d.lnk_relative = add_check (GTK_GRID (grid), row, 2, _("Rela_tive"),
@@ -975,23 +996,24 @@ nemo_link_options_ask (GtkWindow       *parent,
 	d.lnk_portable = add_check (GTK_GRID (grid), row, 3, _("_Portable"),
 				    (options->lnk_parts & NEMO_LNK_PORTABLE) != 0);
 	gtk_widget_set_tooltip_text (d.lnk_absolute,
-		_("The full path. Keeps working when the link is moved on its own."));
+		_("The full path. Keeps working when the shortcut is moved. Stops working when "
+		  "the original is moved."));
 	gtk_widget_set_tooltip_text (d.lnk_relative,
-		_("The path from the link. Keeps working when the link and what it points "
-		  "to are moved together. Windows uses it only when one of the others is "
-		  "there too."));
+		_("The path from the shortcut. Keeps working when the shortcut and the original "
+		  "move together. Stops working when either one moves alone. Windows uses it "
+		  "only when one of the others is there too."));
 #ifdef G_OS_WIN32
 	gtk_widget_set_tooltip_text (d.lnk_portable,
 		_("Environment variables such as %USERPROFILE% are used where possible, "
-		  "rather than hard-coded paths, so the link keeps working for another user "
+		  "rather than hard-coded paths, so the shortcut keeps working for another user "
 		  "or on another machine."));
 #else
 	gtk_widget_set_tooltip_text (d.lnk_portable,
 		_("Environment variables such as %USERPROFILE% are used where possible, "
-		  "rather than hard-coded paths, so the link keeps working for another user "
+		  "rather than hard-coded paths, so the shortcut keeps working for another user "
 		  "or on another machine. Here the home folder is %USERPROFILE%, and a "
 		  "Windows share keeps its \\\\server\\share path. Windows can follow "
-		  "either one, even from a link made here."));
+		  "either one, even from a shortcut made here."));
 #endif
 
 	/* Say why something is grayed out. */

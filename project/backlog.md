@@ -1671,6 +1671,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Note: on Windows the shell always writes the relative path, so one not asked for is taken back out. Without Absolute the file is written directly instead.
 		- Note: on Windows with no symlinks allowed, files now start on Link rather than on a grayed-out Symlink.
 		- Changed: the choices are no longer remembered. Every open starts from the defaults. A "Defaults..." button, here and in Preferences, may come later.
+		- Changed: the Link choice is now "Shortcut", and its row "Shortcut paths". The menu item and the dialog still say link.
+		- Done: every link type and path choice has a tooltip saying what it is good for and where it falls short.
 
 - ✅ Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922. Closed: 20260924-095019.
