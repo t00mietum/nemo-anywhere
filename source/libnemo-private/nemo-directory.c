@@ -920,14 +920,54 @@ call_get_file_info_free_list (gpointer key, gpointer value, gpointer user_data)
 	g_list_free (files);
 }
 
+/* An entry coming or going changes the folder's own modified time as well as
+   its count. The parent's monitor does not report that, so its row kept the
+   old date. */
+static void
+invalidate_folder_after_entry_change (NemoFile *folder)
+{
+	nemo_file_invalidate_attributes (folder,
+					 NEMO_FILE_ATTRIBUTE_INFO |
+					 NEMO_FILE_ATTRIBUTE_DIRECTORY_ITEM_COUNT |
+					 NEMO_FILE_ATTRIBUTE_DIRECTORY_ITEM_MIME_TYPES);
+}
+
+/* For a folder that was never opened, so has no NemoDirectory, but shows as
+   a row somewhere. */
+static void
+invalidate_parent_file_of (GFile *location)
+{
+	GFile *parent;
+	NemoFile *file;
+
+	parent = g_file_get_parent (location);
+	if (parent == NULL) {
+		return;
+	}
+
+	file = nemo_file_get_existing (parent);
+	g_object_unref (parent);
+
+	if (file != NULL) {
+		invalidate_folder_after_entry_change (file);
+		nemo_file_unref (file);
+	}
+}
+
 static void
 invalidate_count_and_unref (gpointer key, gpointer value, gpointer user_data)
 {
+	NemoFile *file;
+
 	g_assert (NEMO_IS_DIRECTORY (key));
 	g_assert (value == key);
 	g_assert (user_data == NULL);
 
-	nemo_directory_invalidate_count_and_mime_list (key);
+	file = nemo_directory_get_existing_corresponding_file (key);
+	if (file != NULL) {
+		invalidate_folder_after_entry_change (file);
+		nemo_file_unref (file);
+	}
 	nemo_directory_unref (key);
 }
 
@@ -951,7 +991,7 @@ nemo_directory_notify_files_added (GList *files)
 	NemoDirectory *directory;
 	GHashTable *parent_directories;
 	NemoFile *file;
-	GFile *location, *parent;
+	GFile *location;
 
 	/* Make a list of added files in each directory. */
 	added_lists = g_hash_table_new (NULL, NULL);
@@ -965,24 +1005,7 @@ nemo_directory_notify_files_added (GList *files)
 		/* See if the directory is already known. */
 		directory = get_parent_directory_if_exists (location);
 		if (directory == NULL) {
-			/* In case the directory is not being
-			 * monitored, but the corresponding file is,
-			 * we must invalidate it's item count.
-			 */
-
-
-			file = NULL;
-			parent = g_file_get_parent (location);
-			if (parent) {
-				file = nemo_file_get_existing (parent);
-				g_object_unref (parent);
-			}
-
-			if (file != NULL) {
-				nemo_file_invalidate_count_and_mime_list (file);
-				nemo_file_unref (file);
-			}
-
+			invalidate_parent_file_of (location);
 			continue;
 		}
 
@@ -1152,6 +1175,8 @@ nemo_directory_notify_files_removed (GList *files)
 		if (directory != NULL) {
 			collect_parent_directories (parent_directories, directory);
 			nemo_directory_unref (directory);
+		} else {
+			invalidate_parent_file_of (location);
 		}
 
 		/* Find the file. */

@@ -45,10 +45,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 A folder's modified date in the list stays old after a file is moved into it.
-	- Opened: 20260924-083500
-	- Reproduced: in list view, dragging a file onto a folder row and moving it. The row's item count goes up, but its date does not change, even after the folder is opened in place.
-
 ### Features and enhancements
 
 - 🔘 Allow moving tabs to other nemo-anywhere windows.
@@ -161,6 +157,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ A folder's modified date in the list stays old after a file is moved into it.
+	- Opened: 20260924-083500. Closed: 20260924-093600.
+	- Reproduced: in list view, dragging a file onto a folder row and moving it. The row's item count goes up, but its date does not change, even after the folder is opened in place.
+	- Cause: a file added to a folder, taken out or moved in only refreshed the folder's item count. Nothing watching the folder's parent reports its new date.
+	- Fixed: the folder's own details are read again along with the count. A removal from a folder that was never opened now refreshes it too, as an add already did.
+	- Swept: add, remove and move are the only places these notices go in. Renames, links and changes made by other programs all come through them.
 
 - ✅ After every file in a folder was removed by another program, icon view's status bar still counted 4 items.
 	- Opened: 20260923. Closed: 20260923-161106.
