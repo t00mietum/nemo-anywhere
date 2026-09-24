@@ -108,12 +108,10 @@ typedef struct {
 	gboolean     relative;
 } NemoLinkOptions;
 
-/* Where the dialog starts: the last choices made, where the destination allows
-   them, else the first thing it does allow. supported is a NemoLinkKind mask. */
+/* Where the dialog starts, every time: a junction for folders where the
+   destination allows one, else a symlink, else a shortcut; a symlink for files,
+   else a shortcut; and a relative path. supported is a NemoLinkKind mask. */
 void     nemo_link_options_initial (guint                  supported,
-                                    NemoMakeLink           last_folder_kind,
-                                    NemoMakeLink           last_file_kind,
-                                    gboolean               last_relative,
                                     NemoLinkOptions       *options);
 
 /* Whether the relative or absolute choice changes anything that comes out.
@@ -122,7 +120,7 @@ gboolean nemo_link_options_uses_path (const NemoLinkOptions *options,
                                       int                    n_folders,
                                       int                    n_files);
 
-/* The Make link dialog. FALSE if canceled. The choices are remembered. */
+/* The Make link dialog. FALSE if canceled. */
 gboolean nemo_link_options_ask (GtkWindow       *parent,
                                 GFile           *destination,
                                 int              n_folders,
