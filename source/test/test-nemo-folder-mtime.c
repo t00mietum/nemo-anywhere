@@ -78,7 +78,7 @@ notify_one (void (*notify) (GList *), const char *path)
 /* Through GIO, since g_utime on Windows goes to msvcrt, which cannot open a
    folder to set its time. Elsewhere the monitor on the parent reports the new
    time. Windows does not, so there the change is announced the way a job would.
-   Only there: on Linux the monitor's own refresh can then land after the change
+   Only there: on Linux the monitor's own refresh can then come after the change
    under test and pass it for the wrong reason. */
 static void
 make_old (const char *path, time_t old)
