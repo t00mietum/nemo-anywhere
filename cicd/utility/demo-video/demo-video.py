@@ -936,11 +936,11 @@ def seg_panes(r, t, m):
     # side pane rather than a replacement for the first, so it goes on with Places
     # still standing, and comes off again leaving it where it was.
     with Banner(r, "The folder tree opens beside Places, not instead of it"):
-        time.sleep(0.7)
-        m.at(*STATUS_TREE, dur=0.8, settle=1.1)
-        m.at(TREE_ARROW, tree_row(0), dur=0.7, settle=0.8)    # expand Home
-        time.sleep(0.6)
-        m.at(*STATUS_TREE, dur=0.8, settle=1.0)
+        time.sleep(0.3)
+        m.at(*STATUS_TREE, dur=0.7, settle=1.0)
+        m.at(TREE_ARROW, tree_row(0), dur=0.6, settle=0.8)    # expand Home
+        time.sleep(0.4)
+        m.at(*STATUS_TREE, dur=0.7, settle=0.9)
     m.rest()
 
 def seg_dualpane(r, t, m):
@@ -949,17 +949,17 @@ def seg_dualpane(r, t, m):
     # the split reads as one list drawn twice.
     with Banner(r, "F3 gives a second content pane"):
         t.key("F3")
-        time.sleep(1.1)
-        m.double(PANE2_X, row(4), settle=1.1)         # Pictures, in the new pane
-        m.at(PANE1_X, EMPTY_Y, dur=0.7, settle=0.5)   # back to the first pane
-        t.key("F3")
         time.sleep(1.0)
+        m.double(PANE2_X, row(4), settle=1.0)         # Pictures, in the new pane
+        m.at(PANE1_X, EMPTY_Y, dur=0.6, settle=0.4)   # back to the first pane
+        t.key("F3")
+        time.sleep(0.7)
 
 def seg_pictures(r, t, m):
     with Banner(r, "Icon view, with thumbnails"):
-        m.at(*CRUMB_HOME, dur=0.7, settle=0.9)            # back to Home
-        m.double(LIST_X, row(4), settle=1.0)             # Pictures
-        m.double(LIST_X, row(0), settle=1.0)             # Trips
+        m.at(*CRUMB_HOME, dur=0.6, settle=0.7)            # back to Home
+        m.double(LIST_X, row(4), settle=0.8)             # Pictures
+        m.double(LIST_X, row(0), settle=0.8)             # Trips
         m.at(*VIEW_ICON, dur=0.8, settle=1.5)
 
 CRUMB_HOME   = (182, TOOL_Y)     # the leftmost breadcrumb button, always home
@@ -976,27 +976,22 @@ def seg_search(r, t, m):
     # result has more than one group to show. A flat list says nothing about where
     # the matches came from, so it gets a beat to read before the grouped one
     # replaces it. The view comes off icons first, or row() means nothing.
-    m.at(*CRUMB_HOME, dur=0.8, settle=1.1)
-    m.at(*VIEW_LIST, dur=0.6, settle=1.2)
-    m.double(LIST_X, row(1), settle=1.3)          # Documents
+    m.at(*CRUMB_HOME, dur=0.7, settle=0.9)
+    m.at(*VIEW_LIST, dur=0.6, settle=1.0)
+    m.double(LIST_X, row(1), settle=1.0)          # Documents
     with Banner(r, "Search anywhere under the folder"):
         m.move(CLIENT_W // 2, row(2), dur=0.5)
         t.key("ctrl+f")
         time.sleep(0.9)
-        t.type("report", wpm=135)
+        t.type("report", wpm=150)
         t.enter()
-        time.sleep(2.0)
+        time.sleep(1.8)
     with Banner(r, "Or grouped under the folder each came from"):
-        m.at(*SEARCH_GROUP, dur=0.9, settle=1.8)
+        m.at(*SEARCH_GROUP, dur=0.8, settle=1.6)
 
 def seg_compress(r, t, m):
-    # Nothing in the script moves, trashes or deletes a file. The delete test
-    # guard is armed in every build until the removal it was written for is
-    # explained, so a move on camera would show its dialog and its call stack
-    # rather than the drag question the feature is about. Put that scene back
-    # when the guard's compile-time arm goes to 0.
     t.key("Escape")                               # leave the search
-    time.sleep(1.1)
+    time.sleep(0.8)
     with Banner(r, "Compress, with no helper program"):
         m.at(LIST_X, row(3), settle=0.4)          # budget.ods
         r.xdo("keydown", "ctrl")
@@ -1004,21 +999,36 @@ def seg_compress(r, t, m):
         r.xdo("keyup", "ctrl")
         time.sleep(0.5)
         m.rclick()
-        time.sleep(1.2)
-        m.at(*COMPRESS_ITEM, dur=0.8, settle=1.2)
-        t.type("paperwork", wpm=140)
-        time.sleep(0.6)
+        time.sleep(1.0)
+        m.at(*COMPRESS_ITEM, dur=0.7, settle=1.0)
+        t.type("paperwork", wpm=150)
+        time.sleep(0.5)
     # the Options expander is deliberately left alone: expanded, the dialog is
     # taller than a 540px screen and the buttons fall off the bottom
     with Banner(r, "zip, tar and 7z, written by the app itself"):
-        m.at(*ARCHIVE_FORMAT, dur=0.8, settle=1.3)
-        m.at(*FORMAT_7Z, dur=0.7, settle=0.8)
-        m.at(*COMPRESS_GO, dur=0.7, settle=1.6)
+        m.at(*ARCHIVE_FORMAT, dur=0.7, settle=1.1)
+        m.at(*FORMAT_7Z, dur=0.6, settle=0.7)
+        m.at(*COMPRESS_GO, dur=0.6, settle=1.2)
+
+NAME_TEXT_X  = 250       # on the name itself; past its end a press starts a rubber band
+ROW_ARROW    = 170       # a folder row's expander
+MOVE_BUTTON  = (553, 291)    # on the drop question, which centers on the window
+
+def seg_drag(r, t, m):
+    # the new archive is filed into Invoices. The folder is opened in place after,
+    # so the move is seen to have happened rather than the row just vanishing.
+    # START_SETTINGS turns the delete test guard off, or its dialog would ask
+    # here instead, and the demo lint fails a drag while anything arms it.
+    with Banner(r, "A drag asks before it moves anything"):
+        m.drag(NAME_TEXT_X, row(6), NAME_TEXT_X, row(0), dur=1.0)
+        time.sleep(1.1)
+        m.at(*MOVE_BUTTON, dur=0.6, settle=0.6)
+        m.at(ROW_ARROW, row(0), dur=0.6, settle=1.2)
 
 def seg_outro(r, t, m):
     with Banner(r, "github.com/t00mietum/nemo-anywhere"):
         m.rest()
-        time.sleep(1.6)
+        time.sleep(1.0)
 
 _SCRIPT = [
     ("panes",    seg_panes),
@@ -1026,6 +1036,7 @@ _SCRIPT = [
     ("pictures", seg_pictures),
     ("search",   seg_search),
     ("compress", seg_compress),
+    ("drag",     seg_drag),
     ("outro",    seg_outro),
 ]
 SEGMENTS = {"video": _SCRIPT, "gif": _SCRIPT}
