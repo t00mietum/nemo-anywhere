@@ -1626,6 +1626,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: on Linux, a file under 64 KiB is read whole and written out plainly, so it is never cloned. 64 KiB is 16 blocks of 4 KiB, and a clone saves less than that below it while the file system keeps track of the shared extent for as long as both copies exist.
 	- Done: the limit is `performance.clone-min-kib` in the settings file, 0 to always clone and 1024 at most. Other platforms have nothing to skip, since only Linux clones on copy there.
 	- Note: an overwrite, a link copied as a link, or anything the plain copy cannot start goes the usual way, so conflicts and errors read the same as before.
+	- Swept: copy and paste, drag and drop, and new files made from a template all take the plain copy. A hard link inside an archive is still copied the usual way on extract, where a clone is the closer match. Bookmarks and favorites copy their own small files and were left alone.
 
 - ✅ Put the drag-move scene back in the demo once the delete test guard's compile-time arm is at 0.
 	- Opened: 20260919-161500. Closed: 20260924-083500.

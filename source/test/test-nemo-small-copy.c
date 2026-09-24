@@ -110,6 +110,23 @@ copy (const char *from, const char *to, GFileCopyFlags flags, goffset limit, gof
 
 #ifndef G_OS_WIN32
 static void
+copy_attributes (const char *from, const char *to)
+{
+	char *pf = path_of (from), *pt = path_of (to);
+	GFile *src = g_file_new_for_path (pf);
+	GFile *dest = g_file_new_for_path (pt);
+
+	/* Some attribute nearly always refuses, so the answer means nothing here,
+	   and both callers ignore it too. */
+	g_file_copy_attributes (src, dest, G_FILE_COPY_NONE, NULL, NULL);
+
+	g_object_unref (src);
+	g_object_unref (dest);
+	g_free (pf);
+	g_free (pt);
+}
+
+static void
 check_modes_and_links (void)
 {
 	char *path;
@@ -126,6 +143,17 @@ check_modes_and_links (void)
 	check (copy ("small.bin", "default-perms.bin", G_FILE_COPY_TARGET_DEFAULT_PERMS, LIMIT, &copied) == NEMO_SMALL_COPY_DONE);
 	path = path_of ("default-perms.bin");
 	check (g_stat (path, &st) == 0 && (st.st_mode & 0777) == 0644);
+	g_free (path);
+
+	/* Both callers copy the attributes after, the template one with only the
+	   ordinary set. That has to be enough to bring the mode across. */
+	path = path_of ("small.bin");
+	check (g_chmod (path, 0750) == 0);
+	g_free (path);
+	check (copy ("small.bin", "mode.bin", G_FILE_COPY_NONE, LIMIT, &copied) == NEMO_SMALL_COPY_DONE);
+	copy_attributes ("small.bin", "mode.bin");
+	path = path_of ("mode.bin");
+	check (g_stat (path, &st) == 0 && (st.st_mode & 0777) == 0750);
 	g_free (path);
 
 	/* A link copied as a link is not a small file. Followed, it is. */

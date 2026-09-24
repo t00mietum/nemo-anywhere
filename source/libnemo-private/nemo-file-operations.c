@@ -7164,6 +7164,8 @@ create_job (GIOSchedulerJob *io_job,
 	char *data;
 	int length;
 	GFileOutputStream *out;
+	NemoSmallCopyResult small;
+	goffset small_size;
 	gboolean handled_invalid_filename;
 	int max_length, offset;
 
@@ -7238,12 +7240,26 @@ create_job (GIOSchedulerJob *io_job,
 
 	} else {
 		if (job->src) {
-			res = g_file_copy (job->src,
-					   dest,
-					   G_FILE_COPY_NONE,
-					   common->cancellable,
-					   NULL, NULL,
-					   &error);
+			/* A template is nearly always small enough to skip the clone. The
+			   ordinary copy brings the mode across itself; this one needs
+			   asking. */
+			small = nemo_small_copy (job->src, dest, G_FILE_COPY_NONE,
+						 nemo_small_copy_limit (),
+						 common->cancellable, &small_size, &error);
+			if (small == NEMO_SMALL_COPY_NOT_TRIED) {
+				res = g_file_copy (job->src,
+						   dest,
+						   G_FILE_COPY_NONE,
+						   common->cancellable,
+						   NULL, NULL,
+						   &error);
+			} else {
+				res = small == NEMO_SMALL_COPY_DONE;
+				if (res) {
+					g_file_copy_attributes (job->src, dest, G_FILE_COPY_NONE,
+								common->cancellable, NULL);
+				}
+			}
 
 			if (res && common->undo_info != NULL) {
 				gchar *uri;
