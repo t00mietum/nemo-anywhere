@@ -334,7 +334,7 @@ static void     nemo_view_duplicate_selection              (NemoView      *view,
 static void     nemo_view_create_links_for_files           (NemoView      *view,
 							        GList                *files,
 							        GArray               *item_locations,
-							        gboolean              symlink);
+							        const NemoLinkOptions *options);
 static void     trash_or_delete_files                          (GtkWindow            *parent_window,
 								const GList          *files,
 								gboolean              delete_if_all_already_in_trash,
@@ -1584,7 +1584,7 @@ action_duplicate_callback (GtkAction *action,
 }
 
 static void
-create_links_for_selection (NemoView *view, gboolean symlink)
+create_links_for_selection (NemoView *view, const NemoLinkOptions *options)
 {
         GList *selection;
         GArray *selected_item_locations;
@@ -1592,20 +1592,51 @@ create_links_for_selection (NemoView *view, gboolean symlink)
 	selection = nemo_view_get_selection (view);
 	if (selection_not_empty_in_menu_callback (view, selection)) {
 		selected_item_locations = nemo_view_get_selected_icon_locations (view);
-	        nemo_view_create_links_for_files (view, selection, selected_item_locations, symlink);
+	        nemo_view_create_links_for_files (view, selection, selected_item_locations, options);
 	        g_array_free (selected_item_locations, TRUE);
 	}
 
         nemo_file_list_free (selection);
 }
 
+/* Asks what kind of links to make first. */
 static void
 action_create_link_callback (GtkAction *action,
 			     gpointer callback_data)
 {
-        g_assert (NEMO_IS_VIEW (callback_data));
+	NemoView *view = NEMO_VIEW (callback_data);
+	NemoLinkOptions options;
+	GList *selection, *l;
+	GFile *destination;
+	char *dir_uri;
+	int n_folders = 0, n_files = 0;
+	gboolean go;
 
-        create_links_for_selection (NEMO_VIEW (callback_data), TRUE);
+	selection = nemo_view_get_selection (view);
+	if (!selection_not_empty_in_menu_callback (view, selection)) {
+		nemo_file_list_free (selection);
+		return;
+	}
+	for (l = selection; l != NULL; l = l->next) {
+		if (nemo_file_is_directory (NEMO_FILE (l->data))) {
+			n_folders++;
+		} else {
+			n_files++;
+		}
+	}
+	nemo_file_list_free (selection);
+
+	dir_uri = nemo_view_get_backing_uri (view);
+	destination = g_file_new_for_uri (dir_uri);
+	g_free (dir_uri);
+
+	go = nemo_link_options_ask (nemo_view_get_containing_window (view), destination,
+				    n_folders, n_files, &options);
+	g_object_unref (destination);
+
+	if (go) {
+		create_links_for_selection (view, &options);
+	}
 }
 
 /* Windows only - the .lnk the shell understands, as against a symlink. */
@@ -1615,7 +1646,7 @@ action_create_shortcut_callback (GtkAction *action,
 {
         g_assert (NEMO_IS_VIEW (callback_data));
 
-        create_links_for_selection (NEMO_VIEW (callback_data), FALSE);
+        create_links_for_selection (NEMO_VIEW (callback_data), NULL);
 }
 
 static void
@@ -4395,7 +4426,7 @@ offset_drop_points (GArray *relative_item_points,
 static void
 nemo_view_create_links_for_files (NemoView *view, GList *files,
 				      GArray *relative_item_points,
-				      gboolean symlink)
+				      const NemoLinkOptions *options)
 {
 	GList *uris;
 	char *dir_uri;
@@ -4422,8 +4453,9 @@ nemo_view_create_links_for_files (NemoView *view, GList *files,
 
         copy_move_done_data = pre_copy_move (view);
 	dir_uri = nemo_view_get_backing_uri (view);
-	if (symlink) {
-		nemo_file_operations_symlink (uris, relative_item_points, dir_uri,
+	/* No options is the Windows shortcut item, which makes a .lnk. */
+	if (options != NULL) {
+		nemo_file_operations_symlink (uris, relative_item_points, dir_uri, options,
 					      GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
 	} else {
 		nemo_file_operations_copy_move (uris, relative_item_points, dir_uri, GDK_ACTION_LINK,
@@ -9139,8 +9171,8 @@ static const GtkActionEntry directory_view_entries[] = {
 				 G_CALLBACK (action_duplicate_callback) },
   /* Control on macOS too, where Cmd+M minimizes */
   /* name, stock id */         { "Create Link", NULL,
-  /* label, accelerator */       N_("Ma_ke symlink"), "<control>M",
-  /* tooltip */                  N_("Create a symbolic link for each selected item"),
+  /* label, accelerator */       N_("Ma_ke link..."), "<control>M",
+  /* tooltip */                  N_("Make a symlink, hardlink or junction to each selected item"),
 				 G_CALLBACK (action_create_link_callback) },
   /* name, stock id */         { "Create Shortcut", NULL,
   /* label, accelerator */       N_("Make s_hortcut"), NULL,
@@ -10549,28 +10581,6 @@ update_configurable_context_menu_items (NemoView *view)
     }
 }
 
-#ifdef G_OS_WIN32
-/* Whether every selected item is a folder - a folder link is a junction, which
-   Windows allows without any privilege at all. */
-static gboolean
-selection_is_all_directories (GList *selection)
-{
-	GList *node;
-
-	if (selection == NULL) {
-		return FALSE;
-	}
-
-	for (node = selection; node != NULL; node = node->next) {
-		if (!nemo_file_is_directory (NEMO_FILE (node->data))) {
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
-#endif
-
 static void
 real_update_menus (NemoView *view)
 {
@@ -10881,20 +10891,14 @@ real_update_menus (NemoView *view)
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_CREATE_LINK);
-#ifdef G_OS_WIN32
-	/* Windows only lets a program make a symlink with Developer Mode on or when
-	   running elevated, so the item goes gray rather than failing on use. A
-	   folder is the exception - it gets a junction, which needs no privilege. */
-	gtk_action_set_sensitive (action, can_link_files &&
-				  (nemo_win32_link_symlinks_allowed () ||
-				   selection_is_all_directories (selection)));
-#else
+	/* Always something to offer, even on Windows without the symlink
+	   privilege: a junction needs none and nor does a hardlink. The dialog
+	   grays what this machine cannot make. */
 	gtk_action_set_sensitive (action, can_link_files);
-#endif
     gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
 	g_object_set (action, "label",
-		      ngettext ("Ma_ke symlink",
-			      	"Ma_ke symlinks",
+		      ngettext ("Ma_ke link...",
+			      	"Ma_ke links...",
 				selection_count),
 		      NULL);
 

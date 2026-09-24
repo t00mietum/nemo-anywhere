@@ -38,6 +38,11 @@ gboolean nemo_win32_link_create (const char         *target,
                                  NemoLinkKind        kind,
                                  GError            **error);
 
+/* A second name for existing_path. NTFS only, and on the same drive. */
+gboolean nemo_win32_link_create_hard (const char  *existing_path,
+                                      const char  *link_path,
+                                      GError     **error);
+
 /* The old "just make me a link" entry point, still what the Create Link menu
    item wants: a junction for a folder wherever one will do, a symlink
    otherwise. */

@@ -441,6 +441,42 @@ nemo_win32_link_create (const char         *target,
 }
 
 gboolean
+nemo_win32_link_create_hard (const char  *existing_path,
+                             const char  *link_path,
+                             GError     **error)
+{
+	gunichar2 *w_existing = to_utf16 (existing_path);
+	gunichar2 *w_link = to_utf16 (link_path);
+	DWORD win_error = 0;
+	gboolean ok;
+
+	SetLastError (0);
+	ok = CreateHardLinkW ((LPCWSTR) w_link, (LPCWSTR) w_existing, NULL) != 0;
+	if (!ok) {
+		win_error = GetLastError ();
+	}
+
+	g_free (w_existing);
+	g_free (w_link);
+
+	if (ok) {
+		return TRUE;
+	}
+
+	if (win_error == ERROR_NOT_SAME_DEVICE) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("A hardlink has to be on the same drive as the original."));
+	} else if (win_error == ERROR_INVALID_FUNCTION) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+				     _("This drive does not support hardlinks."));
+	} else {
+		set_link_error (error, win_error);
+	}
+
+	return FALSE;
+}
+
+gboolean
 nemo_win32_link_create_default (const char  *target_path,
                                 const char  *link_path,
                                 GError     **error)

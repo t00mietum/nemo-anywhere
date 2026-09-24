@@ -66,6 +66,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- "Make symlink" is now "Make link...", and asks what to make. Folders get a junction or a symlink on Windows, files a symlink or a hardlink, and a symlink's path can be relative or absolute. Relative is the default, and the last choices are offered again next time. On Windows without the symlink privilege the item stays on, since a junction and a hardlink need none.
+
 - The settings file now ends with a commented list of everything you have not set, each line carrying the value used instead and, where the name is not obvious, a short note. Uncomment a line to change it. Sizes, positions and other things the app remembers for itself are left off the list.
 
 - The thumbnail cache is swept once a day rather than growing forever: a thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed. Both limits are on the Preview page and either can be turned off; the defaults match what a GNOME or Cinnamon desktop already applies to the same folder.

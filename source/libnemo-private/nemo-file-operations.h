@@ -30,6 +30,8 @@
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 
+#include "nemo-link-copy.h"
+
 typedef void (* NemoCopyCallback)      (GHashTable *debuting_uris,
 					    gboolean    success,
 					    gpointer    callback_data);
@@ -57,9 +59,12 @@ void nemo_file_operations_copy_move   (const GList               *item_uris,
 					   gpointer                   done_callback_data);
 /* Same as copy_move with the link action, except on Windows, where this makes a
    real symlink and the link action makes a .lnk shortcut. */
+/* options NULL makes the old default: a symlink with an absolute path, or on
+   Windows a junction for a folder wherever one will do. */
 void nemo_file_operations_symlink      (const GList               *item_uris,
 					   GArray                    *relative_item_points,
 					   const char                *target_dir_uri,
+					   const NemoLinkOptions     *options,
 					   GtkWidget                 *parent_view,
 					   NemoCopyCallback       done_callback,
 					   gpointer                   done_callback_data);

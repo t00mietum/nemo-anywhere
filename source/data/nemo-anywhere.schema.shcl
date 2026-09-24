@@ -900,6 +900,23 @@ field: window-state.geometry
 	type: string
 	default: ""
 
+field: window-state.link-file-kind
+	type: string
+	allowed: symlink, hardlink
+	default: symlink
+	desc: Last kind of link made for a file
+
+field: window-state.link-folder-kind
+	type: string
+	allowed: junction, symlink
+	default: junction
+	desc: Last kind of link made for a folder, on Windows
+
+field: window-state.link-relative
+	type: bool
+	default: true
+	desc: Make symlinks with a relative path
+
 field: window-state.maximized
 	type: bool
 	default: false

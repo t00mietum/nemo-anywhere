@@ -56,6 +56,19 @@ gboolean nemo_link_create (const char    *target,
                            NemoLinkKind   kind,
                            GError       **error);
 
+/* A second name for existing_path, which has to be a file on the same drive.
+   A change made through either name shows through the other. */
+gboolean nemo_link_create_hard (const char  *existing_path,
+                                const char  *link_path,
+                                GError     **error);
+
+/* target_path as a symlink sitting in dir would spell it relative to itself.
+   Both are taken as they really are, links in the folders above resolved, so
+   the answer holds from the folder the link really sits in. NULL when no
+   relative spelling exists, which on Windows means another drive. */
+char    *nemo_link_relative_target (const char *target_path,
+                                    const char *dir);
+
 /* Which kinds can be created inside dir_path. */
 guint nemo_link_kinds_supported (const char *dir_path);
 
@@ -79,6 +92,33 @@ gboolean nemo_link_choice_ask (GtkWindow      *parent,
                                guint           supported,
                                gboolean        is_move,
                                NemoLinkChoice *choice);
+
+/* What the Make link dialog asked for. */
+typedef struct {
+	gboolean folder_junction;   /* Windows only; a symlink otherwise */
+	gboolean file_hardlink;     /* a symlink otherwise */
+	gboolean relative;          /* for the symlinks */
+} NemoLinkOptions;
+
+/* Where the dialog starts: the last choices made, where the destination allows
+   them, else the first thing it does allow. supported is a NemoLinkKind mask. */
+void     nemo_link_options_initial (guint                  supported,
+                                    gboolean               last_junction,
+                                    gboolean               last_hardlink,
+                                    gboolean               last_relative,
+                                    NemoLinkOptions       *options);
+
+/* Whether any of it comes out a symlink, which is all the path choice is for. */
+gboolean nemo_link_options_makes_symlinks (const NemoLinkOptions *options,
+                                           int                    n_folders,
+                                           int                    n_files);
+
+/* The Make link dialog. FALSE if canceled. The choices are remembered. */
+gboolean nemo_link_options_ask (GtkWindow       *parent,
+                                GFile           *destination,
+                                int              n_folders,
+                                int              n_files,
+                                NemoLinkOptions *options);
 
 G_END_DECLS
 
