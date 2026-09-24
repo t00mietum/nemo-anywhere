@@ -45,6 +45,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 "Preparing" dialog appears, when viewing debug dialog.
+
 ### Features and enhancements
 
 - **Stop here for a next release**.
@@ -1658,6 +1660,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Note: this also covers the relative or absolute symlink option from the private notes.
 		- Done: choosing a hardlink asks once more, every time, and lists what can go wrong as spaced bullets. Cancel is the default and goes back to the dialog.
 		- Done: the Hardlink choice carries a warning sign after its label.
+		- Done: "Link" makes a Windows `.lnk` shortcut, for folders and files, on every platform. Off Windows its tooltip says only Nemo Anywhere follows one there, and how it differs from a symlink.
+		- Note: off Windows a Link holds its path relative to itself, and the `\\server\share` path too when the target is on a mounted share. Path is grayed when only Links come out, since an absolute Linux path means nothing to Windows. On Windows, Relative adds a relative path to the shortcut.
+		- Note: Explorer cannot follow a Link made off Windows. Windows 11 reads a shortcut only through the part that names the target in its own terms, and a Linux path has none. Nemo Anywhere on Windows reads one anyway, from the relative or share path.
+		- Note: on Windows with no symlinks allowed, files now start on Link rather than on a grayed-out Symlink.
 
 - ✅ Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922. Closed: 20260924-095019.
