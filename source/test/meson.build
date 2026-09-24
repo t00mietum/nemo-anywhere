@@ -715,11 +715,30 @@ if not is_windows
     args: [ nemo ],
   )
 
+  test('Window under the pointer test',
+    executable('test-nemo-window-at-point',
+      [ 'test-nemo-window-at-point.c', '../src/nemo-window-at-point.c' ],
+      include_directories: [ rootInclude, include_directories('../src') ],
+      dependencies: [ gtk, x11 ],
+    ),
+    args: []
+  )
+
   test('Instances test',
     executable('test-nemo-instances',
       [ 'test-nemo-instances.c' ],
       include_directories: [ rootInclude, ],
       dependencies: [ gtk, nemo_private, test_scratch ],
+    ),
+    args: [ nemo ],
+    timeout: 120
+  )
+
+  test('Tab move between processes test',
+    executable('test-nemo-tab-move',
+      [ 'test-nemo-tab-move.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, test_scratch ],
     ),
     args: [ nemo ],
     timeout: 120

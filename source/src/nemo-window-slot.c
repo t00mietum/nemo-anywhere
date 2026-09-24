@@ -386,6 +386,7 @@ nemo_window_slot_dispose (GObject *object)
 	nemo_window_slot_clear_back_list (slot);
     nemo_window_slot_remove_extra_location_widgets (slot);
 	g_clear_object (&slot->image_view_checked);
+	g_clear_pointer (&slot->pending_view_id, g_free);
 
 	if (slot->content_view) {
 		widget = GTK_WIDGET (slot->content_view);

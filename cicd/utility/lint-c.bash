@@ -82,10 +82,11 @@ fCheckOverwriteAsk
 ## These four checks hold that. A new entry on any of their lists wants a
 ## reason, and whoever adds one should be able to say what window starts it.
 
-## Bus methods: the freedesktop file manager interface only, none of which
-## touches a file.
+## Bus methods: the freedesktop file manager interface, and the tab hand-over
+## between our own windows, which lists windows and opens a folder in a tab.
+## None of them touches a file.
 fCheckBusMethods(){
-	local allowed=' ShowFolders ShowItems ShowItemProperties '
+	local allowed=' ShowFolders ShowItems ShowItemProperties ListWindows TakeTab '
 	local name bad=""
 
 	while read -r name; do

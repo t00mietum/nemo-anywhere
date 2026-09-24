@@ -47,6 +47,7 @@
 #include "nemo-window-slot.h"
 #include "nemo-statusbar.h"
 #include "nemo-notebook.h"
+#include "nemo-tab-move.h"
 
 #include <libnemo-private/nemo-directory-private.h>
 #include <libnemo-private/nemo-file-utilities.h>
@@ -121,14 +122,12 @@ struct _NemoMainApplicationPriv {
 	GDBusConnection *instance_connection;
 	guint instance_name_id;
 	guint instance_actions_id;
-};
+	guint instance_tabs_id;
 
-/* Every running copy queues on the one name, so the oldest answers callers
- * from outside and the rest are found through the queue. The actions ride at
- * the path GApplication would use, so an older copy that still registers the
- * old way is reachable the same way. */
-#define NEMO_INSTANCE_BUS_NAME    "org.NemoAnywhere"
-#define NEMO_INSTANCE_OBJECT_PATH "/org/NemoAnywhere"
+	/* A tab moved here from another copy, carried on the command line. */
+	gchar *tab_view;
+	gchar **tab_select;
+};
 
 static void
 publish_instance (NemoMainApplication *self)
@@ -152,6 +151,8 @@ publish_instance (NemoMainApplication *self)
 	                                                                         NEMO_INSTANCE_OBJECT_PATH,
 	                                                                         G_ACTION_GROUP (self),
 	                                                                         NULL);
+
+	self->priv->instance_tabs_id = nemo_tab_move_export (connection, NEMO_INSTANCE_OBJECT_PATH);
 }
 
 /* The activation file has to name a path, and a portable copy has no path until
@@ -225,6 +226,10 @@ unpublish_instance (NemoMainApplication *self)
 		g_dbus_connection_unexport_action_group (connection, self->priv->instance_actions_id);
 		self->priv->instance_actions_id = 0;
 	}
+	if (self->priv->instance_tabs_id != 0) {
+		g_dbus_connection_unregister_object (connection, self->priv->instance_tabs_id);
+		self->priv->instance_tabs_id = 0;
+	}
 	g_clear_object (&self->priv->instance_connection);
 }
 
@@ -271,6 +276,12 @@ other_instances (GApplication *application)
 	g_ptr_array_add (others, NULL);
 
 	return (GStrv) g_ptr_array_free (others, FALSE);
+}
+
+GStrv
+nemo_main_application_other_instances (void)
+{
+	return other_instances (g_application_get_default ());
 }
 
 /* Asks every other copy to quit. FALSE only when there is no bus to ask on. */
@@ -785,6 +796,25 @@ open_windows (NemoMainApplication *application,
 }
 
 static void
+open_moved_tab (NemoMainApplication *self,
+                GFile               *location,
+                GdkScreen           *screen)
+{
+	NemoTabState state = { NULL };
+	NemoWindow *window;
+
+	state.uri = g_file_get_uri (location);
+	state.view_id = self->priv->tab_view;
+	state.selected = self->priv->tab_select;
+
+	window = nemo_main_application_create_window (NEMO_APPLICATION (self), screen);
+	nemo_window_take_tab (window, &state, 0);
+	show_window_early (window);
+
+	g_free (state.uri);
+}
+
+static void
 nemo_main_application_open_location (NemoApplication     *application,
                                      GFile               *location,
                                      GFile               *selection,
@@ -814,6 +844,12 @@ nemo_main_application_open (GApplication *app,
 	       self->priv->select ? "yes" : "no",
 	       self->priv->geometry ? self->priv->geometry : "none");
 
+	if (n_files == 1 && !self->priv->select && !self->priv->open_in_tabs &&
+	    (self->priv->tab_view != NULL || self->priv->tab_select != NULL)) {
+		open_moved_tab (self, files[0], gdk_screen_get_default ());
+		return;
+	}
+
 	open_windows (self, files, n_files, gdk_screen_get_default (),
 	              self->priv->geometry, self->priv->open_in_tabs, self->priv->select);
 }
@@ -839,6 +875,8 @@ nemo_main_application_finalize (GObject *object)
 
     g_clear_object (&application->priv->volume_monitor);
     g_free (application->priv->geometry);
+    g_free (application->priv->tab_view);
+    g_strfreev (application->priv->tab_select);
 
     g_clear_object (&application->priv->fdb_manager);
 
@@ -943,6 +981,12 @@ nemo_main_application_local_command_line (GApplication *application,
 		  N_("Open URIs in tabs."), NULL },
 		{ "select", 's', 0, G_OPTION_ARG_NONE, &self->priv->select,
 		  N_("Open the folder holding each URI, with the item selected."), NULL },
+		/* How a tab moved out to a window of its own keeps its view and
+		 * selection. Only for one URI. */
+		{ "tab-view", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_STRING, &self->priv->tab_view,
+		  NULL, NULL },
+		{ "tab-select", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_STRING_ARRAY, &self->priv->tab_select,
+		  NULL, NULL },
 		/* Every launch is its own process now, so there is no window of ours
 		 * to join; the nearest thing is one window with a tab per URI. */
 		{ "existing-window", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, &open_in_existing_window,

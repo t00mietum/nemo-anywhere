@@ -33,6 +33,7 @@
 #include "nemo-location-bar.h"
 #include "nemo-notebook.h"
 #include "nemo-pathbar.h"
+#include "nemo-tab-move.h"
 #include "nemo-toolbar.h"
 #include "nemo-window-manage-views.h"
 #include "nemo-window-private.h"
@@ -547,6 +548,7 @@ notebook_popup_menu_show (NemoWindowPane *pane,
 	GtkWidget *popup;
 	GtkWidget *item;
 	GtkWidget *image;
+	GtkWidget *page;
 	int button, event_time;
 	gboolean can_move_left, can_move_right;
 	NemoNotebook *notebook;
@@ -592,6 +594,12 @@ notebook_popup_menu_show (NemoWindowPane *pane,
 	gtk_menu_shell_append (GTK_MENU_SHELL (popup),
 			       item);
 	gtk_widget_set_sensitive (item, can_move_right);
+
+	page = gtk_notebook_get_nth_page (GTK_NOTEBOOK (notebook), num_target_tab);
+	if (page != NULL) {
+		gtk_menu_shell_append (GTK_MENU_SHELL (popup),
+				       nemo_tab_move_menu_item_new (NEMO_WINDOW_SLOT (page)));
+	}
 
 	gtk_menu_shell_append (GTK_MENU_SHELL (popup),
 			       gtk_separator_menu_item_new ());
@@ -772,17 +780,6 @@ notebook_page_added_cb (GtkNotebook *notebook,
 	gtk_widget_show (GTK_WIDGET (pane->window));
 }
 
-static gboolean
-close_slot_idle (gpointer data)
-{
-	NemoWindowSlot *slot = data;
-
-	nemo_window_pane_close_slot (slot->pane, slot);
-	g_object_unref (slot);
-
-	return G_SOURCE_REMOVE;
-}
-
 static GtkNotebook *
 notebook_create_window_cb (GtkNotebook *notebook,
 			   GtkWidget *page,
@@ -799,24 +796,17 @@ notebook_create_window_cb (GtkNotebook *notebook,
 		return NULL;
 	}
 
-	app = NEMO_APPLICATION (g_application_get_default ());
 	slot = NEMO_WINDOW_SLOT (page);
 
 	if (nemo_application_window_per_process ()) {
-		/* A page cannot move into another process. A window there at the
-		 * same place, and this tab gone, is the nearest thing. GTK is still
-		 * inside the drop, so the tab goes on an idle. */
-		GFile *location = nemo_window_slot_get_location (slot);
-
-		if (location != NULL &&
-		    nemo_application_open_in_new_window (app, gtk_widget_get_screen (GTK_WIDGET (notebook)),
-							 location, NULL) == NULL) {
-			g_idle_add (close_slot_idle, g_object_ref (slot));
-		}
-		g_clear_object (&location);
+		/* A page cannot move into another process, so it is handed over:
+		 * to the window it was dropped on, or to a new one. */
+		nemo_tab_move_tear_off (slot);
 
 		return NULL;
 	}
+
+	app = NEMO_APPLICATION (g_application_get_default ());
 
 	new_window = nemo_application_create_window
 		(app, gtk_widget_get_screen (GTK_WIDGET (notebook)));
