@@ -561,7 +561,7 @@ nemo_link_options_initial (guint            supported,
 	}
 	options->file_kind = (supported & NEMO_LINK_FILE_SYMLINK) ? NEMO_MAKE_SYMLINK
 								 : NEMO_MAKE_SHORTCUT;
-	options->relative = TRUE;
+	options->relative = FALSE;
 }
 
 /* A shortcut made off Windows always holds the relative path, since an

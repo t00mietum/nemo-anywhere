@@ -110,7 +110,7 @@ typedef struct {
 
 /* Where the dialog starts, every time: a junction for folders where the
    destination allows one, else a symlink, else a shortcut; a symlink for files,
-   else a shortcut; and a relative path. supported is a NemoLinkKind mask. */
+   else a shortcut; and an absolute path. supported is a NemoLinkKind mask. */
 void     nemo_link_options_initial (guint                  supported,
                                     NemoLinkOptions       *options);
 
