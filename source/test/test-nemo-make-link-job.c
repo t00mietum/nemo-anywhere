@@ -2,7 +2,8 @@
  * handed in up front. One job per run, for the reason the link copy job test
  * gives: the queue starts a job only when the one before it says it is done.
  *
- * Argument: "relative" (default), "absolute", "hardlink" or "junction".
+ * Argument: "relative" (default), "absolute", "hardlink", "junction" or
+ * "shortcut".
  */
 
 #include "test.h"
@@ -10,6 +11,11 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-file-operations.h>
 #include <libnemo-private/nemo-link-copy.h>
+#ifdef G_OS_WIN32
+#include <libnemo-private/nemo-shortcut-win32.h>
+#else
+#include <libnemo-private/nemo-lnk.h>
+#endif
 
 #include <glib/gstdio.h>
 #include <stdio.h>
@@ -69,10 +75,52 @@ uri_of (const char *path)
 	return g_filename_to_uri (path, NULL, NULL);
 }
 
+/* The flag word in the header says whether a relative path went in. */
+static gboolean
+has_relative_path (const char *lnk_path)
+{
+	char *bytes = NULL;
+	gsize length = 0;
+	gboolean has = FALSE;
+
+	if (g_file_get_contents (lnk_path, &bytes, &length, NULL) && length >= 0x4c) {
+		has = (((guint8) bytes[20]) & 0x08) != 0;
+	}
+	g_free (bytes);
+
+	return has;
+}
+
+/* The shortcut at lnk_path leads to want, read the way this platform reads
+   one. */
+static void
+check_shortcut (const char *lnk_path, const char *want)
+{
+#ifdef G_OS_WIN32
+	char *target = NULL;
+
+	check (nemo_shortcut_win32_read (lnk_path, &target, NULL));
+	check (target != NULL && g_ascii_strcasecmp (target, want) == 0);
+	g_free (target);
+#else
+	NemoLnk lnk;
+	char *uri, *want_uri = uri_of (want);
+
+	check (nemo_lnk_read (lnk_path, &lnk));
+	uri = nemo_lnk_resolve (lnk_path, &lnk);
+	check (g_strcmp0 (uri, want_uri) == 0);
+	check (nemo_lnk_is_dir (&lnk) == g_file_test (want, G_FILE_TEST_IS_DIR));
+	nemo_lnk_clear (&lnk);
+	g_free (uri);
+	g_free (want_uri);
+#endif
+	check (has_relative_path (lnk_path));
+}
+
 int
 main (int argc, char *argv[])
 {
-	NemoLinkOptions options = { FALSE, FALSE, TRUE };
+	NemoLinkOptions options = { NEMO_MAKE_SYMLINK, NEMO_MAKE_SYMLINK, TRUE };
 	GtkWidget *window;
 	GList *uris = NULL;
 	const char *how;
@@ -108,14 +156,18 @@ main (int argc, char *argv[])
 	if (g_strcmp0 (how, "absolute") == 0) {
 		options.relative = FALSE;
 	} else if (g_strcmp0 (how, "hardlink") == 0) {
-		options.file_hardlink = TRUE;
+		options.file_kind = NEMO_MAKE_HARDLINK;
 	} else if (g_strcmp0 (how, "junction") == 0) {
-		options.folder_junction = TRUE;
+		options.folder_kind = NEMO_MAKE_JUNCTION;
+	} else if (g_strcmp0 (how, "shortcut") == 0) {
+		options.folder_kind = NEMO_MAKE_SHORTCUT;
+		options.file_kind = NEMO_MAKE_SHORTCUT;
 	}
 
 	if (g_strcmp0 (how, "junction") == 0
 	    ? !(supported & NEMO_LINK_JUNCTION)
-	    : (g_strcmp0 (how, "hardlink") != 0 && !(supported & NEMO_LINK_FILE_SYMLINK))) {
+	    : (g_strcmp0 (how, "hardlink") != 0 && g_strcmp0 (how, "shortcut") != 0 &&
+	       !(supported & NEMO_LINK_FILE_SYMLINK))) {
 		g_printerr ("note: that kind of link cannot be made here, nothing to check\n");
 		return 77;
 	}
@@ -176,6 +228,41 @@ main (int argc, char *argv[])
 		check (g_file_get_contents (payload, &contents, NULL, NULL) &&
 		       g_strcmp0 (contents, "payload more") == 0);
 		g_clear_pointer (&contents, g_free);
+	} else if (g_strcmp0 (how, "shortcut") == 0) {
+		char *lnk_file = g_strconcat (made_file, ".lnk", NULL);
+		char *lnk_folder = g_strconcat (made_folder, ".lnk", NULL);
+
+		/* Only the .lnk files, under their own names. */
+		check (!g_file_test (made_file, G_FILE_TEST_EXISTS));
+		check (!g_file_test (made_folder, G_FILE_TEST_EXISTS));
+		check_shortcut (lnk_file, payload);
+		check_shortcut (lnk_folder, folder);
+
+		/* The pair moved together still finds its way on the relative path.
+		   Windows needs its own resolve for that, so only here. */
+#ifndef G_OS_WIN32
+		{
+			char *moved = g_build_filename (tmp, "moved", NULL);
+			char *moved_from = g_build_filename (moved, "from", NULL);
+			char *moved_to = g_build_filename (moved, "to", NULL);
+			char *moved_lnk = g_build_filename (moved_to, "payload.txt.lnk", NULL);
+			char *moved_payload = g_build_filename (moved_from, "payload.txt", NULL);
+
+			g_mkdir_with_parents (moved, 0700);
+			check (g_rename (src_dir, moved_from) == 0);
+			check (g_rename (dst_dir, moved_to) == 0);
+			check_shortcut (moved_lnk, moved_payload);
+			check (g_rename (moved_from, src_dir) == 0);
+			check (g_rename (moved_to, dst_dir) == 0);
+			g_free (moved_payload);
+			g_free (moved_lnk);
+			g_free (moved_to);
+			g_free (moved_from);
+			g_free (moved);
+		}
+#endif
+		g_free (lnk_folder);
+		g_free (lnk_file);
 	} else {
 		check (kind_of (made_folder) == NEMO_LINK_JUNCTION);
 	}

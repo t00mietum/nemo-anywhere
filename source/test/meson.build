@@ -437,6 +437,7 @@ make_link_job = executable('test-nemo-make-link-job',
 test('Make link relative', make_link_job, args: [ 'relative' ])
 test('Make link absolute', make_link_job, args: [ 'absolute' ])
 test('Make link hardlink', make_link_job, args: [ 'hardlink' ])
+test('Make link shortcut', make_link_job, args: [ 'shortcut' ])
 if is_windows
   test('Make link junction', make_link_job, args: [ 'junction' ])
 endif

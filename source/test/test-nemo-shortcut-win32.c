@@ -197,6 +197,93 @@ test_info_round_trip (const char *dir, const char *target)
 	g_free (lnk);
 }
 
+/* A shortcut the way one made off Windows is written: the header, then only a
+   relative path. No item id list and no LinkInfo, so the shell finds nothing. */
+static void
+write_foreign_lnk (const char *lnk_path, const char *relative, gboolean is_dir)
+{
+	GByteArray *bytes = g_byte_array_new ();
+	static const guint8 clsid[16] = {
+		0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46
+	};
+	guint8 header[0x4c] = { 0x4c };
+	glong units = 0;
+	gunichar2 *wide = g_utf8_to_utf16 (relative, -1, NULL, &units, NULL);
+	guint8 count[2] = { units & 0xff, units >> 8 };
+
+	memcpy (header + 4, clsid, sizeof clsid);
+	header[20] = 0x08 | 0x80;              /* relative path, Unicode */
+	header[24] = is_dir ? 0x10 : 0x20;     /* the target's attributes */
+	header[60] = 1;                        /* SW_SHOWNORMAL */
+	g_byte_array_append (bytes, header, sizeof header);
+	g_byte_array_append (bytes, count, 2);
+	g_byte_array_append (bytes, (const guint8 *) wide, units * 2);
+	g_byte_array_append (bytes, (const guint8 *) "\0\0\0\0", 4);
+
+	check (g_file_set_contents (lnk_path, (const char *) bytes->data, bytes->len, NULL));
+	g_byte_array_unref (bytes);
+	g_free (wide);
+}
+
+/* The shell cannot place one of those, so the target comes from the relative
+   path, and callers are told the shell could not. */
+static void
+test_foreign (const char *dir)
+{
+	char *sub = g_build_filename (dir, "foreign", "target", NULL);
+	char *links = g_build_filename (dir, "foreign", "links", NULL);
+	char *doc = g_build_filename (sub, "doc.txt", NULL);
+	char *doc_lnk = g_build_filename (links, "doc.txt.lnk", NULL);
+	char *dir_lnk = g_build_filename (links, "target.lnk", NULL);
+	char *dead_lnk = g_build_filename (links, "dead.lnk", NULL);
+	char *target = NULL;
+	gboolean by_shell = TRUE;
+
+	g_mkdir_with_parents (sub, 0700);
+	g_mkdir_with_parents (links, 0700);
+	check (g_file_set_contents (doc, "doc", -1, NULL));
+	write_foreign_lnk (doc_lnk, "..\\target\\doc.txt", FALSE);
+	write_foreign_lnk (dir_lnk, "..\\target", TRUE);
+	write_foreign_lnk (dead_lnk, "..\\target\\gone.txt", FALSE);
+
+	check (nemo_shortcut_win32_read_target (doc_lnk, &target, &by_shell, NULL));
+	check (!by_shell);
+	check (target != NULL && same_path (target, doc));
+	g_clear_pointer (&target, g_free);
+
+	check (nemo_shortcut_win32_read (dir_lnk, &target, NULL));
+	check (target != NULL && same_path (target, sub));
+	g_clear_pointer (&target, g_free);
+	check (nemo_shortcut_win32_target_is_dir (dir_lnk, 1));
+	check (!nemo_shortcut_win32_target_is_dir (doc_lnk, 1));
+
+	/* Nothing there: no target, not a guess. */
+	check (!nemo_shortcut_win32_read (dead_lnk, &target, NULL));
+	check (target == NULL);
+
+	/* One the shell made says so. */
+	g_unlink (dead_lnk);
+	check (nemo_shortcut_win32_create (doc, dead_lnk, NULL, NULL, NULL, NULL));
+	by_shell = FALSE;
+	check (nemo_shortcut_win32_read_target (dead_lnk, &target, &by_shell, NULL));
+	check (by_shell);
+	g_free (target);
+
+	g_unlink (doc_lnk);
+	g_unlink (dir_lnk);
+	g_unlink (dead_lnk);
+	g_unlink (doc);
+	g_rmdir (sub);
+	g_rmdir (links);
+	g_free (doc);
+	g_free (doc_lnk);
+	g_free (dir_lnk);
+	g_free (dead_lnk);
+	g_free (sub);
+	g_free (links);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -211,6 +298,7 @@ main (int argc, char *argv[])
 	check (g_file_set_contents (target, "hello", -1, NULL));
 
 	test_info_round_trip (dir, target);
+	test_foreign (dir);
 
 	lnk = g_build_filename (dir, "shortcut.lnk", NULL);
 

@@ -43,6 +43,9 @@ fReport(){
 	while IFS= read -r line; do
 		file="${line%%:*}"
 		text="${line#*:}"; text="${text#*:}"
+		## A Windows checkout ends every line in CR, which the root commit's
+		## text does not have.
+		text="${text%$'\r'}"
 		## An empty match is nothing to compare; treat it as ours.
 		if [[ -n "$text" ]] && git grep -qIF -e "$text" "$baseline" -- "*${file##*/}"; then
 			continue

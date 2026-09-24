@@ -260,27 +260,46 @@ check_link_options (void)
 {
 	NemoLinkOptions options;
 
-	nemo_link_options_initial (NEMO_LINK_ANY, TRUE, FALSE, TRUE, &options);
-	check (options.folder_junction && !options.file_hardlink && options.relative);
+	nemo_link_options_initial (NEMO_LINK_ANY, NEMO_MAKE_JUNCTION, NEMO_MAKE_SYMLINK, TRUE, &options);
+	check (options.folder_kind == NEMO_MAKE_JUNCTION && options.file_kind == NEMO_MAKE_SYMLINK &&
+	       options.relative);
 
 	/* No junctions here, whatever was chosen last time. */
-	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK, TRUE, TRUE, FALSE, &options);
-	check (!options.folder_junction && options.file_hardlink && !options.relative);
+	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK,
+				   NEMO_MAKE_JUNCTION, NEMO_MAKE_HARDLINK, FALSE, &options);
+	check (options.folder_kind == NEMO_MAKE_SYMLINK && options.file_kind == NEMO_MAKE_HARDLINK &&
+	       !options.relative);
 
 	/* Windows without the symlink privilege: folders fall back to a junction,
-	   but a file is never pushed onto a hardlink. */
-	nemo_link_options_initial (NEMO_LINK_JUNCTION, FALSE, FALSE, TRUE, &options);
-	check (options.folder_junction && !options.file_hardlink);
+	   and a file to a shortcut, never a hardlink. */
+	nemo_link_options_initial (NEMO_LINK_JUNCTION, NEMO_MAKE_SYMLINK, NEMO_MAKE_SYMLINK, TRUE, &options);
+	check (options.folder_kind == NEMO_MAKE_JUNCTION && options.file_kind == NEMO_MAKE_SHORTCUT);
 
-	/* The path choice matters only while something comes out a symlink. */
-	options.folder_junction = TRUE;
-	options.file_hardlink = TRUE;
-	check (!nemo_link_options_makes_symlinks (&options, 2, 3));
-	options.file_hardlink = FALSE;
-	check (nemo_link_options_makes_symlinks (&options, 2, 3));
-	check (!nemo_link_options_makes_symlinks (&options, 2, 0));
-	options.folder_junction = FALSE;
-	check (nemo_link_options_makes_symlinks (&options, 1, 0));
+	/* A shortcut can always be made, so it stays chosen. */
+	nemo_link_options_initial (0, NEMO_MAKE_SHORTCUT, NEMO_MAKE_SHORTCUT, TRUE, &options);
+	check (options.folder_kind == NEMO_MAKE_SHORTCUT && options.file_kind == NEMO_MAKE_SHORTCUT);
+
+	/* A folder cannot be hardlinked, whatever the settings file says. */
+	nemo_link_options_initial (NEMO_LINK_ANY, NEMO_MAKE_HARDLINK, NEMO_MAKE_JUNCTION, TRUE, &options);
+	check (options.folder_kind == NEMO_MAKE_SYMLINK && options.file_kind == NEMO_MAKE_SYMLINK);
+
+	/* The path choice matters only while something comes out a symlink, or a
+	   shortcut made on Windows. */
+	options.folder_kind = NEMO_MAKE_JUNCTION;
+	options.file_kind = NEMO_MAKE_HARDLINK;
+	check (!nemo_link_options_uses_path (&options, 2, 3));
+	options.file_kind = NEMO_MAKE_SYMLINK;
+	check (nemo_link_options_uses_path (&options, 2, 3));
+	check (!nemo_link_options_uses_path (&options, 2, 0));
+	options.folder_kind = NEMO_MAKE_SYMLINK;
+	check (nemo_link_options_uses_path (&options, 1, 0));
+	options.folder_kind = NEMO_MAKE_SHORTCUT;
+	options.file_kind = NEMO_MAKE_SHORTCUT;
+#ifdef G_OS_WIN32
+	check (nemo_link_options_uses_path (&options, 1, 1));
+#else
+	check (!nemo_link_options_uses_path (&options, 1, 1));
+#endif
 }
 
 static void

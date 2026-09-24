@@ -26,7 +26,13 @@ bash "${here}/lint-python.bash"
 bash "${here}/lint-powershell.bash"
 bash "${here}/lint-identity.bash"
 bash "${here}/lint-prose.bash"
-bash "${here}/vendor-themes.bash" --self-test
+## Its fixture is full of symlinks, which MSYS2 cannot make without the symlink
+## privilege. Themes are only ever vendored on Linux.
+if [[ "$(uname -o 2>/dev/null)" == "Msys" ]]; then
+	echo "[ vendor-themes self-test skipped: needs symlinks, not there under MSYS2 ]"
+else
+	bash "${here}/vendor-themes.bash" --self-test
+fi
 
 ## The app icons are cut from assets/logo.png by hand, so a new logo can sit there
 ## with the old icons still shipping. Needs Pillow, which not every box has.

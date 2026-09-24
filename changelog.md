@@ -66,7 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- "Make symlink" is now "Make link...", and asks what to make. Folders get a junction or a symlink on Windows, files a symlink or a hardlink, and a symlink's path can be relative or absolute. A hardlink asks once more first, saying what can go wrong with one. Relative is the default, and the last choices are offered again next time. On Windows without the symlink privilege the item stays on, since a junction and a hardlink need none.
+- "Make symlink" is now "Make link...", and asks what to make. Folders get a junction or a symlink on Windows, files a symlink or a hardlink, and either can be a Windows `.lnk` shortcut, called a Link there. A symlink's path can be relative or absolute. A hardlink asks once more first, saying what can go wrong with one. Relative is the default, and the last choices are offered again next time. On Windows without the symlink privilege the item stays on, since a junction, a hardlink and a Link need none. A Link made off Windows holds its path relative to itself, and its `\\server\share` path when the target is on a share. Nemo Anywhere follows it on any platform, but Explorer cannot.
 
 - The settings file now ends with a commented list of everything you have not set, each line carrying the value used instead and, where the name is not obvious, a short note. Uncomment a line to change it. Sizes, positions and other things the app remembers for itself are left off the list.
 

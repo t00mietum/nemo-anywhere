@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 
-/* nemo-lnk.h - read Windows .lnk shortcuts without Windows.
+/* nemo-lnk.h - read and write Windows .lnk shortcuts without Windows.
 
    Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
@@ -28,7 +28,8 @@
 G_BEGIN_DECLS
 
 /* What a shortcut file says, in UTF-8 and Windows spelling. Any string may be
-   NULL. Windows itself reads these through the shell and never comes here. */
+   NULL. Windows reads these through the shell, and comes here only for one the
+   shell cannot place, such as one made off Windows. */
 typedef struct {
 	guint32   attributes;     /* the target's, as they were when the link was made */
 	char     *local_path;     /* C:\dir\file */
@@ -51,6 +52,9 @@ gboolean nemo_lnk_is_dir (const NemoLnk *lnk);
 /* The target as Windows would print it, for messages. Caller frees. */
 char    *nemo_lnk_display_target (const NemoLnk *lnk);
 
+/* Only the above is built on Windows. */
+#ifndef G_OS_WIN32
+
 /* Where the target is on this machine, as a URI, or NULL. A candidate counts
    only once it is found to exist; the one exception is the smb:// fallback,
    which cannot be checked without going to the network. Never guesses: a drive
@@ -71,11 +75,21 @@ char    *nemo_lnk_follow (const char *lnk_path, NemoLnk *lnk_out);
    NULL when the file is not a readable shortcut. */
 GIcon   *nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime);
 
+/* Write a shortcut at lnk_path to target_path, both paths here. It holds the
+   target's path relative to the shortcut, and the \\server\share path as well
+   when the target is on a mounted Windows share, which Windows can follow from
+   anywhere. Fails with G_IO_ERROR_EXISTS when lnk_path is taken. */
+gboolean nemo_lnk_write (const char  *lnk_path,
+                         const char  *target_path,
+                         GError     **error);
+
 /* Tests point these at a fake mount table, volume id folder and gvfs folder.
    NULL puts a default back. */
 void     nemo_lnk_set_system_paths (const char *mountinfo,
                                     const char *by_uuid_dir,
                                     const char *gvfs_dir);
+
+#endif /* !G_OS_WIN32 */
 
 G_END_DECLS
 

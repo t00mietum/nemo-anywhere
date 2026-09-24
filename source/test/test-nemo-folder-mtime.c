@@ -6,7 +6,6 @@
 #include <config.h>
 
 #include <stdlib.h>
-#include <utime.h>
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
@@ -62,14 +61,6 @@ wait_for_mtime (NemoFile *folder, time_t old, gboolean want_old)
 }
 
 static void
-make_old (const char *path, time_t old)
-{
-	struct utimbuf times = { old, old };
-
-	check (g_utime (path, &times) == 0);
-}
-
-static void
 write_file (const char *path)
 {
 	check (g_file_set_contents (path, "x\n", -1, NULL));
@@ -82,6 +73,24 @@ notify_one (void (*notify) (GList *), const char *path)
 
 	notify (list);
 	g_list_free_full (list, g_object_unref);
+}
+
+/* Through GIO, since g_utime on Windows goes to msvcrt, which cannot open a
+   folder to set its time. Elsewhere the monitor on the parent reports the new
+   time. Windows does not, so there the change is announced the way a job would.
+   Only there: on Linux the monitor's own refresh can then come after the change
+   under test and pass it for the wrong reason. */
+static void
+make_old (const char *path, time_t old)
+{
+	GFile *file = g_file_new_for_path (path);
+
+	check (g_file_set_attribute_uint64 (file, G_FILE_ATTRIBUTE_TIME_MODIFIED, (guint64) old,
+					    G_FILE_QUERY_INFO_NONE, NULL, NULL));
+	g_object_unref (file);
+#ifdef G_OS_WIN32
+	notify_one (nemo_directory_notify_files_changed, path);
+#endif
 }
 
 int
@@ -142,7 +151,6 @@ main (int argc, char **argv)
 		failures++;
 	}
 
-	/* Setting the time back is itself reported by the parent's monitor. */
 	make_old (box_path, OLD_TIME + 100);
 	check (wait_for_mtime (box, OLD_TIME + 100, TRUE));
 	g_unlink (added);

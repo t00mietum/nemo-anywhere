@@ -59,12 +59,12 @@ def main():
     if not RECORDER.is_file():
         print("demo lint: no recorder to check")
         return 0
-    source = RECORDER.read_text()
+    source = RECORDER.read_text(encoding="utf-8")
     tree = ast.parse(source)
 
     ## Every setting the demo writes has to still exist, or the run silently
     ## configures nothing and the recording comes out with the wrong defaults.
-    schema_text = SCHEMA.read_text()
+    schema_text = SCHEMA.read_text(encoding="utf-8")
     schema = set(re.findall(r"(?m)^field:\s*(\S+)", schema_text))
     written = settings_written(tree)
     if not written:
@@ -84,7 +84,7 @@ def main():
     ## The compile-time arm beats everything. Below it the demo's own settings
     ## decide, and with nothing there the schema default does.
     forced = re.search(r"(?m)^#define\s+NEMO_TESTGUARD_ALL_DELETES\s+(\d)",
-        GUARD_H.read_text())
+        GUARD_H.read_text(encoding="utf-8"))
     default = re.search(r"(?m)^field:\s*debug\.testguard-all-deletes\n(?:\t.*\n)*?\tdefault:\s*(\S+)",
         schema_text)
     setting = written.get("debug.testguard-all-deletes")

@@ -72,6 +72,7 @@
 #include "nemo-job-queue.h"
 #include "nemo-shortcut-win32.h"
 #include "nemo-link-copy.h"
+#include "nemo-lnk.h"
 #include "nemo-small-copy.h"
 #include "nemo-link-win32.h"
 #include "nemo-trash-win32.h"
@@ -6382,12 +6383,11 @@ get_abs_path_for_symlink (GFile *file)
 }
 
 
-#ifdef G_OS_WIN32
-/* Windows has no POSIX symlinks in the file layer; a "link" is a .lnk shell
- * shortcut. Rewrite *dest to carry the required .lnk extension, then save the
- * shortcut pointing at target_path. On success *dest owns the .lnk GFile. */
+/* A .lnk shortcut. Rewrite *dest to carry the required .lnk extension, then
+ * save the shortcut pointing at target_path. On success *dest owns the .lnk
+ * GFile. Off Windows the shortcut always keeps the relative path. */
 static gboolean
-win_create_lnk (GFile **dest, const char *target_path, GError **error)
+create_lnk (GFile **dest, const char *target_path, gboolean relative, GError **error)
 {
 	GFile *dir, *lnk;
 	char *base, *lnk_base, *lnk_path;
@@ -6415,7 +6415,13 @@ win_create_lnk (GFile **dest, const char *target_path, GError **error)
 				     _("Shortcuts can only be created in a local folder."));
 		ok = FALSE;
 	} else {
-		ok = nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+#ifdef G_OS_WIN32
+		ok = relative
+			? nemo_shortcut_win32_create_relative (target_path, lnk_path, error)
+			: nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+#else
+		ok = nemo_lnk_write (lnk_path, target_path, error);
+#endif
 	}
 	g_free (lnk_path);
 
@@ -6428,6 +6434,7 @@ win_create_lnk (GFile **dest, const char *target_path, GError **error)
 	return ok;
 }
 
+#ifdef G_OS_WIN32
 /* The other kind of link Windows has. The name is left alone - a symlink is not
  * a document and gains nothing from an extension. */
 static gboolean
@@ -6451,22 +6458,33 @@ win_create_symlink (GFile *dest, const char *target_path, GError **error)
 #endif
 
 /* The kind of link the Make link dialog asked for. A relative symlink needs
-   both ends local; anywhere else it quietly keeps the absolute path. */
+   both ends local; anywhere else it quietly keeps the absolute path. A
+   shortcut rewrites *dest to the .lnk it made. */
 static gboolean
-make_chosen_link (CopyMoveJob *job, GFile *src, GFile *dest, GFile *dest_dir,
+make_chosen_link (CopyMoveJob *job, GFile *src, GFile **dest, GFile *dest_dir,
 		  const char *abs_target, GError **error)
 {
 	const NemoLinkOptions *options = &job->link_options;
 	GCancellable *cancellable = job->common.cancellable;
 	char *src_path = g_file_get_path (src);
-	char *dest_path = g_file_get_path (dest);
+	char *dest_path = g_file_get_path (*dest);
 	char *dir_path = g_file_get_path (dest_dir);
 	char *text = NULL;
+	NemoMakeLink kind;
 	gboolean is_dir, ok;
 
 	is_dir = g_file_query_file_type (src, G_FILE_QUERY_INFO_NONE, cancellable) == G_FILE_TYPE_DIRECTORY;
+	kind = is_dir ? options->folder_kind : options->file_kind;
 
-	if (!is_dir && options->file_hardlink) {
+	if (kind == NEMO_MAKE_SHORTCUT) {
+		if (src_path == NULL) {
+			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+					     _("Shortcuts can only point at a local file or folder."));
+			ok = FALSE;
+		} else {
+			ok = create_lnk (dest, src_path, options->relative, error);
+		}
+	} else if (!is_dir && kind == NEMO_MAKE_HARDLINK) {
 		if (src_path == NULL || dest_path == NULL) {
 			g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
 					     _("Hardlinks can only be made in a local folder."));
@@ -6479,7 +6497,7 @@ make_chosen_link (CopyMoveJob *job, GFile *src, GFile *dest, GFile *dest_dir,
 		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
 				     _("Symlinks can only be created in a local folder."));
 		ok = FALSE;
-	} else if (is_dir && options->folder_junction) {
+	} else if (is_dir && kind == NEMO_MAKE_JUNCTION) {
 		ok = nemo_link_create (abs_target, dest_path, NULL, NEMO_LINK_JUNCTION, error);
 #endif
 	} else {
@@ -6493,7 +6511,7 @@ make_chosen_link (CopyMoveJob *job, GFile *src, GFile *dest, GFile *dest_dir,
 		ok = nemo_link_create (text, dest_path, NULL,
 				       is_dir ? NEMO_LINK_DIR_SYMLINK : NEMO_LINK_FILE_SYMLINK, error);
 #else
-		ok = g_file_make_symbolic_link (dest, text, cancellable, error);
+		ok = g_file_make_symbolic_link (*dest, text, cancellable, error);
 #endif
 	}
 
@@ -6549,14 +6567,14 @@ link_file (CopyMoveJob *job,
 	if (path == NULL) {
 		not_local = TRUE;
 	} else if (job->link_options_set
-		   ? make_chosen_link (job, src, dest, dest_dir, path, &error)
+		   ? make_chosen_link (job, src, &dest, dest_dir, path, &error)
 		   :
 #ifdef G_OS_WIN32
 		   /* For a shortcut, dest is rewritten to a .lnk on success and the
 		    * bookkeeping below records that file instead. */
 		   (job->want_symlink
 		    ? win_create_symlink (dest, path, &error)
-		    : win_create_lnk (&dest, path, &error))
+		    : create_lnk (&dest, path, FALSE, &error))
 #else
 		   g_file_make_symbolic_link (dest,
 					      path,
