@@ -61,4 +61,14 @@ GType nemo_main_application_get_type (void);
 
 NemoApplication *nemo_main_application_get_singleton (void);
 
+/* Every running copy queues on the one name, so the oldest answers callers
+ * from outside and the rest are found through the queue. The actions ride at
+ * the path GApplication would use, so an older copy that still registers the
+ * old way is reachable the same way. Tab moves are served at the same path. */
+#define NEMO_INSTANCE_BUS_NAME    "org.NemoAnywhere"
+#define NEMO_INSTANCE_OBJECT_PATH "/org/NemoAnywhere"
+
+/* Unique bus names of every other running copy; NULL with no bus. */
+GStrv nemo_main_application_other_instances (void);
+
 #endif /* __NEMO_MAIN_APPLICATION_H__ */

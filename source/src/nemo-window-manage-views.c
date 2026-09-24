@@ -824,6 +824,8 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 	GMountOperation *mount_op;
 	MountNotMountedData *data;
 	NemoApplication *app;
+	gboolean handed_view = FALSE;
+	char *handed_view_id;
 
 	slot = callback_data;
 	window = nemo_window_slot_get_window (slot);
@@ -888,6 +890,7 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 	location = slot->pending_location;
 
 	view_id = NULL;
+	handed_view_id = g_steal_pointer (&slot->pending_view_id);
 
         if (error == NULL ||
 	    (error->domain == G_IO_ERROR && error->code == G_IO_ERROR_NOT_SUPPORTED)) {
@@ -896,7 +899,10 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 		mimetype = nemo_file_get_mime_type (file);
 
 		/* Look in metadata for view */
-		if (!nemo_global_preferences_get_remember_folder_settings ()) {
+		if (handed_view_id != NULL) {
+			view_id = g_steal_pointer (&handed_view_id);
+			handed_view = TRUE;
+		} else if (!nemo_global_preferences_get_remember_folder_settings ()) {
 			view_id = g_strdup (nemo_window_get_ignore_meta_view_id (window));
 
 			/* The switch after loading looks past the window's view, so
@@ -916,6 +922,12 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 							      mimetype)) {
 			g_free (view_id);
 			view_id = NULL;
+		}
+
+		/* The image folder switch already had its say where the tab came from;
+		   running it again would undo a view picked there. */
+		if (handed_view && view_id != NULL) {
+			g_set_object (&slot->image_view_checked, location);
 		}
 
 		/* Otherwise, use default */
@@ -945,6 +957,7 @@ got_file_info_for_view_selection_callback (NemoFile *file,
 
 		g_free (mimetype);
 	}
+	g_free (handed_view_id);
 
 	if (view_id != NULL) {
 		create_content_view (slot, view_id);

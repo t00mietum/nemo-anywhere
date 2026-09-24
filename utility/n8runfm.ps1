@@ -202,6 +202,7 @@ $KnownAppOptions = @(
 	"--check", "-c", "--browser", "--version", "--geometry", "-g",
 	"--no-default-window", "-n", "--no-desktop", "--tabs", "-t", "--select", "-s",
 	"--existing-window", "--fix-cache", "--debug", "--quit", "-q", "--reset", "--about",
+	"--tab-view", "--tab-select",
 	"--help", "--help-all", "-h", "-?",
 	"--display", "--screen", "--class", "--name", "--sync", "--gtk-module",
 	"--g-fatal-warnings", "--gdk-debug", "--gdk-no-debug", "--gtk-debug",
@@ -212,7 +213,8 @@ $KnownAppOptions = @(
 ## location, even though it doesn't lead with '-'.
 $ValueAppOptions = @(
 	"--geometry", "-g", "--display", "--screen", "--class", "--name",
-	"--gtk-module", "--gdk-debug", "--gdk-no-debug", "--gtk-debug", "--gtk-no-debug"
+	"--gtk-module", "--gdk-debug", "--gdk-no-debug", "--gtk-debug", "--gtk-no-debug",
+	"--tab-view", "--tab-select"
 )
 
 ## Fallback file managers, tried in order when there is no build of ours to run.

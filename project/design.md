@@ -252,7 +252,9 @@ Each window is its own process by default, and every launch is a fresh one. A cr
 
 - The copies still find each other. Each queues on the one bus name, so a caller from outside always reaches the oldest and the rest are read off the queue. That is how `--quit` and Close All Windows reach every copy, and how `--reset` knows one is running.
 
-- What it costs: a tab cannot be dragged into a window belonging to another process, and dragging a tab out opens that folder in a new process and closes the tab. On Windows a new window carries the packed program's startup time rather than appearing at once. Those two are why it is a setting - turning it off puts new windows back inside one process. Launches from outside stay separate either way.
+- What it costs: a tab cannot really move to a window in another process, only be handed over, and its back and forward history stays behind. On Windows a new window carries the packed program's startup time rather than appearing at once. Those two are why it is a setting - turning it off puts new windows back inside one process. Launches from outside stay separate either way.
+
+- A tab goes to another window by its right-click menu, which lists every other window and a new one, or by being dropped on another window. What moves is its folder, its view and its selection. The window taking it opens a tab with those, and the tab it came from closes once that has worked. A drop finds the window under the pointer from the window manager's stacking list on X11 and the window order on Windows. Wayland does not say what is under the pointer, so there a dropped tab always gets a new window. A search tab stays where it is, since the search lives in its own process.
 
 - A selection has to be sayable on a command line for another process to show it, so `--select` takes the folder around an item with the item selected. "Show in folder" from other programs goes through it.
 

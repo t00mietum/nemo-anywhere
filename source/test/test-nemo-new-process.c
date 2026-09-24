@@ -1,5 +1,6 @@
 /* The command line one copy hands another to show a location, and the
- * fallback when a selection cannot be said on one. */
+ * fallback when a selection cannot be said on one. Also the one for a tab
+ * moved out to a window of its own. */
 
 #include <config.h>
 
@@ -52,6 +53,34 @@ main (int argc, char *argv[])
 	args = nemo_new_process_argv (NULL, NULL);
 	check (g_strv_length (args) == 1);
 	g_strfreev (args);
+
+	/* A tab moved out to a window of its own brings its view and every
+	   selected item, and the folder still comes last. */
+	{
+		char *selected[] = { (char *) "file:///some/folder/a", (char *) "file:///some/folder/b", NULL };
+
+		args = nemo_new_process_argv_tab (folder, "OAFIID:Nemo_File_Manager_List_View", selected);
+		check (g_strv_length (args) == 8);
+		check (g_strcmp0 (args[0], exe) == 0);
+		check (g_strcmp0 (args[1], "--tab-view") == 0);
+		check (g_strcmp0 (args[2], "OAFIID:Nemo_File_Manager_List_View") == 0);
+		check (g_strcmp0 (args[3], "--tab-select") == 0);
+		check (g_strcmp0 (args[4], "file:///some/folder/a") == 0);
+		check (g_strcmp0 (args[5], "--tab-select") == 0);
+		check (g_strcmp0 (args[6], "file:///some/folder/b") == 0);
+		check (g_strcmp0 (args[7], "file:///some/folder") == 0);
+		g_strfreev (args);
+
+		/* With nothing to carry it is just the folder. */
+		selected[0] = NULL;
+		args = nemo_new_process_argv_tab (folder, "", selected);
+		check (g_strv_length (args) == 2);
+		check (g_strcmp0 (args[1], "file:///some/folder") == 0);
+		g_strfreev (args);
+		args = nemo_new_process_argv_tab (folder, NULL, NULL);
+		check (g_strv_length (args) == 2);
+		g_strfreev (args);
+	}
 
 	g_free (exe);
 	g_object_unref (folder);

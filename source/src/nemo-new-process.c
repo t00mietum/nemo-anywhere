@@ -46,6 +46,33 @@ nemo_new_process_argv (GFile *location,
 	return (char **) g_ptr_array_free (argv, FALSE);
 }
 
+/* A tab moved out into a window of its own keeps its view and selection. The
+ * options are hidden ones, and apply only to a single location. */
+char **
+nemo_new_process_argv_tab (GFile       *location,
+                           const char  *view_id,
+                           char       **selected)
+{
+	GPtrArray *argv = g_ptr_array_new ();
+	char *exe = nemo_get_exe_path ();
+	int i;
+
+	g_ptr_array_add (argv, exe != NULL ? exe : g_strdup (NEMO_APP_SLUG));
+
+	if (view_id != NULL && view_id[0] != '\0') {
+		g_ptr_array_add (argv, g_strdup ("--tab-view"));
+		g_ptr_array_add (argv, g_strdup (view_id));
+	}
+	for (i = 0; selected != NULL && selected[i] != NULL; i++) {
+		g_ptr_array_add (argv, g_strdup ("--tab-select"));
+		g_ptr_array_add (argv, g_strdup (selected[i]));
+	}
+	g_ptr_array_add (argv, g_file_get_uri (location));
+	g_ptr_array_add (argv, NULL);
+
+	return (char **) g_ptr_array_free (argv, FALSE);
+}
+
 static void
 child_exited (GPid     pid,
               gint     status,
@@ -64,12 +91,10 @@ detach_from_terminal (gpointer user_data)
 }
 #endif
 
-gboolean
-nemo_new_process_spawn (GFile   *location,
-                        GFile   *selection,
-                        GError **error)
+static gboolean
+spawn_argv (char    **argv,
+            GError  **error)
 {
-	char **argv = nemo_new_process_argv (location, selection);
 	GSpawnChildSetupFunc setup = NULL;
 	GPid pid;
 	gboolean ok;
@@ -86,6 +111,31 @@ nemo_new_process_spawn (GFile   *location,
 	if (ok) {
 		g_child_watch_add (pid, child_exited, NULL);
 	}
+
+	return ok;
+}
+
+gboolean
+nemo_new_process_spawn (GFile   *location,
+                        GFile   *selection,
+                        GError **error)
+{
+	char **argv = nemo_new_process_argv (location, selection);
+	gboolean ok = spawn_argv (argv, error);
+
+	g_strfreev (argv);
+
+	return ok;
+}
+
+gboolean
+nemo_new_process_spawn_tab (GFile       *location,
+                            const char  *view_id,
+                            char       **selected,
+                            GError     **error)
+{
+	char **argv = nemo_new_process_argv_tab (location, view_id, selected);
+	gboolean ok = spawn_argv (argv, error);
 
 	g_strfreev (argv);
 

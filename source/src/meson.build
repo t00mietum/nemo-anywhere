@@ -56,6 +56,7 @@ nemoCommon_sources = [
   'nemo-template-config-widget.c',
   'nemo-self-check-functions.c',
   'nemo-statusbar.c',
+  'nemo-tab-move.c',
   'nemo-thumbnail-problem-bar.c',
   'nemo-toolbar.c',
   'nemo-trash-bar.c',
@@ -72,6 +73,8 @@ nemoCommon_sources = [
   'nemo-window-slot-dnd.c',
   'nemo-window-slot.c',
   'nemo-window.c',
+  'nemo-window-at-point.c',
+  'nemo-window-at-point-win32.c',
   'nemo-x-content-bar.c',
 ]
 

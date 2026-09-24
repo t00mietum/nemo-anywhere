@@ -119,6 +119,9 @@ struct NemoWindowSlot {
 	/* The location the image folder check last ran for. */
 	GFile *image_view_checked;
 
+	/* A tab moved here from another window keeps the view it had there. */
+	char *pending_view_id;
+
 	/* Back/Forward chain, and history list. 
 	 * The data in these lists are NemoBookmark pointers. 
 	 */

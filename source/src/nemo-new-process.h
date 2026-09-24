@@ -23,4 +23,12 @@ gboolean  nemo_new_process_spawn (GFile   *location,
                                   GFile   *selection,
                                   GError **error);
 
+char    **nemo_new_process_argv_tab  (GFile       *location,
+                                      const char  *view_id,
+                                      char       **selected);
+gboolean  nemo_new_process_spawn_tab (GFile       *location,
+                                      const char  *view_id,
+                                      char       **selected,
+                                      GError     **error);
+
 #endif
