@@ -93,6 +93,10 @@ KEEP = set([
     # Windows names both of these itself, capitals and all.
     "Windows allows symlinks only with Developer Mode turned on, or when running as administrator.",
     "Symlinks need Developer Mode turned on, or nemo running as administrator.",
+    "Points to the original by its path. Programs treat it as the original. "
+    "The computer opening the link follows the path, so over a network share an "
+    "absolute one can lead to that computer's own disk, and Windows skips symlinks "
+    "on shares by default. Making one needs Developer Mode or admin rights.",
     "Only a file on this computer can go to the Recycle Bin.",
     "The Recycle Bin refused it (error %d).",
     # A window title: the file's name, then what the window is.
