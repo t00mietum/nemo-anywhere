@@ -1655,6 +1655,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Note: the OK button reads "Make link" or "Make links", since buttons are named for what they do.
 		- Note: this also covers the relative or absolute symlink option from the private notes.
 		- Done: choosing a hardlink asks once more, every time, and lists what can go wrong. Cancel is the default and goes back to the dialog.
+		- Done: the Hardlink choice carries a warning sign after its label.
 
 - ✅ Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922. Closed: 20260924-095019.
