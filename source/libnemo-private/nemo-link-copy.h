@@ -93,25 +93,34 @@ gboolean nemo_link_choice_ask (GtkWindow      *parent,
                                gboolean        is_move,
                                NemoLinkChoice *choice);
 
+/* A kind the Make link dialog can make. */
+typedef enum {
+	NEMO_MAKE_SYMLINK,
+	NEMO_MAKE_JUNCTION,   /* folders, on Windows */
+	NEMO_MAKE_HARDLINK,   /* files */
+	NEMO_MAKE_SHORTCUT    /* a Windows .lnk */
+} NemoMakeLink;
+
 /* What the Make link dialog asked for. */
 typedef struct {
-	gboolean folder_junction;   /* Windows only; a symlink otherwise */
-	gboolean file_hardlink;     /* a symlink otherwise */
-	gboolean relative;          /* for the symlinks */
+	NemoMakeLink folder_kind;
+	NemoMakeLink file_kind;
+	gboolean     relative;
 } NemoLinkOptions;
 
 /* Where the dialog starts: the last choices made, where the destination allows
    them, else the first thing it does allow. supported is a NemoLinkKind mask. */
 void     nemo_link_options_initial (guint                  supported,
-                                    gboolean               last_junction,
-                                    gboolean               last_hardlink,
+                                    NemoMakeLink           last_folder_kind,
+                                    NemoMakeLink           last_file_kind,
                                     gboolean               last_relative,
                                     NemoLinkOptions       *options);
 
-/* Whether any of it comes out a symlink, which is all the path choice is for. */
-gboolean nemo_link_options_makes_symlinks (const NemoLinkOptions *options,
-                                           int                    n_folders,
-                                           int                    n_files);
+/* Whether the relative or absolute choice changes anything that comes out.
+   It does for a symlink, and for a shortcut made on Windows. */
+gboolean nemo_link_options_uses_path (const NemoLinkOptions *options,
+                                      int                    n_folders,
+                                      int                    n_files);
 
 /* The Make link dialog. FALSE if canceled. The choices are remembered. */
 gboolean nemo_link_options_ask (GtkWindow       *parent,

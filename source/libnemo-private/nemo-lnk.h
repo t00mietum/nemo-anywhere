@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 
-/* nemo-lnk.h - read Windows .lnk shortcuts without Windows.
+/* nemo-lnk.h - read and write Windows .lnk shortcuts without Windows.
 
    Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
@@ -70,6 +70,14 @@ char    *nemo_lnk_follow (const char *lnk_path, NemoLnk *lnk_out);
    target, which may be on a share that is not answering. mtime keys a cache.
    NULL when the file is not a readable shortcut. */
 GIcon   *nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime);
+
+/* Write a shortcut at lnk_path to target_path, both paths here. It holds the
+   target's path relative to the shortcut, and the \\server\share path as well
+   when the target is on a mounted Windows share, which Windows can follow from
+   anywhere. Fails with G_IO_ERROR_EXISTS when lnk_path is taken. */
+gboolean nemo_lnk_write (const char  *lnk_path,
+                         const char  *target_path,
+                         GError     **error);
 
 /* Tests point these at a fake mount table, volume id folder and gvfs folder.
    NULL puts a default back. */

@@ -47,13 +47,14 @@ to_utf16 (const char *s)
 	return g_utf8_to_utf16 (s, -1, NULL, NULL, NULL);
 }
 
-gboolean
-nemo_shortcut_win32_create (const char  *target_path,
-                            const char  *lnk_path,
-                            const char  *working_dir,
-                            const char  *arguments,
-                            const char  *description,
-                            GError     **error)
+static gboolean
+create_shortcut (const char  *target_path,
+                 const char  *lnk_path,
+                 const char  *working_dir,
+                 const char  *arguments,
+                 const char  *description,
+                 gboolean     relative,
+                 GError     **error)
 {
 	IShellLinkW *link = NULL;
 	IPersistFile *pf = NULL;
@@ -120,6 +121,11 @@ nemo_shortcut_win32_create (const char  *target_path,
 	if (description != NULL && (w_desc = to_utf16 (description)) != NULL) {
 		IShellLinkW_SetDescription (link, w_desc);
 	}
+	/* Takes the shortcut's own path and works out the relative one from it.
+	   Across drives there is none, and the absolute path is all it keeps. */
+	if (relative) {
+		IShellLinkW_SetRelativePath (link, w_lnk, 0);
+	}
 
 	hr = IShellLinkW_QueryInterface (link, &IID_IPersistFile, (void **) &pf);
 	if (FAILED (hr) || pf == NULL) {
@@ -155,6 +161,26 @@ out:
 	g_free (w_args);
 	g_free (w_desc);
 	return ok;
+}
+
+gboolean
+nemo_shortcut_win32_create (const char  *target_path,
+                            const char  *lnk_path,
+                            const char  *working_dir,
+                            const char  *arguments,
+                            const char  *description,
+                            GError     **error)
+{
+	return create_shortcut (target_path, lnk_path, working_dir, arguments, description,
+				FALSE, error);
+}
+
+gboolean
+nemo_shortcut_win32_create_relative (const char  *target_path,
+                                     const char  *lnk_path,
+                                     GError     **error)
+{
+	return create_shortcut (target_path, lnk_path, NULL, NULL, NULL, TRUE, error);
 }
 
 gboolean

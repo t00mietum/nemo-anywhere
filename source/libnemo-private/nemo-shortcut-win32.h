@@ -24,6 +24,13 @@ gboolean nemo_shortcut_win32_create (const char  *target_path,
                                      const char  *description,
                                      GError     **error);
 
+/* The same, with no extras, that also records the target's path relative to
+ * the shortcut. Windows falls back to it when the absolute path is gone, as
+ * when the two are moved together. */
+gboolean nemo_shortcut_win32_create_relative (const char  *target_path,
+                                              const char  *lnk_path,
+                                              GError     **error);
+
 /* Read the file-system target a .lnk points at. Returns FALSE (and leaves
  * *target_path NULL) if the shortcut has no path target - e.g. it points at a
  * virtual shell item. Caller frees *target_path. */

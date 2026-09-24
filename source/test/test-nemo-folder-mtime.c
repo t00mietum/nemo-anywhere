@@ -6,7 +6,6 @@
 #include <config.h>
 
 #include <stdlib.h>
-#include <utime.h>
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
@@ -61,12 +60,16 @@ wait_for_mtime (NemoFile *folder, time_t old, gboolean want_old)
 	return FALSE;
 }
 
+/* Through GIO, since g_utime on Windows goes to msvcrt, which cannot open a
+   folder to set its time. */
 static void
 make_old (const char *path, time_t old)
 {
-	struct utimbuf times = { old, old };
+	GFile *file = g_file_new_for_path (path);
 
-	check (g_utime (path, &times) == 0);
+	check (g_file_set_attribute_uint64 (file, G_FILE_ATTRIBUTE_TIME_MODIFIED, (guint64) old,
+					    G_FILE_QUERY_INFO_NONE, NULL, NULL));
+	g_object_unref (file);
 }
 
 static void

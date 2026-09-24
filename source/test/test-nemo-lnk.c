@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
 
-/* test-nemo-lnk.c - reading and placing Windows shortcuts off Windows.
+/* test-nemo-lnk.c - reading, placing and writing Windows shortcuts off Windows.
 
    Copyright © 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu).
 
@@ -26,6 +26,7 @@
 
 #include <config.h>
 
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -726,6 +727,132 @@ test_follow (void)
 	machine_clear (&machine);
 }
 
+/* Write a shortcut to dir/name from dir/lnk_name, read it back, and check it
+   leads to the same place. The caller clears *lnk. */
+static void
+write_and_read (const char *dir, const char *name, const char *lnk_name, NemoLnk *lnk)
+{
+	char *target = g_build_filename (dir, name, NULL);
+	char *lnk_path = g_build_filename (dir, lnk_name, NULL);
+	char *uri, *want;
+	GError *error = NULL;
+
+	check (nemo_lnk_write (lnk_path, target, &error));
+	g_clear_error (&error);
+	check (nemo_lnk_read (lnk_path, lnk));
+	uri = nemo_lnk_resolve (lnk_path, lnk);
+	want = uri_of (dir, name);
+	check (g_strcmp0 (uri, want) == 0);
+	check (nemo_lnk_is_dir (lnk) == g_file_test (target, G_FILE_TEST_IS_DIR));
+
+	g_free (uri);
+	g_free (want);
+	g_free (lnk_path);
+	g_free (target);
+}
+
+/* U with diaeresis, then a CJK character. Split so no escape runs on. */
+#define UNICODE_NAME "\xc3\x9c" "ber \xe6\x96\x87" ".txt"
+
+static void
+test_write (void)
+{
+	Machine machine;
+	NemoLnk lnk;
+	char *root, *cifs, *sub, *gvfs_share, *lnk_path, *target, *before, *after;
+	gsize before_length, after_length;
+	GError *error = NULL;
+
+	machine_init (&machine);
+	/* The writer takes the target as it really is, so the mount table has to
+	   name the real folders too. */
+	root = realpath (machine.root, NULL);
+	cifs = g_build_filename (root, "cifs", NULL);
+	sub = g_build_filename (root, "cifs-sub", NULL);
+	g_mkdir (cifs, 0700);
+	g_mkdir (sub, 0700);
+	g_string_append_printf (machine.table, "50 22 0:60 / %s rw - cifs //SRV/share rw\n", cifs);
+	g_string_append_printf (machine.table, "51 22 0:61 / %s rw - cifs //other/music/Live rw\n", sub);
+	machine_apply (&machine);
+
+	/* Nothing on a share: the relative path alone, in Windows spelling. */
+	touch (root, "docs/plain.txt");
+	write_and_read (root, "docs/plain.txt", "plain.txt.lnk", &lnk);
+	check (g_strcmp0 (lnk.relative_path, ".\\docs\\plain.txt") == 0);
+	check (lnk.net_share == NULL && lnk.local_path == NULL);
+	nemo_lnk_clear (&lnk);
+
+	target = g_build_filename (root, "docs", "sub", NULL);
+	g_mkdir (target, 0700);
+	g_free (target);
+	write_and_read (root, "docs/sub", "docs/sub.lnk", &lnk);
+	check (g_strcmp0 (lnk.relative_path, ".\\sub") == 0);
+	nemo_lnk_clear (&lnk);
+
+	touch (root, "docs/deep/one.txt");
+	write_and_read (root, "docs/plain.txt", "docs/deep/up.lnk", &lnk);
+	check (g_strcmp0 (lnk.relative_path, "..\\plain.txt") == 0);
+	nemo_lnk_clear (&lnk);
+
+	/* Names past ASCII come back exactly. */
+	touch (root, "docs/" UNICODE_NAME);
+	write_and_read (root, "docs/" UNICODE_NAME, "u.lnk", &lnk);
+	check (g_strcmp0 (lnk.relative_path, ".\\docs\\" UNICODE_NAME) == 0);
+	nemo_lnk_clear (&lnk);
+
+	/* On a share, the \\server\share path goes in as well. */
+	touch (cifs, "dir/a.txt");
+	write_and_read (root, "cifs/dir/a.txt", "a.lnk", &lnk);
+	check (g_strcmp0 (lnk.net_share, "\\\\SRV\\share") == 0);
+	check (g_strcmp0 (lnk.net_path, "dir\\a.txt") == 0);
+	nemo_lnk_clear (&lnk);
+
+	/* A share mounted at a folder inside it. */
+	touch (sub, "set.flac");
+	write_and_read (root, "cifs-sub/set.flac", "set.lnk", &lnk);
+	check (g_strcmp0 (lnk.net_share, "\\\\other\\music") == 0);
+	check (g_strcmp0 (lnk.net_path, "Live\\set.flac") == 0);
+	nemo_lnk_clear (&lnk);
+
+	/* gvfs has its own folder of mounts. */
+	gvfs_share = g_build_filename (machine.gvfs, "smb-share:server=nas,share=media", NULL);
+	g_mkdir (gvfs_share, 0700);
+	touch (gvfs_share, "Movies/m.mkv");
+	lnk_path = g_build_filename (root, "m.lnk", NULL);
+	target = g_build_filename (gvfs_share, "Movies", "m.mkv", NULL);
+	check (nemo_lnk_write (lnk_path, target, NULL));
+	check (nemo_lnk_read (lnk_path, &lnk));
+	check (g_strcmp0 (lnk.net_share, "\\\\nas\\media") == 0);
+	check (g_strcmp0 (lnk.net_path, "Movies\\m.mkv") == 0);
+	nemo_lnk_clear (&lnk);
+
+	/* Never over something already there. */
+	g_assert (g_file_get_contents (lnk_path, &before, &before_length, NULL));
+	check (!nemo_lnk_write (lnk_path, target, &error));
+	check (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_EXISTS));
+	g_clear_error (&error);
+	g_assert (g_file_get_contents (lnk_path, &after, &after_length, NULL));
+	check (before_length == after_length && memcmp (before, after, after_length) == 0);
+	g_free (before);
+	g_free (after);
+	g_free (lnk_path);
+	g_free (target);
+
+	/* Nothing to point at. */
+	lnk_path = g_build_filename (root, "gone.lnk", NULL);
+	target = g_build_filename (root, "gone.txt", NULL);
+	check (!nemo_lnk_write (lnk_path, target, NULL));
+	check (!g_file_test (lnk_path, G_FILE_TEST_EXISTS));
+	g_free (lnk_path);
+	g_free (target);
+
+	g_free (gvfs_share);
+	g_free (cifs);
+	g_free (sub);
+	free (root);
+	machine_clear (&machine);
+}
+
 static gboolean
 icon_has_name (GIcon *icon, const char *name)
 {
@@ -788,6 +915,7 @@ main (int argc, char **argv)
 	test_resolve_share ();
 	test_resolve_dir ();
 	test_follow ();
+	test_write ();
 	test_icon ();
 
 	if (failures == 0)
