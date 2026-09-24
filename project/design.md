@@ -598,6 +598,13 @@ This rule has been rewritten several times and will probably move again, so the 
 
 - A shortcut's extension is off the listing and on in the rename box. `.lnk` and `.desktop` are both noise in a file list and both have to survive a rename, so the name on screen leaves them off while the rename box shows the whole name, and a rename that arrives without one gets it back. Without that, renaming a shortcut would turn it into an ordinary file. The Ext column still says what it is. One preference covers both, offered on every platform since `.desktop` launchers are a Linux thing.
 
+- A Windows shortcut opens off Windows too. With no shell to ask, the app reads the file itself. Windows keeps using the shell.
+	- The path inside is used only when it can be placed for certain. A drive is found by the volume serial the shortcut records, and a share by server and share name among what is mounted. After that comes the path relative to the shortcut. That is the order Windows tries.
+	- Names match ignoring case, as on Windows. Two names that differ only in case are a miss, because a wrong target is worse than none.
+	- A folder shortcut changes the current folder rather than showing the folder inside it, the way Windows does. A file opens with its program started in the shortcut's Start in folder, or else the file's own.
+	- Arguments are left out, since they were written for a Windows program.
+	- The icon comes from what the shortcut records, never from the target, for the same reason as on Windows.
+
 #### Scaling and startup
 
 - Scaling is the app's own job, not something done to it. The window declares itself per-monitor DPI aware, so a scaled display gets it drawn at that scale rather than drawn small and stretched, and moving it to a monitor at another scale redraws rather than restretches. The toolkit scales in whole steps, which leaves 125% or 150% short, so text is sized against the monitor's true DPI on top of that. Type comes out right at any scale; the widgets around it are still on the whole step below, which is the open item. On Linux and BSD the desktop publishes its own scaling and the toolkit follows it.

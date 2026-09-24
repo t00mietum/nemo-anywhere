@@ -47,17 +47,25 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Windows `.lnk` file support on macOS and Linux
-	- 🔘 They should behave mostly as they do on Windows:
-		- 🔘 .lnk to folders, should *change the directory* to that path
+- 🛠️ Windows `.lnk` file support on macOS and Linux
+	- Opened: 20260924-104933
+	- ✅ They should behave mostly as they do on Windows:
+		- ✅ .lnk to folders, should *change the directory* to that path
 			- Rather than the way folder symlinks work, which is to place that folder virtually in the current path.
-		- 🔘 .lnk to files, should be treated exactly as symlinks to documents and programs do now, except:
+		- ✅ .lnk to files, should be treated exactly as symlinks to documents and programs do now, except:
 			- The document is opened in the .lnk target's directory, or the program is executed in that directory.
-		- 🔘 Folder, program, and document icons should display correctly.
-	- 🔘 If an .lnk file has a Windows-style path in it, try to resolve it. (But don't edit it.) That means, in part:
-		- 🔘 It could be on a windows machine over a network share. If so, try to resolve the path to it's accurate network location.
-		- 🔘 If it's on a local filesystem, try to reinterpret the path to an existing local one.
+			- Done: the shortcut's own "Start in" folder is used when it can be found here, as on Windows. Otherwise the target's folder.
+			- Note: arguments in the shortcut are left out. They were written for a Windows program.
+		- ✅ Folder, program, and document icons should display correctly.
+			- Done: taken from what the shortcut records, never from the target. The extension is hidden and the shortcut overlay applies, as on Windows.
+	- ✅ If an .lnk file has a Windows-style path in it, try to resolve it. (But don't edit it.) That means, in part:
+		- ✅ It could be on a windows machine over a network share. If so, try to resolve the path to it's accurate network location.
+			- Done: matched by server and share name to a kernel or gvfs mount. An unmounted share opens as smb:// where gvfs can.
+		- ✅ If it's on a local filesystem, try to reinterpret the path to an existing local one.
+			- Done: the drive is found by its volume serial. Then the path relative to the shortcut is tried.
 		- But don't work SO hard that it guesses incorrectly, that would be worse than being unable to resolve.
+			- Done: no match means a message naming the path. Two names that differ only in case count as no match.
+	- Note: on macOS only the relative path and smb:// are tried until that target is built, since the drive and mount lookups read Linux's tables.
 	- 🔘 Update the functionality of the "Make symlink ..." menu item:
 		- New name: "Make link ..."
 		- A dialog opens, with options:

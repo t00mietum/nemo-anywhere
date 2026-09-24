@@ -53,6 +53,8 @@
 #include <libnemo-private/nemo-mime-application-chooser.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-shortcut-win32.h>
+#else
+#include <libnemo-private/nemo-lnk.h>
 #endif
 #include <sys/stat.h>
 
@@ -100,6 +102,9 @@ typedef struct {
 	NemoFileListHandle *files_handle;
 	gboolean tried_mounting;
 	char *activation_directory;
+	/* Documents open with their program started in activation_directory
+	   too, not only executables. Set for a Windows shortcut's target. */
+	gboolean apps_start_in_directory;
 	gboolean user_confirmation;
 } ActivateParameters;
 
@@ -1826,12 +1831,25 @@ activate_files (ActivateParameters *parameters)
 	}
 
 	if (open_files) {
+		old_working_dir = NULL;
+		if (parameters->apps_start_in_directory &&
+		    parameters->activation_directory != NULL &&
+		    open_in_app_parameters != NULL) {
+			old_working_dir = g_get_current_dir ();
+			g_chdir (parameters->activation_directory);
+		}
+
 		for (l = open_in_app_parameters; l != NULL; l = l->next) {
 			one_parameters = l->data;
 
 			launch_application (one_parameters->application, one_parameters->uris, parameters);
 
 			application_launch_parameters_free (one_parameters);
+		}
+
+		if (old_working_dir != NULL) {
+			g_chdir (old_working_dir);
+			g_free (old_working_dir);
 		}
 
 		for (l = unhandled_open_in_app_uris; l != NULL; l = l->next) {
@@ -2377,6 +2395,110 @@ resolve_win32_shortcuts (GList *files, gboolean *handled)
 }
 #endif
 
+static void activate_files_in (GtkWindow *parent_window,
+			       NemoWindowSlot *slot,
+			       GList *files,
+			       const char *launch_directory,
+			       gboolean apps_start_in_directory,
+			       NemoWindowOpenFlags flags,
+			       gboolean user_confirmation);
+
+#ifndef G_OS_WIN32
+/* A Windows shortcut, with no shell here to ask. A folder opens in place of
+ * the shortcut, as on Windows. Anything else opens as if it had been
+ * double-clicked where it is, started in the shortcut's Start in folder when
+ * that can be found here, or else in the target's own folder. The arguments a
+ * shortcut carries are for a Windows program and are left out.
+ *
+ * Returns what is left to activate normally, with folder shortcuts swapped for
+ * their targets. *handled says whether any shortcut was dealt with. */
+static GList *
+resolve_lnk_shortcuts (GtkWindow *parent_window,
+		       NemoWindowSlot *slot,
+		       GList *files,
+		       NemoWindowOpenFlags flags,
+		       gboolean user_confirmation,
+		       gboolean *handled)
+{
+	GList *remaining = NULL;
+	GList *l;
+
+	*handled = FALSE;
+
+	for (l = files; l != NULL; l = l->next) {
+		NemoFile *file = NEMO_FILE (l->data);
+		char *path = nemo_file_get_path (file);
+		char *uri, *target_path;
+		NemoFile *target;
+		NemoLnk lnk;
+		gsize len;
+
+		len = path != NULL ? strlen (path) : 0;
+		if (len <= 4 || g_ascii_strcasecmp (path + len - 4, ".lnk") != 0 ||
+		    !nemo_lnk_read (path, &lnk)) {
+			/* Named like one and not one: an ordinary file. */
+			remaining = g_list_prepend (remaining, nemo_file_ref (file));
+			g_free (path);
+			continue;
+		}
+		nemo_lnk_clear (&lnk);
+
+		*handled = TRUE;
+		uri = nemo_lnk_follow (path, &lnk);
+
+		if (uri == NULL) {
+			char *name = nemo_file_get_display_name (file);
+			char *shown = nemo_lnk_display_target (&lnk);
+			char *primary = g_strdup_printf (_("Could not open the shortcut \"%s\"."), name);
+			char *secondary;
+
+			if (shown != NULL && shown[0] != '\0') {
+				secondary = g_strdup_printf (_("It points to %s, which is not on any drive or share this computer can see."),
+							     shown);
+			} else {
+				secondary = g_strdup (_("It does not say where its target is, or it points back at itself."));
+			}
+			eel_show_error_dialog (primary, secondary, parent_window);
+
+			g_free (primary);
+			g_free (secondary);
+			g_free (shown);
+			g_free (name);
+			nemo_lnk_clear (&lnk);
+			g_free (path);
+			continue;
+		}
+
+		target = nemo_file_get_by_uri (uri);
+		target_path = g_filename_from_uri (uri, NULL, NULL);
+
+		if (nemo_lnk_is_dir (&lnk) ||
+		    (target_path != NULL && g_file_test (target_path, G_FILE_TEST_IS_DIR))) {
+			remaining = g_list_prepend (remaining, target);
+		} else {
+			GList *one = g_list_prepend (NULL, target);
+			char *start = nemo_lnk_resolve_dir (&lnk, lnk.working_dir);
+
+			if (start == NULL && target_path != NULL) {
+				start = g_path_get_dirname (target_path);
+			}
+			activate_files_in (parent_window, slot, one, start, start != NULL,
+					   flags, user_confirmation);
+
+			g_free (start);
+			nemo_file_list_free (one);
+		}
+
+		g_free (target_path);
+		g_free (uri);
+		nemo_lnk_clear (&lnk);
+		g_free (path);
+	}
+
+	return g_list_reverse (remaining);
+}
+#endif
+
 /**
  * nemo_mime_activate_files:
  *
@@ -2393,6 +2515,19 @@ nemo_mime_activate_files (GtkWindow *parent_window,
 			      const char *launch_directory,
 			      NemoWindowOpenFlags flags,
 			      gboolean user_confirmation)
+{
+	activate_files_in (parent_window, slot, files, launch_directory, FALSE,
+			   flags, user_confirmation);
+}
+
+static void
+activate_files_in (GtkWindow *parent_window,
+		   NemoWindowSlot *slot,
+		   GList *files,
+		   const char *launch_directory,
+		   gboolean apps_start_in_directory,
+		   NemoWindowOpenFlags flags,
+		   gboolean user_confirmation)
 {
 	ActivateParameters *parameters;
 	char *file_name;
@@ -2415,8 +2550,26 @@ nemo_mime_activate_files (GtkWindow *parent_window,
 
 		if (handled) {
 			if (resolved != NULL) {
-				nemo_mime_activate_files (parent_window, slot, resolved,
-							  launch_directory, flags, user_confirmation);
+				activate_files_in (parent_window, slot, resolved, launch_directory,
+						   apps_start_in_directory, flags, user_confirmation);
+			}
+			nemo_file_list_free (resolved);
+			return;
+		}
+		nemo_file_list_free (resolved);
+	}
+#else
+	{
+		/* Nothing handed back is a shortcut that can be read, so this
+		   cannot recurse more than once. */
+		gboolean handled = FALSE;
+		GList *resolved = resolve_lnk_shortcuts (parent_window, slot, files, flags,
+							 user_confirmation, &handled);
+
+		if (handled) {
+			if (resolved != NULL) {
+				activate_files_in (parent_window, slot, resolved, launch_directory,
+						   apps_start_in_directory, flags, user_confirmation);
 			}
 			nemo_file_list_free (resolved);
 			return;
@@ -2436,6 +2589,7 @@ nemo_mime_activate_files (GtkWindow *parent_window,
 	}
 	parameters->cancellable = g_cancellable_new ();
 	parameters->activation_directory = g_strdup (launch_directory);
+	parameters->apps_start_in_directory = apps_start_in_directory;
 	parameters->locations = launch_locations_from_file_list (files);
 	parameters->flags = flags;
 	parameters->user_confirmation = user_confirmation;

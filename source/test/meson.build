@@ -902,6 +902,18 @@ test('Camera raw reader test',
   args: []
 )
 
+# Windows reads shortcuts through the shell and never builds this reader.
+if not is_windows
+  test('Windows shortcut reader test',
+    executable('test-nemo-lnk',
+      [ 'test-nemo-lnk.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
+    ),
+    args: []
+  )
+endif
+
 test('ImageMagick thumbnail test',
   executable('test-nemo-magick',
     [ 'test-nemo-magick.c' ],

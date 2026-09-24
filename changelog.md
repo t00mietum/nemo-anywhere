@@ -32,6 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Content search ("Containing:") reads Word, Excel and PowerPoint documents in both their old and new formats, OpenDocument files and EPUB books, on every platform. The converters are built in, so nothing else needs installing.
 
+- Windows `.lnk` shortcuts work on Linux. One to a folder changes to that folder, and one to a file opens the file, started in the shortcut's "Start in" folder or else the file's own. Each shows its target's icon. The Windows path is matched to a drive by its volume serial, or to a share by server and name, whether the kernel or gvfs mounted it. A share that is not mounted opens as `smb://` where gvfs can. When nothing matches, a message names the path instead of a guess.
+
 - On Windows, a shortcut is drawn with the icon the shell would give it, its target's, at every view size, and without Explorer having to be running.
 
 - On Windows, Properties on a shortcut shows its target, arguments, start-in folder and comment, and each can be edited in place, the way a `.desktop` launcher can on Linux. A file dropped on the target or start-in field fills it in.

@@ -65,6 +65,17 @@ fuzzPsd = executable('fuzz-psd',
   link_args: fuzzLinkArgs,
 )
 
+# The shortcut reader is left out of the Windows build, which asks the shell.
+if not is_windows
+  fuzzLnk = executable('fuzz-lnk',
+    [ 'fuzz-lnk.c' ] + fuzzDriver,
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private ],
+    c_args:    fuzzCArgs,
+    link_args: fuzzLinkArgs,
+  )
+endif
+
 # The three binary Office parsers. Each helper is a program of its own, so the
 # target includes its source whole and renames the main out of the way rather
 # than turning the parser into a library nothing else would use. The zip-of-xml
@@ -165,6 +176,18 @@ fuzzDocCorpus = files(
   'corpus/doc/truncated',
 )
 
+fuzzLnkCorpus = files(
+  'corpus/lnk/empty',
+  'corpus/lnk/local',
+  'corpus/lnk/folder',
+  'corpus/lnk/unicode-info',
+  'corpus/lnk/network',
+  'corpus/lnk/ansi-strings',
+  'corpus/lnk/relative-only',
+  'corpus/lnk/truncated',
+  'corpus/lnk/bad-info-size',
+)
+
 # Under -Dfuzzing there is no main to hand a file list to; the targets are
 # driven by fuzz.bash instead.
 #
@@ -183,4 +206,7 @@ if not get_option('fuzzing')
   test('Workbook fuzz corpus test',         fuzzXls,             args: fuzzXlsCorpus,             env: fuzzTestEnv)
   test('Presentation fuzz corpus test',     fuzzPpt,             args: fuzzPptCorpus,             env: fuzzTestEnv)
   test('Word document fuzz corpus test',    fuzzDoc,             args: fuzzDocCorpus,             env: fuzzTestEnv)
+  if not is_windows
+    test('Windows shortcut fuzz corpus test', fuzzLnk,           args: fuzzLnkCorpus,             env: fuzzTestEnv)
+  endif
 endif
