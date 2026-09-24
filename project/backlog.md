@@ -47,7 +47,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Windows .lnk file support on macOS and Linux
+- 🔘 Windows `.lnk` file support on macOS and Linux
 	- 🔘 They should behave mostly as they do on Windows:
 		- 🔘 .lnk to folders, should *change the directory* to that path
 			- Rather than the way folder symlinks work, which is to place that folder virtually in the current path.
