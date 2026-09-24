@@ -18,6 +18,7 @@
 #endif
 
 #include <libnemo-private/nemo-link-copy.h>
+#include <libnemo-private/nemo-lnk.h>
 
 #include "test-scratch.h"
 #include "test-check.h"
@@ -263,7 +264,7 @@ check_link_options (void)
 	/* Every open starts the same way. */
 	nemo_link_options_initial (NEMO_LINK_ANY, &options);
 	check (options.folder_kind == NEMO_MAKE_JUNCTION && options.file_kind == NEMO_MAKE_SYMLINK &&
-	       !options.relative);
+	       !options.relative && options.lnk_parts == NEMO_LNK_ALL_PARTS);
 
 	/* No junctions here. */
 	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK, &options);
@@ -278,8 +279,9 @@ check_link_options (void)
 	nemo_link_options_initial (0, &options);
 	check (options.folder_kind == NEMO_MAKE_SHORTCUT && options.file_kind == NEMO_MAKE_SHORTCUT);
 
-	/* The path choice matters only while something comes out a symlink or a
-	   shortcut. A junction is always absolute and a hardlink has no path. */
+	/* The path choice matters only while something comes out a symlink. A
+	   junction is always absolute, a hardlink has no path, and a shortcut
+	   has its own row. */
 	options.folder_kind = NEMO_MAKE_JUNCTION;
 	options.file_kind = NEMO_MAKE_HARDLINK;
 	check (!nemo_link_options_uses_path (&options, 2, 3));
@@ -290,10 +292,17 @@ check_link_options (void)
 	check (nemo_link_options_uses_path (&options, 1, 0));
 	options.folder_kind = NEMO_MAKE_SHORTCUT;
 	options.file_kind = NEMO_MAKE_SHORTCUT;
-	check (nemo_link_options_uses_path (&options, 1, 1));
+	check (!nemo_link_options_uses_path (&options, 1, 1));
+	check (nemo_link_options_makes_lnk (&options, 1, 1));
 	options.folder_kind = NEMO_MAKE_JUNCTION;
 	options.file_kind = NEMO_MAKE_HARDLINK;
 	check (!nemo_link_options_uses_path (&options, 1, 1));
+	check (!nemo_link_options_makes_lnk (&options, 1, 1));
+
+	/* The shortcut row counts only for the rows that are there. */
+	options.file_kind = NEMO_MAKE_SHORTCUT;
+	check (nemo_link_options_makes_lnk (&options, 1, 1));
+	check (!nemo_link_options_makes_lnk (&options, 1, 0));
 }
 
 static void

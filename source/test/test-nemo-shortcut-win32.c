@@ -11,6 +11,7 @@
 
 #include <libnemo-private/nemo-shortcut-win32.h>
 #include <libnemo-private/nemo-link-win32.h>
+#include <libnemo-private/nemo-lnk.h>
 
 #define COBJMACROS
 #include <windows.h>
@@ -284,6 +285,65 @@ test_foreign (const char *dir)
 	g_free (links);
 }
 
+/* Each part on its own and all together, read back the way the app reads a
+ * shortcut, and whether the shell could follow it. */
+static void
+check_parts (const char *doc, const char *lnk, guint parts, gboolean shell_follows)
+{
+	NemoLnk info;
+	char *target = NULL;
+	gboolean by_shell = !shell_follows;
+
+	g_unlink (lnk);
+	check (nemo_shortcut_win32_create_parts (doc, lnk, parts, NULL));
+	check (nemo_lnk_read (lnk, &info));
+	check ((info.local_path != NULL) == ((parts & NEMO_LNK_ABSOLUTE) != 0));
+	check ((info.relative_path != NULL) == ((parts & NEMO_LNK_RELATIVE) != 0));
+	check ((info.env_path != NULL) == ((parts & NEMO_LNK_PORTABLE) != 0));
+	nemo_lnk_clear (&info);
+
+	check (nemo_shortcut_win32_read_target (lnk, &target, &by_shell, NULL));
+	check (by_shell == shell_follows);
+	check (target != NULL && same_path (target, doc));
+	g_free (target);
+	g_unlink (lnk);
+}
+
+static void
+test_parts (const char *dir)
+{
+	char *doc = g_build_filename (dir, "parts.txt", NULL);
+	char *lnk = g_build_filename (dir, "parts.lnk", NULL);
+	char *portable = nemo_lnk_portable_path (doc);
+	NemoLnk info;
+
+	check (g_file_set_contents (doc, "doc", -1, NULL));
+	/* The scratch folder is under the profile, so a variable covers it. */
+	check (portable != NULL && portable[0] == '%');
+
+	/* The shell writes a relative path whatever it is asked; taken back out. */
+	check_parts (doc, lnk, NEMO_LNK_ABSOLUTE, TRUE);
+	check_parts (doc, lnk, NEMO_LNK_ABSOLUTE | NEMO_LNK_RELATIVE, TRUE);
+	check_parts (doc, lnk, NEMO_LNK_ALL_PARTS, TRUE);
+	/* No item id list, and the shell follows it all the same. */
+	check_parts (doc, lnk, NEMO_LNK_PORTABLE, TRUE);
+	check_parts (doc, lnk, NEMO_LNK_PORTABLE | NEMO_LNK_RELATIVE, TRUE);
+	/* This one it does not; the app still does. */
+	check_parts (doc, lnk, NEMO_LNK_RELATIVE, FALSE);
+
+	/* The variable is kept as written, not expanded. */
+	check (nemo_shortcut_win32_create_parts (doc, lnk, NEMO_LNK_ALL_PARTS, NULL));
+	check (nemo_lnk_read (lnk, &info));
+	check (info.env_path != NULL && g_ascii_strcasecmp (info.env_path, portable) == 0);
+	nemo_lnk_clear (&info);
+	g_unlink (lnk);
+
+	g_unlink (doc);
+	g_free (portable);
+	g_free (lnk);
+	g_free (doc);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -299,6 +359,7 @@ main (int argc, char *argv[])
 
 	test_info_round_trip (dir, target);
 	test_foreign (dir);
+	test_parts (dir);
 
 	lnk = g_build_filename (dir, "shortcut.lnk", NULL);
 

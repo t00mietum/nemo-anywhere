@@ -156,7 +156,7 @@ Everything that makes Nemo worth porting:
 
 - Links are never followed on a delete or a move. Only the link goes. Copying a link asks whether to keep it a link or copy what it points to.
 
-- Make link asks what to make: a symlink, a hardlink, a Windows shortcut, or on Windows a junction, with a relative or an absolute path. A shortcut made on Linux opens in Nemo Anywhere anywhere, though not in Explorer.
+- Make link asks what to make: a symlink, a hardlink, a Windows shortcut, or on Windows a junction. A symlink gets a relative or an absolute path. A shortcut can carry both, plus a portable path such as `%USERPROFILE%\Documents`, so one made on Linux still opens in Explorer when the same folder is there.
 
 - Windows `.lnk` shortcuts work on Linux too. One to a folder goes to that folder, one to a file opens the file, and each shows its target's icon. The Windows path inside is matched to a drive or share this machine has mounted. When there is no sure match it says so instead of guessing.
 

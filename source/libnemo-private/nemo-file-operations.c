@@ -6384,10 +6384,10 @@ get_abs_path_for_symlink (GFile *file)
 
 
 /* A .lnk shortcut. Rewrite *dest to carry the required .lnk extension, then
- * save the shortcut pointing at target_path. On success *dest owns the .lnk
- * GFile. Relative adds the relative path to the absolute one, as Windows does. */
+ * save the shortcut pointing at target_path, carrying the NemoLnkParts asked
+ * for. On success *dest owns the .lnk GFile. */
 static gboolean
-create_lnk (GFile **dest, const char *target_path, gboolean relative, GError **error)
+create_lnk (GFile **dest, const char *target_path, guint parts, GError **error)
 {
 	GFile *dir, *lnk;
 	char *base, *lnk_base, *lnk_path;
@@ -6416,11 +6416,9 @@ create_lnk (GFile **dest, const char *target_path, gboolean relative, GError **e
 		ok = FALSE;
 	} else {
 #ifdef G_OS_WIN32
-		ok = relative
-			? nemo_shortcut_win32_create_relative (target_path, lnk_path, error)
-			: nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
+		ok = nemo_shortcut_win32_create_parts (target_path, lnk_path, parts, error);
 #else
-		ok = nemo_lnk_write (lnk_path, target_path, relative, error);
+		ok = nemo_lnk_write (lnk_path, target_path, parts, error);
 #endif
 	}
 	g_free (lnk_path);
@@ -6482,7 +6480,7 @@ make_chosen_link (CopyMoveJob *job, GFile *src, GFile **dest, GFile *dest_dir,
 					     _("Shortcuts can only point at a local file or folder."));
 			ok = FALSE;
 		} else {
-			ok = create_lnk (dest, src_path, options->relative, error);
+			ok = create_lnk (dest, src_path, options->lnk_parts, error);
 		}
 	} else if (!is_dir && kind == NEMO_MAKE_HARDLINK) {
 		if (src_path == NULL || dest_path == NULL) {
@@ -6574,7 +6572,7 @@ link_file (CopyMoveJob *job,
 		    * bookkeeping below records that file instead. */
 		   (job->want_symlink
 		    ? win_create_symlink (dest, path, &error)
-		    : create_lnk (&dest, path, FALSE, &error))
+		    : create_lnk (&dest, path, NEMO_LNK_ABSOLUTE | NEMO_LNK_RELATIVE, &error))
 #else
 		   g_file_make_symbolic_link (dest,
 					      path,

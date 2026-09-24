@@ -105,18 +105,26 @@ typedef enum {
 typedef struct {
 	NemoMakeLink folder_kind;
 	NemoMakeLink file_kind;
-	gboolean     relative;
+	gboolean     relative;    /* for a symlink */
+	guint        lnk_parts;   /* for a shortcut, NemoLnkParts */
 } NemoLinkOptions;
 
 /* Where the dialog starts, every time: a junction for folders where the
    destination allows one, else a symlink, else a shortcut; a symlink for files,
-   else a shortcut; and an absolute path. supported is a NemoLinkKind mask. */
+   else a shortcut; an absolute path for a symlink; and every part a shortcut
+   can carry. supported is a NemoLinkKind mask. */
 void     nemo_link_options_initial (guint                  supported,
                                     NemoLinkOptions       *options);
 
 /* Whether the relative or absolute choice changes anything that comes out.
-   It does for a symlink and a shortcut, not for a junction or a hardlink. */
+   It does only for a symlink: a junction is always absolute, a hardlink has
+   no path, and a shortcut has its own choices. */
 gboolean nemo_link_options_uses_path (const NemoLinkOptions *options,
+                                      int                    n_folders,
+                                      int                    n_files);
+
+/* Whether a shortcut comes out, so its choices matter. */
+gboolean nemo_link_options_makes_lnk (const NemoLinkOptions *options,
                                       int                    n_folders,
                                       int                    n_files);
 

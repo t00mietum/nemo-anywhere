@@ -1660,9 +1660,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Note: this also covers the relative or absolute symlink option from the private notes.
 		- Done: choosing a hardlink asks once more, every time, and lists what can go wrong as spaced bullets. Cancel is the default and goes back to the dialog.
 		- Done: the Hardlink choice carries a warning sign after its label.
-		- Done: "Link" makes a Windows `.lnk` shortcut, for folders and files, on every platform. Off Windows its tooltip says only Nemo Anywhere follows one there, and how it differs from a symlink.
-		- Note: Path applies to symlinks and Links, and is grayed for junctions, which are always absolute, and hardlinks, which have no path. A Link always holds the absolute path, and Relative adds its path relative to itself, as Windows does. Off Windows the absolute path is the `\\server\share` one when the target is on a mounted share, else the path as that machine spells it.
-		- Note: Explorer cannot follow a Link made off Windows. Windows 11 reads a shortcut only through the part that names the target in its own terms, and a Linux path has none. Nemo Anywhere on Windows reads one anyway, from the relative or share path.
+		- Done: "Link" makes a Windows `.lnk` shortcut, for folders and files, on every platform. Off Windows its tooltip says how it differs from a symlink, and that Windows follows a portable one.
+		- Note: Path is for symlinks only, and is grayed for junctions, which are always absolute, and hardlinks, which have no path.
+		- Changed: Links get their own row, "Link paths", with three checkboxes that all start checked: Absolute, Relative and Portable. One shortcut can hold all three, and is followed by the first that still leads somewhere. The symlink row is now "Symlink path". OK is grayed while a Link is chosen with none checked.
+		- Done: Portable puts a Windows environment variable in the path where one covers the target, such as `%USERPROFILE%`. Off Windows that means the home folder, and a target on a Windows share keeps its `\\server\share` path there instead.
+		- Done: variables are read and written as Windows `%NAME%` on every platform, never `$NAME`. Off Windows `%USERPROFILE%` reads as the home folder.
+		- Done: paths inside a shortcut are always spelled the Windows way, with backslashes, even off Windows. They are read back for the platform in use.
+		- Note: Explorer follows a Link made off Windows through its portable path. It never follows the absolute or relative path alone from one, since Windows 11 wants the part that names the target in its own terms. Nemo Anywhere on Windows follows all of them.
+		- Note: on Windows the shell always writes the relative path, so one not asked for is taken back out. Without Absolute the file is written directly instead.
 		- Note: on Windows with no symlinks allowed, files now start on Link rather than on a grayed-out Symlink.
 		- Changed: the choices are no longer remembered. Every open starts from the defaults. A "Defaults..." button, here and in Preferences, may come later.
 
