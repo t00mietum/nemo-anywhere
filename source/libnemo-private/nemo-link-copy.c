@@ -634,6 +634,24 @@ add_choice (GtkGrid *grid, int row, int column, GtkWidget *group,
 	return button;
 }
 
+/* A warning sign after the button's label, so the risky choice stands out
+   before anyone reads its tooltip. The theme's icon, so it follows light
+   and dark. */
+static void
+add_warning_icon (GtkWidget *button)
+{
+	GtkWidget *label = gtk_bin_get_child (GTK_BIN (button));
+	GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+	GtkWidget *icon = gtk_image_new_from_icon_name ("dialog-warning-symbolic", GTK_ICON_SIZE_MENU);
+
+	g_object_ref (label);
+	gtk_container_remove (GTK_CONTAINER (button), label);
+	gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (box), icon, FALSE, FALSE, 0);
+	gtk_container_add (GTK_CONTAINER (button), box);
+	g_object_unref (label);
+}
+
 static GtkWidget *
 add_row_label (GtkGrid *grid, int row, const char *text)
 {
@@ -785,6 +803,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 		d.file_hardlink = add_choice (GTK_GRID (grid), row, 2, symlink,
 					      ngettext ("_Hardlink", "_Hardlinks", n_files),
 					      TRUE, options->file_hardlink);
+		add_warning_icon (d.file_hardlink);
 		gtk_widget_set_tooltip_text (d.file_hardlink,
 			_("Careful: a hardlink is a second name for the same file, not a pointer to it. "
 			  "Editing through either name changes both, but many programs save by replacing "
