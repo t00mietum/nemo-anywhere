@@ -47,6 +47,33 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
+- 🔘 Windows .lnk file support on macOS and Linux
+	- 🔘 They should behave mostly as they do on Windows:
+		- 🔘 .lnk to folders, should *change the directory* to that path
+			- Rather than the way folder symlinks work, which is to place that folder virtually in the current path.
+		- 🔘 .lnk to files, should be treated exactly as symlinks to documents and programs do now, except:
+			- The document is opened in the .lnk target's directory, or the program is executed in that directory.
+		- 🔘 Folder, program, and document icons should display correctly.
+	- 🔘 If an .lnk file has a Windows-style path in it, try to resolve it. (But don't edit it.) That means, in part:
+		- 🔘 It could be on a windows machine over a network share. If so, try to resolve the path to it's accurate network location.
+		- 🔘 If it's on a local filesystem, try to reinterpret the path to an existing local one.
+		- But don't work SO hard that it guesses incorrectly, that would be worse than being unable to resolve.
+	- 🔘 Update the functionality of the "Make symlink ..." menu item:
+		- New name: "Make link ..."
+		- A dialog opens, with options:
+			- "Link type(s)"             ## Radio button options below
+				- Label: "N folder(s):"  ## Only show the label if both files and folders are selected; if only folders, collapse the grouping.
+					- Junction[s]        ## The default for Windows folders if supported.
+					- Symlink[s]         ## The default otherwise
+				- Label: "N file(s):"    ## Only shown if both files and folders are selected; if only files, collapse the grouping.
+					- Symlink[s]         ## The default otherwise
+					- Hardlink[s]        ## Flyover text with urgent warning about the risks.
+			- "Path"                     ## Radio button options (section disabled if everything is Hardlinks and/or Junctions)
+				- Relative
+				- Absolute
+			- Buttons
+				- Cancel, OK
+
 - **Stop here for a next release**.
 
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
