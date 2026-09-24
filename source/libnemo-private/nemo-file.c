@@ -59,6 +59,8 @@
 #include <libnemo-private/nemo-security-win32.h>
 #include <libnemo-private/nemo-shell-icon-win32.h>
 #include <libnemo-private/nemo-shortcut-win32.h>
+#else
+#include <libnemo-private/nemo-lnk.h>
 #endif
 #include <gtk/gtk.h>
 #include <glib/gi18n.h>
@@ -2093,13 +2095,11 @@ show_shortcut_extension_changed_callback (gpointer callback_data)
 							   NEMO_PREFERENCES_SHOW_SHORTCUT_EXTENSION);
 }
 
-#ifdef G_OS_WIN32
 static gboolean
 name_has_lnk (const char *name)
 {
 	return name_has_extension (name, ".lnk");
 }
-#endif
 
 /* The shell never shows a shortcut's extension, so neither do we unless asked to. */
 static gboolean
@@ -2129,11 +2129,9 @@ hidden_extension (NemoFile *file)
 		return NULL;
 	}
 
-#ifdef G_OS_WIN32
 	if (name_has_lnk (file->details->name)) {
 		return ".lnk";
 	}
-#endif
 
 	if (name_has_extension (file->details->name, ".desktop")) {
 		return ".desktop";
@@ -3620,11 +3618,13 @@ file_has_note (NemoFile *file)
 static gboolean
 file_is_shortcut (NemoFile *file)
 {
+	if (name_has_lnk (file->details->name)) {
+		return TRUE;
+	}
 #ifdef G_OS_WIN32
 	/* mime_type is the extension on Windows rather than a media type, so the
 	   .desktop test below never answers yes there. */
-	if (name_has_lnk (file->details->name) ||
-	    name_has_extension (file->details->name, ".desktop")) {
+	if (name_has_extension (file->details->name, ".desktop")) {
 		return TRUE;
 	}
 #endif
@@ -5670,6 +5670,21 @@ nemo_file_get_icon (NemoFile *file,
 		if (pixbuf != NULL) {
 			icon = nemo_icon_info_new_for_pixbuf (pixbuf, scale);
 			g_object_unref (pixbuf);
+			return icon;
+		}
+	}
+#else
+	/* A Windows shortcut wears the icon of what it points at, worked out
+	   from the shortcut alone: the target may be on a share that is not
+	   answering. */
+	if (name_has_lnk (file->details->name) && nemo_file_is_local (file)) {
+		char *path = nemo_file_get_path (file);
+		GIcon *target_icon = path != NULL ? nemo_lnk_icon_for_path (path, file->details->mtime) : NULL;
+
+		g_free (path);
+		if (target_icon != NULL) {
+			icon = nemo_icon_info_lookup (target_icon, size, scale);
+			g_object_unref (target_icon);
 			return icon;
 		}
 	}
