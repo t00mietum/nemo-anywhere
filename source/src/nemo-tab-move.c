@@ -62,7 +62,6 @@ typedef struct {
 	guint32 id;
 	guint64 handle;
 	char *title;
-	NemoWindow *window;
 } Target;
 
 void
@@ -308,7 +307,6 @@ list_targets (NemoWindow *here)
 			continue;
 		}
 		target = g_new0 (Target, 1);
-		target->window = NEMO_WINDOW (l->data);
 		target->id = gtk_application_window_get_id (GTK_APPLICATION_WINDOW (l->data));
 		target->handle = nemo_window_native_handle (GTK_WINDOW (l->data));
 		target->title = g_strdup (gtk_window_get_title (GTK_WINDOW (l->data)));
@@ -380,7 +378,15 @@ move_to_target (NemoWindowSlot *slot,
 	gboolean moved = TRUE;
 
 	if (target->bus_name == NULL) {
-		nemo_window_take_tab (target->window, state, event_time);
+		/* Looked up again, since the window may have closed while the menu
+		   was up. */
+		NemoWindow *window = window_by_id (target->id);
+
+		if (window != NULL && window_listed (window)) {
+			nemo_window_take_tab (window, state, event_time);
+		} else {
+			moved = FALSE;
+		}
 	} else {
 		GDBusConnection *connection;
 		GVariant *reply;
