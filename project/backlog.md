@@ -1643,9 +1643,11 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 				- Label: "N folder(s):"  ## Only show the label if both files and folders are selected; if only folders, collapse the grouping.
 					- Junction[s]        ## The default for Windows folders if supported.
 					- Symlink[s]         ## The default otherwise
+					- Link[s]            ## If not a Windows build, include flyover text that it's a Windows feature, that only Nemo Anywhere supports. Explain briefly how they are different.
 				- Label: "N file(s):"    ## Only shown if both files and folders are selected; if only files, collapse the grouping.
 					- Symlink[s]         ## The default otherwise
 					- Hardlink[s]        ## Flyover text with urgent warning about the risks.
+					- Link[s]            ## If not a Windows build, include flyover text that it's a Windows feature, that only Nemo Anywhere supports. Explain briefly how they are different.
 			- "Path"                     ## Radio button options (section disabled if everything is Hardlinks and/or Junctions)
 				- Relative
 				- Absolute
@@ -1654,7 +1656,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Done: the dialog is in, on every platform. Junctions only show on Windows. The last choices are remembered, relative is the default, and a hardlink is never picked for anyone.
 		- Note: the OK button reads "Make link" or "Make links", since buttons are named for what they do.
 		- Note: this also covers the relative or absolute symlink option from the private notes.
-		- Done: choosing a hardlink asks once more, every time, and lists what can go wrong. Cancel is the default and goes back to the dialog.
+		- Done: choosing a hardlink asks once more, every time, and lists what can go wrong as spaced bullets. Cancel is the default and goes back to the dialog.
 		- Done: the Hardlink choice carries a warning sign after its label.
 
 - ✅ Allow moving tabs to other nemo-anywhere windows.
