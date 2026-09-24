@@ -1128,9 +1128,10 @@ share_for_path (const char *path, GPtrArray *mounts, char **unc, char **suffix)
 				     : g_build_filename (g_get_user_runtime_dir (), "gvfs", NULL);
 	under = server == NULL ? path_under (path, gvfs_dir) : NULL;
 	if (under != NULL && g_str_has_prefix (under, "smb-share:")) {
-		const char *slash = strchr (under, '/');
-		char *name = slash != NULL ? g_strndup (under, slash - under) : g_strdup (under);
-		char **pairs = g_strsplit (name + strlen ("smb-share:"), ",", -1);
+		const char *fields = under + strlen ("smb-share:");
+		const char *slash = strchr (fields, '/');
+		char *name = slash != NULL ? g_strndup (fields, slash - fields) : g_strdup (fields);
+		char **pairs = g_strsplit (name, ",", -1);
 		int p;
 
 		for (p = 0; pairs[p] != NULL; p++) {
@@ -1293,12 +1294,12 @@ nemo_lnk_write (const char  *lnk_path,
 
 	file = g_file_new_for_path (lnk_path);
 	stream = g_file_create (file, G_FILE_CREATE_NONE, NULL, error);
+	/* A write that fails part way is left as it is and reported. Nothing
+	   here deletes, so the delete guard has one less place to cover, and a
+	   short file reads as an ordinary one rather than a shortcut. */
 	ok = stream != NULL &&
 	     g_output_stream_write_all (G_OUTPUT_STREAM (stream), out->data, out->len, NULL, NULL, error) &&
 	     g_output_stream_close (G_OUTPUT_STREAM (stream), NULL, error);
-	if (stream != NULL && !ok) {
-		g_file_delete (file, NULL, NULL);
-	}
 	g_clear_object (&stream);
 	g_object_unref (file);
 
