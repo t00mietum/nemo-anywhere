@@ -2301,7 +2301,8 @@ activation_start_mountables (ActivateParameters *parameters)
  * instead of a new Explorer window; everything else is handed straight to the
  * shell, which is the only thing that knows about the arguments, working
  * directory and window state the shortcut carries - none of which survive being
- * reduced to a target path.
+ * reduced to a target path. A shortcut made off Windows is the other exception:
+ * the shell cannot read it, so its target is opened here too.
  *
  * Returns the list to activate normally with folder shortcuts swapped for their
  * targets, or NULL when nothing is left. *handled says whether any shortcut was
@@ -2321,6 +2322,7 @@ resolve_win32_shortcuts (GList *files, gboolean *handled)
 		char *current = path;
 		char *final = NULL;
 		GHashTable *seen;
+		gboolean by_shell = TRUE;
 		gsize len;
 		int hop;
 
@@ -2337,6 +2339,7 @@ resolve_win32_shortcuts (GList *files, gboolean *handled)
 		seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 		for (hop = 0; hop < SHORTCUT_MAX_HOPS && current != NULL; hop++) {
 			char *target = NULL;
+			gboolean hop_by_shell = TRUE;
 
 			len = strlen (current);
 			if (len <= 4 || g_ascii_strcasecmp (current + len - 4, ".lnk") != 0) {
@@ -2346,10 +2349,12 @@ resolve_win32_shortcuts (GList *files, gboolean *handled)
 				break;  /* already followed this one - a loop */
 			}
 			g_hash_table_insert (seen, g_strdup (current), NULL);
-			if (!nemo_shortcut_win32_read (current, &target, NULL) || target == NULL) {
+			if (!nemo_shortcut_win32_read_target (current, &target, &hop_by_shell, NULL) ||
+			    target == NULL) {
 				g_free (target);
 				break;
 			}
+			by_shell = by_shell && hop_by_shell;
 
 			g_free (final);
 			final = target;
@@ -2357,7 +2362,11 @@ resolve_win32_shortcuts (GList *files, gboolean *handled)
 		}
 		g_hash_table_destroy (seen);
 
-		if (final != NULL && g_file_test (final, G_FILE_TEST_IS_DIR)) {
+		/* The shell cannot open a chain it could not read all of itself, so
+		 * a file at the end of one is opened here, as a folder is. */
+		if (final != NULL &&
+		    (g_file_test (final, G_FILE_TEST_IS_DIR) ||
+		     (!by_shell && g_file_test (final, G_FILE_TEST_EXISTS)))) {
 			char *uri = g_filename_to_uri (final, NULL, NULL);
 			NemoFile *tfile = uri ? nemo_file_get_by_uri (uri) : NULL;
 

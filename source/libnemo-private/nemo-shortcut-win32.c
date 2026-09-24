@@ -13,6 +13,7 @@
 #ifdef G_OS_WIN32
 
 #include "nemo-launch-win32.h"
+#include "nemo-lnk.h"
 
 #include <string.h>
 #include <gio/gio.h>
@@ -183,10 +184,62 @@ nemo_shortcut_win32_create_relative (const char  *target_path,
 	return create_shortcut (target_path, lnk_path, NULL, NULL, NULL, TRUE, error);
 }
 
+/* The shell reads a shortcut through its item id list, which one made off
+ * Windows does not have. What that one holds instead is the path relative to
+ * itself, and the \\server\share path when the target was on a share. The
+ * share goes last, since one that is not answering takes a long time to say
+ * so. */
+static char *
+target_without_shell (const char *lnk_path)
+{
+	NemoLnk lnk;
+	char *dir, *candidate;
+	char *found = NULL;
+
+	if (!nemo_lnk_read (lnk_path, &lnk)) {
+		return NULL;
+	}
+
+	if (lnk.relative_path != NULL && lnk.relative_path[0] != '\0') {
+		dir = g_path_get_dirname (lnk_path);
+		candidate = g_canonicalize_filename (lnk.relative_path, dir);
+		g_free (dir);
+		if (g_file_test (candidate, G_FILE_TEST_EXISTS)) {
+			found = candidate;
+		} else {
+			g_free (candidate);
+		}
+	}
+	if (found == NULL && lnk.local_path != NULL &&
+	    g_file_test (lnk.local_path, G_FILE_TEST_EXISTS)) {
+		found = g_strdup (lnk.local_path);
+	}
+	if (found == NULL && lnk.net_share != NULL) {
+		candidate = g_build_filename (lnk.net_share, lnk.net_path, NULL);
+		if (g_file_test (candidate, G_FILE_TEST_EXISTS)) {
+			found = candidate;
+		} else {
+			g_free (candidate);
+		}
+	}
+	nemo_lnk_clear (&lnk);
+
+	return found;
+}
+
 gboolean
 nemo_shortcut_win32_read (const char  *lnk_path,
                           char       **target_path,
                           GError     **error)
+{
+	return nemo_shortcut_win32_read_target (lnk_path, target_path, NULL, error);
+}
+
+gboolean
+nemo_shortcut_win32_read_target (const char  *lnk_path,
+                                 char       **target_path,
+                                 gboolean    *by_shell,
+                                 GError     **error)
 {
 	IShellLinkW *link = NULL;
 	IPersistFile *pf = NULL;
@@ -202,6 +255,9 @@ nemo_shortcut_win32_read (const char  *lnk_path,
 	g_return_val_if_fail (target_path != NULL, FALSE);
 
 	*target_path = NULL;
+	if (by_shell != NULL) {
+		*by_shell = TRUE;
+	}
 
 	w_lnk = to_utf16 (lnk_path);
 	if (w_lnk == NULL) {
@@ -237,6 +293,14 @@ nemo_shortcut_win32_read (const char  *lnk_path,
 	buf[0] = L'\0';
 	hr = IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf), NULL, 0);
 	if (FAILED (hr) || buf[0] == L'\0') {
+		*target_path = target_without_shell (lnk_path);
+		if (*target_path != NULL) {
+			if (by_shell != NULL) {
+				*by_shell = FALSE;
+			}
+			ok = TRUE;
+			goto release;
+		}
 		/* No file-system target - e.g. a shortcut to a virtual item that
 		 * stores only an ID list. Nothing to follow. */
 		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND,
@@ -427,8 +491,16 @@ nemo_shortcut_win32_target_is_dir (const char *lnk_path,
 		buf[0] = L'\0';
 
 		if (SUCCEEDED (IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf),
-						    &found, SLGP_RAWPATH))) {
+						    &found, SLGP_RAWPATH)) && buf[0] != L'\0') {
 			is_dir = (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+		} else {
+			/* One made off Windows: the header says what the target was. */
+			NemoLnk lnk;
+
+			if (nemo_lnk_read (lnk_path, &lnk)) {
+				is_dir = nemo_lnk_is_dir (&lnk);
+				nemo_lnk_clear (&lnk);
+			}
 		}
 
 		IPersistFile_Release (pf);

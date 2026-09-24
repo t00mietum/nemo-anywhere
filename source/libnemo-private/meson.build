@@ -125,9 +125,8 @@ if is_windows
   nemo_private_sources += 'nemo-clipboard-win32.c'
   nemo_private_sources += 'nemo-dnd-win32.c'
   nemo_private_sources += 'nemo-shell-icon-win32.c'
-else
-  nemo_private_sources += 'nemo-lnk.c'
 endif
+nemo_private_sources += 'nemo-lnk.c'
 
 if libselinux_enabled
   nemo_private_deps += libselinux

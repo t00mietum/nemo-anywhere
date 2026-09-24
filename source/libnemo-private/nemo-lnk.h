@@ -28,7 +28,8 @@
 G_BEGIN_DECLS
 
 /* What a shortcut file says, in UTF-8 and Windows spelling. Any string may be
-   NULL. Windows itself reads these through the shell and never comes here. */
+   NULL. Windows reads these through the shell, and comes here only for one the
+   shell cannot place, such as one made off Windows. */
 typedef struct {
 	guint32   attributes;     /* the target's, as they were when the link was made */
 	char     *local_path;     /* C:\dir\file */
@@ -50,6 +51,9 @@ gboolean nemo_lnk_is_dir (const NemoLnk *lnk);
 
 /* The target as Windows would print it, for messages. Caller frees. */
 char    *nemo_lnk_display_target (const NemoLnk *lnk);
+
+/* Only the above is built on Windows. */
+#ifndef G_OS_WIN32
 
 /* Where the target is on this machine, as a URI, or NULL. A candidate counts
    only once it is found to exist; the one exception is the smb:// fallback,
@@ -84,6 +88,8 @@ gboolean nemo_lnk_write (const char  *lnk_path,
 void     nemo_lnk_set_system_paths (const char *mountinfo,
                                     const char *by_uuid_dir,
                                     const char *gvfs_dir);
+
+#endif /* !G_OS_WIN32 */
 
 G_END_DECLS
 

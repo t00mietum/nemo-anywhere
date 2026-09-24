@@ -38,6 +38,15 @@ gboolean nemo_shortcut_win32_read   (const char  *lnk_path,
                                      char       **target_path,
                                      GError     **error);
 
+/* The same, and whether the shell itself could place the target. A shortcut
+ * made off Windows has none of what the shell reads, so its target is taken
+ * from the relative or share path it holds instead, and only something that
+ * opens the target directly can follow it. */
+gboolean nemo_shortcut_win32_read_target (const char  *lnk_path,
+                                          char       **target_path,
+                                          gboolean    *by_shell,
+                                          GError     **error);
+
 /* Everything a shortcut says about what it runs. Any field may be empty. */
 typedef struct {
 	char *target;

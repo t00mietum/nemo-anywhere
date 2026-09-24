@@ -75,9 +75,11 @@ static const guint8 lnk_clsid[16] = {
 	0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46
 };
 
+#ifndef G_OS_WIN32
 static char *mountinfo_path;
 static char *by_uuid_path;
 static char *gvfs_path;
+#endif
 
 static guint16
 get_u16 (const guint8 *p)
@@ -396,6 +398,10 @@ nemo_lnk_display_target (const NemoLnk *lnk)
 
 	return g_strdup (lnk->relative_path);
 }
+
+/* Windows builds only the reading above. The rest places a target on this
+   machine's mounts and drives, which Windows does for itself. */
+#ifndef G_OS_WIN32
 
 void
 nemo_lnk_set_system_paths (const char *mountinfo,
@@ -1449,3 +1455,5 @@ nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime)
 
 	return icon;
 }
+
+#endif /* !G_OS_WIN32 */
