@@ -47,10 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Allow moving tabs to other nemo-anywhere windows.
-	- Opened: 20260922
-	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
-
 - **Stop here for a next release**.
 
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
@@ -1618,6 +1614,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Allow moving tabs to other nemo-anywhere windows.
+	- Opened: 20260922. Closed: 20260924-095019.
+	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
+	- Done: a tab's right-click menu has "Move tab to", which lists every other window by its title, and a new window. A tab dragged off its tab bar and dropped on another window goes to that window. Dropped anywhere else, it gets a new window, as before.
+	- Done: the folder, the view and the selection go with the tab. Back and forward history stays behind, as it does for any new window. The window that takes the tab comes to the front.
+	- Note: a drop needs to know which window is under the pointer, and Wayland does not say, so there a dropped tab always gets a new window. The menu works everywhere. A search tab cannot be moved, since the search only exists in its own window.
+	- Note: not tried on real Windows yet.
+	- Swept: a tab dragged out to a new window used to lose its view and selection, and keeps them now. With the one-process setting on, a drop on another window's tab bar still moves the tab itself, history and all.
 
 - ✅ Copying a tiny file makes a CoW clone of it, where a plain copy would do better.
 	- Opened: 20260923-114627. Closed: 20260924-100500.
