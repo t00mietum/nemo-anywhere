@@ -663,36 +663,103 @@ add_row_label (GtkGrid *grid, int row, const char *text)
 	return label;
 }
 
+static GtkWidget *
+warning_text (const char *text)
+{
+	GtkWidget *label = gtk_label_new (text);
+
+	gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
+	gtk_label_set_max_width_chars (GTK_LABEL (label), 60);
+	gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+	gtk_label_set_selectable (GTK_LABEL (label), TRUE);
+	/* A selectable label takes the focus from Cancel otherwise, as eel's
+	   dialogs note. Copying still works with the pointer. */
+	gtk_widget_set_can_focus (label, FALSE);
+
+	return label;
+}
+
 /* Asked every time, with Cancel first. A hardlink is the one kind of link
-   that can quietly ruin work, years later, with nothing to show it happened. */
+   that can quietly ruin work, years later, with nothing to show it happened.
+   The list is a grid rather than text so a wrapped line starts under the
+   words, not under the bullet. */
 static gboolean
 confirm_hardlinks (GtkWindow *parent, int n_files)
 {
+	const char *risks[] = {
+		N_("An edit through either name changes both. Hours of work on one document "
+		   "can quietly change a \"different\" one nobody has opened in years, and it "
+		   "may not be found until backups of the original are gone."),
+		N_("Many programs save by replacing the file. That splits the two apart "
+		   "without a word, and later edits no longer match."),
+		N_("Permissions and dates are shared. A change to one name is a change to all."),
+		N_("Deleting one name frees no space until every name is gone."),
+		N_("Copying to another drive, zipping, cloud sync and many backups and "
+		   "restores turn each name back into a full, separate copy."),
+	};
 	GtkDialog *dialog;
-	int response;
+	GtkWidget *box, *grid, *label, *area;
+	GList *children;
+	PangoFontMetrics *metrics;
+	int line, response;
+	guint i;
 
 	dialog = eel_create_question_dialog (
 		ngettext ("Make a hardlink anyway?", "Make hardlinks anyway?", n_files),
+		/* As the secondary text, since without any GTK draws the title
+		   small, unlike every other question. */
 		_("A hardlink is not a copy, and not a pointer either. It is the same file "
 		  "under a second name, and nothing on screen shows which files are tied "
-		  "together.\n\n"
-		  "- An edit through either name changes both. Hours of work on one document "
-		  "can quietly change a \"different\" one nobody has opened in years, and it "
-		  "may not be found until backups of the original are gone.\n"
-		  "- Many programs save by replacing the file. That splits the two apart "
-		  "without a word, and later edits no longer match.\n"
-		  "- Permissions and dates are shared. A change to one name is a change to all.\n"
-		  "- Deleting one name frees no space until every name is gone.\n"
-		  "- Copying to another drive, zipping, cloud sync and many backups and "
-		  "restores turn each name back into a full, separate copy.\n\n"
-		  "Hardlinks are only safe where they plainly mean the same file, as in backup "
-		  "tools that keep versions of whole folder trees. Files that just happen to "
-		  "have the same content are not that."),
+		  "together."),
 		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 		ngettext ("Make _hardlink", "Make _hardlinks", n_files), GTK_RESPONSE_OK,
 		parent);
 	g_object_set (dialog, "message-type", GTK_MESSAGE_WARNING, NULL);
 	gtk_dialog_set_default_response (dialog, GTK_RESPONSE_CANCEL);
+
+	/* Spacing in lines of the dialog's own font, so it scales with it. */
+	metrics = pango_context_get_metrics (gtk_widget_get_pango_context (GTK_WIDGET (dialog)),
+					     NULL, NULL);
+	line = PANGO_PIXELS (pango_font_metrics_get_ascent (metrics) +
+			     pango_font_metrics_get_descent (metrics));
+	pango_font_metrics_unref (metrics);
+
+	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, line);
+
+	grid = gtk_grid_new ();
+	gtk_grid_set_row_spacing (GTK_GRID (grid), line * 2 / 3);
+	gtk_grid_set_column_spacing (GTK_GRID (grid), line / 2);
+	for (i = 0; i < G_N_ELEMENTS (risks); i++) {
+		label = gtk_label_new ("\xe2\x80\xa2");  /* bullet */
+		gtk_widget_set_valign (label, GTK_ALIGN_START);
+		gtk_grid_attach (GTK_GRID (grid), label, 0, i, 1, 1);
+
+		label = warning_text (_(risks[i]));
+		gtk_widget_set_hexpand (label, TRUE);
+		gtk_grid_attach (GTK_GRID (grid), label, 1, i, 1, 1);
+	}
+	gtk_box_pack_start (GTK_BOX (box), grid, FALSE, FALSE, 0);
+
+	gtk_box_pack_start (GTK_BOX (box),
+			    warning_text (_("Hardlinks are only safe where they plainly mean the same "
+					    "file, as in backup tools that keep versions of whole folder "
+					    "trees. Files that just happen to have the same content are "
+					    "not that.")),
+			    FALSE, FALSE, 0);
+
+	area = gtk_message_dialog_get_message_area (GTK_MESSAGE_DIALOG (dialog));
+
+	/* GTK centers the secondary text as a block, which leaves it a few
+	   pixels off the list below. The title is the first label; leave it. */
+	children = gtk_container_get_children (GTK_CONTAINER (area));
+	if (children != NULL && children->next != NULL && GTK_IS_LABEL (children->next->data)) {
+		gtk_label_set_xalign (GTK_LABEL (children->next->data), 0.0);
+		gtk_widget_set_halign (GTK_WIDGET (children->next->data), GTK_ALIGN_START);
+	}
+	g_list_free (children);
+
+	gtk_box_pack_start (GTK_BOX (area), box, FALSE, FALSE, line / 2);
+	gtk_widget_show_all (box);
 
 	response = gtk_dialog_run (dialog);
 	gtk_widget_destroy (GTK_WIDGET (dialog));
