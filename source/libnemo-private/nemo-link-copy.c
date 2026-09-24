@@ -18,6 +18,8 @@
 
 #include "nemo-global-preferences.h"
 
+#include <eel/eel-stock-dialogs.h>
+
 #ifdef G_OS_WIN32
 #include "nemo-link-win32.h"
 #else
@@ -643,6 +645,43 @@ add_row_label (GtkGrid *grid, int row, const char *text)
 	return label;
 }
 
+/* Asked every time, with Cancel first. A hardlink is the one kind of link
+   that can quietly ruin work, years later, with nothing to show it happened. */
+static gboolean
+confirm_hardlinks (GtkWindow *parent, int n_files)
+{
+	GtkDialog *dialog;
+	int response;
+
+	dialog = eel_create_question_dialog (
+		ngettext ("Make a hardlink anyway?", "Make hardlinks anyway?", n_files),
+		_("A hardlink is not a copy, and not a pointer either. It is the same file "
+		  "under a second name, and nothing on screen shows which files are tied "
+		  "together.\n\n"
+		  "- An edit through either name changes both. Hours of work on one document "
+		  "can quietly change a \"different\" one nobody has opened in years, and it "
+		  "may not be found until backups of the original are gone.\n"
+		  "- Many programs save by replacing the file. That splits the two apart "
+		  "without a word, and later edits no longer match.\n"
+		  "- Permissions and dates are shared. A change to one name is a change to all.\n"
+		  "- Deleting one name frees no space until every name is gone.\n"
+		  "- Copying to another drive, zipping, cloud sync and many backups and "
+		  "restores turn each name back into a full, separate copy.\n\n"
+		  "Hardlinks are only safe where they plainly mean the same file, as in backup "
+		  "tools that keep versions of whole folder trees. Files that just happen to "
+		  "have the same content are not that."),
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		ngettext ("Make _hardlink", "Make _hardlinks", n_files), GTK_RESPONSE_OK,
+		parent);
+	g_object_set (dialog, "message-type", GTK_MESSAGE_WARNING, NULL);
+	gtk_dialog_set_default_response (dialog, GTK_RESPONSE_CANCEL);
+
+	response = gtk_dialog_run (dialog);
+	gtk_widget_destroy (GTK_WIDGET (dialog));
+
+	return response == GTK_RESPONSE_OK;
+}
+
 gboolean
 nemo_link_options_ask (GtkWindow       *parent,
                        GFile           *destination,
@@ -792,10 +831,17 @@ nemo_link_options_ask (GtkWindow       *parent,
 	g_list_free (children);
 	update_make_link_dialog (NULL, &d);
 
-	response = gtk_dialog_run (GTK_DIALOG (d.dialog));
+	/* Backing out of the hardlink warning comes back here with the
+	   choices as they were, rather than dropping the whole thing. */
+	do {
+		response = gtk_dialog_run (GTK_DIALOG (d.dialog));
+		if (response == GTK_RESPONSE_OK) {
+			read_options (&d, options);
+		}
+	} while (response == GTK_RESPONSE_OK && n_files > 0 && options->file_hardlink &&
+		 !confirm_hardlinks (GTK_WINDOW (d.dialog), n_files));
 
 	if (response == GTK_RESPONSE_OK) {
-		read_options (&d, options);
 		if (n_folders > 0 && d.folder_junction != NULL) {
 			nemo_config_set_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FOLDER_KIND,
 					      options->folder_junction ? 0 : 1);

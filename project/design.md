@@ -437,7 +437,7 @@ Copying a link asks what should be at the far end. A link can stay a link or be 
 
 - Make link asks what to make, one row for the folders and one for the files. Folders get a junction or a symlink on Windows and a symlink elsewhere. Files get a symlink or a hardlink. A path row picks relative or absolute for whatever comes out a symlink, and goes gray when nothing does.
 	- Relative is the default. It keeps working when a whole tree is moved or mounted somewhere else, which is the usual reason to link inside one. It is worked out from where both ends really are, with symlinked folders resolved, so the link points where it looks like it should. Between two Windows drives there is no relative path, and the link keeps the absolute one.
-	- A hardlink is never picked for anyone, even where a symlink cannot be made. It is the one choice that can cost something: a program that saves by replacing the file splits the two names apart without a word. Its tooltip says so.
+	- A hardlink is never picked for anyone, even where a symlink cannot be made. It is the one choice that can cost something: an edit through one name changes a file that looks unrelated, and a program that saves by replacing the file splits the two names apart without a word. Its tooltip says so, and choosing it asks once more, every time, with Cancel as the default. Backing out goes back to the dialog with the choices as they were.
 	- The last choices are kept in the settings file and offered next time, where the folder allows them.
 	- Windows with no symlink privilege still gets the menu item, since a junction and a hardlink need none. The symlink choices are gray, with a line saying why.
 
