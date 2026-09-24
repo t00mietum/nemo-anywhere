@@ -1639,16 +1639,6 @@ action_create_link_callback (GtkAction *action,
 	}
 }
 
-/* Windows only - the .lnk the shell understands, as against a symlink. */
-static void
-action_create_shortcut_callback (GtkAction *action,
-				 gpointer callback_data)
-{
-        g_assert (NEMO_IS_VIEW (callback_data));
-
-        create_links_for_selection (NEMO_VIEW (callback_data), NULL);
-}
-
 static void
 action_pin_unpin_file_callback (GtkAction *action,
                                 gpointer   callback_data)
@@ -4453,14 +4443,8 @@ nemo_view_create_links_for_files (NemoView *view, GList *files,
 
         copy_move_done_data = pre_copy_move (view);
 	dir_uri = nemo_view_get_backing_uri (view);
-	/* No options is the Windows shortcut item, which makes a .lnk. */
-	if (options != NULL) {
-		nemo_file_operations_symlink (uris, relative_item_points, dir_uri, options,
-					      GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
-	} else {
-		nemo_file_operations_copy_move (uris, relative_item_points, dir_uri, GDK_ACTION_LINK,
-						    GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
-	}
+	nemo_file_operations_symlink (uris, relative_item_points, dir_uri, options,
+				      GTK_WIDGET (view), copy_move_done_callback, copy_move_done_data);
 	g_free (dir_uri);
 	g_list_free_full (uris, g_free);
 }
@@ -9174,10 +9158,6 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Ma_ke link..."), "<control>M",
   /* tooltip */                  N_("Make a symlink, hardlink, junction or Windows shortcut to each selected item"),
 				 G_CALLBACK (action_create_link_callback) },
-  /* name, stock id */         { "Create Shortcut", NULL,
-  /* label, accelerator */       N_("Make s_hortcut"), NULL,
-  /* tooltip */                  N_("Create a Windows shortcut for each selected item"),
-				 G_CALLBACK (action_create_shortcut_callback) },
   /* name, stock id */         { "Rename", NULL,
   /* label, accelerator */       N_("_Rename..."), "F2",
   /* tooltip */                  N_("Rename selected item"),
@@ -10899,20 +10879,6 @@ real_update_menus (NemoView *view)
 	g_object_set (action, "label",
 		      ngettext ("Ma_ke link...",
 			      	"Ma_ke links...",
-				selection_count),
-		      NULL);
-
-	action = gtk_action_group_get_action (view->details->dir_action_group,
-					      NEMO_ACTION_CREATE_SHORTCUT);
-	gtk_action_set_sensitive (action, can_link_files);
-#ifdef G_OS_WIN32
-    gtk_action_set_visible (action, !selection_contains_recent && !selection_contains_favorites);
-#else
-    gtk_action_set_visible (action, FALSE);
-#endif
-	g_object_set (action, "label",
-		      ngettext ("Make s_hortcut",
-			      	"Make s_hortcuts",
 				selection_count),
 		      NULL);
 

@@ -1663,6 +1663,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Done: "Link" makes a Windows `.lnk` shortcut, for folders and files, on every platform. Off Windows its tooltip says how it differs from a symlink, and that Windows follows a portable one.
 		- Note: Path is for symlinks only, and is grayed for junctions, which are always absolute, and hardlinks, which have no path.
 		- Changed: Links get their own row, "Link paths", with three checkboxes that all start checked: Absolute, Relative and Portable. One shortcut can hold all three, and is followed by the first that still leads somewhere. The symlink row is now "Symlink path". OK is grayed while a Link is chosen with none checked.
+		- Done: the Windows-only "Make shortcut" item is gone, since Link covers it. A drag with the link modifier still makes a shortcut on Windows.
 		- Done: Portable puts a Windows environment variable in the path where one covers the target, such as `%USERPROFILE%`. Off Windows that means the home folder, and a target on a Windows share keeps its `\\server\share` path there instead.
 		- Done: variables are read and written as Windows `%NAME%` on every platform, never `$NAME`. Off Windows `%USERPROFILE%` reads as the home folder.
 		- Done: paths inside a shortcut are always spelled the Windows way, with backslashes, even off Windows. They are read back for the platform in use.
