@@ -177,18 +177,52 @@ nemo_shortcut_win32_create (const char  *target_path,
 }
 
 gboolean
-nemo_shortcut_win32_create_relative (const char  *target_path,
-                                     const char  *lnk_path,
-                                     GError     **error)
+nemo_shortcut_win32_create_parts (const char  *target_path,
+                                  const char  *lnk_path,
+                                  guint        parts,
+                                  GError     **error)
 {
-	return create_shortcut (target_path, lnk_path, NULL, NULL, NULL, TRUE, error);
+	GError *local_error = NULL;
+	char *portable = NULL;
+	gboolean ok;
+
+	/* The shell has no way to leave the item id list out. Without it the
+	 * shell follows only the path with variables, so that goes in plain
+	 * when no variable covers the target. */
+	if (!(parts & NEMO_LNK_ABSOLUTE)) {
+		return nemo_lnk_write (lnk_path, target_path, parts, error);
+	}
+
+	/* Given a path with a variable in it, the shell keeps it that way as
+	 * well as the absolute one, and prefers it. */
+	if (parts & NEMO_LNK_PORTABLE) {
+		portable = nemo_lnk_portable_path (target_path);
+	}
+	/* The block it goes in holds 260 characters. */
+	if (portable != NULL && g_utf8_strlen (portable, -1) >= MAX_PATH) {
+		g_clear_pointer (&portable, g_free);
+	}
+	ok = create_shortcut (portable != NULL ? portable : target_path, lnk_path,
+			      NULL, NULL, NULL, (parts & NEMO_LNK_RELATIVE) != 0, error);
+	g_free (portable);
+
+	/* Only a spare way back is lost if this fails; the shortcut works. */
+	if (ok && !(parts & NEMO_LNK_RELATIVE) &&
+	    !nemo_lnk_drop_relative (lnk_path, &local_error)) {
+		g_warning ("Could not take the relative path out of %s: %s",
+			   lnk_path, local_error->message);
+		g_error_free (local_error);
+	}
+
+	return ok;
 }
 
 /* The shell reads a shortcut through its item id list, which one made off
  * Windows does not have. What that one holds instead is the path relative to
  * itself, and the \\server\share path when the target was on a share. The
  * share goes last, since one that is not answering takes a long time to say
- * so. */
+ * so. A path with variables in it is read by the shell, and comes here only
+ * when the shell found nothing there. */
 static char *
 target_without_shell (const char *lnk_path)
 {
@@ -292,7 +326,24 @@ nemo_shortcut_win32_read_target (const char  *lnk_path,
 
 	buf[0] = L'\0';
 	hr = IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf), NULL, 0);
+	/* A shortcut with no id list but a path with variables in it has no
+	 * path until it is resolved, which the shell does on opening it. An
+	 * unknown variable resolves to a folder named after it on the desktop,
+	 * with S_FALSE, so only S_OK and a target that is there count. Never
+	 * searches, and gives up after a second. */
 	if (FAILED (hr) || buf[0] == L'\0') {
+		hr = IShellLinkW_Resolve (link, NULL,
+					  SLR_NO_UI | SLR_NOUPDATE | SLR_NOSEARCH | SLR_NOTRACK |
+					  (1000 << 16));
+		buf[0] = L'\0';
+		if (hr == S_OK) {
+			hr = IShellLinkW_GetPath (link, buf, G_N_ELEMENTS (buf), NULL, 0);
+		}
+		if (hr != S_OK || GetFileAttributesW (buf) == INVALID_FILE_ATTRIBUTES) {
+			buf[0] = L'\0';
+		}
+	}
+	if (buf[0] == L'\0') {
 		*target_path = target_without_shell (lnk_path);
 		if (*target_path != NULL) {
 			if (by_shell != NULL) {

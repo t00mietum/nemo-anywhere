@@ -9,6 +9,7 @@
 
 #include <config.h>
 #include "nemo-link-copy.h"
+#include "nemo-lnk.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -562,13 +563,15 @@ nemo_link_options_initial (guint            supported,
 	options->file_kind = (supported & NEMO_LINK_FILE_SYMLINK) ? NEMO_MAKE_SYMLINK
 								 : NEMO_MAKE_SHORTCUT;
 	options->relative = FALSE;
+	options->lnk_parts = NEMO_LNK_ALL_PARTS;
 }
 
-/* A junction is always absolute, and a hardlink has no path at all. */
+/* A junction is always absolute, a hardlink has no path at all, and a
+   shortcut can carry both kinds at once. */
 static gboolean
 kind_uses_path (NemoMakeLink kind)
 {
-	return kind == NEMO_MAKE_SYMLINK || kind == NEMO_MAKE_SHORTCUT;
+	return kind == NEMO_MAKE_SYMLINK;
 }
 
 gboolean
@@ -580,6 +583,15 @@ nemo_link_options_uses_path (const NemoLinkOptions *options,
 	       (n_files > 0 && kind_uses_path (options->file_kind));
 }
 
+gboolean
+nemo_link_options_makes_lnk (const NemoLinkOptions *options,
+                             int                    n_folders,
+                             int                    n_files)
+{
+	return (n_folders > 0 && options->folder_kind == NEMO_MAKE_SHORTCUT) ||
+	       (n_files > 0 && options->file_kind == NEMO_MAKE_SHORTCUT);
+}
+
 typedef struct {
 	GtkWidget *dialog;
 	GtkWidget *folder_junction;
@@ -589,6 +601,10 @@ typedef struct {
 	GtkWidget *relative;
 	GtkWidget *absolute;
 	GtkWidget *path_label;
+	GtkWidget *lnk_label;
+	GtkWidget *lnk_absolute;
+	GtkWidget *lnk_relative;
+	GtkWidget *lnk_portable;
 	int        n_folders;
 	int        n_files;
 	guint      supported;
@@ -610,13 +626,16 @@ read_options (MakeLinkDialog *d, NemoLinkOptions *options)
 			   : is_active (d->file_shortcut) ? NEMO_MAKE_SHORTCUT
 			   : NEMO_MAKE_SYMLINK;
 	options->relative = is_active (d->relative);
+	options->lnk_parts = (is_active (d->lnk_absolute) ? NEMO_LNK_ABSOLUTE : 0) |
+			     (is_active (d->lnk_relative) ? NEMO_LNK_RELATIVE : 0) |
+			     (is_active (d->lnk_portable) ? NEMO_LNK_PORTABLE : 0);
 }
 
 static void
 update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
 {
 	NemoLinkOptions options;
-	gboolean uses_path, folders_ok, files_ok;
+	gboolean uses_path, makes_lnk, folders_ok, files_ok;
 
 	read_options (d, &options);
 
@@ -625,6 +644,12 @@ update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
 	gtk_widget_set_sensitive (d->relative, uses_path);
 	gtk_widget_set_sensitive (d->absolute, uses_path);
 
+	makes_lnk = nemo_link_options_makes_lnk (&options, d->n_folders, d->n_files);
+	gtk_widget_set_sensitive (d->lnk_label, makes_lnk);
+	gtk_widget_set_sensitive (d->lnk_absolute, makes_lnk);
+	gtk_widget_set_sensitive (d->lnk_relative, makes_lnk);
+	gtk_widget_set_sensitive (d->lnk_portable, makes_lnk);
+
 	/* Nothing is made until every row holds a choice this folder allows. */
 	folders_ok = d->n_folders == 0 || options.folder_kind == NEMO_MAKE_SHORTCUT ||
 		     (d->supported & (options.folder_kind == NEMO_MAKE_JUNCTION
@@ -632,7 +657,19 @@ update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
 	files_ok = d->n_files == 0 || options.file_kind != NEMO_MAKE_SYMLINK ||
 		   (d->supported & NEMO_LINK_FILE_SYMLINK);
 	gtk_dialog_set_response_sensitive (GTK_DIALOG (d->dialog), GTK_RESPONSE_OK,
-					   folders_ok && files_ok);
+					   folders_ok && files_ok &&
+					   (!makes_lnk || options.lnk_parts != 0));
+}
+
+static GtkWidget *
+add_check (GtkGrid *grid, int row, int column, const char *label, gboolean active)
+{
+	GtkWidget *button = gtk_check_button_new_with_mnemonic (label);
+
+	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), active);
+	gtk_grid_attach (grid, button, column, row, 1, 1);
+
+	return button;
 }
 
 static GtkWidget *
@@ -793,10 +830,11 @@ set_shortcut_tooltip (GtkWidget *button)
 		_("A shortcut, the same kind Explorer makes."));
 #else
 	gtk_widget_set_tooltip_text (button,
-		_("A Windows shortcut, saved as a .lnk file. Off Windows, only Nemo Anywhere "
-		  "follows it; other programs see a small file. Unlike a symlink it is an "
-		  "ordinary file, so it copies, zips and syncs anywhere as it is. A link to a "
-		  "folder opens that folder, rather than showing its contents here."));
+		_("A Windows shortcut, saved as a .lnk file. Nemo Anywhere follows it here, "
+		  "and Windows does too when it is portable; other programs here see a small "
+		  "file. Unlike a symlink it is an ordinary file, so it copies, zips and syncs "
+		  "anywhere as it is. A link to a folder opens that folder, rather than "
+		  "showing its contents here."));
 #endif
 }
 
@@ -918,13 +956,43 @@ nemo_link_options_ask (GtkWindow       *parent,
 		row++;
 	}
 
-	d.path_label = add_row_label (GTK_GRID (grid), row, _("Path:"));
+	d.path_label = add_row_label (GTK_GRID (grid), row, _("Symlink path:"));
 	d.relative = add_choice (GTK_GRID (grid), row, 1, NULL, _("_Relative"), TRUE, options->relative);
 	d.absolute = add_choice (GTK_GRID (grid), row, 2, d.relative, _("_Absolute"), TRUE, !options->relative);
 	gtk_widget_set_tooltip_text (d.relative,
 		_("Keeps working when the link and what it points to are moved together."));
 	gtk_widget_set_tooltip_text (d.absolute,
 		_("Keeps working when the link is moved on its own."));
+	row++;
+
+	/* A shortcut holds any of these at once, and is followed by the first
+	   that still leads somewhere. */
+	d.lnk_label = add_row_label (GTK_GRID (grid), row, _("Link paths:"));
+	d.lnk_absolute = add_check (GTK_GRID (grid), row, 1, _("A_bsolute"),
+				    (options->lnk_parts & NEMO_LNK_ABSOLUTE) != 0);
+	d.lnk_relative = add_check (GTK_GRID (grid), row, 2, _("Rela_tive"),
+				    (options->lnk_parts & NEMO_LNK_RELATIVE) != 0);
+	d.lnk_portable = add_check (GTK_GRID (grid), row, 3, _("_Portable"),
+				    (options->lnk_parts & NEMO_LNK_PORTABLE) != 0);
+	gtk_widget_set_tooltip_text (d.lnk_absolute,
+		_("The full path. Keeps working when the link is moved on its own."));
+	gtk_widget_set_tooltip_text (d.lnk_relative,
+		_("The path from the link. Keeps working when the link and what it points "
+		  "to are moved together. Windows uses it only when one of the others is "
+		  "there too."));
+#ifdef G_OS_WIN32
+	gtk_widget_set_tooltip_text (d.lnk_portable,
+		_("Environment variables such as %USERPROFILE% are used where possible, "
+		  "rather than hard-coded paths, so the link keeps working for another user "
+		  "or on another machine."));
+#else
+	gtk_widget_set_tooltip_text (d.lnk_portable,
+		_("Environment variables such as %USERPROFILE% are used where possible, "
+		  "rather than hard-coded paths, so the link keeps working for another user "
+		  "or on another machine. Here the home folder is %USERPROFILE%, and a "
+		  "Windows share keeps its \\\\server\\share path. Windows can follow "
+		  "either one, even from a link made here."));
+#endif
 
 	/* Say why something is grayed out. */
 	if (d.supported == 0) {
@@ -949,7 +1017,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 	/* Any change rechecks the lot. */
 	children = gtk_container_get_children (GTK_CONTAINER (grid));
 	for (l = children; l != NULL; l = l->next) {
-		if (GTK_IS_RADIO_BUTTON (l->data)) {
+		if (GTK_IS_TOGGLE_BUTTON (l->data)) {
 			g_signal_connect (l->data, "toggled", G_CALLBACK (update_make_link_dialog), &d);
 		}
 	}

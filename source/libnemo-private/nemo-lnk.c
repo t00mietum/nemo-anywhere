@@ -21,10 +21,10 @@
 */
 
 /* The file layout is Microsoft's [MS-SHLLINK]. Only the parts that say where
- * the target is are read: the header, the LinkInfo block and the strings after
- * it. The item id list is skipped. Shortcuts to files and folders always carry
- * LinkInfo as well, and the id list alone mostly names things like Control
- * Panel pages that mean nothing here. */
+ * the target is are read: the header, the LinkInfo block, the strings after it
+ * and the environment variable block. The item id list is skipped. Shortcuts
+ * to files and folders always carry LinkInfo as well, and the id list alone
+ * mostly names things like Control Panel pages that mean nothing here. */
 
 #include <config.h>
 
@@ -41,8 +41,8 @@
 #include <glib/gi18n.h>
 #include <glib/gstdio.h>
 
-/* Real shortcuts are a few KiB. Anything past this is extra data blocks, which
-   nothing here reads. */
+/* Real shortcuts are a few KiB. Anything past this is extra data blocks the
+   reader has no use for. */
 #define LNK_READ_MAX    (64 * 1024)
 #define LNK_HEADER_SIZE 0x4C
 #define LNK_MAX_HOPS    8
@@ -54,8 +54,15 @@
 #define FLAG_HAS_RELATIVE_PATH  0x0008
 #define FLAG_HAS_WORKING_DIR    0x0010
 #define FLAG_HAS_ARGUMENTS      0x0020
+#define FLAG_HAS_ICON_LOCATION  0x0040
 #define FLAG_IS_UNICODE         0x0080
 #define FLAG_FORCE_NO_LINK_INFO 0x0100
+#define FLAG_HAS_EXP_STRING     0x0200
+
+/* EnvironmentVariableDataBlock: a fixed 260 character path, ANSI then UTF-16. */
+#define ENV_BLOCK_SIGNATURE 0xA0000001
+#define ENV_BLOCK_SIZE      0x314
+#define ENV_PATH_CHARS      260
 
 #define INFO_VOLUME_AND_PATH 0x1
 #define INFO_NETWORK         0x2
@@ -340,6 +347,37 @@ nemo_lnk_parse (const guint8 *bytes, gsize length, NemoLnk *lnk)
 	    !read_string (bytes, length, &pos, unicode, &lnk->arguments)) {
 		return TRUE;
 	}
+	if (flags & FLAG_HAS_ICON_LOCATION) {
+		char *icon = NULL;
+
+		if (!read_string (bytes, length, &pos, unicode, &icon)) {
+			return TRUE;
+		}
+		g_free (icon);
+	}
+
+	/* Windows reads the block only when the flag says to, and so does this. */
+	while ((flags & FLAG_HAS_EXP_STRING) && pos + 8 <= length) {
+		guint32 size = get_u32 (bytes + pos);
+
+		if (size < 8 || size > length - pos) {
+			break;
+		}
+		if (get_u32 (bytes + pos + 4) == ENV_BLOCK_SIGNATURE && size >= ENV_BLOCK_SIZE) {
+			const guint8 *block = bytes + pos;
+
+			lnk->env_path = utf16_in_block (block, ENV_BLOCK_SIZE, 8 + ENV_PATH_CHARS);
+			if (lnk->env_path == NULL || lnk->env_path[0] == '\0') {
+				g_free (lnk->env_path);
+				lnk->env_path = ansi_in_block (block, 8 + ENV_PATH_CHARS, 8);
+			}
+			if (lnk->env_path != NULL && lnk->env_path[0] == '\0') {
+				g_clear_pointer (&lnk->env_path, g_free);
+			}
+			break;
+		}
+		pos += size;
+	}
 
 	return TRUE;
 }
@@ -376,6 +414,7 @@ nemo_lnk_clear (NemoLnk *lnk)
 	g_free (lnk->net_share);
 	g_free (lnk->net_path);
 	g_free (lnk->relative_path);
+	g_free (lnk->env_path);
 	g_free (lnk->working_dir);
 	g_free (lnk->arguments);
 	g_free (lnk->description);
@@ -397,8 +436,214 @@ nemo_lnk_display_target (const NemoLnk *lnk)
 	if (lnk->net_share != NULL) {
 		return join_windows (lnk->net_share, lnk->net_path);
 	}
+	if (lnk->env_path != NULL) {
+		return g_strdup (lnk->env_path);
+	}
 
 	return g_strdup (lnk->relative_path);
+}
+
+/* Casefolded, since Windows names do not keep case. */
+static gboolean
+same_name (const char *a, const char *b)
+{
+	char *fa = g_utf8_casefold (a, -1);
+	char *fb = g_utf8_casefold (b, -1);
+	gboolean same = strcmp (fa, fb) == 0;
+
+	g_free (fa);
+	g_free (fb);
+
+	return same;
+}
+
+/* "\\server\share\more" into server, share and the rest. Takes forward
+   slashes too, for the //server/share a mount table writes. */
+static gboolean
+split_share (const char *text, char **server, char **share, char **rest)
+{
+	const char *p = text, *sep, *end;
+
+	while (*p == '\\' || *p == '/') {
+		p++;
+	}
+	sep = strpbrk (p, "\\/");
+	if (sep == NULL || sep == p) {
+		return FALSE;
+	}
+
+	end = strpbrk (sep + 1, "\\/");
+	if (end == sep + 1 || sep[1] == '\0') {
+		return FALSE;
+	}
+
+	*server = g_strndup (p, sep - p);
+	*share = end != NULL ? g_strndup (sep + 1, end - sep - 1) : g_strdup (sep + 1);
+	*rest = g_strdup (end != NULL ? end + 1 : "");
+
+	return TRUE;
+}
+
+/* What is left of path once prefix is taken off the front, by whole names and
+   ignoring case, or NULL when path is not under prefix. */
+static char *
+strip_prefix (const char *path, const char *prefix)
+{
+	char **want = g_strsplit_set (prefix, "\\/", -1);
+	char **have = g_strsplit_set (path, "\\/", -1);
+	char *left = NULL;
+	int w = 0, h = 0;
+
+	for (;;) {
+		while (want[w] != NULL && want[w][0] == '\0') {
+			w++;
+		}
+		while (have[h] != NULL && have[h][0] == '\0') {
+			h++;
+		}
+		if (want[w] == NULL) {
+			left = g_strjoinv ("\\", have + h);
+			break;
+		}
+		if (have[h] == NULL || !same_name (want[w], have[h])) {
+			break;
+		}
+		w++;
+		h++;
+	}
+	g_strfreev (want);
+	g_strfreev (have);
+
+	return left;
+}
+
+static char *
+to_backslashes (const char *path)
+{
+	char *out = g_strdup (path);
+
+	g_strdelimit (out, "/", '\\');
+	return out;
+}
+
+#ifndef G_OS_WIN32
+/* What is left of path under dir, or NULL when it is not under it. By whole
+   names, so /mnt/share does not cover /mnt/shared. */
+static const char *
+path_under (const char *path, const char *dir)
+{
+	gsize length = strlen (dir);
+
+	while (length > 1 && dir[length - 1] == '/') {
+		length--;
+	}
+	if (strncmp (path, dir, length) != 0) {
+		return NULL;
+	}
+	if (path[length] == '\0') {
+		return path + length;
+	}
+	if (path[length] != '/') {
+		return NULL;
+	}
+
+	return path + length + 1;
+}
+#endif
+
+char *
+nemo_lnk_expand (const char *windows_path)
+{
+	GString *out = g_string_new (NULL);
+	const char *p = windows_path;
+
+	while (*p != '\0') {
+		const char *close = p[0] == '%' ? strchr (p + 1, '%') : NULL;
+
+		if (close != NULL && close > p + 1) {
+			char *name = g_strndup (p + 1, close - p - 1);
+			const char *value = g_getenv (name);
+
+#ifndef G_OS_WIN32
+			/* The one Windows variable with a plain meaning everywhere. */
+			if (value == NULL && g_ascii_strcasecmp (name, "USERPROFILE") == 0) {
+				value = g_get_home_dir ();
+			}
+#endif
+			g_free (name);
+			/* Windows leaves an unknown one in the text and then looks for
+			   a folder named after it, on the desktop. Better nothing. */
+			if (value == NULL || value[0] == '\0') {
+				g_string_free (out, TRUE);
+				return NULL;
+			}
+			g_string_append (out, value);
+			p = close + 1;
+			continue;
+		}
+#ifdef G_OS_WIN32
+		g_string_append_c (out, *p);
+#else
+		g_string_append_c (out, *p == '\\' ? '/' : *p);
+#endif
+		p++;
+	}
+
+	return g_string_free (out, FALSE);
+}
+
+#ifdef G_OS_WIN32
+/* Longest match wins, so a file under AppData gets %APPDATA% rather than
+   %USERPROFILE%\AppData\Roaming. */
+static const char *portable_names[] = {
+	"USERPROFILE", "APPDATA", "LOCALAPPDATA", "OneDrive", "PUBLIC",
+	"ProgramData", "ProgramFiles", "ProgramFiles(x86)", "SystemRoot",
+};
+#endif
+
+char *
+nemo_lnk_portable_path (const char *target_path)
+{
+	char *rest = NULL, *portable;
+	const char *name = NULL;
+#ifdef G_OS_WIN32
+	gsize best = 0;
+	guint i;
+
+	for (i = 0; i < G_N_ELEMENTS (portable_names); i++) {
+		const char *value = g_getenv (portable_names[i]);
+		char *left;
+
+		if (value == NULL || strlen (value) < 3 || strlen (value) <= best) {
+			continue;
+		}
+		left = strip_prefix (target_path, value);
+		if (left != NULL) {
+			g_free (rest);
+			rest = left;
+			name = portable_names[i];
+			best = strlen (value);
+		}
+	}
+#else
+	const char *home = g_get_home_dir ();
+	const char *under = home != NULL && strcmp (home, "/") != 0 ? path_under (target_path, home) : NULL;
+
+	if (under != NULL) {
+		rest = g_strdup (under);
+		g_strdelimit (rest, "/", '\\');
+		name = "USERPROFILE";
+	}
+#endif
+	if (name == NULL) {
+		return NULL;
+	}
+
+	portable = rest[0] != '\0' ? g_strdup_printf ("%%%s%%\\%s", name, rest)
+				   : g_strdup_printf ("%%%s%%", name);
+	g_free (rest);
+
+	return portable;
 }
 
 /* Windows builds only the reading above. The rest places a target on this
@@ -498,20 +743,6 @@ read_mounts (void)
 	g_free (text);
 
 	return mounts;
-}
-
-/* Casefolded, since Windows names do not keep case. */
-static gboolean
-same_name (const char *a, const char *b)
-{
-	char *fa = g_utf8_casefold (a, -1);
-	char *fb = g_utf8_casefold (b, -1);
-	gboolean same = strcmp (fa, fb) == 0;
-
-	g_free (fa);
-	g_free (fb);
-
-	return same;
 }
 
 static GFileEnumerator *
@@ -708,66 +939,6 @@ path_on_volume (const char *windows_path, guint32 serial, GPtrArray *mounts)
 	return found;
 }
 
-/* "\\server\share\more" into server, share and the rest. Takes forward
-   slashes too, for the //server/share a mount table writes. */
-static gboolean
-split_share (const char *text, char **server, char **share, char **rest)
-{
-	const char *p = text, *sep, *end;
-
-	while (*p == '\\' || *p == '/') {
-		p++;
-	}
-	sep = strpbrk (p, "\\/");
-	if (sep == NULL || sep == p) {
-		return FALSE;
-	}
-
-	end = strpbrk (sep + 1, "\\/");
-	if (end == sep + 1 || sep[1] == '\0') {
-		return FALSE;
-	}
-
-	*server = g_strndup (p, sep - p);
-	*share = end != NULL ? g_strndup (sep + 1, end - sep - 1) : g_strdup (sep + 1);
-	*rest = g_strdup (end != NULL ? end + 1 : "");
-
-	return TRUE;
-}
-
-/* What is left of path once prefix is taken off the front, by whole names and
-   ignoring case, or NULL when path is not under prefix. */
-static char *
-strip_prefix (const char *path, const char *prefix)
-{
-	char **want = g_strsplit_set (prefix, "\\/", -1);
-	char **have = g_strsplit_set (path, "\\/", -1);
-	char *left = NULL;
-	int w = 0, h = 0;
-
-	for (;;) {
-		while (want[w] != NULL && want[w][0] == '\0') {
-			w++;
-		}
-		while (have[h] != NULL && have[h][0] == '\0') {
-			h++;
-		}
-		if (want[w] == NULL) {
-			left = g_strjoinv ("\\", have + h);
-			break;
-		}
-		if (have[h] == NULL || !same_name (want[w], have[h])) {
-			break;
-		}
-		w++;
-		h++;
-	}
-	g_strfreev (want);
-	g_strfreev (have);
-
-	return left;
-}
-
 /* A share this machine already has mounted: by the kernel's SMB client, or by
    gvfs under its FUSE folder. */
 static char *
@@ -888,14 +1059,33 @@ smb_uri (const char *server, const char *share, const char *rest)
 	return g_string_free (uri, FALSE);
 }
 
-/* The order Windows itself tries: the absolute path first, then the path
-   relative to the shortcut. */
+/* A local path written off Windows: rooted, with no drive, and spelled with
+   backslashes by this writer or with slashes by an older one. */
+static char *
+rooted_path (const char *windows_path)
+{
+	char *path;
+
+	if (windows_path == NULL ||
+	    (windows_path[0] != '\\' && windows_path[0] != '/') ||
+	    windows_path[1] == '\\') {
+		return NULL;
+	}
+	path = g_strdup (windows_path);
+	g_strdelimit (path, "\\", '/');
+
+	return path;
+}
+
+/* The order Windows itself tries: the path with environment variables when
+   there is one, then the absolute path, then the path relative to the
+   shortcut. */
 char *
 nemo_lnk_resolve (const char *lnk_path, const NemoLnk *lnk)
 {
 	GPtrArray *mounts = read_mounts ();
 	char *server = NULL, *share = NULL, *rest = NULL;
-	char *found = NULL, *uri = NULL;
+	char *found = NULL, *uri = NULL, *expanded, *local;
 	gboolean have_share;
 
 	have_share = lnk->net_share != NULL &&
@@ -907,10 +1097,34 @@ nemo_lnk_resolve (const char *lnk_path, const NemoLnk *lnk)
 		rest = joined;
 	}
 
-	if (lnk->local_path != NULL && lnk->local_path[0] == '/' &&
-	    g_file_test (lnk->local_path, G_FILE_TEST_EXISTS)) {
-		found = g_strdup (lnk->local_path);
+	expanded = lnk->env_path != NULL ? nemo_lnk_expand (lnk->env_path) : NULL;
+	if (expanded != NULL && g_str_has_prefix (expanded, "//")) {
+		char *env_server, *env_share, *env_rest;
+
+		if (split_share (expanded, &env_server, &env_share, &env_rest)) {
+			found = path_on_share (env_server, env_share, env_rest, mounts);
+			/* Good enough for the smb:// fallback too. */
+			if (!have_share) {
+				server = env_server;
+				share = env_share;
+				rest = env_rest;
+				have_share = TRUE;
+			} else {
+				g_free (env_server);
+				g_free (env_share);
+				g_free (env_rest);
+			}
+		}
+	} else if (expanded != NULL && expanded[0] == '/') {
+		found = walk_path ("/", expanded);
 	}
+	g_free (expanded);
+
+	local = rooted_path (lnk->local_path);
+	if (found == NULL && local != NULL && g_file_test (local, G_FILE_TEST_EXISTS)) {
+		found = g_strdup (local);
+	}
+	g_free (local);
 	if (found == NULL && lnk->local_path != NULL && lnk->has_serial) {
 		found = path_on_volume (lnk->local_path, lnk->drive_serial, mounts);
 	}
@@ -974,123 +1188,6 @@ nemo_lnk_resolve_dir (const NemoLnk *lnk, const char *windows_path)
 	}
 
 	return found;
-}
-
-static void
-put_u16 (GByteArray *out, guint16 value)
-{
-	guint8 bytes[2] = { value & 0xff, value >> 8 };
-
-	g_byte_array_append (out, bytes, 2);
-}
-
-static void
-put_u32 (GByteArray *out, guint32 value)
-{
-	guint8 bytes[4] = { value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff, value >> 24 };
-
-	g_byte_array_append (out, bytes, 4);
-}
-
-static void
-set_u32 (GByteArray *out, gsize at, guint32 value)
-{
-	out->data[at] = value & 0xff;
-	out->data[at + 1] = (value >> 8) & 0xff;
-	out->data[at + 2] = (value >> 16) & 0xff;
-	out->data[at + 3] = value >> 24;
-}
-
-static void
-put_filetime (GByteArray *out, gint64 unix_seconds)
-{
-	guint64 ticks = unix_seconds > 0
-		? (guint64) (unix_seconds + FILETIME_UNIX_OFFSET) * 10000000
-		: 0;
-
-	put_u32 (out, (guint32) ticks);
-	put_u32 (out, (guint32) (ticks >> 32));
-}
-
-/* The ANSI copy only has to stand in when the UTF-16 one is not read, so
-   anything past ASCII is a question mark there rather than a guess at the
-   code page. */
-static void
-put_ansi (GByteArray *out, const char *text)
-{
-	const guint8 *p;
-
-	for (p = (const guint8 *) text; *p != '\0'; p++) {
-		guint8 c = *p < 0x80 ? *p : '?';
-
-		/* One mark per character, not per byte. */
-		if (*p >= 0x80 && (*p & 0xc0) == 0x80) {
-			continue;
-		}
-		g_byte_array_append (out, &c, 1);
-	}
-	g_byte_array_append (out, (const guint8 *) "", 1);
-}
-
-static void
-put_utf16 (GByteArray *out, const char *text, gboolean terminate)
-{
-	glong units = 0;
-	gunichar2 *wide = g_utf8_to_utf16 (text, -1, NULL, &units, NULL);
-	glong i;
-
-	for (i = 0; wide != NULL && i < units; i++) {
-		put_u16 (out, wide[i]);
-	}
-	if (terminate) {
-		put_u16 (out, 0);
-	}
-	g_free (wide);
-}
-
-static glong
-utf16_length (const char *text)
-{
-	glong units = 0;
-	gunichar2 *wide = g_utf8_to_utf16 (text, -1, NULL, &units, NULL);
-
-	if (wide == NULL) {
-		return -1;
-	}
-	g_free (wide);
-	return units;
-}
-
-static char *
-to_backslashes (const char *path)
-{
-	char *out = g_strdup (path);
-
-	g_strdelimit (out, "/", '\\');
-	return out;
-}
-
-/* What is left of path under dir, or NULL when it is not under it. By whole
-   names, so /mnt/share does not cover /mnt/shared. */
-static const char *
-path_under (const char *path, const char *dir)
-{
-	gsize length = strlen (dir);
-
-	while (length > 1 && dir[length - 1] == '/') {
-		length--;
-	}
-	if (strncmp (path, dir, length) != 0) {
-		return NULL;
-	}
-	if (path[length] == '\0') {
-		return path + length;
-	}
-	if (path[length] != '/') {
-		return NULL;
-	}
-
-	return path + length + 1;
 }
 
 /* The \\server\share a local path sits on, and the rest of it under that, when
@@ -1174,183 +1271,6 @@ share_for_path (const char *path, GPtrArray *mounts, char **unc, char **suffix)
 	g_free (rest);
 
 	return TRUE;
-}
-
-/* LinkInfo with only the network part, and the UTF-16 copies Windows reads
-   first. [MS-SHLLINK] 2.3 and 2.3.2. */
-static void
-put_network_link_info (GByteArray *out, const char *unc, const char *suffix)
-{
-	gsize start = out->len, net_start, suffix_at, suffix_unicode_at;
-
-	put_u32 (out, 0);                 /* size, set below */
-	put_u32 (out, 0x24);              /* header size with the UTF-16 offsets */
-	put_u32 (out, INFO_NETWORK);
-	put_u32 (out, 0);                 /* no VolumeID */
-	put_u32 (out, 0);                 /* no LocalBasePath */
-	put_u32 (out, 0x24);              /* CommonNetworkRelativeLink */
-	put_u32 (out, 0);                 /* CommonPathSuffix, set below */
-	put_u32 (out, 0);                 /* no LocalBasePathUnicode */
-	put_u32 (out, 0);                 /* CommonPathSuffixUnicode, set below */
-
-	net_start = out->len;
-	put_u32 (out, 0);                 /* size, set below */
-	put_u32 (out, NET_TYPE_VALID);
-	put_u32 (out, 0x1c);              /* NetName */
-	put_u32 (out, 0);                 /* no DeviceName */
-	put_u32 (out, NET_PROVIDER_LANMAN);
-	put_u32 (out, 0);                 /* NetNameUnicode, set below */
-	put_u32 (out, 0);                 /* no DeviceNameUnicode */
-	put_ansi (out, unc);
-	set_u32 (out, net_start + 20, out->len - net_start);
-	put_utf16 (out, unc, TRUE);
-	set_u32 (out, net_start, out->len - net_start);
-
-	suffix_at = out->len - start;
-	put_ansi (out, suffix);
-	suffix_unicode_at = out->len - start;
-	put_utf16 (out, suffix, TRUE);
-
-	set_u32 (out, start + 24, suffix_at);
-	set_u32 (out, start + 32, suffix_unicode_at);
-	set_u32 (out, start, out->len - start);
-}
-
-/* LinkInfo with only the local part: the whole path as the base, an empty
-   suffix, and a VolumeID with no serial, since a path spelled from / is on no
-   Windows drive. The reader here takes a base that starts with / as it is. */
-static void
-put_local_link_info (GByteArray *out, const char *path)
-{
-	gsize start = out->len, base_at, suffix_at, base_unicode_at, suffix_unicode_at;
-
-	put_u32 (out, 0);                 /* size, set below */
-	put_u32 (out, 0x24);              /* header size with the UTF-16 offsets */
-	put_u32 (out, INFO_VOLUME_AND_PATH);
-	put_u32 (out, 0x24);              /* VolumeID */
-	put_u32 (out, 0);                 /* LocalBasePath, set below */
-	put_u32 (out, 0);                 /* no CommonNetworkRelativeLink */
-	put_u32 (out, 0);                 /* CommonPathSuffix, set below */
-	put_u32 (out, 0);                 /* LocalBasePathUnicode, set below */
-	put_u32 (out, 0);                 /* CommonPathSuffixUnicode, set below */
-
-	put_u32 (out, 0x11);              /* VolumeID size */
-	put_u32 (out, VOLUME_DRIVE_FIXED);
-	put_u32 (out, 0);                 /* serial */
-	put_u32 (out, 0x10);              /* label, empty */
-	g_byte_array_append (out, (const guint8 *) "", 1);
-
-	base_at = out->len - start;
-	put_ansi (out, path);
-	suffix_at = out->len - start;
-	put_ansi (out, "");
-	base_unicode_at = out->len - start;
-	put_utf16 (out, path, TRUE);
-	suffix_unicode_at = out->len - start;
-	put_utf16 (out, "", TRUE);
-
-	set_u32 (out, start + 16, base_at);
-	set_u32 (out, start + 24, suffix_at);
-	set_u32 (out, start + 28, base_unicode_at);
-	set_u32 (out, start + 32, suffix_unicode_at);
-	set_u32 (out, start, out->len - start);
-}
-
-gboolean
-nemo_lnk_write (const char  *lnk_path,
-		const char  *target_path,
-		gboolean     relative,
-		GError     **error)
-{
-	GStatBuf info;
-	GByteArray *out;
-	GPtrArray *mounts;
-	GFile *file;
-	GFileOutputStream *stream;
-	char *dir, *relative_text, *relative_windows = NULL, *real, *unc = NULL, *suffix = NULL;
-	guint32 flags = FLAG_IS_UNICODE | FLAG_HAS_LINK_INFO;
-	gboolean is_dir, ok;
-	glong units;
-
-	if (g_stat (target_path, &info) != 0) {
-		g_set_error (error, G_IO_ERROR, g_io_error_from_errno (errno),
-			     _("Could not read \"%s\"."), target_path);
-		return FALSE;
-	}
-	is_dir = S_ISDIR (info.st_mode);
-
-	/* Written the way Windows writes it, from the folder the shortcut is in.
-	   With no relative spelling it keeps the absolute path alone. */
-	dir = g_path_get_dirname (lnk_path);
-	relative_text = relative ? nemo_link_relative_target (target_path, dir) : NULL;
-	g_free (dir);
-	units = relative_text != NULL ? utf16_length (relative_text) : -1;
-	if (units >= 0 && units <= G_MAXUINT16) {
-		relative_windows = to_backslashes (relative_text);
-		if (!g_str_has_prefix (relative_text, "..")) {
-			char *dotted = g_strconcat (".\\", relative_windows, NULL);
-
-			g_free (relative_windows);
-			relative_windows = dotted;
-		}
-		flags |= FLAG_HAS_RELATIVE_PATH;
-	}
-	g_free (relative_text);
-
-	/* On a share, the \\server\share path is the absolute one, since the
-	   mount point here means nothing on another machine. */
-	mounts = read_mounts ();
-	real = realpath (target_path, NULL);
-	if (real == NULL || !share_for_path (real, mounts, &unc, &suffix)) {
-		unc = NULL;
-	}
-	free (real);
-	g_ptr_array_unref (mounts);
-
-	out = g_byte_array_new ();
-	put_u32 (out, LNK_HEADER_SIZE);
-	g_byte_array_append (out, lnk_clsid, sizeof lnk_clsid);
-	put_u32 (out, flags);
-	put_u32 (out, is_dir ? ATTRIBUTE_DIRECTORY : ATTRIBUTE_ARCHIVE);
-	put_filetime (out, info.st_ctime);
-	put_filetime (out, info.st_atime);
-	put_filetime (out, info.st_mtime);
-	put_u32 (out, is_dir ? 0 : (guint32) info.st_size);
-	put_u32 (out, 0);                 /* icon index */
-	put_u32 (out, SW_SHOWNORMAL);
-	put_u16 (out, 0);                 /* hotkey */
-	put_u16 (out, 0);
-	put_u32 (out, 0);
-	put_u32 (out, 0);
-
-	if (unc != NULL) {
-		put_network_link_info (out, unc, suffix);
-	} else {
-		put_local_link_info (out, target_path);
-	}
-	if (flags & FLAG_HAS_RELATIVE_PATH) {
-		put_u16 (out, (guint16) utf16_length (relative_windows));
-		put_utf16 (out, relative_windows, FALSE);
-	}
-	put_u32 (out, 0);                 /* no extra data blocks */
-
-	file = g_file_new_for_path (lnk_path);
-	stream = g_file_create (file, G_FILE_CREATE_NONE, NULL, error);
-	/* A write that fails part way is left as it is and reported. Nothing
-	   here deletes, so the delete guard has one less place to cover, and a
-	   short file reads as an ordinary one rather than a shortcut. */
-	ok = stream != NULL &&
-	     g_output_stream_write_all (G_OUTPUT_STREAM (stream), out->data, out->len, NULL, NULL, error) &&
-	     g_output_stream_close (G_OUTPUT_STREAM (stream), NULL, error);
-	g_clear_object (&stream);
-	g_object_unref (file);
-
-	g_byte_array_unref (out);
-	g_free (relative_windows);
-	g_free (unc);
-	g_free (suffix);
-
-	return ok;
 }
 
 static gboolean
@@ -1500,3 +1420,457 @@ nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime)
 }
 
 #endif /* !G_OS_WIN32 */
+
+static void
+put_u16 (GByteArray *out, guint16 value)
+{
+	guint8 bytes[2] = { value & 0xff, value >> 8 };
+
+	g_byte_array_append (out, bytes, 2);
+}
+
+static void
+put_u32 (GByteArray *out, guint32 value)
+{
+	guint8 bytes[4] = { value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff, value >> 24 };
+
+	g_byte_array_append (out, bytes, 4);
+}
+
+static void
+set_u32 (GByteArray *out, gsize at, guint32 value)
+{
+	out->data[at] = value & 0xff;
+	out->data[at + 1] = (value >> 8) & 0xff;
+	out->data[at + 2] = (value >> 16) & 0xff;
+	out->data[at + 3] = value >> 24;
+}
+
+static void
+put_filetime (GByteArray *out, gint64 unix_seconds)
+{
+	guint64 ticks = unix_seconds > 0
+		? (guint64) (unix_seconds + FILETIME_UNIX_OFFSET) * 10000000
+		: 0;
+
+	put_u32 (out, (guint32) ticks);
+	put_u32 (out, (guint32) (ticks >> 32));
+}
+
+/* The ANSI copy only has to stand in when the UTF-16 one is not read, so
+   anything past ASCII is a question mark there rather than a guess at the
+   code page. */
+static void
+put_ansi (GByteArray *out, const char *text)
+{
+	const guint8 *p;
+
+	for (p = (const guint8 *) text; *p != '\0'; p++) {
+		guint8 c = *p < 0x80 ? *p : '?';
+
+		/* One mark per character, not per byte. */
+		if (*p >= 0x80 && (*p & 0xc0) == 0x80) {
+			continue;
+		}
+		g_byte_array_append (out, &c, 1);
+	}
+	g_byte_array_append (out, (const guint8 *) "", 1);
+}
+
+static void
+put_utf16 (GByteArray *out, const char *text, gboolean terminate)
+{
+	glong units = 0;
+	gunichar2 *wide = g_utf8_to_utf16 (text, -1, NULL, &units, NULL);
+	glong i;
+
+	for (i = 0; wide != NULL && i < units; i++) {
+		put_u16 (out, wide[i]);
+	}
+	if (terminate) {
+		put_u16 (out, 0);
+	}
+	g_free (wide);
+}
+
+static glong
+utf16_length (const char *text)
+{
+	glong units = 0;
+	gunichar2 *wide = g_utf8_to_utf16 (text, -1, NULL, &units, NULL);
+
+	if (wide == NULL) {
+		return -1;
+	}
+	g_free (wide);
+	return units;
+}
+
+/* LinkInfo with only the network part, and the UTF-16 copies Windows reads
+   first. [MS-SHLLINK] 2.3 and 2.3.2. */
+static void
+put_network_link_info (GByteArray *out, const char *unc, const char *suffix)
+{
+	gsize start = out->len, net_start, suffix_at, suffix_unicode_at;
+
+	put_u32 (out, 0);                 /* size, set below */
+	put_u32 (out, 0x24);              /* header size with the UTF-16 offsets */
+	put_u32 (out, INFO_NETWORK);
+	put_u32 (out, 0);                 /* no VolumeID */
+	put_u32 (out, 0);                 /* no LocalBasePath */
+	put_u32 (out, 0x24);              /* CommonNetworkRelativeLink */
+	put_u32 (out, 0);                 /* CommonPathSuffix, set below */
+	put_u32 (out, 0);                 /* no LocalBasePathUnicode */
+	put_u32 (out, 0);                 /* CommonPathSuffixUnicode, set below */
+
+	net_start = out->len;
+	put_u32 (out, 0);                 /* size, set below */
+	put_u32 (out, NET_TYPE_VALID);
+	put_u32 (out, 0x1c);              /* NetName */
+	put_u32 (out, 0);                 /* no DeviceName */
+	put_u32 (out, NET_PROVIDER_LANMAN);
+	put_u32 (out, 0);                 /* NetNameUnicode, set below */
+	put_u32 (out, 0);                 /* no DeviceNameUnicode */
+	put_ansi (out, unc);
+	set_u32 (out, net_start + 20, out->len - net_start);
+	put_utf16 (out, unc, TRUE);
+	set_u32 (out, net_start, out->len - net_start);
+
+	suffix_at = out->len - start;
+	put_ansi (out, suffix);
+	suffix_unicode_at = out->len - start;
+	put_utf16 (out, suffix, TRUE);
+
+	set_u32 (out, start + 24, suffix_at);
+	set_u32 (out, start + 32, suffix_unicode_at);
+	set_u32 (out, start, out->len - start);
+}
+
+/* LinkInfo with only the local part: the whole path as the base, an empty
+   suffix, and a VolumeID with no serial. Off Windows the path is spelled from
+   the root with backslashes, \\home\\me\\file, on no Windows drive, and the
+   reader here turns it back. */
+static void
+put_local_link_info (GByteArray *out, const char *path)
+{
+	gsize start = out->len, base_at, suffix_at, base_unicode_at, suffix_unicode_at;
+
+	put_u32 (out, 0);                 /* size, set below */
+	put_u32 (out, 0x24);              /* header size with the UTF-16 offsets */
+	put_u32 (out, INFO_VOLUME_AND_PATH);
+	put_u32 (out, 0x24);              /* VolumeID */
+	put_u32 (out, 0);                 /* LocalBasePath, set below */
+	put_u32 (out, 0);                 /* no CommonNetworkRelativeLink */
+	put_u32 (out, 0);                 /* CommonPathSuffix, set below */
+	put_u32 (out, 0);                 /* LocalBasePathUnicode, set below */
+	put_u32 (out, 0);                 /* CommonPathSuffixUnicode, set below */
+
+	put_u32 (out, 0x11);              /* VolumeID size */
+	put_u32 (out, VOLUME_DRIVE_FIXED);
+	put_u32 (out, 0);                 /* serial */
+	put_u32 (out, 0x10);              /* label, empty */
+	g_byte_array_append (out, (const guint8 *) "", 1);
+
+	base_at = out->len - start;
+	put_ansi (out, path);
+	suffix_at = out->len - start;
+	put_ansi (out, "");
+	base_unicode_at = out->len - start;
+	put_utf16 (out, path, TRUE);
+	suffix_unicode_at = out->len - start;
+	put_utf16 (out, "", TRUE);
+
+	set_u32 (out, start + 16, base_at);
+	set_u32 (out, start + 24, suffix_at);
+	set_u32 (out, start + 28, base_unicode_at);
+	set_u32 (out, start + 32, suffix_unicode_at);
+	set_u32 (out, start, out->len - start);
+}
+
+/* Zeros out to size bytes past start. */
+static void
+pad_to (GByteArray *out, gsize start, gsize size)
+{
+	gsize used = out->len - start;
+
+	g_byte_array_set_size (out, start + size);
+	if (used < size) {
+		memset (out->data + start + used, 0, size - used);
+	}
+}
+
+/* The fixed-size block Windows reads a path with variables from. Past its
+   260 characters there is no room, and the caller leaves it out. */
+static void
+put_env_block (GByteArray *out, const char *path)
+{
+	gsize start;
+
+	put_u32 (out, ENV_BLOCK_SIZE);
+	put_u32 (out, ENV_BLOCK_SIGNATURE);
+
+	start = out->len;
+	put_ansi (out, path);
+	pad_to (out, start, ENV_PATH_CHARS);
+
+	start = out->len;
+	put_utf16 (out, path, TRUE);
+	pad_to (out, start, 2 * ENV_PATH_CHARS);
+}
+
+gboolean
+nemo_lnk_write (const char  *lnk_path,
+		const char  *target_path,
+		guint        parts,
+		GError     **error)
+{
+	GStatBuf info;
+	GByteArray *out;
+	GFile *file;
+	GFileOutputStream *stream;
+	char *dir, *relative_text, *relative_windows = NULL, *unc = NULL, *suffix = NULL;
+	char *absolute = NULL, *portable = NULL;
+	guint32 flags = FLAG_IS_UNICODE;
+	gboolean is_dir, ok;
+	glong units;
+
+	if (g_stat (target_path, &info) != 0) {
+		g_set_error (error, G_IO_ERROR, g_io_error_from_errno (errno),
+			     _("Could not read \"%s\"."), target_path);
+		return FALSE;
+	}
+	is_dir = S_ISDIR (info.st_mode);
+
+#ifndef G_OS_WIN32
+	/* On a share, the \\server\share path is the absolute one, since the
+	   mount point here means nothing on another machine. */
+	{
+		GPtrArray *mounts = read_mounts ();
+		char *real = realpath (target_path, NULL);
+
+		if (real == NULL || !share_for_path (real, mounts, &unc, &suffix)) {
+			unc = NULL;
+		}
+		free (real);
+		g_ptr_array_unref (mounts);
+	}
+#else
+	{
+		char *server, *share, *rest;
+
+		/* split_share takes C:\dir as server C: and share dir, so only a
+		   path that starts with two slashes gets that far. */
+		if ((target_path[0] == '\\' || target_path[0] == '/') &&
+		    (target_path[1] == '\\' || target_path[1] == '/') &&
+		    split_share (target_path, &server, &share, &rest)) {
+			unc = g_strconcat ("\\\\", server, "\\", share, NULL);
+			suffix = to_backslashes (rest);
+			g_free (server);
+			g_free (share);
+			g_free (rest);
+		}
+	}
+#endif
+
+	if (parts & NEMO_LNK_ABSOLUTE) {
+		flags |= FLAG_HAS_LINK_INFO;
+		if (unc == NULL) {
+			absolute = to_backslashes (target_path);
+		}
+	}
+
+	/* Written the way Windows writes it, from the folder the shortcut is in. */
+	if (parts & NEMO_LNK_RELATIVE) {
+		dir = g_path_get_dirname (lnk_path);
+		relative_text = nemo_link_relative_target (target_path, dir);
+		g_free (dir);
+		units = relative_text != NULL ? utf16_length (relative_text) : -1;
+		if (units >= 0 && units <= G_MAXUINT16) {
+			relative_windows = to_backslashes (relative_text);
+			if (!g_str_has_prefix (relative_text, "..")) {
+				char *dotted = g_strconcat (".\\", relative_windows, NULL);
+
+				g_free (relative_windows);
+				relative_windows = dotted;
+			}
+			flags |= FLAG_HAS_RELATIVE_PATH;
+		}
+		g_free (relative_text);
+	}
+
+	/* Windows follows this block from a shortcut made anywhere, and not the
+	   other two, so a share path goes in when no variable covers the target.
+	   On Windows a plain path is kept for when the absolute one is left out. */
+	if (parts & NEMO_LNK_PORTABLE) {
+		if (unc != NULL) {
+			portable = join_windows (unc, suffix);
+		} else {
+			portable = nemo_lnk_portable_path (target_path);
+		}
+#ifdef G_OS_WIN32
+		if (portable == NULL) {
+			portable = to_backslashes (target_path);
+		}
+#endif
+		units = portable != NULL ? utf16_length (portable) : -1;
+		if (units >= 0 && units < ENV_PATH_CHARS) {
+			flags |= FLAG_HAS_EXP_STRING;
+		} else {
+			g_clear_pointer (&portable, g_free);
+		}
+	}
+
+	if (!(flags & (FLAG_HAS_LINK_INFO | FLAG_HAS_RELATIVE_PATH | FLAG_HAS_EXP_STRING))) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
+			     _("A shortcut to \"%s\" would hold no path: no environment variable "
+			       "covers it, and there is no path from the shortcut to it. Choose an "
+			       "absolute path as well."),
+			     target_path);
+		g_free (unc);
+		g_free (suffix);
+		return FALSE;
+	}
+
+	out = g_byte_array_new ();
+	put_u32 (out, LNK_HEADER_SIZE);
+	g_byte_array_append (out, lnk_clsid, sizeof lnk_clsid);
+	put_u32 (out, flags);
+	put_u32 (out, is_dir ? ATTRIBUTE_DIRECTORY : ATTRIBUTE_ARCHIVE);
+	put_filetime (out, info.st_ctime);
+	put_filetime (out, info.st_atime);
+	put_filetime (out, info.st_mtime);
+	put_u32 (out, is_dir ? 0 : (guint32) info.st_size);
+	put_u32 (out, 0);                 /* icon index */
+	put_u32 (out, SW_SHOWNORMAL);
+	put_u16 (out, 0);                 /* hotkey */
+	put_u16 (out, 0);
+	put_u32 (out, 0);
+	put_u32 (out, 0);
+
+	if ((flags & FLAG_HAS_LINK_INFO) && unc != NULL) {
+		put_network_link_info (out, unc, suffix);
+	} else if (flags & FLAG_HAS_LINK_INFO) {
+		put_local_link_info (out, absolute);
+	}
+	if (flags & FLAG_HAS_RELATIVE_PATH) {
+		put_u16 (out, (guint16) utf16_length (relative_windows));
+		put_utf16 (out, relative_windows, FALSE);
+	}
+	if (flags & FLAG_HAS_EXP_STRING) {
+		put_env_block (out, portable);
+	}
+	put_u32 (out, 0);                 /* end of extra data */
+
+	file = g_file_new_for_path (lnk_path);
+	stream = g_file_create (file, G_FILE_CREATE_NONE, NULL, error);
+	/* A write that fails part way is left as it is and reported. Nothing
+	   here deletes, so the delete guard has one less place to cover, and a
+	   short file reads as an ordinary one rather than a shortcut. */
+	ok = stream != NULL &&
+	     g_output_stream_write_all (G_OUTPUT_STREAM (stream), out->data, out->len, NULL, NULL, error) &&
+	     g_output_stream_close (G_OUTPUT_STREAM (stream), NULL, error);
+	g_clear_object (&stream);
+	g_object_unref (file);
+
+	g_byte_array_unref (out);
+	g_free (relative_windows);
+	g_free (absolute);
+	g_free (portable);
+	g_free (unc);
+	g_free (suffix);
+
+	return ok;
+}
+
+/* Where the strings start: past the header, the id list and LinkInfo. */
+static gboolean
+strings_start (const guint8 *bytes, gsize length, gsize *pos)
+{
+	guint32 flags = get_u32 (bytes + 20);
+
+	*pos = LNK_HEADER_SIZE;
+	if (flags & FLAG_HAS_ID_LIST) {
+		if (*pos + 2 > length) {
+			return FALSE;
+		}
+		*pos += 2 + get_u16 (bytes + *pos);
+	}
+	if (flags & FLAG_HAS_LINK_INFO) {
+		if (*pos + 4 > length) {
+			return FALSE;
+		}
+		*pos += get_u32 (bytes + *pos);
+	}
+
+	return *pos <= length;
+}
+
+gboolean
+nemo_lnk_drop_relative (const char  *lnk_path,
+			GError     **error)
+{
+	char *contents = NULL;
+	guint8 *bytes;
+	gsize length, pos, count, cut;
+	guint32 flags;
+	gboolean ok;
+	NemoLnk check;
+
+	if (!g_file_get_contents (lnk_path, &contents, &length, error)) {
+		return FALSE;
+	}
+	bytes = (guint8 *) contents;
+
+	if (!nemo_lnk_parse (bytes, length, &check)) {
+		g_free (contents);
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+			     _("\"%s\" is not a shortcut."), lnk_path);
+		return FALSE;
+	}
+	nemo_lnk_clear (&check);
+
+	flags = get_u32 (bytes + 20);
+	if (!(flags & FLAG_HAS_RELATIVE_PATH)) {
+		g_free (contents);
+		return TRUE;
+	}
+	if (!strings_start (bytes, length, &pos)) {
+		g_free (contents);
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+			     _("\"%s\" is not a shortcut."), lnk_path);
+		return FALSE;
+	}
+
+	/* The name comes first, then the relative path. */
+	if ((flags & FLAG_HAS_NAME) && pos + 2 <= length) {
+		pos += 2 + get_u16 (bytes + pos) * ((flags & FLAG_IS_UNICODE) ? 2 : 1);
+	}
+	if (pos + 2 > length) {
+		g_free (contents);
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+			     _("\"%s\" is not a shortcut."), lnk_path);
+		return FALSE;
+	}
+	count = get_u16 (bytes + pos);
+	cut = 2 + count * ((flags & FLAG_IS_UNICODE) ? 2 : 1);
+	if (cut > length - pos) {
+		g_free (contents);
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+			     _("\"%s\" is not a shortcut."), lnk_path);
+		return FALSE;
+	}
+
+	memmove (bytes + pos, bytes + pos + cut, length - pos - cut);
+	length -= cut;
+	flags &= ~FLAG_HAS_RELATIVE_PATH;
+	bytes[20] = flags & 0xff;
+	bytes[21] = (flags >> 8) & 0xff;
+	bytes[22] = (flags >> 16) & 0xff;
+	bytes[23] = flags >> 24;
+
+	ok = g_file_set_contents (lnk_path, contents, length, error);
+	g_free (contents);
+
+	return ok;
+}
+

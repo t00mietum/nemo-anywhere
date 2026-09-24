@@ -3,7 +3,7 @@
  * gives: the queue starts a job only when the one before it says it is done.
  *
  * Argument: "relative" (default), "absolute", "hardlink", "junction",
- * "shortcut" or "shortcut-absolute".
+ * "shortcut" (every part), "shortcut-absolute" or "shortcut-portable".
  */
 
 #include "test.h"
@@ -13,9 +13,8 @@
 #include <libnemo-private/nemo-link-copy.h>
 #ifdef G_OS_WIN32
 #include <libnemo-private/nemo-shortcut-win32.h>
-#else
-#include <libnemo-private/nemo-lnk.h>
 #endif
+#include <libnemo-private/nemo-lnk.h>
 
 #include <glib/gstdio.h>
 #include <stdio.h>
@@ -75,27 +74,33 @@ uri_of (const char *path)
 	return g_filename_to_uri (path, NULL, NULL);
 }
 
-/* The flag word in the header says whether a relative path went in. */
-static gboolean
-has_relative_path (const char *lnk_path)
+/* The flag word in the header says which parts went in. */
+#define HAS_LINK_INFO 0x002
+#define HAS_RELATIVE  0x008
+#define HAS_ENV       0x200
+
+static guint32
+lnk_flags (const char *lnk_path)
 {
 	char *bytes = NULL;
 	gsize length = 0;
-	gboolean has = FALSE;
+	guint32 flags = 0;
 
 	if (g_file_get_contents (lnk_path, &bytes, &length, NULL) && length >= 0x4c) {
-		has = (((guint8) bytes[20]) & 0x08) != 0;
+		flags = ((guint8) bytes[20]) | ((guint8) bytes[21] << 8);
 	}
 	g_free (bytes);
 
-	return has;
+	return flags;
 }
 
 /* The shortcut at lnk_path leads to want, read the way this platform reads
-   one, with a relative path in it or not. */
+   one, with just the parts asked for in it. */
 static void
-check_shortcut (const char *lnk_path, const char *want, gboolean relative)
+check_shortcut (const char *lnk_path, const char *want, guint parts)
 {
+	guint32 flags = lnk_flags (lnk_path);
+
 #ifdef G_OS_WIN32
 	char *target = NULL;
 
@@ -114,37 +119,45 @@ check_shortcut (const char *lnk_path, const char *want, gboolean relative)
 	g_free (uri);
 	g_free (want_uri);
 #endif
-	if (relative) {
-		check (has_relative_path (lnk_path));
+	check (((flags & HAS_LINK_INFO) != 0) == ((parts & NEMO_LNK_ABSOLUTE) != 0));
+	check (((flags & HAS_RELATIVE) != 0) == ((parts & NEMO_LNK_RELATIVE) != 0));
+	/* Only where a variable covers the target, which it does here for the
+	   portable run alone, so only that one is checked. */
+	if (parts == NEMO_LNK_PORTABLE) {
+		check ((flags & HAS_ENV) != 0);
 	}
-#ifndef G_OS_WIN32
-	/* The shell decides that for itself on Windows. */
-	else {
-		check (!has_relative_path (lnk_path));
+	if (!(parts & NEMO_LNK_PORTABLE)) {
+		check (!(flags & HAS_ENV));
 	}
-#endif
 }
 
 int
 main (int argc, char *argv[])
 {
-	NemoLinkOptions options = { NEMO_MAKE_SYMLINK, NEMO_MAKE_SYMLINK, TRUE };
+	NemoLinkOptions options = { NEMO_MAKE_SYMLINK, NEMO_MAKE_SYMLINK, TRUE, NEMO_LNK_ALL_PARTS };
 	GtkWidget *window;
 	GList *uris = NULL;
 	const char *how;
-	char *tmp, *src_dir, *dst_dir, *dst_uri;
+	char *home, *tmp, *src_dir, *dst_dir, *dst_uri;
 	char *payload, *folder, *made_file, *made_folder;
 	char *text, *want, *contents = NULL;
 	guint supported, timeout_id;
 	gboolean with_file, with_folder;
 	FILE *fp;
 
-	g_free (test_scratch_config_home ("nemo-make-link-home-XXXXXX"));
+	home = test_scratch_config_home ("nemo-make-link-home-XXXXXX");
 	nemo_global_preferences_init ();
 	test_init (&argc, &argv);
 	how = (argc > 1) ? argv[1] : "relative";
 
-	tmp = test_scratch_dir ("nemo-make-link-XXXXXX", NULL);
+	/* Portable needs the files where a variable covers them, and home is
+	   the one there is off Windows. */
+	if (g_strcmp0 (how, "shortcut-portable") == 0) {
+		tmp = test_scratch_dir_in (g_get_home_dir (), "nemo-make-link-XXXXXX", NULL);
+	} else {
+		tmp = test_scratch_dir ("nemo-make-link-XXXXXX", NULL);
+	}
+	g_free (home);
 	src_dir = g_build_filename (tmp, "from", NULL);
 	dst_dir = g_build_filename (tmp, "to", NULL);
 	g_mkdir_with_parents (src_dir, 0700);
@@ -170,7 +183,11 @@ main (int argc, char *argv[])
 	} else if (g_str_has_prefix (how, "shortcut")) {
 		options.folder_kind = NEMO_MAKE_SHORTCUT;
 		options.file_kind = NEMO_MAKE_SHORTCUT;
-		options.relative = g_strcmp0 (how, "shortcut") == 0;
+		if (g_strcmp0 (how, "shortcut-absolute") == 0) {
+			options.lnk_parts = NEMO_LNK_ABSOLUTE;
+		} else if (g_strcmp0 (how, "shortcut-portable") == 0) {
+			options.lnk_parts = NEMO_LNK_PORTABLE;
+		}
 	}
 
 	if (g_strcmp0 (how, "junction") == 0
@@ -244,13 +261,13 @@ main (int argc, char *argv[])
 		/* Only the .lnk files, under their own names. */
 		check (!g_file_test (made_file, G_FILE_TEST_EXISTS));
 		check (!g_file_test (made_folder, G_FILE_TEST_EXISTS));
-		check_shortcut (lnk_file, payload, options.relative);
-		check_shortcut (lnk_folder, folder, options.relative);
+		check_shortcut (lnk_file, payload, options.lnk_parts);
+		check_shortcut (lnk_folder, folder, options.lnk_parts);
 
 		/* The pair moved together still finds its way on the relative path.
 		   Windows needs its own resolve for that, so only here. */
 #ifndef G_OS_WIN32
-		if (options.relative) {
+		if (options.lnk_parts & NEMO_LNK_RELATIVE) {
 			char *moved = g_build_filename (tmp, "moved", NULL);
 			char *moved_from = g_build_filename (moved, "from", NULL);
 			char *moved_to = g_build_filename (moved, "to", NULL);
@@ -260,7 +277,7 @@ main (int argc, char *argv[])
 			g_mkdir_with_parents (moved, 0700);
 			check (g_rename (src_dir, moved_from) == 0);
 			check (g_rename (dst_dir, moved_to) == 0);
-			check_shortcut (moved_lnk, moved_payload, TRUE);
+			check_shortcut (moved_lnk, moved_payload, options.lnk_parts);
 			check (g_rename (moved_from, src_dir) == 0);
 			check (g_rename (moved_to, dst_dir) == 0);
 			g_free (moved_payload);

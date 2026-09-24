@@ -38,10 +38,20 @@ typedef struct {
 	char     *net_share;      /* \\server\share */
 	char     *net_path;       /* the rest, under net_share */
 	char     *relative_path;  /* from the folder the .lnk sits in */
+	char     *env_path;       /* %USERPROFILE%\dir\file, as written */
 	char     *working_dir;
 	char     *arguments;
 	char     *description;
 } NemoLnk;
+
+/* Which of its ways to find the target a new shortcut carries. */
+typedef enum {
+	NEMO_LNK_ABSOLUTE = 1 << 0,
+	NEMO_LNK_RELATIVE = 1 << 1,
+	NEMO_LNK_PORTABLE = 1 << 2   /* through environment variables */
+} NemoLnkParts;
+
+#define NEMO_LNK_ALL_PARTS (NEMO_LNK_ABSOLUTE | NEMO_LNK_RELATIVE | NEMO_LNK_PORTABLE)
 
 gboolean nemo_lnk_parse (const guint8 *bytes, gsize length, NemoLnk *lnk);
 gboolean nemo_lnk_read  (const char *lnk_path, NemoLnk *lnk);
@@ -51,6 +61,34 @@ gboolean nemo_lnk_is_dir (const NemoLnk *lnk);
 
 /* The target as Windows would print it, for messages. Caller frees. */
 char    *nemo_lnk_display_target (const NemoLnk *lnk);
+
+/* A path with Windows %NAME% variables in it, as this machine spells it, or
+   NULL when a variable is not set. Off Windows the backslashes around them
+   become slashes, and %USERPROFILE% is the home folder unless it is set. */
+char    *nemo_lnk_expand (const char *windows_path);
+
+/* target_path with the variable that covers the most of it put in, such as
+   %USERPROFILE%\Documents\x.txt. Off Windows only the home folder has one.
+   NULL when none covers it. */
+char    *nemo_lnk_portable_path (const char *target_path);
+
+/* Write a shortcut at lnk_path to target_path, both paths here, carrying the
+   parts asked for. Paths inside are spelled the Windows way on every
+   platform. Absolute is the \\server\share path when the target is on a
+   mounted Windows share, else the path itself. Portable is the path with an
+   environment variable in it, which Windows follows too, even from a
+   shortcut made elsewhere; off Windows a share path goes there as well, for
+   the same reason. Fails with G_IO_ERROR_EXISTS when lnk_path is taken, and
+   with G_IO_ERROR_INVALID_ARGUMENT when none of the parts fit. */
+gboolean nemo_lnk_write (const char  *lnk_path,
+                         const char  *target_path,
+                         guint        parts,
+                         GError     **error);
+
+/* Take the relative path back out of a shortcut, for Windows, which always
+   writes one. */
+gboolean nemo_lnk_drop_relative (const char  *lnk_path,
+                                 GError     **error);
 
 /* Only the above is built on Windows. */
 #ifndef G_OS_WIN32
@@ -74,16 +112,6 @@ char    *nemo_lnk_follow (const char *lnk_path, NemoLnk *lnk_out);
    target, which may be on a share that is not answering. mtime keys a cache.
    NULL when the file is not a readable shortcut. */
 GIcon   *nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime);
-
-/* Write a shortcut at lnk_path to target_path, both paths here. It holds the
-   absolute path: the \\server\share one when the target is on a mounted
-   Windows share, else the path as this machine spells it. relative adds the
-   path relative to the shortcut, which is tried when the absolute one is gone,
-   as on Windows. Fails with G_IO_ERROR_EXISTS when lnk_path is taken. */
-gboolean nemo_lnk_write (const char  *lnk_path,
-                         const char  *target_path,
-                         gboolean     relative,
-                         GError     **error);
 
 /* Tests point these at a fake mount table, volume id folder and gvfs folder.
    NULL puts a default back. */
