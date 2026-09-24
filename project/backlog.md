@@ -45,17 +45,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 A folder's modified date in the list stays old after a file is moved into it.
+	- Opened: 20260924-083500
+	- Reproduced: in list view, dragging a file onto a folder row and moving it. The row's item count goes up, but its date does not change, even after the folder is opened in place.
+
 ### Features and enhancements
 
 - 🔘 Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922
 	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
-
-- 🔘 Put the drag-move scene back in the demo once the delete test guard's compile-time arm is at 0.
-	- Opened: 20260919-161500
-	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
-	- The demo lint fails if a drag goes back in while the guard is still at 1, so this cannot be forgotten.
-	- Note: unblocked 20260923. The compile-time arm is 0, and the demo turns the setting off. The lint now fails if a drag goes back in while any of the define, the demo's settings or the default would arm it.
 
 - 🔘 Copying a tiny file makes a CoW clone of it, where a plain copy would do better.
 	- Opened: 20260923-114627
@@ -1623,6 +1621,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Put the drag-move scene back in the demo once the delete test guard's compile-time arm is at 0.
+	- Opened: 20260919-161500. Closed: 20260924-083500.
+	- The drag question is one of the better features to show, but while the guard is armed a move on camera brings up its dialog and call stack instead.
+	- The demo lint fails if a drag goes back in while the guard is still at 1, so this cannot be forgotten.
+	- Note: unblocked 20260923. The compile-time arm is 0, and the demo turns the setting off. The lint now fails if a drag goes back in while any of the define, the demo's settings or the default would arm it.
+	- Done: the new archive from the Compress scene is dragged onto Invoices, the question asks, and Invoices is opened to show it there. Other scenes were trimmed to keep the gif under a minute; it is 58.9 seconds.
+
 - ✅ RE Delete/move test guard:
 	- ✅ Originally opened 20260917-125536:
 		- `NEMO_TESTGUARD_ALL_DELETES` in `nemo-delete-testguard.h` is 1 while the removal that took home on b23 is still unexplained, so every build asks about every delete and the normal confirmations stay out of the way.
@@ -1768,6 +1773,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260804-230307. Closed: 20260919.
 	- The gif is 58 seconds and 1.6 MiB, at the top of the README. The video is the same script at 1080p60 with sound, kept out of the repo.
 	- Six scenes: the window opens with Places alone, then the folder tree opens beside it and closes again; F3 opens a second content pane and closes it; icon view thumbnails; search flat then grouped by folder; and Compress to 7z.
+		- Note: a seventh scene, the drag question on a move, was added 20260924.
 	- The synthetic home is mounted at a generic path, so no account name or working path is on screen.
 	- It picks a free display rather than insisting on one number, after a sister project's recorder was found on the one this had claimed.
 	- `cicd.bash --demo` records it. Off by default and skipped on a quick run, since it takes about six minutes and only changes when the interface or the script does.
