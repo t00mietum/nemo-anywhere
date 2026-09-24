@@ -36,6 +36,7 @@ G_BEGIN_DECLS
 /* Machine-wide, not per-feature: how much of this computer a job may use. */
 #define NEMO_PERFORMANCE_GROUP			"performance"
 #define NEMO_PREFERENCES_CPU_PERCENT	"cpu-percent"
+#define NEMO_PREFERENCES_CLONE_MIN_KIB	"clone-min-kib"
 
 /* Developer scaffolding, off for everyone else. */
 #define NEMO_DEBUG_GROUP						"debug"

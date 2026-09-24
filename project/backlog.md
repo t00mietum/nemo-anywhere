@@ -51,11 +51,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260922
 	- Each window is its own process by default, and GTK can only move a tab within one process. A move between windows has to be handed over as the tab's location instead.
 
-- 🔘 Copying a tiny file makes a CoW clone of it, where a plain copy would do better.
-	- Opened: 20260923-114627
-	- A copy tries a clone first at any size, then a plain copy. A clone of a tiny file can cost more than it saves.
-	- Pick a size below which a copy skips the clone. See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md#copy-on-write-clones).
-
 - **Stop here for a next release**.
 
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
@@ -1623,6 +1618,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Copying a tiny file makes a CoW clone of it, where a plain copy would do better.
+	- Opened: 20260923-114627. Closed: 20260924-100500.
+	- A copy tries a clone first at any size, then a plain copy. A clone of a tiny file can cost more than it saves.
+	- Pick a size below which a copy skips the clone. See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md#copy-on-write-clones).
+	- Done: on Linux, a file under 64 KiB is read whole and written out plainly, so it is never cloned. 64 KiB is 16 blocks of 4 KiB, and a clone saves less than that below it while the file system keeps track of the shared extent for as long as both copies exist.
+	- Done: the limit is `performance.clone-min-kib` in the settings file, 0 to always clone and 1024 at most. Other platforms have nothing to skip, since only Linux clones on copy there.
+	- Note: an overwrite, a link copied as a link, or anything the plain copy cannot start goes the usual way, so conflicts and errors read the same as before.
 
 - ✅ Put the drag-move scene back in the demo once the delete test guard's compile-time arm is at 0.
 	- Opened: 20260919-161500. Closed: 20260924-083500.

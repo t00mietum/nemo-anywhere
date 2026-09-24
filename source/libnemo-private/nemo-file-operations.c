@@ -72,6 +72,7 @@
 #include "nemo-job-queue.h"
 #include "nemo-shortcut-win32.h"
 #include "nemo-link-copy.h"
+#include "nemo-small-copy.h"
 #include "nemo-link-win32.h"
 #include "nemo-trash-win32.h"
 #include "nemo-delete-guard.h"
@@ -4984,6 +4985,8 @@ copy_move_file (CopyMoveJob *copy_job,
 	char *link_target = NULL;
 	char *link_base_dir = NULL;
 	gboolean asked_overwrite = FALSE;
+	NemoSmallCopyResult small;
+	goffset small_size = 0;
 
 	job = (CommonJob *)copy_job;
 
@@ -5155,12 +5158,21 @@ copy_move_file (CopyMoveJob *copy_job,
 				   &pdata,
 				   &error);
 	} else {
-		res = g_file_copy (src, dest,
-				   flags,
-				   job->cancellable,
-				   copy_file_progress_callback,
-				   &pdata,
-				   &error);
+		small = nemo_small_copy (src, dest, flags, nemo_small_copy_limit (),
+					 job->cancellable, &small_size, &error);
+		if (small == NEMO_SMALL_COPY_NOT_TRIED) {
+			res = g_file_copy (src, dest,
+					   flags,
+					   job->cancellable,
+					   copy_file_progress_callback,
+					   &pdata,
+					   &error);
+		} else {
+			res = small == NEMO_SMALL_COPY_DONE;
+			if (res) {
+				copy_file_progress_callback (small_size, small_size, &pdata);
+			}
+		}
 	}
 
 	if (res) {
