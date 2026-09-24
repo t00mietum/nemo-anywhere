@@ -63,6 +63,8 @@
 #define ATTRIBUTE_DIRECTORY 0x10
 #define ATTRIBUTE_ARCHIVE   0x20
 
+#define VOLUME_DRIVE_FIXED   3
+
 #define SW_SHOWNORMAL        1
 #define NET_TYPE_VALID       0x2
 #define NET_PROVIDER_LANMAN  0x00020000
@@ -1214,9 +1216,50 @@ put_network_link_info (GByteArray *out, const char *unc, const char *suffix)
 	set_u32 (out, start, out->len - start);
 }
 
+/* LinkInfo with only the local part: the whole path as the base, an empty
+   suffix, and a VolumeID with no serial, since a path spelled from / is on no
+   Windows drive. The reader here takes a base that starts with / as it is. */
+static void
+put_local_link_info (GByteArray *out, const char *path)
+{
+	gsize start = out->len, base_at, suffix_at, base_unicode_at, suffix_unicode_at;
+
+	put_u32 (out, 0);                 /* size, set below */
+	put_u32 (out, 0x24);              /* header size with the UTF-16 offsets */
+	put_u32 (out, INFO_VOLUME_AND_PATH);
+	put_u32 (out, 0x24);              /* VolumeID */
+	put_u32 (out, 0);                 /* LocalBasePath, set below */
+	put_u32 (out, 0);                 /* no CommonNetworkRelativeLink */
+	put_u32 (out, 0);                 /* CommonPathSuffix, set below */
+	put_u32 (out, 0);                 /* LocalBasePathUnicode, set below */
+	put_u32 (out, 0);                 /* CommonPathSuffixUnicode, set below */
+
+	put_u32 (out, 0x11);              /* VolumeID size */
+	put_u32 (out, VOLUME_DRIVE_FIXED);
+	put_u32 (out, 0);                 /* serial */
+	put_u32 (out, 0x10);              /* label, empty */
+	g_byte_array_append (out, (const guint8 *) "", 1);
+
+	base_at = out->len - start;
+	put_ansi (out, path);
+	suffix_at = out->len - start;
+	put_ansi (out, "");
+	base_unicode_at = out->len - start;
+	put_utf16 (out, path, TRUE);
+	suffix_unicode_at = out->len - start;
+	put_utf16 (out, "", TRUE);
+
+	set_u32 (out, start + 16, base_at);
+	set_u32 (out, start + 24, suffix_at);
+	set_u32 (out, start + 28, base_unicode_at);
+	set_u32 (out, start + 32, suffix_unicode_at);
+	set_u32 (out, start, out->len - start);
+}
+
 gboolean
 nemo_lnk_write (const char  *lnk_path,
 		const char  *target_path,
+		gboolean     relative,
 		GError     **error)
 {
 	GStatBuf info;
@@ -1224,8 +1267,8 @@ nemo_lnk_write (const char  *lnk_path,
 	GPtrArray *mounts;
 	GFile *file;
 	GFileOutputStream *stream;
-	char *dir, *relative, *relative_windows = NULL, *real, *unc = NULL, *suffix = NULL;
-	guint32 flags = FLAG_IS_UNICODE;
+	char *dir, *relative_text, *relative_windows = NULL, *real, *unc = NULL, *suffix = NULL;
+	guint32 flags = FLAG_IS_UNICODE | FLAG_HAS_LINK_INFO;
 	gboolean is_dir, ok;
 	glong units;
 
@@ -1236,14 +1279,15 @@ nemo_lnk_write (const char  *lnk_path,
 	}
 	is_dir = S_ISDIR (info.st_mode);
 
-	/* Written the way Windows writes it, from the folder the shortcut is in. */
+	/* Written the way Windows writes it, from the folder the shortcut is in.
+	   With no relative spelling it keeps the absolute path alone. */
 	dir = g_path_get_dirname (lnk_path);
-	relative = nemo_link_relative_target (target_path, dir);
+	relative_text = relative ? nemo_link_relative_target (target_path, dir) : NULL;
 	g_free (dir);
-	units = relative != NULL ? utf16_length (relative) : -1;
+	units = relative_text != NULL ? utf16_length (relative_text) : -1;
 	if (units >= 0 && units <= G_MAXUINT16) {
-		relative_windows = to_backslashes (relative);
-		if (!g_str_has_prefix (relative, "..")) {
+		relative_windows = to_backslashes (relative_text);
+		if (!g_str_has_prefix (relative_text, "..")) {
 			char *dotted = g_strconcat (".\\", relative_windows, NULL);
 
 			g_free (relative_windows);
@@ -1251,21 +1295,17 @@ nemo_lnk_write (const char  *lnk_path,
 		}
 		flags |= FLAG_HAS_RELATIVE_PATH;
 	}
-	g_free (relative);
+	g_free (relative_text);
 
+	/* On a share, the \\server\share path is the absolute one, since the
+	   mount point here means nothing on another machine. */
 	mounts = read_mounts ();
 	real = realpath (target_path, NULL);
-	if (real != NULL && share_for_path (real, mounts, &unc, &suffix)) {
-		flags |= FLAG_HAS_LINK_INFO;
+	if (real == NULL || !share_for_path (real, mounts, &unc, &suffix)) {
+		unc = NULL;
 	}
 	free (real);
 	g_ptr_array_unref (mounts);
-
-	if (!(flags & (FLAG_HAS_RELATIVE_PATH | FLAG_HAS_LINK_INFO))) {
-		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
-			     _("No shortcut to \"%s\" can be made here."), target_path);
-		return FALSE;
-	}
 
 	out = g_byte_array_new ();
 	put_u32 (out, LNK_HEADER_SIZE);
@@ -1283,8 +1323,10 @@ nemo_lnk_write (const char  *lnk_path,
 	put_u32 (out, 0);
 	put_u32 (out, 0);
 
-	if (flags & FLAG_HAS_LINK_INFO) {
+	if (unc != NULL) {
 		put_network_link_info (out, unc, suffix);
+	} else {
+		put_local_link_info (out, target_path);
 	}
 	if (flags & FLAG_HAS_RELATIVE_PATH) {
 		put_u16 (out, (guint16) utf16_length (relative_windows));

@@ -115,7 +115,7 @@ void     nemo_link_options_initial (guint                  supported,
                                     NemoLinkOptions       *options);
 
 /* Whether the relative or absolute choice changes anything that comes out.
-   It does for a symlink, and for a shortcut made on Windows. */
+   It does for a symlink and a shortcut, not for a junction or a hardlink. */
 gboolean nemo_link_options_uses_path (const NemoLinkOptions *options,
                                       int                    n_folders,
                                       int                    n_files);

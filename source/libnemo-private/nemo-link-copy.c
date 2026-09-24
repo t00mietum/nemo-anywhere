@@ -564,16 +564,11 @@ nemo_link_options_initial (guint            supported,
 	options->relative = FALSE;
 }
 
-/* A shortcut made off Windows always holds the relative path, since an
-   absolute path from here means nothing to Windows. */
+/* A junction is always absolute, and a hardlink has no path at all. */
 static gboolean
 kind_uses_path (NemoMakeLink kind)
 {
-#ifdef G_OS_WIN32
 	return kind == NEMO_MAKE_SYMLINK || kind == NEMO_MAKE_SHORTCUT;
-#else
-	return kind == NEMO_MAKE_SYMLINK;
-#endif
 }
 
 gboolean

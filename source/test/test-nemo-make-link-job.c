@@ -2,8 +2,8 @@
  * handed in up front. One job per run, for the reason the link copy job test
  * gives: the queue starts a job only when the one before it says it is done.
  *
- * Argument: "relative" (default), "absolute", "hardlink", "junction" or
- * "shortcut".
+ * Argument: "relative" (default), "absolute", "hardlink", "junction",
+ * "shortcut" or "shortcut-absolute".
  */
 
 #include "test.h"
@@ -92,9 +92,9 @@ has_relative_path (const char *lnk_path)
 }
 
 /* The shortcut at lnk_path leads to want, read the way this platform reads
-   one. */
+   one, with a relative path in it or not. */
 static void
-check_shortcut (const char *lnk_path, const char *want)
+check_shortcut (const char *lnk_path, const char *want, gboolean relative)
 {
 #ifdef G_OS_WIN32
 	char *target = NULL;
@@ -114,7 +114,15 @@ check_shortcut (const char *lnk_path, const char *want)
 	g_free (uri);
 	g_free (want_uri);
 #endif
-	check (has_relative_path (lnk_path));
+	if (relative) {
+		check (has_relative_path (lnk_path));
+	}
+#ifndef G_OS_WIN32
+	/* The shell decides that for itself on Windows. */
+	else {
+		check (!has_relative_path (lnk_path));
+	}
+#endif
 }
 
 int
@@ -159,14 +167,15 @@ main (int argc, char *argv[])
 		options.file_kind = NEMO_MAKE_HARDLINK;
 	} else if (g_strcmp0 (how, "junction") == 0) {
 		options.folder_kind = NEMO_MAKE_JUNCTION;
-	} else if (g_strcmp0 (how, "shortcut") == 0) {
+	} else if (g_str_has_prefix (how, "shortcut")) {
 		options.folder_kind = NEMO_MAKE_SHORTCUT;
 		options.file_kind = NEMO_MAKE_SHORTCUT;
+		options.relative = g_strcmp0 (how, "shortcut") == 0;
 	}
 
 	if (g_strcmp0 (how, "junction") == 0
 	    ? !(supported & NEMO_LINK_JUNCTION)
-	    : (g_strcmp0 (how, "hardlink") != 0 && g_strcmp0 (how, "shortcut") != 0 &&
+	    : (g_strcmp0 (how, "hardlink") != 0 && !g_str_has_prefix (how, "shortcut") &&
 	       !(supported & NEMO_LINK_FILE_SYMLINK))) {
 		g_printerr ("note: that kind of link cannot be made here, nothing to check\n");
 		return 77;
@@ -228,20 +237,20 @@ main (int argc, char *argv[])
 		check (g_file_get_contents (payload, &contents, NULL, NULL) &&
 		       g_strcmp0 (contents, "payload more") == 0);
 		g_clear_pointer (&contents, g_free);
-	} else if (g_strcmp0 (how, "shortcut") == 0) {
+	} else if (g_str_has_prefix (how, "shortcut")) {
 		char *lnk_file = g_strconcat (made_file, ".lnk", NULL);
 		char *lnk_folder = g_strconcat (made_folder, ".lnk", NULL);
 
 		/* Only the .lnk files, under their own names. */
 		check (!g_file_test (made_file, G_FILE_TEST_EXISTS));
 		check (!g_file_test (made_folder, G_FILE_TEST_EXISTS));
-		check_shortcut (lnk_file, payload);
-		check_shortcut (lnk_folder, folder);
+		check_shortcut (lnk_file, payload, options.relative);
+		check_shortcut (lnk_folder, folder, options.relative);
 
 		/* The pair moved together still finds its way on the relative path.
 		   Windows needs its own resolve for that, so only here. */
 #ifndef G_OS_WIN32
-		{
+		if (options.relative) {
 			char *moved = g_build_filename (tmp, "moved", NULL);
 			char *moved_from = g_build_filename (moved, "from", NULL);
 			char *moved_to = g_build_filename (moved, "to", NULL);
@@ -251,7 +260,7 @@ main (int argc, char *argv[])
 			g_mkdir_with_parents (moved, 0700);
 			check (g_rename (src_dir, moved_from) == 0);
 			check (g_rename (dst_dir, moved_to) == 0);
-			check_shortcut (moved_lnk, moved_payload);
+			check_shortcut (moved_lnk, moved_payload, TRUE);
 			check (g_rename (moved_from, src_dir) == 0);
 			check (g_rename (moved_to, dst_dir) == 0);
 			g_free (moved_payload);

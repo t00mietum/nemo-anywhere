@@ -76,11 +76,13 @@ char    *nemo_lnk_follow (const char *lnk_path, NemoLnk *lnk_out);
 GIcon   *nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime);
 
 /* Write a shortcut at lnk_path to target_path, both paths here. It holds the
-   target's path relative to the shortcut, and the \\server\share path as well
-   when the target is on a mounted Windows share, which Windows can follow from
-   anywhere. Fails with G_IO_ERROR_EXISTS when lnk_path is taken. */
+   absolute path: the \\server\share one when the target is on a mounted
+   Windows share, else the path as this machine spells it. relative adds the
+   path relative to the shortcut, which is tried when the absolute one is gone,
+   as on Windows. Fails with G_IO_ERROR_EXISTS when lnk_path is taken. */
 gboolean nemo_lnk_write (const char  *lnk_path,
                          const char  *target_path,
+                         gboolean     relative,
                          GError     **error);
 
 /* Tests point these at a fake mount table, volume id folder and gvfs folder.
