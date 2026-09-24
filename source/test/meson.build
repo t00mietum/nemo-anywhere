@@ -48,6 +48,15 @@ test('Folder time after a change inside it test',
   timeout: 60
 )
 
+test('Small file copy test',
+  executable('test-nemo-small-copy',
+    [ 'test-nemo-small-copy.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Drag drop confirm test',
   executable('test-nemo-drag-confirm',
     [ 'test-nemo-drag-confirm.c' ],

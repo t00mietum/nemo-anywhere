@@ -72,6 +72,7 @@
 #include "nemo-job-queue.h"
 #include "nemo-shortcut-win32.h"
 #include "nemo-link-copy.h"
+#include "nemo-small-copy.h"
 #include "nemo-link-win32.h"
 #include "nemo-trash-win32.h"
 #include "nemo-delete-guard.h"
@@ -4984,6 +4985,8 @@ copy_move_file (CopyMoveJob *copy_job,
 	char *link_target = NULL;
 	char *link_base_dir = NULL;
 	gboolean asked_overwrite = FALSE;
+	NemoSmallCopyResult small;
+	goffset small_size = 0;
 
 	job = (CommonJob *)copy_job;
 
@@ -5155,12 +5158,21 @@ copy_move_file (CopyMoveJob *copy_job,
 				   &pdata,
 				   &error);
 	} else {
-		res = g_file_copy (src, dest,
-				   flags,
-				   job->cancellable,
-				   copy_file_progress_callback,
-				   &pdata,
-				   &error);
+		small = nemo_small_copy (src, dest, flags, nemo_small_copy_limit (),
+					 job->cancellable, &small_size, &error);
+		if (small == NEMO_SMALL_COPY_NOT_TRIED) {
+			res = g_file_copy (src, dest,
+					   flags,
+					   job->cancellable,
+					   copy_file_progress_callback,
+					   &pdata,
+					   &error);
+		} else {
+			res = small == NEMO_SMALL_COPY_DONE;
+			if (res) {
+				copy_file_progress_callback (small_size, small_size, &pdata);
+			}
+		}
 	}
 
 	if (res) {
@@ -7152,6 +7164,8 @@ create_job (GIOSchedulerJob *io_job,
 	char *data;
 	int length;
 	GFileOutputStream *out;
+	NemoSmallCopyResult small;
+	goffset small_size;
 	gboolean handled_invalid_filename;
 	int max_length, offset;
 
@@ -7226,12 +7240,26 @@ create_job (GIOSchedulerJob *io_job,
 
 	} else {
 		if (job->src) {
-			res = g_file_copy (job->src,
-					   dest,
-					   G_FILE_COPY_NONE,
-					   common->cancellable,
-					   NULL, NULL,
-					   &error);
+			/* A template is nearly always small enough to skip the clone. The
+			   ordinary copy brings the mode across itself; this one needs
+			   asking. */
+			small = nemo_small_copy (job->src, dest, G_FILE_COPY_NONE,
+						 nemo_small_copy_limit (),
+						 common->cancellable, &small_size, &error);
+			if (small == NEMO_SMALL_COPY_NOT_TRIED) {
+				res = g_file_copy (job->src,
+						   dest,
+						   G_FILE_COPY_NONE,
+						   common->cancellable,
+						   NULL, NULL,
+						   &error);
+			} else {
+				res = small == NEMO_SMALL_COPY_DONE;
+				if (res) {
+					g_file_copy_attributes (job->src, dest, G_FILE_COPY_NONE,
+								common->cancellable, NULL);
+				}
+			}
 
 			if (res && common->undo_info != NULL) {
 				gchar *uri;

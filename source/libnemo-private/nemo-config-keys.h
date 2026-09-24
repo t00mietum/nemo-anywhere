@@ -154,6 +154,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "interface", "clock-use-24h", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "media-handling", "automount", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL },
 	{ "media-handling", "automount-open", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Open a window on media as soon as it is mounted" },
+	{ "performance", "clone-min-kib", NEMO_CONFIG_INT, "64", NULL, NULL, "Files smaller than this are copied in full rather than cloned, on file systems that can clone. 0 to always clone, 1024 at most" },
 	{ "performance", "cpu-percent", NEMO_CONFIG_INT, "50", NULL, NULL, "Share of the machine's CPU cores compression may use" },
 	{ "privacy", "remember-recent-files", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL },
 	{ "terminal", "exec", NEMO_CONFIG_STRING, "", NULL, NULL, "Terminal used for Open in Terminal, or empty to let the system pick" },

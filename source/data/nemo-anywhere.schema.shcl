@@ -170,6 +170,11 @@ field: media-handling.automount-open
 	default: false
 	desc: Open a window on media as soon as it is mounted
 
+field: performance.clone-min-kib
+	type: int
+	default: 64
+	desc: Files smaller than this are copied in full rather than cloned, on file systems that can clone. 0 to always clone, 1024 at most
+
 field: performance.cpu-percent
 	type: int
 	default: 50

@@ -112,6 +112,7 @@ The only safe option for deduping Nemo Anywhere will ever consider: Copy-on-Writ
 - Deduping makes the clone in place where the platform allows it. See [Deduping in place](#deduping-in-place).
 
 - On Linux, Nemo Anywhere already does all copy operations on supported filesystems, with essentially the same thing as `cp --reflink=auto` - so that if it's possible and beneficial (e.g. not for tiny files), copies will be clones. There is no risk and almost never downsides to this being unchangeable hard-coded behavior, only potentially massive benefits. (And the downsides are trivial.)
+	- A file under 64 KiB is copied in full rather than cloned. The limit is `performance.clone-min-kib` in the settings file, and 0 always clones.
 
 ## Other facts
 
