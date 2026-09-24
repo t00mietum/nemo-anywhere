@@ -315,11 +315,32 @@ test_parts (const char *dir)
 	char *doc = g_build_filename (dir, "parts.txt", NULL);
 	char *lnk = g_build_filename (dir, "parts.lnk", NULL);
 	char *portable = nemo_lnk_portable_path (doc);
+	char *saved = g_strdup (g_getenv ("LOCALAPPDATA"));
+	char *target = NULL;
+	gboolean by_shell;
 	NemoLnk info;
 
 	check (g_file_set_contents (doc, "doc", -1, NULL));
-	/* The scratch folder is under the profile, so a variable covers it. */
-	check (portable != NULL && portable[0] == '%');
+
+	/* Where no variable covers the target, and the scratch folder may or
+	   may not be under the profile, a plain path goes in the block, drive
+	   and all. */
+	check (nemo_shortcut_win32_create_parts (doc, lnk, NEMO_LNK_PORTABLE, NULL));
+	check (nemo_lnk_read (lnk, &info));
+	check (info.env_path != NULL &&
+	       g_ascii_strcasecmp (info.env_path, portable != NULL ? portable : doc) == 0);
+	nemo_lnk_clear (&info);
+	by_shell = FALSE;
+	check (nemo_shortcut_win32_read_target (lnk, &target, &by_shell, NULL));
+	check (by_shell && target != NULL && same_path (target, doc));
+	g_clear_pointer (&target, g_free);
+	g_unlink (lnk);
+
+	/* From here on a variable covers it, whatever the box. */
+	g_setenv ("LOCALAPPDATA", dir, TRUE);
+	g_free (portable);
+	portable = nemo_lnk_portable_path (doc);
+	check (g_strcmp0 (portable, "%LOCALAPPDATA%\\parts.txt") == 0);
 
 	/* The shell writes a relative path whatever it is asked; taken back out. */
 	check_parts (doc, lnk, NEMO_LNK_ABSOLUTE, TRUE);
@@ -334,11 +355,17 @@ test_parts (const char *dir)
 	/* The variable is kept as written, not expanded. */
 	check (nemo_shortcut_win32_create_parts (doc, lnk, NEMO_LNK_ALL_PARTS, NULL));
 	check (nemo_lnk_read (lnk, &info));
-	check (info.env_path != NULL && g_ascii_strcasecmp (info.env_path, portable) == 0);
+	check (g_strcmp0 (info.env_path, portable) == 0);
 	nemo_lnk_clear (&info);
 	g_unlink (lnk);
 
+	if (saved != NULL) {
+		g_setenv ("LOCALAPPDATA", saved, TRUE);
+	} else {
+		g_unsetenv ("LOCALAPPDATA");
+	}
 	g_unlink (doc);
+	g_free (saved);
 	g_free (portable);
 	g_free (lnk);
 	g_free (doc);

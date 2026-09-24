@@ -1658,7 +1658,11 @@ nemo_lnk_write (const char  *lnk_path,
 	{
 		char *server, *share, *rest;
 
-		if (split_share (target_path, &server, &share, &rest)) {
+		/* split_share takes C:\dir as server C: and share dir, so only a
+		   path that starts with two slashes gets that far. */
+		if ((target_path[0] == '\\' || target_path[0] == '/') &&
+		    (target_path[1] == '\\' || target_path[1] == '/') &&
+		    split_share (target_path, &server, &share, &rest)) {
 			unc = g_strconcat ("\\\\", server, "\\", share, NULL);
 			suffix = to_backslashes (rest);
 			g_free (server);
