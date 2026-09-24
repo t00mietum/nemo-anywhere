@@ -16,8 +16,6 @@
 
 #include <glib/gi18n.h>
 
-#include "nemo-global-preferences.h"
-
 #include <eel/eel-stock-dialogs.h>
 
 #ifdef G_OS_WIN32
@@ -549,39 +547,21 @@ nemo_link_relative_target (const char *target_path,
 
 void
 nemo_link_options_initial (guint            supported,
-                           NemoMakeLink     last_folder_kind,
-                           NemoMakeLink     last_file_kind,
-                           gboolean         last_relative,
                            NemoLinkOptions *options)
 {
-	gboolean junction_ok = (supported & NEMO_LINK_JUNCTION) != 0;
-	gboolean dir_symlink_ok = (supported & NEMO_LINK_DIR_SYMLINK) != 0;
-	NemoMakeLink folder = last_folder_kind;
-	NemoMakeLink file = last_file_kind;
-
-	if (folder != NEMO_MAKE_JUNCTION && folder != NEMO_MAKE_SHORTCUT) {
-		folder = NEMO_MAKE_SYMLINK;
+	/* A hardlink is never picked for anyone. It is the one choice here that
+	   can cost something, so it is only ever chosen. A shortcut can always be
+	   made, so it is the fallback. */
+	if (supported & NEMO_LINK_JUNCTION) {
+		options->folder_kind = NEMO_MAKE_JUNCTION;
+	} else if (supported & NEMO_LINK_DIR_SYMLINK) {
+		options->folder_kind = NEMO_MAKE_SYMLINK;
+	} else {
+		options->folder_kind = NEMO_MAKE_SHORTCUT;
 	}
-	if (folder == NEMO_MAKE_JUNCTION && !junction_ok) {
-		folder = NEMO_MAKE_SYMLINK;
-	}
-	if (folder == NEMO_MAKE_SYMLINK && !dir_symlink_ok) {
-		folder = junction_ok ? NEMO_MAKE_JUNCTION : NEMO_MAKE_SHORTCUT;
-	}
-
-	/* A hardlink is never picked just because a symlink cannot be made. It
-	   is the one choice here that can cost something, so it is only ever
-	   chosen. A shortcut can always be made, so it is the fallback. */
-	if (file != NEMO_MAKE_HARDLINK && file != NEMO_MAKE_SHORTCUT) {
-		file = NEMO_MAKE_SYMLINK;
-	}
-	if (file == NEMO_MAKE_SYMLINK && !(supported & NEMO_LINK_FILE_SYMLINK)) {
-		file = NEMO_MAKE_SHORTCUT;
-	}
-
-	options->folder_kind = folder;
-	options->file_kind = file;
-	options->relative = last_relative;
+	options->file_kind = (supported & NEMO_LINK_FILE_SYMLINK) ? NEMO_MAKE_SYMLINK
+								 : NEMO_MAKE_SHORTCUT;
+	options->relative = TRUE;
 }
 
 /* A shortcut made off Windows always holds the relative path, since an
@@ -810,27 +790,6 @@ confirm_hardlinks (GtkWindow *parent, int n_files)
 	return response == GTK_RESPONSE_OK;
 }
 
-/* The config keeps its own numbers, in the order the choices were added. */
-static NemoMakeLink
-folder_kind_from_config (void)
-{
-	switch (nemo_config_get_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FOLDER_KIND)) {
-	case 0: return NEMO_MAKE_JUNCTION;
-	case 2: return NEMO_MAKE_SHORTCUT;
-	default: return NEMO_MAKE_SYMLINK;
-	}
-}
-
-static NemoMakeLink
-file_kind_from_config (void)
-{
-	switch (nemo_config_get_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FILE_KIND)) {
-	case 1: return NEMO_MAKE_HARDLINK;
-	case 2: return NEMO_MAKE_SHORTCUT;
-	default: return NEMO_MAKE_SYMLINK;
-	}
-}
-
 static void
 set_shortcut_tooltip (GtkWidget *button)
 {
@@ -875,11 +834,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 #endif
 	g_free (dest_path);
 
-	nemo_link_options_initial (d.supported,
-				   folder_kind_from_config (),
-				   file_kind_from_config (),
-				   nemo_config_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_LINK_RELATIVE),
-				   options);
+	nemo_link_options_initial (d.supported, options);
 
 	if (total == 1) {
 		primary = g_strdup (_("Make a link"));
@@ -1015,23 +970,6 @@ nemo_link_options_ask (GtkWindow       *parent,
 		}
 	} while (response == GTK_RESPONSE_OK && n_files > 0 && options->file_kind == NEMO_MAKE_HARDLINK &&
 		 !confirm_hardlinks (GTK_WINDOW (d.dialog), n_files));
-
-	if (response == GTK_RESPONSE_OK) {
-		if (n_folders > 0) {
-			nemo_config_set_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FOLDER_KIND,
-					      options->folder_kind == NEMO_MAKE_JUNCTION ? 0
-					      : options->folder_kind == NEMO_MAKE_SHORTCUT ? 2 : 1);
-		}
-		if (n_files > 0) {
-			nemo_config_set_enum (nemo_window_state, NEMO_WINDOW_STATE_LINK_FILE_KIND,
-					      options->file_kind == NEMO_MAKE_HARDLINK ? 1
-					      : options->file_kind == NEMO_MAKE_SHORTCUT ? 2 : 0);
-		}
-		if (nemo_link_options_uses_path (options, n_folders, n_files)) {
-			nemo_config_set_boolean (nemo_window_state, NEMO_WINDOW_STATE_LINK_RELATIVE,
-						 options->relative);
-		}
-	}
 
 	gtk_widget_destroy (d.dialog);
 

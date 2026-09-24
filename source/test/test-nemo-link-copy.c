@@ -260,28 +260,23 @@ check_link_options (void)
 {
 	NemoLinkOptions options;
 
-	nemo_link_options_initial (NEMO_LINK_ANY, NEMO_MAKE_JUNCTION, NEMO_MAKE_SYMLINK, TRUE, &options);
+	/* Every open starts the same way. */
+	nemo_link_options_initial (NEMO_LINK_ANY, &options);
 	check (options.folder_kind == NEMO_MAKE_JUNCTION && options.file_kind == NEMO_MAKE_SYMLINK &&
 	       options.relative);
 
-	/* No junctions here, whatever was chosen last time. */
-	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK,
-				   NEMO_MAKE_JUNCTION, NEMO_MAKE_HARDLINK, FALSE, &options);
-	check (options.folder_kind == NEMO_MAKE_SYMLINK && options.file_kind == NEMO_MAKE_HARDLINK &&
-	       !options.relative);
+	/* No junctions here. */
+	nemo_link_options_initial (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK, &options);
+	check (options.folder_kind == NEMO_MAKE_SYMLINK && options.file_kind == NEMO_MAKE_SYMLINK);
 
 	/* Windows without the symlink privilege: folders fall back to a junction,
 	   and a file to a shortcut, never a hardlink. */
-	nemo_link_options_initial (NEMO_LINK_JUNCTION, NEMO_MAKE_SYMLINK, NEMO_MAKE_SYMLINK, TRUE, &options);
+	nemo_link_options_initial (NEMO_LINK_JUNCTION, &options);
 	check (options.folder_kind == NEMO_MAKE_JUNCTION && options.file_kind == NEMO_MAKE_SHORTCUT);
 
-	/* A shortcut can always be made, so it stays chosen. */
-	nemo_link_options_initial (0, NEMO_MAKE_SHORTCUT, NEMO_MAKE_SHORTCUT, TRUE, &options);
+	/* Nothing else possible: a shortcut can always be made. */
+	nemo_link_options_initial (0, &options);
 	check (options.folder_kind == NEMO_MAKE_SHORTCUT && options.file_kind == NEMO_MAKE_SHORTCUT);
-
-	/* A folder cannot be hardlinked, whatever the settings file says. */
-	nemo_link_options_initial (NEMO_LINK_ANY, NEMO_MAKE_HARDLINK, NEMO_MAKE_JUNCTION, TRUE, &options);
-	check (options.folder_kind == NEMO_MAKE_SYMLINK && options.file_kind == NEMO_MAKE_SYMLINK);
 
 	/* The path choice matters only while something comes out a symlink, or a
 	   shortcut made on Windows. */

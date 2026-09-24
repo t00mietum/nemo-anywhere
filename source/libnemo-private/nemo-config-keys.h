@@ -43,19 +43,6 @@ static const NemoConfigEnumValue enum_FolderView[] = {
 	{ NULL, 0 }
 };
 
-static const NemoConfigEnumValue enum_LinkFileKind[] = {
-	{ "symlink", 0 },
-	{ "hardlink", 1 },
-	{ "shortcut", 2 },
-	{ NULL, 0 }
-};
-
-static const NemoConfigEnumValue enum_LinkFolderKind[] = {
-	{ "junction", 0 },
-	{ "symlink", 1 },
-	{ "shortcut", 2 },
-	{ NULL, 0 }
-};
 
 static const NemoConfigEnumValue enum_PathSeparator[] = {
 	{ "backslash", 0 },
@@ -330,9 +317,6 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "window-state", "bookmarks-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "window-state", "devices-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "window-state", "geometry", NEMO_CONFIG_STRING, "", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
-	{ "window-state", "link-file-kind", NEMO_CONFIG_ENUM, "symlink", NULL, enum_LinkFileKind, "Last kind of link made for a file", NEMO_CONFIG_KEY_STATE },
-	{ "window-state", "link-folder-kind", NEMO_CONFIG_ENUM, "junction", NULL, enum_LinkFolderKind, "Last kind of link made for a folder", NEMO_CONFIG_KEY_STATE },
-	{ "window-state", "link-relative", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Make symlinks with a relative path", NEMO_CONFIG_KEY_STATE },
 	{ "window-state", "maximized", NEMO_CONFIG_BOOL, "false", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "window-state", "my-computer-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
 	{ "window-state", "network-expanded", NEMO_CONFIG_BOOL, "true", NULL, NULL, NULL, NEMO_CONFIG_KEY_STATE },
