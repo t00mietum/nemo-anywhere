@@ -1661,7 +1661,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Done: choosing a hardlink asks once more, every time, and lists what can go wrong as spaced bullets. Cancel is the default and goes back to the dialog.
 		- Done: the Hardlink choice carries a warning sign after its label.
 		- Done: "Link" makes a Windows `.lnk` shortcut, for folders and files, on every platform. Off Windows its tooltip says only Nemo Anywhere follows one there, and how it differs from a symlink.
-		- Note: off Windows a Link holds its path relative to itself, and the `\\server\share` path too when the target is on a mounted share. Path is grayed when only Links come out, since an absolute Linux path means nothing to Windows. On Windows, Relative adds a relative path to the shortcut.
+		- Note: Path applies to symlinks and Links, and is grayed for junctions, which are always absolute, and hardlinks, which have no path. A Link always holds the absolute path, and Relative adds its path relative to itself, as Windows does. Off Windows the absolute path is the `\\server\share` one when the target is on a mounted share, else the path as that machine spells it.
 		- Note: Explorer cannot follow a Link made off Windows. Windows 11 reads a shortcut only through the part that names the target in its own terms, and a Linux path has none. Nemo Anywhere on Windows reads one anyway, from the relative or share path.
 		- Note: on Windows with no symlinks allowed, files now start on Link rather than on a grayed-out Symlink.
 		- Changed: the choices are no longer remembered. Every open starts from the defaults. A "Defaults..." button, here and in Preferences, may come later.

@@ -6385,7 +6385,7 @@ get_abs_path_for_symlink (GFile *file)
 
 /* A .lnk shortcut. Rewrite *dest to carry the required .lnk extension, then
  * save the shortcut pointing at target_path. On success *dest owns the .lnk
- * GFile. Off Windows the shortcut always keeps the relative path. */
+ * GFile. Relative adds the relative path to the absolute one, as Windows does. */
 static gboolean
 create_lnk (GFile **dest, const char *target_path, gboolean relative, GError **error)
 {
@@ -6420,7 +6420,7 @@ create_lnk (GFile **dest, const char *target_path, gboolean relative, GError **e
 			? nemo_shortcut_win32_create_relative (target_path, lnk_path, error)
 			: nemo_shortcut_win32_create (target_path, lnk_path, NULL, NULL, NULL, error);
 #else
-		ok = nemo_lnk_write (lnk_path, target_path, error);
+		ok = nemo_lnk_write (lnk_path, target_path, relative, error);
 #endif
 	}
 	g_free (lnk_path);

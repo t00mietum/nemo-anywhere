@@ -278,8 +278,8 @@ check_link_options (void)
 	nemo_link_options_initial (0, &options);
 	check (options.folder_kind == NEMO_MAKE_SHORTCUT && options.file_kind == NEMO_MAKE_SHORTCUT);
 
-	/* The path choice matters only while something comes out a symlink, or a
-	   shortcut made on Windows. */
+	/* The path choice matters only while something comes out a symlink or a
+	   shortcut. A junction is always absolute and a hardlink has no path. */
 	options.folder_kind = NEMO_MAKE_JUNCTION;
 	options.file_kind = NEMO_MAKE_HARDLINK;
 	check (!nemo_link_options_uses_path (&options, 2, 3));
@@ -290,11 +290,10 @@ check_link_options (void)
 	check (nemo_link_options_uses_path (&options, 1, 0));
 	options.folder_kind = NEMO_MAKE_SHORTCUT;
 	options.file_kind = NEMO_MAKE_SHORTCUT;
-#ifdef G_OS_WIN32
 	check (nemo_link_options_uses_path (&options, 1, 1));
-#else
+	options.folder_kind = NEMO_MAKE_JUNCTION;
+	options.file_kind = NEMO_MAKE_HARDLINK;
 	check (!nemo_link_options_uses_path (&options, 1, 1));
-#endif
 }
 
 static void

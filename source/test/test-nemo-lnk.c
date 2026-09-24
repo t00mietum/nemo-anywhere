@@ -727,8 +727,9 @@ test_follow (void)
 	machine_clear (&machine);
 }
 
-/* Write a shortcut to dir/name from dir/lnk_name, read it back, and check it
-   leads to the same place. The caller clears *lnk. */
+/* Write a shortcut to dir/name from dir/lnk_name, with the relative path as
+   well, read it back, and check it leads to the same place. The caller clears
+   *lnk. */
 static void
 write_and_read (const char *dir, const char *name, const char *lnk_name, NemoLnk *lnk)
 {
@@ -737,7 +738,7 @@ write_and_read (const char *dir, const char *name, const char *lnk_name, NemoLnk
 	char *uri, *want;
 	GError *error = NULL;
 
-	check (nemo_lnk_write (lnk_path, target, &error));
+	check (nemo_lnk_write (lnk_path, target, TRUE, &error));
 	g_clear_error (&error);
 	check (nemo_lnk_read (lnk_path, lnk));
 	uri = nemo_lnk_resolve (lnk_path, lnk);
@@ -759,7 +760,7 @@ test_write (void)
 {
 	Machine machine;
 	NemoLnk lnk;
-	char *root, *cifs, *sub, *gvfs_share, *lnk_path, *target, *before, *after;
+	char *root, *cifs, *sub, *gvfs_share, *lnk_path, *target, *before, *after, *uri, *want;
 	gsize before_length, after_length;
 	GError *error = NULL;
 
@@ -779,8 +780,24 @@ test_write (void)
 	touch (root, "docs/plain.txt");
 	write_and_read (root, "docs/plain.txt", "plain.txt.lnk", &lnk);
 	check (g_strcmp0 (lnk.relative_path, ".\\docs\\plain.txt") == 0);
-	check (lnk.net_share == NULL && lnk.local_path == NULL);
+	/* The absolute path goes in either way, as this machine spells it. */
+	target = g_build_filename (root, "docs", "plain.txt", NULL);
+	check (lnk.net_share == NULL && g_strcmp0 (lnk.local_path, target) == 0);
 	nemo_lnk_clear (&lnk);
+
+	/* Absolute only: no relative path, and it still leads there. */
+	lnk_path = g_build_filename (root, "abs.lnk", NULL);
+	check (nemo_lnk_write (lnk_path, target, FALSE, NULL));
+	check (nemo_lnk_read (lnk_path, &lnk));
+	check (lnk.relative_path == NULL && g_strcmp0 (lnk.local_path, target) == 0);
+	uri = nemo_lnk_resolve (lnk_path, &lnk);
+	want = uri_of (root, "docs/plain.txt");
+	check (g_strcmp0 (uri, want) == 0);
+	g_free (uri);
+	g_free (want);
+	nemo_lnk_clear (&lnk);
+	g_free (lnk_path);
+	g_free (target);
 
 	target = g_build_filename (root, "docs", "sub", NULL);
 	g_mkdir (target, 0700);
@@ -805,6 +822,8 @@ test_write (void)
 	write_and_read (root, "cifs/dir/a.txt", "a.lnk", &lnk);
 	check (g_strcmp0 (lnk.net_share, "\\\\SRV\\share") == 0);
 	check (g_strcmp0 (lnk.net_path, "dir\\a.txt") == 0);
+	/* The share path is the absolute one; the mount point here is not. */
+	check (lnk.local_path == NULL);
 	nemo_lnk_clear (&lnk);
 
 	/* A share mounted at a folder inside it. */
@@ -820,7 +839,7 @@ test_write (void)
 	touch (gvfs_share, "Movies/m.mkv");
 	lnk_path = g_build_filename (root, "m.lnk", NULL);
 	target = g_build_filename (gvfs_share, "Movies", "m.mkv", NULL);
-	check (nemo_lnk_write (lnk_path, target, NULL));
+	check (nemo_lnk_write (lnk_path, target, TRUE, NULL));
 	check (nemo_lnk_read (lnk_path, &lnk));
 	check (g_strcmp0 (lnk.net_share, "\\\\nas\\media") == 0);
 	check (g_strcmp0 (lnk.net_path, "Movies\\m.mkv") == 0);
@@ -828,7 +847,7 @@ test_write (void)
 
 	/* Never over something already there. */
 	g_assert (g_file_get_contents (lnk_path, &before, &before_length, NULL));
-	check (!nemo_lnk_write (lnk_path, target, &error));
+	check (!nemo_lnk_write (lnk_path, target, TRUE, &error));
 	check (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_EXISTS));
 	g_clear_error (&error);
 	g_assert (g_file_get_contents (lnk_path, &after, &after_length, NULL));
@@ -841,7 +860,7 @@ test_write (void)
 	/* Nothing to point at. */
 	lnk_path = g_build_filename (root, "gone.lnk", NULL);
 	target = g_build_filename (root, "gone.txt", NULL);
-	check (!nemo_lnk_write (lnk_path, target, NULL));
+	check (!nemo_lnk_write (lnk_path, target, TRUE, NULL));
 	check (!g_file_test (lnk_path, G_FILE_TEST_EXISTS));
 	g_free (lnk_path);
 	g_free (target);
