@@ -9172,7 +9172,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* Control on macOS too, where Cmd+M minimizes */
   /* name, stock id */         { "Create Link", NULL,
   /* label, accelerator */       N_("Ma_ke link..."), "<control>M",
-  /* tooltip */                  N_("Make a symlink, hardlink or junction to each selected item"),
+  /* tooltip */                  N_("Make a symlink, hardlink, junction or Windows shortcut to each selected item"),
 				 G_CALLBACK (action_create_link_callback) },
   /* name, stock id */         { "Create Shortcut", NULL,
   /* label, accelerator */       N_("Make s_hortcut"), NULL,

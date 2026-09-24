@@ -929,7 +929,9 @@ nemo_link_options_ask (GtkWindow       *parent,
 				    ngettext ("_Symlink", "_Symlinks", n_folders),
 				    (d.supported & NEMO_LINK_DIR_SYMLINK) != 0,
 				    options->folder_kind == NEMO_MAKE_SYMLINK);
-		d.folder_shortcut = add_choice (GTK_GRID (grid), row, column, group,
+		/* Under the file row's Link when both rows show, so the two line up
+		   rather than sitting under Hardlink. */
+		d.folder_shortcut = add_choice (GTK_GRID (grid), row, both ? 3 : column, group,
 						ngettext ("_Link", "_Links", n_folders),
 						TRUE, options->folder_kind == NEMO_MAKE_SHORTCUT);
 		set_shortcut_tooltip (d.folder_shortcut);
