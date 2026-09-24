@@ -6,7 +6,7 @@
 <policyconfig>
 
  <vendor>Nemo Anywhere</vendor>
- <vendor_url>https://github.com/t00mietum/nemo-anywhere</vendor_url>
+ <vendor_url>https://github.com/yottacore/nemo-anywhere</vendor_url>
 
  <action id="org.nemo-anywhere.root">
    <description>Run Nemo Anywhere with elevated privileges</description>

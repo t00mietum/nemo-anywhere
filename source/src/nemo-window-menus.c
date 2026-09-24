@@ -367,7 +367,7 @@ action_about_nemo_callback (GtkAction *action,
 			       "version", NEMO_VERSION_STRING,
 			       "copyright", "Copyright \xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu)\n"
 					    "Upstream code Copyrights \xc2\xa9 Nemo authors",
-			       "website", "https://github.com/t00mietum/nemo-anywhere",
+			       "website", "https://github.com/yottacore/nemo-anywhere",
 			       "comments", comments,
 			       "license", license_trans,
 			       "wrap-license", TRUE,

@@ -12,7 +12,7 @@
 ##	  printed and confirmed.
 ##	- Bash 3.2 compatible on purpose (that is what macOS still ships).
 ##	- Syntax:
-##	  bash <(curl -fsSL https://raw.githubusercontent.com/t00mietum/nemo-anywhere/main/install.bash) [options]
+##	  bash <(curl -fsSL https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.bash) [options]
 ##	    --release dev|stable    which release to take (default: stable)
 ##	    --target  user|system   where to install (default: user)
 ##	    --from    PATH|URL      install this archive instead of a release
@@ -32,7 +32,7 @@
 
 set -Eeuo pipefail
 
-REPO="t00mietum/nemo-anywhere"
+REPO="yottacore/nemo-anywhere"
 INSTALLER_VERSION="1.1.0"
 APP_NAME="Nemo Anywhere"
 EXE_NAME="nemo-anywhere"
