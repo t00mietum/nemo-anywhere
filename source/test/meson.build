@@ -38,6 +38,16 @@ test('Directory monitor test',
   timeout: 120
 )
 
+test('Folder time after a change inside it test',
+  executable('test-nemo-folder-mtime',
+    [ 'test-nemo-folder-mtime.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: [],
+  timeout: 60
+)
+
 test('Drag drop confirm test',
   executable('test-nemo-drag-confirm',
     [ 'test-nemo-drag-confirm.c' ],
