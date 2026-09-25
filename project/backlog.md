@@ -58,7 +58,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- If links are created next to their originals:
 		- Symlink: "<original name> - symlink[ 2 etc]"
 		- Hardlink: "<original name> - hardlink[ 2 etc]"
-		- Hardlink: "<original name> - hardlink[ 2 etc]"
+		- Shortcut: "<original name> - shortcut[ 2 etc]"
 
 - 🔘 Valid shortcuts to folders sort with folders.
 
