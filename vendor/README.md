@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD041 -- First line in a file should be a top-level heading -->
+<!-- markdownlint-disable MD055 -- Table pipe style [Expected: leading_and_trailing; Actual: leading_only; Missing trailing pipe] -->
 # Vendored
 
 ## Code
@@ -13,7 +15,9 @@ blake3 hash, C implementation, dual **CC0-1.0** and **Apache-2.0** - compiled in
 It is here rather than linked because there is nothing to link to. No Linux distribution ships a libblake3 old enough to rely on, and the Windows sysroot has none at all. The C sources are 113 KB and build to 65,716 bytes of code, which is cheaper than the alternatives were:
 
 - GLib's own SHA-256 is plain C at 291 MB/s. Nothing is vendored, but a folder of large files would wait on it.
-- OpenSSL's SHA-256 is fast, 1450 MB/s where the processor has SHA-NI and 502 where it does not. Linking `libcrypto.a` statically for the one call costs **4.8 MB** on a Windows executable that is 8.3 MB today, because the digest goes through the provider machinery and none of it strips out.
+
+- OpenSSL's SHA-256 is fast, 1450 MB/s where the processor has SHA-NI and 502 where it does not. Linking `libcrypto.a` statically for the one call costs **4.8 MB** on an unpacked Windows executable of 8.3 MB, because the digest goes through the provider machinery and none of it strips out.
+
 - blake3 as vendored runs at 2459 MB/s single-threaded. Measured on b23, a Ryzen 3950X with AVX2, against a 64 MB buffer.
 
 Only the parts that are used are here: the plain C routine, the dispatcher, and the SSE2, SSE4.1 and AVX2 routines. AVX-512 is left out, and so are the hand-written assembly versions of the same routines, the NEON one and the thread-pool wrapper. Which routine runs is decided at run time by what the processor reports. A machine that is not x86 gets the plain C one, so a future arm64 build works but is slow - `blake3_neon.c` is the file to add when that matters.

@@ -28,7 +28,7 @@ Report issues [here](https://github.com/yottacore/nemo-anywhere/issues), never t
 
 Check [project/backlog.md](project/backlog.md) first. A lot of what looks like a missing feature is already sitting there, sometimes with a note on why it has not been done.
 
-The license is GPL-2.0-only, version two and not "or later". Anything contributed comes in under that.
+The license is GPL-2.0-only, version two and not "or later". Anything contributed comes in under that, except in `source/libnemo-extension/`, which is LGPL.
 
 ## Reporting a bug
 
