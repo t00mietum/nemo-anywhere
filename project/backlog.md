@@ -1681,6 +1681,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: the camera raw reader has a fuzz target and seeds, run with the others.
 	- Done: the demo video fades in and out, and the gif ends on three seconds of black so its loop point is plain. The demo's scenes are written out in plain words in `cicd/utility/demo-video/script.txt`.
 	- Decided against: a build number in the Windows version resource. Its fields are small numbers, and the build number is text.
+	- Decided against: renaming the dogfood launcher. `runfm` and `n8runfm.ps1` stay, since the desktop's file manager entry and habits use them.
 
 - ✅ Move to SHCL 3.
 	- Opened: n/a
