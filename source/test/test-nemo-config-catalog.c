@@ -2,7 +2,8 @@
  * opening it shows what there is to change. Checks that the list is written,
  * that it leaves out both the keys the app writes back itself and the keys
  * already set, that uncommenting a line takes effect, and that a save is a
- * fixed point rather than growing a second copy each time.
+ * fixed point rather than growing a second copy each time. The same goes for
+ * SHCL's info block, which names the format and goes last.
  *
  * Runs against a throwaway config root. */
 
@@ -144,6 +145,9 @@ test_save_is_a_fixed_point (NemoConfigGroup *prefs)
 
 	check (g_strcmp0 (first, second) == 0);
 	check (count_of (second, "# Uncomment a line to change one.") == 1);
+	check (count_of (second, "\n##    Format   3\n") == 1);
+	check (g_str_has_suffix (second, "No warranty.\n##\n"));
+	check (strstr (second, "# Uncomment") < strstr (second, "##    Format"));
 	g_free (first);
 	g_free (second);
 
@@ -284,6 +288,8 @@ test_indented_copy_removed (NemoConfigGroup *prefs)
 	text = read_file ();
 	check (count_of (text, "# Uncomment a line to change one.") == 1);
 	check (count_of (text, "#windows.allow-slash-input: true") == 1);
+	check (count_of (text, "##    Format   3") == 1);
+	check (count_of (text, "This config file format is SHCL.") == 1);
 	g_free (text);
 
 	nemo_config_reset (prefs, "tab-width-max-percent");
@@ -291,12 +297,49 @@ test_indented_copy_removed (NemoConfigGroup *prefs)
 	nemo_config_flush ();
 }
 
-/* A comment somebody wrote themselves is not ours to remove. */
+/* A block from another SHCL release has other text in it. It still has to be
+ * replaced, not left sitting above the current one. */
+static void
+test_older_banner_replaced (NemoConfigGroup *prefs)
+{
+	char *settings = read_settings ();
+	char *edited = g_strconcat (settings,
+	                            "\npreferences:\n\tstart-with-dual-pane: true\n\n"
+	                            "##\n"
+	                            "## This config file format is SHCL.\n"
+	                            "##    Format   3\n"
+	                            "##    Syntax   https://example.invalid/old/spec.md\n"
+	                            "##    Legal    An older legal line.\n"
+	                            "##\n", NULL);
+	char *text;
+
+	g_free (settings);
+	write_and_wait (edited, prefs, "start-with-dual-pane");
+	g_free (edited);
+
+	nemo_config_set_int (prefs, "tab-width-min-percent", 12);
+	nemo_config_flush ();
+
+	text = read_file ();
+	check (count_of (text, "##    Format   3") == 1);
+	check (count_of (text, "##    Syntax") == 1);
+	check (strstr (text, "example.invalid") == NULL);
+	check (strstr (text, "An older legal line") == NULL);
+	check (count_of (text, "This config file format is SHCL.") == 1);
+	g_free (text);
+
+	nemo_config_reset (prefs, "tab-width-min-percent");
+	nemo_config_reset (prefs, "start-with-dual-pane");
+	nemo_config_flush ();
+}
+
+/* A comment somebody wrote themselves is not ours to remove, a bare "##" of
+ * their own included. */
 static void
 test_own_comment_kept (NemoConfigGroup *prefs)
 {
 	char *settings = read_settings ();
-	char *edited = g_strconcat ("# notes of my own\n", settings,
+	char *edited = g_strconcat ("# notes of my own\n##\n", settings,
 	                            "\npreferences:\n\tstart-with-dual-pane: true\n", NULL);
 	char *text;
 
@@ -308,7 +351,7 @@ test_own_comment_kept (NemoConfigGroup *prefs)
 	nemo_config_flush ();
 
 	text = read_file ();
-	check (strstr (text, "# notes of my own") != NULL);
+	check (strstr (text, "# notes of my own\n##\n") != NULL);
 	g_free (text);
 }
 
@@ -333,6 +376,7 @@ main (int argc, char *argv[])
 	test_save_is_a_fixed_point (prefs);
 	test_uncommenting_takes_effect (prefs, menus, appearance);
 	test_indented_copy_removed (prefs);
+	test_older_banner_replaced (prefs);
 	test_own_comment_kept (prefs);
 
 	nemo_config_shutdown ();
