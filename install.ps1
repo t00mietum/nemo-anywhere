@@ -101,9 +101,16 @@ param(
 # Configuration
 
 $Repo    = "yottacore/nemo-anywhere"
-$InstallerVersion = "1.1.0"
+$InstallerVersion = "1.2.0"
 $AppName = "Nemo Anywhere"
 $ExeName = "nemo-anywhere"
+
+## `exit` is only safe when this really is its own process. The one-liner runs
+## the downloaded text inside the caller's shell, where an exit closes their
+## window along with the error it just printed. So failures travel as an
+## exception, and only a real script file turns that into an exit code.
+$runningAsScriptFile = -not [string]::IsNullOrEmpty($MyInvocation.MyCommand.Path)
+$state = @{ failed = $false; work = $null }
 
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -115,11 +122,38 @@ function fEcho       { param([string]$Msg) Write-Host "[ $Msg ]" }
 function fEcho_Clean { param([string]$Msg = "") Write-Host $Msg }
 function fWarn       { param([string]$Msg) Write-Host "WARNING: $Msg" -ForegroundColor Yellow }
 function fFail {
-	param([string]$Msg)
+	param([string]$Msg, [string[]]$Hints = @())
 	Write-Host ""
 	Write-Host "FAILED: $Msg" -ForegroundColor Red
+	foreach ($hint in $Hints) { Write-Host "  $hint" }
 	Write-Host ""
-	exit 1
+	## Carries nothing to print; fFail has said it all.
+	throw (New-Object System.OperationCanceledException "installer-abort")
+}
+
+function fInnerMessage {
+	param($ErrorRecord)
+	$ex = $ErrorRecord.Exception
+	while ($ex.InnerException) { $ex = $ex.InnerException }
+	return $ex.Message
+}
+
+## Access denied and file in use are the two that happen, and they need
+## opposite advice.
+function fFileError {
+	param($ErrorRecord, [string]$What, [string]$Path)
+	$ex = $ErrorRecord.Exception
+	while ($ex.InnerException) { $ex = $ex.InnerException }
+	if ($ex -is [System.UnauthorizedAccessException]) {
+		if ($os -eq "windows" -and $Target -eq "system") { $hint = "Re-run from an elevated PowerShell (Run as administrator), or use -Target user." }
+		elseif ($os -eq "windows") { $hint = "Check the folder is not read-only, and that antivirus is not blocking it." }
+		else { $hint = "Check who owns it: ls -ld $Path" }
+		fFail "${What} - permission denied: ${Path}" @($hint)
+	}
+	if ($ex.Message -match "used by another process") {
+		fFail "${What} - ${Path} is in use" @("Close every ${AppName} window, and any window sitting in that folder, then run this again.")
+	}
+	fFail "${What} - $($ex.Message)" @("Path: ${Path}")
 }
 
 
@@ -138,7 +172,7 @@ function fConfirm {
 		fEcho_Clean ""
 		fEcho "Nothing changed."
 		fEcho_Clean ""
-		exit 1
+		throw (New-Object System.OperationCanceledException "installer-declined")
 	}
 }
 
@@ -190,11 +224,16 @@ function fResolveTag {
 		## Assigned first: irm passes a JSON array down the pipe as one object.
 		$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${Repo}/releases?per_page=100" -UseBasicParsing
 	} catch {
-		return $null
+		fFail "could not list the releases of ${Repo} ($(fInnerMessage $_))" @("Check the connection. GitHub also limits anonymous requests to 60 an hour.")
 	}
 	$tags = @(foreach ($rel in @($releases)) { if ($rel.tag_name) { [string]$rel.tag_name } })
 	if ($tags.Count -eq 0) { return $null }
-	$ranked = @($tags | Sort-Object -Descending -Property { fVersionKey $_ })
+	## Ordinal, as install.bash sorts under LC_ALL=C. Sort-Object compares by
+	## culture and ignores case, so the two could pick different tags.
+	[string[]]$keys   = @($tags | ForEach-Object { fVersionKey $_ })
+	[string[]]$ranked = $tags
+	[Array]::Sort($keys, $ranked, [StringComparer]::Ordinal)
+	[Array]::Reverse($ranked)
 	$stable = @($ranked | Where-Object { -not $_.Contains('-') })
 	if ($Release -eq "stable" -and $stable.Count -gt 0) { return $stable[0] }
 	return $ranked[0]
@@ -404,390 +443,458 @@ function fRefreshCaches {
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Script entry point
 
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-$ProgressPreference    = "SilentlyContinue"   ## Invoke-WebRequest is far faster without the bar
-## Native tools report through their exit code, which fSh checks itself. Left on
-## (the 7.4 default) a non-zero exit would throw before that check is reached.
-$PSNativeCommandUseErrorActionPreference = $false
+## Everything runs from here, so preferences and strict mode last only for the
+## run, the temp folder goes whatever happens, and a failure never reaches the
+## caller's shell as an exit.
+function fMain {
+	fEcho_Clean ""
+	fEcho_Clean "${AppName} installer"
 
-if ($Help)    { fHelp; exit 0 }
-if ($Version) { fEcho_Clean "${AppName} installer ${InstallerVersion}"; exit 0 }
-
-fEcho_Clean ""
-fEcho_Clean "${AppName} installer"
-
-## $IsWindows and friends arrived with PowerShell 6; Windows PowerShell 5.1
-## predates them and is Windows by definition. Unix flavour comes from uname,
-## since .NET reports BSD as neither Linux nor macOS.
-if ($PSVersionTable.PSEdition -eq "Desktop" -or $IsWindows) {
-	$os = "windows"
-} else {
-	$uname = "$(& uname -s)".ToLowerInvariant()
-	if     ($uname -like "linux*")  { $os = "linux" }
-	elseif ($uname -like "*bsd*" -or $uname -like "dragonfly*") { $os = "bsd" }
-	elseif ($uname -like "darwin*") { fFail "there is no macOS build yet - the .app bundle gets installed from here once there is one" }
-	else                            { fFail "unsupported OS: ${uname}" }
-}
-
-## Architecture: the OS's, not the process's, so a 32-bit shell still gets the
-## right build.
-$arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-	"X64"   { "x86_64" }
-	"Arm64" { "arm64" }
-	default { fFail "unsupported architecture: $_" }
-}
-
-## GUI package layout, both platforms: the whole folder in one place, reached by
-## a menu entry and a name on PATH (a file manager gets started both ways).
-$priv = $false
-if ($os -eq "windows") {
-	if ($Target -eq "system") {
-		$prefix    = Join-Path $env:ProgramFiles $AppName
-		$menuDir   = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
-		$pathScope = "Machine"
-		$identity  = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-		if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-			fFail "-Target system needs an elevated shell - re-run this from 'Run as administrator', or use -Target user"
-		}
+	## $IsWindows and friends arrived with PowerShell 6; Windows PowerShell 5.1
+	## predates them and is Windows by definition. Unix flavour comes from uname,
+	## since .NET reports BSD as neither Linux nor macOS.
+	if ($PSVersionTable.PSEdition -eq "Desktop" -or $IsWindows) {
+		$os = "windows"
 	} else {
-		$prefix    = Join-Path $env:LOCALAPPDATA "Programs\$AppName"
-		$menuDir   = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
-		$pathScope = "User"
+		$uname = "$(& uname -s)".ToLowerInvariant()
+		if     ($uname -like "linux*")  { $os = "linux" }
+		elseif ($uname -like "*bsd*" -or $uname -like "dragonfly*") { $os = "bsd" }
+		elseif ($uname -like "darwin*") { fFail "there is no macOS build yet - the .app bundle gets installed from here once there is one" }
+		else                            { fFail "unsupported OS: ${uname}" }
 	}
-	$shortcut = Join-Path $menuDir "${AppName}.lnk"
-	$exePath  = Join-Path $prefix "${ExeName}.exe"
-	$leafName = $AppName
-} else {
-	$dataHome = if ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } else { Join-Path $HOME ".local/share" }
-	if ($Target -eq "system") {
-		$prefix = if ($os -eq "bsd") { "/usr/local/${ExeName}" } else { "/opt/${ExeName}" }
-		$appDir = "/usr/local/share/applications"
-		$binDir = "/usr/local/bin"
-		## Privileged steps go through sudo; not needed when already root.
-		if ("$(& id -u)" -ne "0") {
-			if (-not (Get-Command sudo -ErrorAction SilentlyContinue)) {
-				fFail "-Target system needs root, and sudo was not found - re-run as root"
+
+	## 5.1 inherits .NET Framework's TLS default, which on older Windows is still
+	## TLS 1.0, and github.com refuses that. The symptom would be an unhelpful
+	## "underlying connection was closed".
+	if ($PSVersionTable.PSEdition -eq "Desktop") {
+		try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch { $null = $_ }
+	}
+
+	## Architecture: the OS's, not the process's, so a 32-bit shell still gets the
+	## right build. Read from the environment and uname rather than
+	## [RuntimeInformation], which needs a newer .NET than 5.1 may have.
+	if ($os -eq "windows") {
+		$rawArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+	} else {
+		$rawArch = "$(& uname -m)"
+	}
+	$arch = switch -Regex ($rawArch) {
+		"^(AMD64|x86_64|amd64)$"  { "x86_64" }
+		"^(ARM64|aarch64|arm64)$" { "arm64" }
+		default                   { fFail "unsupported architecture: ${rawArch}" }
+	}
+
+	## GUI package layout, both platforms: the whole folder in one place, reached by
+	## a menu entry and a name on PATH (a file manager gets started both ways).
+	$priv = $false
+	if ($os -eq "windows") {
+		if ($Target -eq "system") {
+			## ProgramW6432 is the 64-bit folder even from a 32-bit shell.
+			$programFiles = if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }
+			$prefix    = Join-Path $programFiles $AppName
+			$menuDir   = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
+			$pathScope = "Machine"
+			$identity  = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+			if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+				fFail "-Target system needs an elevated shell - re-run this from 'Run as administrator', or use -Target user"
 			}
-			$priv = $true
+		} else {
+			$prefix    = Join-Path $env:LOCALAPPDATA "Programs\$AppName"
+			$menuDir   = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+			$pathScope = "User"
 		}
+		$shortcut = Join-Path $menuDir "${AppName}.lnk"
+		$exePath  = Join-Path $prefix "${ExeName}.exe"
+		$leafName = $AppName
 	} else {
-		$prefix = Join-Path $dataHome $ExeName
-		$appDir = Join-Path $dataHome "applications"
-		$binDir = Join-Path $HOME ".local/bin"
+		$dataHome = if ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } else { Join-Path $HOME ".local/share" }
+		if ($Target -eq "system") {
+			$prefix = if ($os -eq "bsd") { "/usr/local/${ExeName}" } else { "/opt/${ExeName}" }
+			$appDir = "/usr/local/share/applications"
+			$binDir = "/usr/local/bin"
+			## Privileged steps go through sudo; not needed when already root.
+			if ("$(& id -u)" -ne "0") {
+				if (-not (Get-Command sudo -ErrorAction SilentlyContinue)) {
+					fFail "-Target system needs root, and sudo was not found - re-run as root"
+				}
+				$priv = $true
+			}
+		} else {
+			$prefix = Join-Path $dataHome $ExeName
+			$appDir = Join-Path $dataHome "applications"
+			$binDir = Join-Path $HOME ".local/bin"
+		}
+		$launcher = Join-Path $appDir "${ExeName}.desktop"
+		$symlink  = Join-Path $binDir $ExeName
+		$exePath  = "${prefix}/bin/${ExeName}"
+		$leafName = $ExeName
+		if (-not $prefix.StartsWith("/")) { fFail "refusing to touch a non-absolute prefix: ${prefix}" }
 	}
-	$launcher = Join-Path $appDir "${ExeName}.desktop"
-	$symlink  = Join-Path $binDir $ExeName
-	$exePath  = "${prefix}/bin/${ExeName}"
-	$leafName = $ExeName
-	if (-not $prefix.StartsWith("/")) { fFail "refusing to touch a non-absolute prefix: ${prefix}" }
-}
 
-## Guard every destructive path: an unexpected prefix must never reach a delete.
-if ((Split-Path -Leaf $prefix) -ne $leafName) { fFail "refusing to touch a folder not named '${leafName}': ${prefix}" }
+	## Guard every destructive path: an unexpected prefix must never reach a delete.
+	if ((Split-Path -Leaf $prefix) -ne $leafName) { fFail "refusing to touch a folder not named '${leafName}': ${prefix}" }
 
 
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Uninstall
+	#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+	# Uninstall
 
-if ($Uninstall) {
-	$havePrefix = Test-Path -LiteralPath $prefix
+	if ($Uninstall) {
+		$havePrefix = Test-Path -LiteralPath $prefix
+
+		fEcho_Clean ""
+		fEcho "Uninstall plan"
+		if ($os -eq "windows") {
+			$haveShortcut = Test-Path -LiteralPath $shortcut
+			$havePath     = fPathContains $pathScope $prefix
+			$haveAnything = $havePrefix -or $haveShortcut -or $havePath
+			fEcho_Clean ("Folder ....: {0}{1}" -f $prefix,   $(if ($havePrefix)   { "" } else { "   (not present)" }))
+			fEcho_Clean ("Shortcut ..: {0}{1}" -f $shortcut, $(if ($haveShortcut) { "" } else { "   (not present)" }))
+			fEcho_Clean ("PATH ......: {0} ({1}){2}" -f $prefix, $pathScope, $(if ($havePath) { "" } else { "   (not present)" }))
+		} else {
+			$haveLauncher = Test-Path -LiteralPath $launcher
+			$linkTarget   = fLinkTarget $symlink
+			$haveAnything = $havePrefix -or $haveLauncher -or $linkTarget
+			fEcho_Clean ("Prefix ....: {0}{1}" -f $prefix,   $(if ($havePrefix)   { "" } else { "   (not present)" }))
+			fEcho_Clean ("Launcher ..: {0}{1}" -f $launcher, $(if ($haveLauncher) { "" } else { "   (not present)" }))
+			fEcho_Clean ("Symlink ...: {0}{1}" -f $symlink,  $(if ($linkTarget)   { "" } else { "   (not present)" }))
+			if ($priv) { fEcho_Clean "Privileges : sudo (system target)" }
+		}
+
+		if (-not $haveAnything) {
+			fEcho_Clean ""
+			fEcho "Nothing installed here. Nothing to do."
+			fEcho_Clean ""
+			return
+		}
+
+		fEcho_Clean ""
+		fConfirm
+
+		fEcho_Clean ""
+		fEcho "Removing"
+		if ($os -eq "windows") {
+			if ($havePrefix) {
+				$holders = @(fWaitUntilFree $prefix)
+				if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
+			}
+			if ($haveShortcut) { Remove-Item -LiteralPath $shortcut -Force; fEcho_Clean "removed ${shortcut}" }
+			if ($havePrefix)   { Remove-Item -LiteralPath $prefix -Recurse -Force; fEcho_Clean "removed ${prefix}" }
+			if (fPathRemove $pathScope $prefix) { fEcho_Clean "removed ${prefix} from the ${pathScope} PATH" }
+			$settings = "%APPDATA%\${ExeName}"
+		} else {
+			## Only unlink a symlink that actually points into our prefix.
+			if ($linkTarget) {
+				if ($linkTarget.StartsWith("${prefix}/")) {
+					fSh @("rm", "-f", $symlink); fEcho_Clean "removed ${symlink}"
+				} else {
+					fWarn "left ${symlink} alone - it points at ${linkTarget}, not our prefix"
+				}
+			}
+			if ($haveLauncher) { fSh @("rm", "-f",  $launcher); fEcho_Clean "removed ${launcher}" }
+			if ($havePrefix)   { fSh @("rm", "-rf", $prefix);   fEcho_Clean "removed ${prefix}" }
+			if (Get-Command update-desktop-database -ErrorAction SilentlyContinue) {
+				fSh @("update-desktop-database", $appDir) -Soft
+			}
+			$settings = "~/.config/${ExeName}"
+		}
+
+		fEcho_Clean ""
+		fEcho "Uninstalled. Settings in ${settings} were left in place."
+		fEcho_Clean ""
+		return
+	}
+
+
+	#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+	# Resolve what to install
+
+	$archiveExt = if ($os -eq "windows") { "zip" } else { "tar.gz" }
+
+	$work = Join-Path ([System.IO.Path]::GetTempPath()) "${ExeName}-install-$([System.IO.Path]::GetRandomFileName())"
+	New-Item -ItemType Directory -Path $work -Force | Out-Null
+	$state.work = $work
 
 	fEcho_Clean ""
-	fEcho "Uninstall plan"
-	if ($os -eq "windows") {
-		$haveShortcut = Test-Path -LiteralPath $shortcut
-		$havePath     = fPathContains $pathScope $prefix
-		$haveAnything = $havePrefix -or $haveShortcut -or $havePath
-		fEcho_Clean ("Folder ....: {0}{1}" -f $prefix,   $(if ($havePrefix)   { "" } else { "   (not present)" }))
-		fEcho_Clean ("Shortcut ..: {0}{1}" -f $shortcut, $(if ($haveShortcut) { "" } else { "   (not present)" }))
-		fEcho_Clean ("PATH ......: {0} ({1}){2}" -f $prefix, $pathScope, $(if ($havePath) { "" } else { "   (not present)" }))
+	fEcho "Resolving"
+
+	$sumsUrl = ""
+	if ($From) {
+		$downloadUrl  = $From
+		$sourceDesc   = $From
+		## Display only: a conventionally named archive still tells us its version.
+		## Stop at the platform suffix, not at the first dash - a prerelease version
+		## has one of its own (1.0.0-beta2), and cutting there reported a beta as the
+		## release it precedes.
+		$relVersion   = if ((Split-Path -Leaf $From) -match "^${ExeName}-(.+)-[^-]+-[^-.]+\.(?:zip|tar\.gz|tgz)$") { $Matches[1] } else { "" }
+		$releaseDesc  = "local archive"
+		$verifyDesc   = "no checksum (-From)"
 	} else {
-		$haveLauncher = Test-Path -LiteralPath $launcher
-		$linkTarget   = fLinkTarget $symlink
-		$haveAnything = $havePrefix -or $haveLauncher -or $linkTarget
-		fEcho_Clean ("Prefix ....: {0}{1}" -f $prefix,   $(if ($havePrefix)   { "" } else { "   (not present)" }))
-		fEcho_Clean ("Launcher ..: {0}{1}" -f $launcher, $(if ($haveLauncher) { "" } else { "   (not present)" }))
-		fEcho_Clean ("Symlink ...: {0}{1}" -f $symlink,  $(if ($linkTarget)   { "" } else { "   (not present)" }))
-		if ($priv) { fEcho_Clean "Privileges : sudo (system target)" }
+		$tag = fResolveTag
+		if (-not $tag) { fFail "no release published yet for ${Repo}" }
+		$relVersion = $tag -replace '^v', ''
+		$asset      = "${ExeName}-${relVersion}-${os}-${arch}.${archiveExt}"
+		$sumsAsset  = "${ExeName}-${relVersion}-sha256sums.txt"
+
+		try {
+			$tagInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/${Repo}/releases/tags/${tag}" -UseBasicParsing
+		} catch {
+			fFail "couldn't read release ${tag} ($($_.Exception.Message))"
+		}
+		## Read the property off the matched asset, not off the match expression -
+		## strict mode throws on a property of nothing.
+		$assetInfo   = $tagInfo.assets | Where-Object { $_.name -eq $asset     } | Select-Object -First 1
+		$sumsInfo    = $tagInfo.assets | Where-Object { $_.name -eq $sumsAsset } | Select-Object -First 1
+		$downloadUrl = if ($assetInfo) { $assetInfo.browser_download_url } else { "" }
+		$sumsUrl     = if ($sumsInfo)  { $sumsInfo.browser_download_url  } else { "" }
+
+		if (-not $downloadUrl) {
+			fEcho_Clean ""
+			fEcho_Clean "Release ${tag} has no build for ${os}-${arch}. It publishes:"
+			$tagInfo.assets | ForEach-Object { fEcho_Clean "  $($_.name)" }
+			fFail "no ${asset} in release ${tag}"
+		}
+		$sourceDesc  = $downloadUrl
+		$releaseDesc = "${Release} ${relVersion}"
+		if ($Release -eq "stable" -and $relVersion.Contains('-')) { $releaseDesc += "   (no stable release yet, so the newest prerelease)" }
+		$verifyDesc  = if ($sumsUrl) { "sha256, against ${sumsAsset}" } else { "UNVERIFIED - release publishes no checksums" }
 	}
 
-	if (-not $haveAnything) {
-		fEcho_Clean ""
-		fEcho "Nothing installed here. Nothing to do."
-		fEcho_Clean ""
-		exit 0
+	fEcho_Clean ""
+	fEcho "Plan"
+	fEcho_Clean "Release ...: ${releaseDesc}"
+	fEcho_Clean "Platform ..: ${os}-${arch}"
+	fEcho_Clean "Download ..: ${sourceDesc}"
+	fEcho_Clean "Verify ....: ${verifyDesc}"
+	$replaces = if (Test-Path -LiteralPath $prefix) { "   (replaces the install already there)" } else { "" }
+	if ($os -eq "windows") {
+		fEcho_Clean ("Folder ....: {0}{1}" -f $prefix, $replaces)
+		fEcho_Clean "Shortcut ..: ${shortcut}"
+		fEcho_Clean "PATH ......: adds ${prefix} to the ${pathScope} PATH"
+	} else {
+		fEcho_Clean ("Prefix ....: {0}{1}" -f $prefix, $replaces)
+		fEcho_Clean "Launcher ..: ${launcher}"
+		fEcho_Clean "Symlink ...: ${symlink} -> ${exePath}"
+		if ($priv) { fEcho_Clean "Privileges : sudo (system target)" }
 	}
 
 	fEcho_Clean ""
 	fConfirm
 
+
+	#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+	# Download and verify
+
 	fEcho_Clean ""
-	fEcho "Removing"
+	fEcho "Downloading"
+
+	$archive = Join-Path $work "${ExeName}.${archiveExt}"
+	if ($From -and (Test-Path -LiteralPath $From)) {
+		Copy-Item -LiteralPath $From -Destination $archive
+		fEcho_Clean "using local archive ${From}"
+	} else {
+		try {
+			Invoke-WebRequest -Uri $downloadUrl -OutFile $archive -UseBasicParsing
+		} catch {
+			fFail "download failed ($($_.Exception.Message))"
+		}
+		fEcho_Clean "got $((Get-Item -LiteralPath $archive).Length) bytes"
+	}
+
+	## A downloaded archive carries a mark-of-the-web that would follow every file
+	## out of it and have SmartScreen block the exe. pwsh on Linux has the cmdlet
+	## too, but it throws there whatever -ErrorAction says, so ask the OS instead.
 	if ($os -eq "windows") {
-		if ($havePrefix) {
+		Unblock-File -LiteralPath $archive -ErrorAction SilentlyContinue
+	}
+
+	if (-not $From -and $sumsUrl) {
+		$sumsFile = Join-Path $work "sums.txt"
+		try {
+			Invoke-WebRequest -Uri $sumsUrl -OutFile $sumsFile -UseBasicParsing
+		} catch {
+			fFail "could not download ${sumsAsset} ($(fInnerMessage $_))"
+		}
+		$line = Get-Content -LiteralPath $sumsFile | Where-Object { $_ -match "[ *]$([regex]::Escape($asset))$" } | Select-Object -First 1
+		if (-not $line) { fFail "${sumsAsset} has no line for ${asset}" }
+		$expected = ($line -split '\s+')[0]
+		$actual   = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+		if ($actual -ine $expected) { fFail "checksum mismatch - expected ${expected}, got ${actual}" }
+		fEcho_Clean "sha256 verified"
+	} else {
+		fWarn "skipping checksum verification"
+	}
+
+
+	#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+	# Install
+
+	fEcho_Clean ""
+	fEcho "Installing"
+
+	$unpacked = Join-Path $work "unpacked"
+	New-Item -ItemType Directory -Path $unpacked -Force | Out-Null
+	if ($os -eq "windows") {
+		try {
+			Expand-Archive -LiteralPath $archive -DestinationPath $unpacked -Force
+		} catch {
+			fFail "could not unpack the archive ($($_.Exception.Message))"
+		}
+	} else {
+		## tar, not Expand-Archive: the unix packages are tarballs, and tar also
+		## keeps the executable bits the launcher and symlink depend on.
+		& tar -xzf $archive -C $unpacked
+		if ($LASTEXITCODE -ne 0) { fFail "could not unpack the archive" }
+	}
+
+	## Archives carry one top-level folder; tolerate a flat one too.
+	$tree    = $unpacked
+	$entries = @(Get-ChildItem -LiteralPath $unpacked -Force)
+	if ($entries.Count -eq 1 -and $entries[0].PSIsContainer) { $tree = $entries[0].FullName }
+	$stagedName = if ($os -eq "windows") { "${ExeName}.exe" } else { "bin/${ExeName}" }
+	if (-not (Test-Path -LiteralPath (Join-Path $tree $stagedName))) {
+		fFail "archive has no ${stagedName} - wrong or damaged package"
+	}
+
+	if ($os -eq "windows") {
+		if (Test-Path -LiteralPath $prefix) {
 			$holders = @(fWaitUntilFree $prefix)
 			if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
 		}
-		if ($haveShortcut) { Remove-Item -LiteralPath $shortcut -Force; fEcho_Clean "removed ${shortcut}" }
-		if ($havePrefix)   { Remove-Item -LiteralPath $prefix -Recurse -Force; fEcho_Clean "removed ${prefix}" }
-		if (fPathRemove $pathScope $prefix) { fEcho_Clean "removed ${prefix} from the ${pathScope} PATH" }
-		$settings = "%APPDATA%\${ExeName}"
-	} else {
-		## Only unlink a symlink that actually points into our prefix.
-		if ($linkTarget) {
-			if ($linkTarget.StartsWith("${prefix}/")) {
-				fSh @("rm", "-f", $symlink); fEcho_Clean "removed ${symlink}"
-			} else {
-				fWarn "left ${symlink} alone - it points at ${linkTarget}, not our prefix"
+		try {
+			New-Item -ItemType Directory -Path (Split-Path -Parent $prefix) -Force | Out-Null
+		} catch {
+			fFileError $_ "could not create the install folder" (Split-Path -Parent $prefix)
+		}
+		## Stage beside the prefix, then swap with same-volume renames. Copying the
+		## new tree in before removing the old one means a cross-volume or disk-full
+		## failure never leaves nothing installed; the old copy is dropped only once
+		## the new one is in place. (Move-Item is Directory.Move and throws across
+		## volumes, so keep the copy fallback for the temp-on-another-drive case.)
+		$staging = "${prefix}.new.${PID}"
+		$backup  = "${prefix}.old.${PID}"
+		if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+		if (Test-Path -LiteralPath $backup)  { Remove-Item -LiteralPath $backup  -Recurse -Force }
+		try {
+			Move-Item -LiteralPath $tree -Destination $staging -ErrorAction Stop
+		} catch {
+			try {
+				Copy-Item -LiteralPath $tree -Destination $staging -Recurse -Force -ErrorAction Stop
+			} catch {
+				fFileError $_ "could not stage the new install" $staging
 			}
 		}
-		if ($haveLauncher) { fSh @("rm", "-f",  $launcher); fEcho_Clean "removed ${launcher}" }
-		if ($havePrefix)   { fSh @("rm", "-rf", $prefix);   fEcho_Clean "removed ${prefix}" }
-		if (Get-Command update-desktop-database -ErrorAction SilentlyContinue) {
-			fSh @("update-desktop-database", $appDir) -Soft
+		if (Test-Path -LiteralPath $prefix) {
+			try {
+				Move-Item -LiteralPath $prefix -Destination $backup -ErrorAction Stop
+			} catch {
+				## Something has the folder open that the process scan cannot see - a
+				## scanner, a shell window sitting in it, a handle from another session.
+				fFail "could not replace ${prefix} - something still has it open, close it and try again"
+			}
 		}
-		$settings = "~/.config/${ExeName}"
-	}
-
-	fEcho_Clean ""
-	fEcho "Uninstalled. Settings in ${settings} were left in place."
-	fEcho_Clean ""
-	exit 0
-}
-
-
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Resolve what to install
-
-$archiveExt = if ($os -eq "windows") { "zip" } else { "tar.gz" }
-
-$work = Join-Path ([System.IO.Path]::GetTempPath()) "${ExeName}-install-$([System.IO.Path]::GetRandomFileName())"
-New-Item -ItemType Directory -Path $work -Force | Out-Null
-
-fEcho_Clean ""
-fEcho "Resolving"
-
-$sumsUrl = ""
-if ($From) {
-	$downloadUrl  = $From
-	$sourceDesc   = $From
-	## Display only: a conventionally named archive still tells us its version.
-	## Stop at the platform suffix, not at the first dash - a prerelease version
-	## has one of its own (1.0.0-beta2), and cutting there reported a beta as the
-	## release it precedes.
-	$relVersion   = if ((Split-Path -Leaf $From) -match "^${ExeName}-(.+)-[^-]+-[^-.]+\.(?:zip|tar\.gz|tgz)$") { $Matches[1] } else { "" }
-	$releaseDesc  = "local archive"
-	$verifyDesc   = "no checksum (-From)"
-} else {
-	$tag = fResolveTag
-	if (-not $tag) { fFail "no release published yet for ${Repo}" }
-	$relVersion = $tag -replace '^v', ''
-	$asset      = "${ExeName}-${relVersion}-${os}-${arch}.${archiveExt}"
-	$sumsAsset  = "${ExeName}-${relVersion}-sha256sums.txt"
-
-	try {
-		$tagInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/${Repo}/releases/tags/${tag}" -UseBasicParsing
-	} catch {
-		fFail "couldn't read release ${tag} ($($_.Exception.Message))"
-	}
-	## Read the property off the matched asset, not off the match expression -
-	## strict mode throws on a property of nothing.
-	$assetInfo   = $tagInfo.assets | Where-Object { $_.name -eq $asset     } | Select-Object -First 1
-	$sumsInfo    = $tagInfo.assets | Where-Object { $_.name -eq $sumsAsset } | Select-Object -First 1
-	$downloadUrl = if ($assetInfo) { $assetInfo.browser_download_url } else { "" }
-	$sumsUrl     = if ($sumsInfo)  { $sumsInfo.browser_download_url  } else { "" }
-
-	if (-not $downloadUrl) {
-		fEcho_Clean ""
-		fEcho_Clean "Release ${tag} has no build for ${os}-${arch}. It publishes:"
-		$tagInfo.assets | ForEach-Object { fEcho_Clean "  $($_.name)" }
-		fFail "no ${asset} in release ${tag}"
-	}
-	$sourceDesc  = $downloadUrl
-	$releaseDesc = "${Release} ${relVersion}"
-	if ($Release -eq "stable" -and $relVersion.Contains('-')) { $releaseDesc += "   (no stable release yet, so the newest prerelease)" }
-	$verifyDesc  = if ($sumsUrl) { "sha256, against ${sumsAsset}" } else { "UNVERIFIED - release publishes no checksums" }
-}
-
-fEcho_Clean ""
-fEcho "Plan"
-fEcho_Clean "Release ...: ${releaseDesc}"
-fEcho_Clean "Platform ..: ${os}-${arch}"
-fEcho_Clean "Download ..: ${sourceDesc}"
-fEcho_Clean "Verify ....: ${verifyDesc}"
-$replaces = if (Test-Path -LiteralPath $prefix) { "   (replaces the install already there)" } else { "" }
-if ($os -eq "windows") {
-	fEcho_Clean ("Folder ....: {0}{1}" -f $prefix, $replaces)
-	fEcho_Clean "Shortcut ..: ${shortcut}"
-	fEcho_Clean "PATH ......: adds ${prefix} to the ${pathScope} PATH"
-} else {
-	fEcho_Clean ("Prefix ....: {0}{1}" -f $prefix, $replaces)
-	fEcho_Clean "Launcher ..: ${launcher}"
-	fEcho_Clean "Symlink ...: ${symlink} -> ${exePath}"
-	if ($priv) { fEcho_Clean "Privileges : sudo (system target)" }
-}
-
-fEcho_Clean ""
-fConfirm
-
-
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Download and verify
-
-fEcho_Clean ""
-fEcho "Downloading"
-
-$archive = Join-Path $work "${ExeName}.${archiveExt}"
-if ($From -and (Test-Path -LiteralPath $From)) {
-	Copy-Item -LiteralPath $From -Destination $archive
-	fEcho_Clean "using local archive ${From}"
-} else {
-	try {
-		Invoke-WebRequest -Uri $downloadUrl -OutFile $archive -UseBasicParsing
-	} catch {
-		fFail "download failed ($($_.Exception.Message))"
-	}
-	fEcho_Clean "got $((Get-Item -LiteralPath $archive).Length) bytes"
-}
-
-## A downloaded archive carries a mark-of-the-web that would follow every file
-## out of it and have SmartScreen block the exe. The cmdlet is Windows-only.
-if (Get-Command Unblock-File -ErrorAction SilentlyContinue) {
-	Unblock-File -LiteralPath $archive -ErrorAction SilentlyContinue
-}
-
-if (-not $From -and $sumsUrl) {
-	$sumsFile = Join-Path $work "sums.txt"
-	Invoke-WebRequest -Uri $sumsUrl -OutFile $sumsFile -UseBasicParsing
-	$line = Get-Content -LiteralPath $sumsFile | Where-Object { $_ -match "[ *]$([regex]::Escape($asset))$" } | Select-Object -First 1
-	if (-not $line) { fFail "${sumsAsset} has no line for ${asset}" }
-	$expected = ($line -split '\s+')[0]
-	$actual   = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
-	if ($actual -ine $expected) { fFail "checksum mismatch - expected ${expected}, got ${actual}" }
-	fEcho_Clean "sha256 verified"
-} else {
-	fWarn "skipping checksum verification"
-}
-
-
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Install
-
-fEcho_Clean ""
-fEcho "Installing"
-
-$unpacked = Join-Path $work "unpacked"
-New-Item -ItemType Directory -Path $unpacked -Force | Out-Null
-if ($os -eq "windows") {
-	try {
-		Expand-Archive -LiteralPath $archive -DestinationPath $unpacked -Force
-	} catch {
-		fFail "could not unpack the archive ($($_.Exception.Message))"
-	}
-} else {
-	## tar, not Expand-Archive: the unix packages are tarballs, and tar also
-	## keeps the executable bits the launcher and symlink depend on.
-	& tar -xzf $archive -C $unpacked
-	if ($LASTEXITCODE -ne 0) { fFail "could not unpack the archive" }
-}
-
-## Archives carry one top-level folder; tolerate a flat one too.
-$tree    = $unpacked
-$entries = @(Get-ChildItem -LiteralPath $unpacked -Force)
-if ($entries.Count -eq 1 -and $entries[0].PSIsContainer) { $tree = $entries[0].FullName }
-$stagedName = if ($os -eq "windows") { "${ExeName}.exe" } else { "bin/${ExeName}" }
-if (-not (Test-Path -LiteralPath (Join-Path $tree $stagedName))) {
-	fFail "archive has no ${stagedName} - wrong or damaged package"
-}
-
-if ($os -eq "windows") {
-	if (Test-Path -LiteralPath $prefix) {
-		$holders = @(fWaitUntilFree $prefix)
-		if ($holders.Count -gt 0) { fFail "$($holders -join ', ') still running from ${prefix} - close it and try again" }
-	}
-	New-Item -ItemType Directory -Path (Split-Path -Parent $prefix) -Force | Out-Null
-	## Stage beside the prefix, then swap with same-volume renames. Copying the
-	## new tree in before removing the old one means a cross-volume or disk-full
-	## failure never leaves nothing installed; the old copy is dropped only once
-	## the new one is in place. (Move-Item is Directory.Move and throws across
-	## volumes, so keep the copy fallback for the temp-on-another-drive case.)
-	$staging = "${prefix}.new.${PID}"
-	$backup  = "${prefix}.old.${PID}"
-	if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
-	if (Test-Path -LiteralPath $backup)  { Remove-Item -LiteralPath $backup  -Recurse -Force }
-	try {
-		Move-Item -LiteralPath $tree -Destination $staging -ErrorAction Stop
-	} catch {
-		Copy-Item -LiteralPath $tree -Destination $staging -Recurse -Force -ErrorAction Stop
-	}
-	if (Test-Path -LiteralPath $prefix) {
 		try {
-			Move-Item -LiteralPath $prefix -Destination $backup -ErrorAction Stop
+			Move-Item -LiteralPath $staging -Destination $prefix -ErrorAction Stop
 		} catch {
-			## Something has the folder open that the process scan cannot see - a
-			## scanner, a shell window sitting in it, a handle from another session.
-			fFail "could not replace ${prefix} - something still has it open, close it and try again"
+			if (Test-Path -LiteralPath $backup) { Move-Item -LiteralPath $backup -Destination $prefix -ErrorAction Stop }
+			throw
+		}
+		if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
+		fEcho_Clean "folder installed at ${prefix}"
+
+		try {
+			New-Item -ItemType Directory -Path $menuDir -Force | Out-Null
+			fMakeShortcut -LinkPath $shortcut -TargetPath $exePath -WorkDir $prefix
+		} catch {
+			fFileError $_ "could not write the Start Menu shortcut" $shortcut
+		}
+		fEcho_Clean "shortcut installed at ${shortcut}"
+
+		if (fPathAdd $pathScope $prefix) {
+			fEcho_Clean "added ${prefix} to the ${pathScope} PATH"
+		} else {
+			fEcho_Clean "${prefix} was already on the ${pathScope} PATH"
+		}
+	} else {
+		## Same as install.bash: stage beside the prefix, on its own filesystem, so
+		## the copy out of the temp folder is done before the old install is
+		## touched. Then swap with same-filesystem renames, which cannot fail
+		## partway and leave neither install.
+		$parent  = Split-Path -Parent $prefix
+		$staging = Join-Path $parent ".${ExeName}-install.${PID}"
+		$backup  = "${prefix}.old.${PID}"
+		fSh @("mkdir", "-p", $parent)
+		fSh @("rm", "-rf", $staging, $backup)
+		fSh @("cp", "-a", $tree, $staging)
+		if ($Target -eq "system") {
+			## Staged as the invoking user; a system prefix must not stay user-writable.
+			fSh @("chown", "-R", "0:0", $staging) -Soft
+			fSh @("chmod", "-R", "a+rX", $staging)
+		}
+		if (Test-Path -LiteralPath $prefix) { fSh @("mv", $prefix, $backup) }
+		try {
+			fSh @("mv", $staging, $prefix)
+		} catch {
+			if (Test-Path -LiteralPath $backup) { fSh @("mv", $backup, $prefix) -Soft }
+			fSh @("rm", "-rf", $staging) -Soft
+			throw
+		}
+		fSh @("rm", "-rf", $backup)
+		fEcho_Clean "prefix installed at ${prefix}"
+
+		fInstallLauncher
+		fEcho_Clean "launcher installed at ${launcher}"
+
+		fSh @("mkdir", "-p", $binDir)
+		fSh @("ln", "-sfn", $exePath, $symlink)
+		fEcho_Clean "symlink installed at ${symlink}"
+
+		fRefreshCaches
+	}
+
+
+
+	#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+	# Done
+
+	fEcho_Clean ""
+	fEcho ("Installed {0} {1}" -f $AppName, $relVersion).TrimEnd()
+	if ($os -eq "windows") {
+		fEcho_Clean "Start it from the Start Menu, or type: ${ExeName}"
+		fEcho_Clean "A new shell is needed before the PATH entry takes effect."
+	} else {
+		fEcho_Clean "Run it from the menu, or type: ${ExeName}"
+		if (-not (@($env:PATH -split ':') -contains $binDir)) {
+			fEcho_Clean "Note: ${binDir} is not on your PATH yet."
 		}
 	}
+	fEcho_Clean "Uninstall with the same command plus -Uninstall."
+	fEcho_Clean ""
+}
+
+& {
+	Set-StrictMode -Version Latest
+	$ErrorActionPreference = "Stop"
+	$ProgressPreference    = "SilentlyContinue"   ## Invoke-WebRequest is far faster without the bar
+	## Native tools report through their exit code, which fSh checks itself. Left on
+	## (the 7.4 default) a non-zero exit would throw before that check is reached.
+	$PSNativeCommandUseErrorActionPreference = $false
 	try {
-		Move-Item -LiteralPath $staging -Destination $prefix -ErrorAction Stop
+		if     ($Help)    { fHelp }
+		elseif ($Version) { fEcho_Clean "${AppName} installer ${InstallerVersion}" }
+		else              { fMain }
+	} catch [System.OperationCanceledException] {
+		## Already reported by fFail, or the plan was declined.
+		$state.failed = $true
 	} catch {
-		if (Test-Path -LiteralPath $backup) { Move-Item -LiteralPath $backup -Destination $prefix -ErrorAction Stop }
-		throw
-	}
-	if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
-	fEcho_Clean "folder installed at ${prefix}"
-
-	New-Item -ItemType Directory -Path $menuDir -Force | Out-Null
-	fMakeShortcut -LinkPath $shortcut -TargetPath $exePath -WorkDir $prefix
-	fEcho_Clean "shortcut installed at ${shortcut}"
-
-	if (fPathAdd $pathScope $prefix) {
-		fEcho_Clean "added ${prefix} to the ${pathScope} PATH"
-	} else {
-		fEcho_Clean "${prefix} was already on the ${pathScope} PATH"
-	}
-} else {
-	fSh @("rm", "-rf", $prefix)
-	fSh @("mkdir", "-p", (Split-Path -Parent $prefix))
-	fSh @("mv", $tree, $prefix)
-	if ($Target -eq "system") {
-		## Staged as the invoking user; a system prefix must not stay user-writable.
-		fSh @("chown", "-R", "0:0", $prefix) -Soft
-		fSh @("chmod", "-R", "a+rX", $prefix)
-	}
-	fEcho_Clean "prefix installed at ${prefix}"
-
-	fInstallLauncher
-	fEcho_Clean "launcher installed at ${launcher}"
-
-	fSh @("mkdir", "-p", $binDir)
-	fSh @("ln", "-sfn", $exePath, $symlink)
-	fEcho_Clean "symlink installed at ${symlink}"
-
-	fRefreshCaches
-}
-
-Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
-
-
-#••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-# Done
-
-fEcho_Clean ""
-fEcho ("Installed {0} {1}" -f $AppName, $relVersion).TrimEnd()
-if ($os -eq "windows") {
-	fEcho_Clean "Start it from the Start Menu, or type: ${ExeName}"
-	fEcho_Clean "A new shell is needed before the PATH entry takes effect."
-} else {
-	fEcho_Clean "Run it from the menu, or type: ${ExeName}"
-	if (-not (@($env:PATH -split ':') -contains $binDir)) {
-		fEcho_Clean "Note: ${binDir} is not on your PATH yet."
+		Write-Host ""
+		Write-Host "FAILED: $(fInnerMessage $_)" -ForegroundColor Red
+		Write-Host ""
+		$state.failed = $true
+	} finally {
+		if ($state.work) { Remove-Item -LiteralPath $state.work -Recurse -Force -ErrorAction SilentlyContinue }
 	}
 }
-fEcho_Clean "Uninstall with the same command plus -Uninstall."
-fEcho_Clean ""
+if ($state.failed -and $runningAsScriptFile) { exit 1 }
 
 
 ##	History:
@@ -797,3 +904,9 @@ fEcho_Clean ""
 ##		  either installer alone covers every platform.
 ##		- 2026-09-19 JC: Dropped -Arch (always detected), added -Version and
 ##		  -Help, and stable now falls back to the newest prerelease.
+##		- 2026-09-25 JC: Runs inside one function, so a failure or -Help no longer
+##		  closes the window of a shell running the one-liner, and the temp folder
+##		  goes on every exit. Unix installs swap in place like install.bash.
+##		  Clearer errors for a failed GitHub request and for access denied or a
+##		  file in use. TLS 1.2 and the architecture read so Windows PowerShell
+##		  5.1 works, and tags sort the same way install.bash sorts them.

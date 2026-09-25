@@ -241,7 +241,7 @@ Everything is on the [releases page](https://github.com/yottacore/nemo-anywhere/
 
 ### Packages and installers
 
-- **Windows**: download `nemo-anywhere.exe` and run it. That is the whole program - the runtime is inside it. Nothing is installed and nothing is registered.
+- **Windows**: download `nemo-anywhere-<version>-windows-x86_64-portable.exe` and run it. That is the whole program - the runtime is inside it. Nothing is installed and nothing is registered. Releases up to 1.0.0-beta2 name it plain `nemo-anywhere.exe`.
 
 - **Debian, Ubuntu, Mint**: `sudo apt install ./nemo-anywhere-<version>-linux-x86_64.deb`
 

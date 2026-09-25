@@ -49,15 +49,15 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - **Stop here for a next release**.
 
+- 🔘 Take SHCL 3.0.0-beta.1 from its published release, once there is one, and run the config tests against it.
+	- Opened: 20260925-122815
+	- Note: the vendored header is from SHCL's `dev` branch, ahead of that tag.
+
 - 🔘 Cut 1.0.0-rc.1.
 	- Opened: 20260925-122815
 	- The delete test guard stays in. The changelog and the release notes point it out, and say where to turn it off.
 	- Note: the changelog's vNEXT section is missing most of the work since beta2, such as Compress and Extract, the crash reporter, the delete protections and tab move.
 	- Note: `main` still has the installers from 20260804. Their stable channel asks for the latest stable release, which does not exist yet, so the README one-liners fail until this cut.
-
-- 🔘 Take SHCL 3.0.0-beta.1 from its published release, once there is one, and run the config tests against it.
-	- Opened: 20260925-122815
-	- Note: the vendored header is from SHCL's `dev` branch, ahead of that tag.
 
 - 🔘 Code style and performance review of the whole tree.
 	- Opened: 20260925-122815
@@ -113,6 +113,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: `--arch` and `-Arch` are gone. `--version`, `-Version` and `-Help` are new, and the bash one takes `--opt=value` too.
 	- Done: releases are ranked by version rather than by the order the API lists them. Stable takes the newest prerelease while no stable release exists, and the plan says so.
 	- Verified: both installers, bash and PowerShell 7, show the right plan against the live releases on Linux. The ranking was checked against a list with a two-digit minor and beta10 beside beta2.
+	- Done 20260925: `install.ps1` no longer closes the shell that ran the one-liner, on an error or on `-Help`, and always removes its temp folder. Unix installs swap in place the way `install.bash` does. A failed request to GitHub is named as that, not as "no release", and access denied or a file in use each get their own advice. Windows PowerShell 5.1 gets TLS 1.2 and reads the architecture it can. Both installers rank tags the same way.
+	- Done 20260925: `install.bash` checks it can write where a user install goes before asking, and a failed download says so in a sentence.
+	- Verified: both installers install, reinstall and uninstall the Linux tarball into a scratch home, in the pipeline's new installer check.
 	- Left: run both on Windows, in PowerShell 5.1 and 7.
 
 - 🔘 A Windows installer exe that installs, or updates an install already there.
@@ -150,7 +153,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
 	- Done: the Windows cross build runs on every full run now, so the zip is never packed from an older exe. `--quick` skips it.
-	- Done: the demo recorder runs with `--demo`. Screenshots are still off.
+	- Done: the demo recorder runs with `--demo`. The stage that refreshes the README images is still off.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
 	- Opened: 20260905-112900
@@ -178,6 +181,19 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ `install.ps1` never finished an install on Linux. It stopped at the step that clears the download's web mark, which only Windows has.
+	- Opened: 20260925-131500
+	- Closed: 20260925-133000
+	- Cause: pwsh on Linux has the cmdlet, but it throws there whatever it is told to do with errors. The earlier check only read the plan.
+	- Fixed: the step runs on Windows only.
+	- Verified: the new installer check fails on the old script and passes on the fixed one.
+
+- ✅ The Windows exe on a release had no version in its name and no line in the checksums file.
+	- Opened: 20260925-122815
+	- Closed: 20260925-133000
+	- Fixed: from the next release it is `nemo-anywhere-<version>-windows-x86_64-portable.exe`, and the release workflow adds its line to the sums file.
+	- Note: not run yet. It runs on the next release tag.
 
 - ✅ "Preparing" dialog appears, when viewing trash/delete/move debug dialog.
 	- Opened: 20260924-140642. Closed: 20260924-184032.
