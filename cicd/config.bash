@@ -60,10 +60,14 @@ FMT_CMD=()
 FMT_CHECK_CMD=()
 
 ## Pinned versions of the tools that run on the host, which the engine warns on
-## when they drift. Only cppcheck runs there. meson, ninja, gcc and clang run in
-## the build containers, and the image pins those.
+## when they drift. The lints run there. meson, ninja, gcc and clang run in the
+## build containers, and the image pins those. The command runs under bash -c.
 TOOL_PINS=(
 	"cppcheck|2.17.1|cppcheck --version"
+	"shellcheck|0.11.0|shellcheck --version | sed -n 2p"
+	"ruff|0.15.22|ruff --version"
+	"PSScriptAnalyzer|1.25.0|pwsh -NoProfile -Command '(Get-Module -ListAvailable PSScriptAnalyzer | Select-Object -First 1).Version.ToString()'"
+	"Pillow|11.1.0|python3 -c 'import PIL; print(PIL.__version__)'"
 )
 
 

@@ -33,7 +33,7 @@ z="0000000000000000000000000000000000000000"
 
 ## meson.build: first `version : '...'`.
 ## The lookbehind matters: without it `meson_version` on the same project() line
-## matches first, and only the field order keeps this honest.
+## matches first, and only the field order would keep it right.
 _ver_from(){ grep -oP "(?<![_[:alnum:]])version\s*:\s*'\K[^']+" "$1" 2>/dev/null | head -1; }
 
 gate_ran=0
@@ -65,7 +65,7 @@ while read -r _ localsha remoteref remotesha; do
 	## compare against (skips the very first push to main).
 	if [[ "$branch" == "main" && "$remotesha" != "$z" ]]; then
 		newver="$(_ver_from "${root}/source/meson.build")"
-		oldver="$(git show "${remotesha}:source/meson.build" 2>/dev/null | grep -oP "version\s*:\s*'\K[^']+" | head -1 || true)"
+		oldver="$(git show "${remotesha}:source/meson.build" 2>/dev/null | _ver_from /dev/stdin || true)"
 		if [[ -n "$oldver" && -n "$newver" ]]; then
 			if [[ "$newver" == "$oldver" ]]; then
 				echo "FAILED: push to main does not bump the version (still ${newver}); bump source/meson.build on dev first" >&2

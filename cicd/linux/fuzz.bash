@@ -37,6 +37,7 @@ targets=(
 	"fuzz-ppt|ppt"
 	"fuzz-doc|doc"
 	"fuzz-psd|psd"
+	"fuzz-raw|raw"
 	"fuzz-lnk|lnk"
 )
 

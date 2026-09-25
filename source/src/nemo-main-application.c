@@ -1036,14 +1036,17 @@ nemo_main_application_local_command_line (GApplication *application,
 		goto out;
 	}
 
+#define NEMO_COPYRIGHT_LINE "Copyright \xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu). Upstream copyrights held by the Nemo authors.\n"
+
 	if (version) {
-		g_print ("nemo-anywhere " NEMO_VERSION_STRING "\n");
+		g_print ("nemo-anywhere " NEMO_VERSION_STRING "\n"
+			 NEMO_COPYRIGHT_LINE);
 		goto out;
 	}
 
 	if (about) {
 		g_print ("\nnemo-anywhere " NEMO_VERSION_STRING "\n"
-			 "Copyright \xc2\xa9 2026 t00mietum (CryptogID: ปʬϝღถɔ4რఠΔթะ9ƾǝu). Upstream copyrights held by the Nemo authors.\n"
+			 NEMO_COPYRIGHT_LINE
 			 "Project: https://github.com/yottacore/nemo-anywhere\n"
 			 "Licensed under the GNU General Public License, version 2 only. Full text at:\n"
 			 "  https://spdx.org/licenses/GPL-2.0-only.html\n"
