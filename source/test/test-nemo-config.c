@@ -399,8 +399,8 @@ test_nul_survives_save (NemoConfigGroup *window_state)
 	g_free (path);
 }
 
-/* An implausibly large file must be refused, not fed to SHCL's arena (which
- * would exit the process). The in-memory settings must survive the refusal. */
+/* An implausibly large file must be refused, not parsed. The in-memory
+ * settings must survive the refusal. */
 static void
 test_oversized_file_refused (NemoConfigGroup *prefs)
 {

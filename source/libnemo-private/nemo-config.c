@@ -32,13 +32,14 @@
 /* SHCL's file tier is in, for its writer: a temp file beside the target, synced
  * before it is published, and on Windows a replace that carries the old file's
  * permissions, attributes and alternate streams onto the new one - none of
- * which g_file_set_contents does. It reaches Windows through the ANSI calls,
- * which is why it was left out until the manifest asked for UTF-8 as the
- * process code page.
+ * which g_file_set_contents does.
  *
- * Only the writer. Reading stays on GLib, which keeps the size cap in front of
- * SHCL's arena (it exits the process rather than failing an allocation) and
- * hands back the exact bytes the own-write check compares against. */
+ * Only the writer. Reading stays on GLib, the same read the own-write check in
+ * config_file_changed makes, so the two compare like with like. */
+
+/* A parse that runs out of memory returns NULL and is handled below. Anywhere
+ * else SHCL would print and exit 70; fail the way g_malloc does instead. */
+#define SHCL_OOM() g_error ("nemo-config: out of memory in the settings store")
 #define SHCL_IMPLEMENTATION
 #include "shcl.h"
 
@@ -49,14 +50,9 @@
 #define SAVE_DEBOUNCE_SECONDS 2
 /* A failing write retries, but not every couple of seconds forever. */
 #define SAVE_RETRY_SECONDS    30
-/* SHCL hands read results out of the document arena - a bump allocator freed
- * only by shcl_free - and shcl_to_canonical builds there too. Reads happen per
- * icon hover, so left alone the arena grows for the life of the process.
- * Rebuilding the document from its own canonical form drops the lot. */
-#define ARENA_DEBT_LIMIT      (256 * 1024)
-/* Settings hold ~168 keys - a few KB. Cap the read well above that: SHCL's
- * arena retains many times the file size permanently and OOMs via a library
- * exit(70), so an oversized or corrupt file would take the whole process. */
+/* Settings hold ~168 keys - a few KB. Cap the read well above that: the parsed
+ * document costs many times the file size, and an oversized or corrupt file
+ * has no business taking that much of the process. */
 #define CONFIG_MAX_BYTES      (8 * 1024 * 1024)
 
 struct _NemoConfigGroup {
@@ -86,7 +82,6 @@ static GHashTable *config_groups;      /* name -> NemoConfigGroup (owned) */
 static gboolean    config_ready;
 static GHashTable *pending_keys;       /* set of const NemoConfigKey*, changed but not yet on disk */
 static gboolean    save_failing;
-static gsize       arena_debt;         /* rough bytes SHCL has handed out since the last rebuild */
 static GThread    *config_thread;      /* whoever called init - the UI thread */
 
 static void schedule_save (const NemoConfigKey *k);
@@ -212,16 +207,26 @@ build_config_path (void)
 	return path;
 }
 
+static shcl_doc *
+new_empty_doc (void)
+{
+	shcl_doc *d = shcl_new ();
+
+	if (d == NULL)
+		SHCL_OOM ();
+	return d;
+}
+
 static void
 load_locked (void)
 {
-	char   *text = NULL;
-	gsize   len  = 0;
-	GError *error = NULL;
+	char     *text = NULL;
+	gsize     len  = 0;
+	GError   *error = NULL;
+	shcl_doc *fresh;
 
-	/* Refuse an implausibly large file rather than feed it to SHCL's arena
-	 * (which would exit the process on OOM). Keep the in-memory doc so a
-	 * pending save cannot then overwrite the real file with defaults. */
+	/* Refuse an implausibly large file. Keep the in-memory doc so a pending
+	 * save cannot then overwrite the real file with defaults. */
 	{
 		GStatBuf st;
 		if (g_stat (config_path, &st) == 0 && st.st_size > CONFIG_MAX_BYTES) {
@@ -229,7 +234,7 @@ load_locked (void)
 			           " bytes (cap %d); refusing to load",
 			           config_path, (goffset) st.st_size, CONFIG_MAX_BYTES);
 			if (config_doc == NULL)
-				config_doc = shcl_parse ("", 0);
+				config_doc = new_empty_doc ();
 			return;
 		}
 	}
@@ -237,8 +242,18 @@ load_locked (void)
 	if (g_file_get_contents (config_path, &text, &len, &error)) {
 		size_t i, n;
 
+		/* Out of memory, and the one case SHCL hands back. Same answer as an
+		 * unreadable file: keep what we have. */
+		fresh = shcl_parse (text, len);
+		if (fresh == NULL) {
+			g_warning ("nemo-config: out of memory reading %s", config_path);
+			g_free (text);
+			if (config_doc == NULL)
+				config_doc = new_empty_doc ();
+			return;
+		}
 		shcl_free (config_doc);
-		config_doc = shcl_parse (text, len);
+		config_doc = fresh;
 
 		/* A broken line is skipped, not fatal - say which, once, so a
 		 * hand-edit that lost a value is not a silent mystery. */
@@ -280,38 +295,18 @@ load_locked (void)
 			return;
 
 		shcl_free (config_doc);
-		config_doc = shcl_parse ("", 0);
+		config_doc = new_empty_doc ();
 	}
 }
 
-/* Called with the lock held. Replaces the document with one parsed from the
- * given canonical text, which frees everything the arena has accumulated.
- * The parser copies what it keeps, so the caller's buffer need not outlive it. */
+/* Called with the lock held, once a read's result has been copied out. String
+ * and list reads, and shcl_to_canonical, are handed out of a per-document arena
+ * that only this or shcl_free gives back. Reads happen per icon hover, so left
+ * alone it grows for the life of the process. */
 static void
-rebuild_locked (const char *text, gsize len)
+release_reads_locked (void)
 {
-	shcl_doc *fresh = shcl_parse (text, len);
-
-	shcl_free (config_doc);
-	config_doc = fresh;
-	arena_debt = 0;
-}
-
-/* Called with the lock held, from the readers that allocate. */
-static void
-note_arena_use_locked (gsize bytes)
-{
-	arena_debt += bytes;
-	if (arena_debt < ARENA_DEBT_LIMIT)
-		return;
-
-	{
-		shcl_str  canon = shcl_to_canonical (config_doc);
-		char     *copy  = g_memdup2 (canon.p, canon.n);
-
-		rebuild_locked (copy != NULL ? copy : "", canon.n);
-		g_free (copy);
-	}
+	shcl_reads_release (config_doc);
 }
 
 /* Catalog of defaults */
@@ -350,7 +345,7 @@ in_catalog (const NemoConfigKey *k)
 static char **
 default_texts (guint *n_out)
 {
-	shcl_doc            *scratch = shcl_new ();
+	shcl_doc            *scratch = new_empty_doc ();
 	const NemoConfigKey *k;
 	GPtrArray           *out = g_ptr_array_new ();
 	shcl_str             canon;
@@ -620,35 +615,20 @@ save_now (gpointer data)
 	 * from the file must not truncate the write or the own-write check. */
 	text = apply_catalog (config_doc, canon.p, canon.n, &text_len);
 
-	/* Cheapest moment to drop the arena. The document holds the settings
-	 * alone - the catalog goes on at write time, and keeping it out of the
-	 * next canonical form saves stripping it off again. */
-	{
-		char *settings = g_memdup2 (canon.p, canon.n);
-
-		rebuild_locked (settings != NULL ? settings : "", canon.n);
-		g_free (settings);
-	}
+	/* Every value a write replaced is still in the document's arena, and the
+	 * canonical text is in the read one. Both go here, once the text above
+	 * has been copied out. */
+	shcl_compact (config_doc);
 	g_mutex_unlock (&config_lock);
 
 	dir = g_path_get_dirname (config_path);
 	g_mkdir_with_parents (dir, 0700);
 	g_free (dir);
 
-	{
-		/* SHCL names its temp file by splitting on '/' and nothing else, so a
-		 * Windows path spelled with backslashes puts the temp in the working
-		 * directory under an impossible name and every write fails. Windows
-		 * takes either separator, so hand it the one the writer can read. */
-		char *write_path = g_strdup (config_path);
-
-		nemo_path_apply_separator (write_path, '/');
-		ok = shcl_write_file_atomic (write_path, text != NULL ? text : "", text_len) != 0;
-		if (!ok) {
-			g_set_error (&error, G_FILE_ERROR, g_file_error_from_errno (errno),
-			             "%s", g_strerror (errno));
-		}
-		g_free (write_path);
+	ok = shcl_write_file_atomic (config_path, text != NULL ? text : "", text_len) != 0;
+	if (!ok) {
+		g_set_error (&error, G_FILE_ERROR, g_file_error_from_errno (errno),
+		             "%s", g_strerror (errno));
 	}
 
 	g_mutex_lock (&config_lock);
@@ -714,6 +694,7 @@ snapshot_locked (void)
 			continue;
 		}
 		g_hash_table_insert (out, path, g_strndup (r.value.p, r.value.n));
+		release_reads_locked ();
 	}
 	return out;
 }
@@ -760,6 +741,7 @@ capture_pending_locked (void)
 			p->values = g_new0 (char *, r.n + 1);
 			for (i = 0; i < r.n; i++)
 				p->values[i] = g_strndup (r.values[i].p, r.values[i].n);
+			release_reads_locked ();
 		}
 
 		g_free (path);
@@ -1155,7 +1137,7 @@ nemo_config_get_string (NemoConfigGroup *group, const char *key)
 		out = g_strdup ("");
 	else
 		out = g_strdup (k->def ? k->def : "");
-	note_arena_use_locked (r.value.n + 1);
+	release_reads_locked ();
 	g_mutex_unlock (&config_lock);
 
 	return out;
@@ -1191,15 +1173,12 @@ nemo_config_get_strv (NemoConfigGroup *group, const char *key)
 		                  : g_new0 (char *, 1);
 	} else {
 		size_t i;
-		gsize  used = 0;
 
 		out = g_new0 (char *, r.n + 1);
-		for (i = 0; i < r.n; i++) {
+		for (i = 0; i < r.n; i++)
 			out[i] = g_strndup (r.values[i].p, r.values[i].n);
-			used += r.values[i].n + 1;
-		}
-		note_arena_use_locked (used + r.n * sizeof (gpointer) * 2);
 	}
+	release_reads_locked ();
 	g_mutex_unlock (&config_lock);
 
 	return out;
@@ -1223,7 +1202,7 @@ nemo_config_get_enum (NemoConfigGroup *group, const char *key)
 	r = shcl_read_string (config_doc, p->s, p->len);
 	if (r.status == SHCL_GOOD)
 		nick = g_strndup (r.value.p, r.value.n);
-	note_arena_use_locked (r.value.n + 1);
+	release_reads_locked ();
 	g_mutex_unlock (&config_lock);
 
 	if (nick == NULL)
@@ -1538,6 +1517,7 @@ key_status (const NemoConfigKey *k)
 
 	g_mutex_lock (&config_lock);
 	r = shcl_read_string (config_doc, path, strlen (path));
+	release_reads_locked ();
 	g_mutex_unlock (&config_lock);
 	g_free (path);
 
