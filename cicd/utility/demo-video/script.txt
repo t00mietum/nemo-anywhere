@@ -1,0 +1,40 @@
+@ The demo, in plain words. demo-video.py records it; change this first, then the scenes.
+@ Gif: 960x540, 50 fps, UI at 100%. Ends on the last frame held 2 s, then 3 s of black. No fades.
+@ Video: 1920x1080, 60 fps, UI at 200% (same layout as the gif, doubled). Fades in over 0.5 s, fades out to black over 2 s. Key and mouse sounds.
+@ Everything anonymized: made-up files, public domain photos, no real user or machine names.
+@ Captions sit in a black band above the window, one at a time.
+@ Keep the whole thing near a minute. The README shows the gif.
+
+@ Start: a window on Home, list view, Places open on the left.
+
+The folder tree opens beside Places, not instead of it
+	@ click the tree toggle at the bottom left, expand Home, toggle it off again
+
+F3 gives a second content pane
+	@ press F3, open Pictures in the new pane, back to the first pane, F3 again
+
+Picture folders switch to thumbnails by themselves
+	@ back to Home, open Pictures, then Photos. No view buttons are touched.
+Improved image thumbnail caching engine
+	@ hold on the thumbnails
+
+Search anywhere under the folder
+	@ Home, open Documents, Ctrl+F, type "report", Enter
+Or grouped under the folder each came from
+	@ click the group toggle in the search bar
+
+Compress, with no helper program
+	@ Escape, ctrl-click two files, right-click, Compress, name it "paperwork"
+zip, tar or 7z, with options like a solid archive
+	@ pick 7z, open Options, tick Solid, Compress
+
+A drag asks before it moves anything
+	@ drag paperwork.7z onto Invoices, click Move, expand Invoices to show it there
+
+Make a symlink, or a Windows shortcut, anywhere
+	@ right-click Reports, Make link, pick Shortcut, confirm
+The shortcut opens on Linux, the same as on Windows
+	@ double-click the new shortcut
+
+github.com/yottacore/nemo-anywhere
+	@ pointer rests, hold
