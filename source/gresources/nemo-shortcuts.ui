@@ -133,7 +133,7 @@
               <object class="GtkShortcutsShortcut">
                 <property name="visible">True</property>
                 <property name="title" translatable="yes" context="shortcut window">New tab</property>
-                <property name="accelerator">&lt;Primary&gt;T</property>
+                <property name="accelerator">&lt;Primary&gt;T &lt;Primary&gt;&lt;shift&gt;T</property>
               </object>
             </child>
             <child>

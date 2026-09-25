@@ -49,8 +49,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Valid shortcuts to folders sort with folders.
 
-- 🔘 New tab: CTRL+Shift+T should work too.
-
 - 🔘 Regenerate the animated gif:
 	- Use the updated URL at the end.
 	- The icons in icon view are WAY too big for the view. Use smaller thumbnails.
@@ -1666,6 +1664,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ New tab: CTRL+Shift+T should work too.
+	- Opened: 20260924-184213. Closed: 20260924-185428.
+	- Done: with no folder selected it opens a new tab. With folders selected it opens them in new tabs, as it did before. A selected file used to open in its program; now it gets a new tab.
 
 - ✅ Update to "Make a link" dialog:
 	- Move the title from the dialog, to the Window decoration.

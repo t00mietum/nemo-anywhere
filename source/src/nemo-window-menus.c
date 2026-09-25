@@ -865,6 +865,41 @@ action_new_tab_callback (GtkAction *action,
 	nemo_window_new_tab (window);
 }
 
+/* Ctrl+Shift+T opens the selected folders in new tabs, as it always did, and
+   a new tab for the folder in view when none are selected. A selected file
+   would open in its program, which is not what a tab key should do. The view's
+   "Open in new tab" gives the key up to this, so only one of them has it. */
+static void
+action_new_tab_accel_callback (GtkAction *action,
+			       gpointer   user_data)
+{
+	NemoWindow *window = NEMO_WINDOW (user_data);
+	NemoWindowSlot *slot = nemo_window_get_active_slot (window);
+	GList *selection = NULL, *l;
+	gboolean folders = FALSE;
+
+	if (slot != NULL && slot->content_view != NULL) {
+		selection = nemo_view_get_selection (slot->content_view);
+	}
+
+	folders = selection != NULL;
+	for (l = selection; l != NULL; l = l->next) {
+		if (!nemo_file_is_directory (NEMO_FILE (l->data))) {
+			folders = FALSE;
+			break;
+		}
+	}
+
+	if (folders) {
+		nemo_view_activate_files (slot->content_view, selection,
+					  NEMO_WINDOW_OPEN_FLAG_NEW_TAB, FALSE);
+	} else {
+		nemo_window_new_tab (window);
+	}
+
+	nemo_file_list_free (selection);
+}
+
 void action_toggle_location_entry_callback (GtkToggleAction *action, gpointer user_data);
 
 static void
@@ -1401,6 +1436,10 @@ static const GtkActionEntry main_entries[] = {
   /* label, accelerator */       "ZoomInAccel", "<Primary>equal",
   /* tooltip */                  NULL,
                                  G_CALLBACK (action_zoom_in_callback) },
+  /* name, stock id */         { "NewTabAccel", NULL,
+  /* label, accelerator */       "NewTabAccel", "<Primary><Shift>T",
+  /* tooltip */                  NULL,
+                                 G_CALLBACK (action_new_tab_accel_callback) },
   /* name, stock id */         { "ZoomInAccel2", NULL,
   /* label, accelerator */       "ZoomInAccel2", "<Primary>KP_Add",
   /* tooltip */                  NULL,
