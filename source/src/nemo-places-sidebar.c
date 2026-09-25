@@ -50,6 +50,7 @@
 #include <libnemo-private/nemo-action-manager.h>
 #include <libnemo-private/nemo-action.h>
 #include <libnemo-private/nemo-ui-utilities.h>
+#include <libnemo-private/nemo-row-hover.h>
 
 #include <eel/eel-debug.h>
 #include <eel/eel-gtk-extensions.h>
@@ -4417,6 +4418,7 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 
   	/* tree view */
 	tree_view = GTK_TREE_VIEW (nemo_places_tree_view_new ());
+	nemo_row_hover_attach (GTK_WIDGET (tree_view));
 
 	gtk_tree_view_set_headers_visible (tree_view, FALSE);
 

@@ -83,13 +83,8 @@ NemoDesktopWindow GtkPaned {
     opacity: 1.0;
 }
 
-/* Dim the mouseover prelight on file-pane / tree rows so a hovered line
-   doesn't read as a half-selected one. Themes (Fluent) paint .view:hover at
-   ~0.08 alpha, close enough to selection to confuse; drop it well under that.
-   :not(:selected) keeps a hovered+selected row fully selected-looking. */
-.nemo-window treeview.view:hover:not(:selected) {
-	background-color: alpha(currentColor, 0.035);
-}
+/* The hover tint on list and sidebar rows is set per tree view by
+   nemo-row-hover.c, since it is worked out from the theme's colors. */
 
 /* The bottom bar carries the side-pane buttons again, so it needs room for a
    button - but only just. Themes size both a button and the scale for a dialog,
