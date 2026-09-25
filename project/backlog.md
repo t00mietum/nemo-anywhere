@@ -45,15 +45,73 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
-- 🔘 "Preparing" dialog appears, when viewing debug dialog.
-
 ### Features and enhancements
+
+- 🔘 Update to "Make a link" dialog:
+	- Move the tite from the dialog, to the Window decoration.
+	- Remove "The new link goes in 'directory', and the vertical space it used, when it's obvious (e.g. no drag/drop involved).
+	- Don't show "Symlink path:" row when it's not applicable. (But reserve the vertical space for it.)
+	- Remove "Shortcut paths" options. That wasn't a good idea. Always create all three.
+	- Symlink path: "Absolute" comes before "Relative".
+
+- 🔘 Link names:
+	- If links are created next to their originals:
+		- Symlink: "<original name> - symlink[ 2 etc]"
+		- Hardlink: "<original name> - hardlink[ 2 etc]"
+		- Hardlink: "<original name> - hardlink[ 2 etc]"
+
+- 🔘 Valid shortcuts to folders sort with folders.
+
+- 🔘 Dragging one or more files and dropping with "Alt" held, and user selects "Make link" - should open the new links dialog, rather than "Cancel/OK".
+
+- 🔘 New tab: CTRL+Shift+T should work too.
+
+- 🔘 Regenerate the animated gif:
+	- Use the updated URL at the end.
+	- The icons in icon view are WAY too big for the view. Use smaller thumbnails.
+	- Use real images in the image view. Modern fighter jets, puppies, beautiful green nature at hazy golden hour.
+
+- 🔘 Dialogs should not have titles in the dialogs themselves. The titles belong on the window decoration.
+
+- 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
+	- Opened: 20260919-125440
 
 - **Stop here for a next release**.
 
+- 🔘 Menu: "Snapshot ..."
+	- Only works if folders selected
+	- Warn if the total file count would be excessive, or in danger of running into filesystem limits.
+	- Dialog:
+		- Snapshot type (radio buttons):
+			- Copy-On-Write clone  # Default, disable if not supported. With flyover text describing what it is, and that there is no risk to the original files even if the snapshot fails.
+			- Hardlink             # With a danger icon, and flyover text description of what's going to happen, and warning of the dangers.
+			- If hardlink is chosen when OK is hit, show a dialog again describing what's going to happen, and the dangers. (Including potential confusion over a mix of hardlinks and modified symlinks.)
+	- Behavior:
+		- Work should happen in a hidden temp folder at the level of the highest selected folder, named:
+			- ".wip_snapshot_YYYYmmDD-HHMMSS-NNNN"
+			- This is so nothing appears where it should until it all succeeds. If the operation fails, this temp dir can be deleted. (Pseudo-"atomic".)
+		- If the parent folder supports CoW cloning, and that's what the user chose:
+			- Make a CoW copy of the selected real files and folders (excluding symlinks, sockets, etc.), with the names "<original name> - cow snapshot YYYYmmDD-HHMMSS".
+				- Remembering the temp directory requirement above.
+		- Otherwise:
+			- For each real folder selected:
+				- Make a new folder next to it named "<original name> - hardlink snapshot YYYYmmDD-HHMMSS"
+					- Remembering the temp directory requirement above.
+				- Within that, recreate the entire folder structure (for real folders only, not symlinks).
+				- Then, make hardlinks of every real file, within the same subfolder structure.
+				- Then, for symlinks in the original, copy them (not hardlink!).
+		- Then for both, scan all the symlinks in the new folders, that point to targets within the original structure.
+			- Update those to point *relatively* within the new (final) destination folders.
+		- If all that succeeds:
+			- Only then create the new destination folders named above
+			- Move the snapshotted folders from the temp wip folder, to their new destinations.
+			- If all that succeeds:
+				- Delete the empty wip folder.
+		- If anything fails:
+			- Try to delete the wip folder.
+			- Warn the user that the operation failed and was backed out, but the original files are safe.
+
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
-- 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
-	- Opened: 20260919-125440
 
 - 🔘 Metadata-aware Nemo Anywhere:
 	- 🔘 When creating a file, also log its known information to the database.
@@ -151,6 +209,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ "Preparing" dialog appears, when viewing trash/delete/move debug dialog.
+	- Opened: 20260924-140642. Closed: 20260924-184032.
+	- Cause: a job's progress window comes up two seconds after the job starts, unless the job is paused. The job's own questions pause it, but the test guard asked without doing so.
+	- Fixed: the guard pauses the progress of the job that asked, while it waits for an answer.
+	- Swept: every other question asked from inside a job (conflicts, passwords, links, errors) already pauses.
 
 - ✅ A folder's modified date in the list stays old after a file is moved into it.
 	- Opened: 20260924-083500. Closed: 20260924-093600.

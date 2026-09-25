@@ -216,13 +216,42 @@ nemo_job_queue_add_new_job (NemoJobQueue         *self,
     g_signal_emit (self, signals[NEW_JOB], 0, NULL);
 }
 
+/* Which job's progress this thread is working on, so something deep in a job
+   that stops to ask can pause the right one. */
+static GPrivate current_info;
+
+NemoProgressInfo *
+nemo_job_queue_get_current_info (void)
+{
+    return g_private_get (&current_info);
+}
+
+/* The Job can be freed on the main thread as soon as its progress finishes,
+   which the job itself triggers, so only the copies are used after the call. */
+static gboolean
+run_job (GIOSchedulerJob *io_job,
+         GCancellable    *cancellable,
+         gpointer         user_data)
+{
+    Job *job = user_data;
+    GIOSchedulerJobFunc func = job->job_func;
+    gpointer data = job->user_data;
+    gboolean again;
+
+    g_private_set (&current_info, job->info);
+    again = func (io_job, cancellable, data);
+    g_private_set (&current_info, NULL);
+
+    return again;
+}
+
 static void
 start_job (NemoJobQueue *self, Job *job)
 {
     self->priv->queued_jobs = g_list_remove (self->priv->queued_jobs, job);
 
-    g_io_scheduler_push_job (job->job_func,
-                             job->user_data,
+    g_io_scheduler_push_job (run_job,
+                             job,
                              NULL, // destroy notify
                              0,
                              job->cancellable);

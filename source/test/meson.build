@@ -93,6 +93,15 @@ test('Delete test guard arming test',
   args: []
 )
 
+test('Guard pauses the job test',
+  executable('test-nemo-guard-pause',
+    [ 'test-nemo-guard-pause.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Empty trash asks test',
   executable('test-nemo-empty-trash',
     [ 'test-nemo-empty-trash.c' ],
