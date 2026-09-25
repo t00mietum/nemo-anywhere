@@ -47,10 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Dialogs should not have titles in the dialogs themselves. The titles belong on the window decoration.
-	- Opened: 20260924-184213.
-	- Note: every dialog with a heading of its own now has its title in the title bar. What is left are alerts, which by long habit have an empty title bar and a bold first line, usually a question such as "Replace file?". Whether those count is not settled.
-
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
 
@@ -1660,6 +1656,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Dialogs should not have titles in the dialogs themselves. The titles belong on the window decoration.
+	- Opened: 20260924-184213. Closed: 20260924-193625.
+	- Note: every dialog with a heading of its own now has its title in the title bar. What is left are alerts, which by long habit have an empty title bar and a bold first line, usually a question such as "Replace file?". Those stay as they are: only title-style headings move.
 
 - ✅ Regenerate the animated gif:
 	- Use the updated URL at the end.
