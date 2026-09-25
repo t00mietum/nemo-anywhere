@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print the build number: minutes since the start of 2000, Crockford base32,
+"""Print the build number: minutes since the start of 2000, rounded, Crockford base32,
 lower case. Taken from SOURCE_DATE_EPOCH when set, so a release build stamps the
 commit rather than the clock and stays reproducible; otherwise from HEAD's
 commit date, and only failing that from now."""
@@ -44,4 +44,4 @@ def crockford(n):
     return out
 
 
-sys.stdout.write(crockford((stamp() - EPOCH_2000) // 60))
+sys.stdout.write(crockford((stamp() - EPOCH_2000 + 30) // 60))

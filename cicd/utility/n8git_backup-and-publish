@@ -331,7 +331,7 @@ fMain(){
 		## instead of auto-merging behind the publish. A failed pull puts the
 		## stash back first: left there, the next run finds a clean tree and
 		## publishes without the work.
-		if ! git pull --ff-only; then
+		if ! fGitRemote pull --ff-only; then
 			if ((didStash)) && ! git stash pop; then
 				fThrowError "git pull --ff-only failed, and putting the stashed work back conflicted. Resolve it, then 'git stash drop'. Nothing was committed or pushed."
 				return 1
@@ -378,10 +378,10 @@ fMain(){
 	# Push only if we're ahead of the remote
 	if ! git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
 		fEcho; fEcho "git push -u origin HEAD ..."
-		git push -u origin HEAD
+		fGitRemote push -u origin HEAD
 	elif [[ -n "$(git log @{u}.. 2>/dev/null)" ]]; then
 		fEcho; fEcho "git push origin ..."
-		git push origin
+		fGitRemote push origin
 	fi
 
 	## Done
@@ -413,6 +413,10 @@ fAddRarExcludes(){
 ## The message an unattended commit lands under. A sibling git-auto-msg.bash that
 ## knows '--suggest' writes it, so the pipeline and this script can't drift apart.
 ## Older copies of that helper don't, so they get the fallback in $1.
+## Git that talks to the remote goes through gitsby where it is installed, so the
+## pull and push use the key and account the repo belongs to. Plain git without it.
+fGitRemote(){ if command -v gitsby >/dev/null 2>&1; then gitsby raw git "$@"; else git "$@"; fi; }
+
 fAutoMessage(){
 	local -r helper="${meDir}/git-auto-msg.bash"
 	if [[ -x "${helper}" ]] && grep -qF -- '--suggest' "${helper}"; then bash "${helper}" --suggest
@@ -738,3 +742,5 @@ fMain  "${@}"
 ##		- 20260923: Backup excludes: dropped the Panoplia scratch and private tree
 ##		  rules, so both are archived again. Added '*_dupes', '*_no-backup' (files
 ##		  and dirs) and '*/versions/*.rar'.
+##		- 20260925: Pull and push go through 'gitsby raw git' when gitsby is
+##		  installed.

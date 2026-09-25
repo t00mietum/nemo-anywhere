@@ -54,6 +54,12 @@
 
 set -Eeuo pipefail
 
+## Help before anything else runs: the CPU scope and the container caps below
+## would otherwise go on just to print usage.
+for arg in "$@"; do case "$arg" in
+	-h|--help) sed -n '/^##	- Purpose:/,/^##	History:/p' "${BASH_SOURCE[0]}" | sed '$d; s/^##	\{0,1\}//'; exit 0 ;;
+esac; done
+
 ## Find the repo root and load project config.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "${here}/.." && pwd)"   # the git repo root (cicd/..)
@@ -291,6 +297,21 @@ remote_sync(){
 # shellcheck disable=SC2154  ## rc is assigned in the trap body, which shellcheck reads as a plain string.
 trap 'rc=$?; printf "\n[ CICD ABORTED (exit %s) at line %s: %s ]\n" "$rc" "$LINENO" "$BASH_COMMAND" >&2; exit $rc' ERR
 
+## Warn (non-gating) when a pinned helper tool has drifted from TOOL_PINS, so a
+## box update can't silently change pipeline results. Before the gate, so the
+## pre-push run sees it too.
+if declare -p TOOL_PINS &>/dev/null; then
+	for pin in "${TOOL_PINS[@]}"; do
+		pin_name="${pin%%|*}"; pin_rest="${pin#*|}"; pin_ver="${pin_rest%%|*}"; pin_cmd="${pin_rest#*|}"
+		have="$(bash -c "${pin_cmd}" </dev/null 2>/dev/null | head -1 | sed 's/[^0-9.]*\([0-9][0-9.]*\).*/\1/')" || have=""
+		if [[ -z "$have" ]]; then
+			fEcho "WARNING: ${pin_name} not found (pinned ${pin_ver})"
+		elif [[ "$have" != "$pin_ver" ]]; then
+			fEcho "WARNING: ${pin_name} is ${have}, pinned ${pin_ver} (install that version, or update the pin in config.bash)"
+		fi
+	done
+fi
+
 ## Gate mode: the local merge gate (what a bare-bones hosted CI would run).
 ## format-check + lints + tests, fail-fast, no artifacts/log-tee/publish. Wired as
 ## the pre-push hook for main, so nothing reaches the release branch unverified
@@ -318,20 +339,6 @@ if ((gate)); then
 	fSection "${APP_NAME} gate: PASSED."
 	fEcho_Clean
 	exit 0
-fi
-
-## Warn (non-gating) when a pinned helper tool has drifted from TOOL_PINS, so a
-## box update can't silently change pipeline results.
-if declare -p TOOL_PINS &>/dev/null; then
-	for pin in "${TOOL_PINS[@]}"; do
-		pin_name="${pin%%|*}"; pin_rest="${pin#*|}"; pin_ver="${pin_rest%%|*}"; pin_cmd="${pin_rest#*|}"
-		have="$(${pin_cmd} 2>/dev/null | head -1 | sed 's/[^0-9.]*\([0-9][0-9.]*\).*/\1/')" || have=""
-		if [[ -z "$have" ]]; then
-			fEcho "WARNING: ${pin_name} not found (pinned ${pin_ver})"
-		elif [[ "$have" != "$pin_ver" ]]; then
-			fEcho "WARNING: ${pin_name} is ${have}, pinned ${pin_ver} (install that version, or update the pin in config.bash)"
-		fi
-	done
 fi
 
 ## Release identity, resolved up front rather than inside the release stage: the
@@ -677,11 +684,17 @@ if ((${#DOGFOOD_FIXED_DESTS[@]})); then
 			## tree there reads as a perfectly good build.
 			df_app="${fixed_dest}/${EXE_NAME}"
 			[[ "$df_app" == /*/"${EXE_NAME}" ]] || fDie "refusing to replace ${df_app}"
-			rm -rf "${df_app}.new"
-			cp -a "${df_src}" "${df_app}.new"
-			rm -rf "${df_app}"
-			mv "${df_app}.new" "${df_app}"
-			fEcho "OK: published (fixed) -> ${df_app}"
+			## The launcher runs its own local copy, but someone may have started
+			## this one directly.
+			if in_use "$df_app"; then
+				fEcho "WARNING: ${df_app} is running; left as is"
+			else
+				rm -rf "${df_app}.new"
+				cp -a "${df_src}" "${df_app}.new"
+				rm -rf "${df_app}"
+				mv "${df_app}.new" "${df_app}"
+				fEcho "OK: published (fixed) -> ${df_app}"
+			fi
 		else
 			cp -pf "${df_src}" "${fixed_dest}/${EXE_NAME}"
 			fEcho "OK: installed (fixed) -> ${fixed_dest}/${EXE_NAME}"
@@ -773,7 +786,7 @@ elif ((quick)); then
 	fEcho_Clean "screenshots skipped (--quick)"
 elif [[ -x "$shots_hook" ]]; then
 	fEcho_Clean "refreshing README screenshots ..."
-	if NEMO_BIN="${root}/target/release/nemo-anywhere" "$shots_hook" "${root}"; then
+	if NEMO_BIN="${root}/${DOGFOOD_PREFIX_SRC}/bin/${EXE_NAME}" "$shots_hook" "${root}"; then
 		fEcho "OK: screenshots"
 	else
 		fEcho "WARNING: screenshot hook failed (non-fatal)"

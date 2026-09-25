@@ -70,7 +70,7 @@ param(
 	[switch]$NoSign,
 	[switch]$NoPublish,
 	[switch]$BuildStrict,
-	[string]$Message = "",
+	[Alias('Msg', 'm')][string]$Message = "",
 	[switch]$Help
 )
 
@@ -321,6 +321,10 @@ function fStage {
 function fDogfood {
 	if (-not (Test-Path -LiteralPath $PortableExe)) { fWarn "no portable exe to dogfood (pack skipped or failed); skipping"; return }
 	New-Item -ItemType Directory -Path $DogfoodRoot -Force | Out-Null
+	## The launcher runs its own local copy, but someone may have started this one
+	## directly, and Windows will not overwrite a running exe anyway.
+	$running = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -ieq $DogfoodExe }
+	if ($running) { fWarn "$DogfoodExe is running; left as is"; return }
 	Copy-Item -LiteralPath $PortableExe -Destination $DogfoodExe -Force
 	fEcho "OK: dogfood -> $DogfoodExe"
 	fRetireOldDogfood
@@ -438,7 +442,7 @@ function fRemoteSync {
 		fNote "no upstream for ${branch}; nothing to sync"
 		return
 	}
-	& git fetch --quiet 2>$null
+	& $script:GitExe @script:GitPre fetch --quiet 2>$null
 	if ($LASTEXITCODE -ne 0) { fWarn "git fetch failed (offline?); continuing with the local tree"; return }
 	$ahead  = [int](& git rev-list --count '@{u}..HEAD')
 	$behind = [int](& git rev-list --count 'HEAD..@{u}')
@@ -460,7 +464,7 @@ function fRemoteSync {
 		$didStash = ($after -gt $before)
 	}
 	fEcho_Clean "git pull --ff-only ..."
-	fRun "git pull" "git" @("pull", "--ff-only")
+	fRun "git pull" $script:GitExe ($script:GitPre + @("pull", "--ff-only"))
 	if ($didStash) {
 		fEcho_Clean "git stash pop ..."
 		## A conflicting pop leaves the stash held and the tree half-merged.
@@ -477,6 +481,21 @@ function fRemoteSync {
 	}
 	fEcho "OK: fast-forwarded $behind commit(s) from upstream"
 }
+
+## The unattended commit message comes from the one helper the Linux side uses,
+## through MSYS2's bash, so both platforms word it alike. "Updated" without it.
+function fAutoMessage {
+	if (-not (Test-Path -LiteralPath $MsysBash)) { return "Updated" }
+	$suggest = & $MsysBash -lc "cd '$(fToMsysPath $Root)' && bash cicd/utility/git-auto-msg.bash --suggest" 2>$null
+	if ($LASTEXITCODE -eq 0 -and $suggest) { return ([string]($suggest | Select-Object -Last 1)).Trim() }
+	return "Updated"
+}
+
+## Git that talks to the remote goes through gitsby where it is installed, so the
+## fetch, pull and push use the key and account this repo belongs to.
+$script:GitExe = "git"
+$script:GitPre = @()
+if (Get-Command gitsby -ErrorAction SilentlyContinue) { $script:GitExe = "gitsby"; $script:GitPre = @("raw", "git") }
 
 ## Run a native command from the repo root; abort (fail-fast) on a non-zero exit.
 function fRun {
@@ -512,7 +531,7 @@ function fPublish {
 		## ff-only, like fRemoteSync and the Linux publisher: a diverged branch
 		## should stop here, not get a fabricated merge pushed to it.
 		fEcho_Clean "git pull --ff-only ..."
-		fRun "git pull" "git" @("pull", "--ff-only")
+		fRun "git pull" $script:GitExe ($script:GitPre + @("pull", "--ff-only"))
 	}
 	if ($didStash) {
 		fEcho_Clean "git stash pop ..."
@@ -548,13 +567,13 @@ function fPublish {
 
 	if (-not $hasUpstream) {
 		fEcho_Clean "git push -u origin HEAD ..."
-		fRun "git push" "git" @("push", "-u", "origin", "HEAD")
+		fRun "git push" $script:GitExe ($script:GitPre + @("push", "-u", "origin", "HEAD"))
 		fEcho "OK: pushed $branch (upstream set)"
 	} else {
 		$ahead = (& git log '@{u}..' --oneline)
 		if ($ahead) {
 			fEcho_Clean "git push origin ..."
-			fRun "git push" "git" @("push", "origin")
+			fRun "git push" $script:GitExe ($script:GitPre + @("push", "origin"))
 			fEcho "OK: pushed $branch"
 		} else {
 			fNote "up to date with upstream; nothing to push"
@@ -595,11 +614,11 @@ function fMain {
 		return
 	}
 
-	## Resolve the publish commit message: -Message wins, then an auto stamp when
-	## unattended; interactive runs capture it at the preflight prompt below.
+	## Resolve the publish commit message: -Message wins, then the same helper the
+	## Linux side asks when unattended; interactive runs capture it at the preflight prompt below.
 	$publishMsg = ""
 	if     ($Message)     { $publishMsg = $Message }
-	elseif ($Unattended)  { $publishMsg = "$AppName CI/CD $stamp" }
+	elseif ($Unattended)  { $publishMsg = fAutoMessage }
 
 	## Preflight summary.
 	$toolMiss = fToolchainMissing
@@ -639,6 +658,12 @@ function fMain {
 	## Start the transcript once past the preflight. A run without one is worth
 	## saying out loud, since the log is where a failure gets read afterwards.
 	New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+	## Same GFS rotation as the Linux logs, done before this run's file is open,
+	## since Windows cannot rename a file in use.
+	if (Test-Path -LiteralPath $MsysBash) {
+		fMingw -Quiet "source cicd/utility/include/gfs-rotate.bash && gfs_rotate cicd/artifacts/lint-win run log"
+		if ($script:MingwRc -ne 0) { fWarn "log rotation failed (exit $($script:MingwRc)); old logs kept" }
+	}
 	try {
 		Start-Transcript -LiteralPath (Join-Path $LogDir "run_$stamp.log") | Out-Null
 		$script:Transcribing = $true

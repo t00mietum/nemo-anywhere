@@ -23,3 +23,6 @@ source/gresources/nemo-themes.gresource.xml text eol=lf
 *.svg -text
 *.png -text
 *.ico -text
+
+# Fuzz seeds are bytes, whatever they look like. A CRLF checkout would change them.
+source/fuzz/corpus/** -text

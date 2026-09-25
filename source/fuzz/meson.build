@@ -65,6 +65,14 @@ fuzzPsd = executable('fuzz-psd',
   link_args: fuzzLinkArgs,
 )
 
+fuzzRaw = executable('fuzz-raw',
+  [ 'fuzz-raw.c' ] + fuzzDriver,
+  include_directories: [ rootInclude, ],
+  dependencies: [ gtk, nemo_private ],
+  c_args:    fuzzCArgs,
+  link_args: fuzzLinkArgs,
+)
+
 # The shortcut reader is left out of the Windows build, which asks the shell.
 if not is_windows
   fuzzLnk = executable('fuzz-lnk',
@@ -146,6 +154,18 @@ fuzzPsdCorpus = files(
   'corpus/psd/short-literal',
 )
 
+fuzzRawCorpus = files(
+  'corpus/raw/empty',
+  'corpus/raw/tiff-le',
+  'corpus/raw/tiff-be',
+  'corpus/raw/tiff-loop',
+  'corpus/raw/panasonic-magic',
+  'corpus/raw/raf',
+  'corpus/raw/cr3',
+  'corpus/raw/truncated',
+  'corpus/raw/bad-offset',
+)
+
 fuzzXlsCorpus = files(
   'corpus/xls/empty',
   'corpus/xls/bof-eof',
@@ -203,6 +223,7 @@ if not get_option('fuzzing')
   test('Drag payload fuzz corpus test',     fuzzDnd,             args: fuzzDndCorpus,             env: fuzzTestEnv)
   test('Command template fuzz corpus test', fuzzCommandTemplate, args: fuzzCommandTemplateCorpus, env: fuzzTestEnv)
   test('Photoshop fuzz corpus test',        fuzzPsd,             args: fuzzPsdCorpus,             env: fuzzTestEnv)
+  test('Camera raw fuzz corpus test',       fuzzRaw,             args: fuzzRawCorpus,             env: fuzzTestEnv)
   test('Workbook fuzz corpus test',         fuzzXls,             args: fuzzXlsCorpus,             env: fuzzTestEnv)
   test('Presentation fuzz corpus test',     fuzzPpt,             args: fuzzPptCorpus,             env: fuzzTestEnv)
   test('Word document fuzz corpus test',    fuzzDoc,             args: fuzzDocCorpus,             env: fuzzTestEnv)

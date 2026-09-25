@@ -30,6 +30,7 @@ check_prints (const char *program, const char *flag)
 	} else {
 		check (g_spawn_check_wait_status (status, NULL));
 		check (strstr (out, "nemo-anywhere ") != NULL);
+		check (strstr (out, "Copyright ") != NULL);
 		if (err != NULL && *err != '\0') {
 			g_printerr ("%s wrote to stderr: %s", flag, err);
 		}

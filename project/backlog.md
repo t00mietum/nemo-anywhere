@@ -134,6 +134,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
+	- Note: if arm64 builds turn out much slower, they go behind an `--include-arm` flag rather than the `--no-arm` the engine has now.
 
 - 🔘 Target: BSD
 	- Opened: 20260730-185314
@@ -149,6 +150,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
 	- Done: the Windows cross build runs on every full run now, so the zip is never packed from an older exe. `--quick` skips it.
+	- Done: the demo recorder runs with `--demo`. Screenshots are still off.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
 	- Opened: 20260905-112900
@@ -1650,6 +1652,18 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Pipeline pass, 20260925.
+	- Opened: 20260925-122815
+	- Closed: 20260925-130500
+	- Done: `--help` prints before the run starts its CPU cap or touches the containers.
+	- Done: shellcheck, ruff, PSScriptAnalyzer and Pillow are pinned beside cppcheck, and drift is reported in gate runs too.
+	- Done: the Windows pipeline asks the same helper for its unattended commit message, takes `-Msg`, sends pull and push through gitsby, and rotates its logs like the Linux side.
+	- Done: the publisher's pull and push go through gitsby too.
+	- Done: neither pipeline replaces the synced dogfood copy while it is running.
+	- Done: `--version` prints the copyright line under the version, and the build number rounds to the nearest minute.
+	- Done: the camera raw reader has a fuzz target and seeds, run with the others.
+	- Decided against: a build number in the Windows version resource. Its fields are small numbers, and the build number is text.
 
 - ✅ Move to SHCL 3.
 	- Opened: n/a
