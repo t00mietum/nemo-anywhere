@@ -74,6 +74,7 @@
             <menuitem name="Unpin File" action="Unpin File"/>
 			<menuitem name="Duplicate" action="Duplicate"/>
 			<menuitem name="Create Link" action="Create Link"/>
+			<menuitem name="Edit Link" action="Edit Link"/>
 			<menuitem name="Compress" action="Compress"/>
 			<menu name="ExtractMenu" action="ExtractMenu">
 				<menuitem name="ExtractHere" action="ExtractHere"/>
@@ -205,6 +206,7 @@
         <menuitem name="Pin File" action="Pin File"/>
         <menuitem name="Unpin File" action="Unpin File"/>
 		<menuitem name="Create Link" action="Create Link"/>
+		<menuitem name="Edit Link" action="Edit Link"/>
 		<menuitem name="Compress" action="Compress"/>
 		<menu name="ExtractMenu" action="ExtractMenu">
 			<menuitem name="ExtractHere" action="ExtractHere"/>

@@ -47,29 +47,17 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- **Stop here for a next release**.
-
 - 🔘 Take SHCL 3.0.0-beta.1 from its published release, once there is one, and run the config tests against it.
 	- Opened: 20260925-122815
 	- Note: the vendored header is from SHCL's `dev` branch, ahead of that tag.
 
+- **Stop here for a next release**.
+
 - 🔘 Cut 1.0.0-rc.1.
 	- Opened: 20260925-122815
-	- The delete test guard stays in. The changelog and the release notes point it out, and say where to turn it off.
+	- The delete test guard stays in as a preference setting. (But off in code.) The changelog and the release notes point it out, and say where to turn it off.
 	- Note: the changelog's vNEXT section is missing most of the work since beta2, such as Compress and Extract, the crash reporter, the delete protections and tab move.
 	- Note: `main` still has the installers from 20260804. Their stable channel asks for the latest stable release, which does not exist yet, so the README one-liners fail until this cut.
-
-- 🔘 Code style and performance review of the whole tree.
-	- Opened: 20260925-122815
-
-- 🔘 Full adversarial code review of the whole tree, forked and vendored code included.
-	- Opened: 20260925-122815
-
-- 🔘 Remove the delete test guard. Then the renamer and dedupe items below.
-	- Opened: 20260925-122815
-
-- 🔘 Release 1.0.0.
-	- Opened: 20260925-122815
 
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
 	- Note: If the previous cache implementation is on-disk when the new version runs, delete it.
@@ -181,6 +169,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Done
 
 #### Done - Bugs
+
+- ✅ Relative symlink bug:
+	- Opened: n/a
+	- Problem: When creating relative symlinks, the entire path is walked back up to root (via '../../' etc.), then back down.
+	- Expected: It should remove all common paths from both, only then substitute '../' for any non-common ancestor folder. (Or './<child>' if the link only points down.)
+	- Closed: 20260925-152642
+	- Cause: both ends were resolved to their real paths first. Where a symlinked folder sat on either path, the real paths shared little or nothing, so the link climbed to the root.
+	- Fixed: both the paths as seen and the real paths are tried, and the shortest that still reaches the target wins. When only the climb works, as when the link sits inside a symlinked folder that leads elsewhere, it is kept.
 
 - ✅ `install.ps1` never finished an install on Linux. It stopped at the step that clears the download's web mark, which only Windows has.
 	- Opened: 20260925-131500
@@ -1668,6 +1664,29 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ New menu item: "Edit link" (for all link types).
+	- Opened: n/a
+	- Allow editing target.
+	- For .lnk files, allow editing all three target fields
+	- Can change link name too.
+	- Closed: 20260925-152642
+	- Done: symlinks and junctions get a name and a target field; shortcuts get name, absolute, relative and portable path. An empty path is dropped. The shortcut's arguments, Start in and icon are kept.
+	- Note: hardlinks are left out. They have no target to change.
+	- Note: a changed shortcut loses its item ID list, so Explorer follows it through the portable path. Not yet tried on real Windows.
+
+- ✅ When copying symlinks, make it clear that the option "Symlink" is not creating a new one, but copying the existing link, or link's contents. E.g.
+	- Opened: n/a
+	- Currently:
+		File symlinks:  [] Symlink  [] Copy
+		Folder symlinks:  [] Symlink  [] Copy
+	- New
+		File symlinks:  [] Copy link as-is  [] Copy contents
+		Folder symlinks:  [] Copy link as-is [] Copy contents
+	- Remove the now-redundant description, "A copy holds the contents h a link keeps pointing at the original."
+	- And so on for the other link types.
+	- Closed: 20260925-152642
+	- Done: "Copy link as-is", "Copy contents", "Copy as a junction" and "Copy as a symlink", and "Move" in place of "Copy" on a move. The note is gone; the move note stays, since it says why "Copy contents" is grayed.
 
 - ✅ Pipeline pass, 20260925.
 	- Opened: 20260925-122815

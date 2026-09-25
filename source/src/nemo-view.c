@@ -87,6 +87,7 @@
 #include <libnemo-private/nemo-file-private.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-link.h>
+#include <libnemo-private/nemo-link-edit.h>
 #include <libnemo-private/nemo-metadata.h>
 #include <libnemo-private/nemo-folder-settings.h>
 #include <libnemo-private/nemo-recent.h>
@@ -1597,6 +1598,23 @@ create_links_for_selection (NemoView *view, const NemoLinkOptions *options)
 	}
 
         nemo_file_list_free (selection);
+}
+
+static void
+action_edit_link_callback (GtkAction *action,
+			   gpointer callback_data)
+{
+	NemoView *view = NEMO_VIEW (callback_data);
+	GList *selection;
+
+	selection = nemo_view_get_selection (view);
+	if (selection != NULL && selection->next == NULL) {
+		GFile *location = nemo_file_get_location (NEMO_FILE (selection->data));
+
+		nemo_link_edit_ask (nemo_view_get_containing_window (view), location);
+		g_object_unref (location);
+	}
+	nemo_file_list_free (selection);
 }
 
 /* Asks what kind of links to make first. */
@@ -9158,6 +9176,10 @@ static const GtkActionEntry directory_view_entries[] = {
   /* label, accelerator */       N_("Ma_ke link..."), "<control>M",
   /* tooltip */                  N_("Make a symlink, hardlink, junction or Windows shortcut to each selected item"),
 				 G_CALLBACK (action_create_link_callback) },
+  /* name, stock id */         { "Edit Link", NULL,
+  /* label, accelerator */       N_("_Edit link..."), NULL,
+  /* tooltip */                  N_("Change where the selected link points, or its name"),
+				 G_CALLBACK (action_edit_link_callback) },
   /* name, stock id */         { "Rename", NULL,
   /* label, accelerator */       N_("_Rename..."), "F2",
   /* tooltip */                  N_("Rename selected item"),
@@ -10881,6 +10903,15 @@ real_update_menus (NemoView *view)
 			      	"Ma_ke links...",
 				selection_count),
 		      NULL);
+
+	/* A hardlink has nothing to change, so it is not offered one. */
+	action = gtk_action_group_get_action (view->details->dir_action_group,
+					      NEMO_ACTION_EDIT_LINK);
+	gtk_action_set_visible (action, selection_count == 1 &&
+				!selection_contains_recent && !selection_contains_favorites &&
+				nemo_file_is_local (NEMO_FILE (selection->data)) &&
+				(nemo_file_is_symbolic_link (NEMO_FILE (selection->data)) ||
+				 nemo_file_is_lnk (NEMO_FILE (selection->data))));
 
 	show_properties = (!is_desktop_view || selection_count > 0);
 

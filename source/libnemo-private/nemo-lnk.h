@@ -90,6 +90,16 @@ gboolean nemo_lnk_write (const char  *lnk_path,
 gboolean nemo_lnk_drop_relative (const char  *lnk_path,
                                  GError     **error);
 
+/* Put new paths in an existing shortcut, keeping the rest of it, such as its
+   arguments, Start in folder and icon. The paths are taken as written, in
+   Windows spelling, and an empty or NULL one is left out; at least one must be
+   given. What else in the file points at the old target goes. */
+gboolean nemo_lnk_set_paths (const char  *lnk_path,
+                             const char  *absolute,
+                             const char  *relative,
+                             const char  *portable,
+                             GError     **error);
+
 /* Only the above is built on Windows. */
 #ifndef G_OS_WIN32
 

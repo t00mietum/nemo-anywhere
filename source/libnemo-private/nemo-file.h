@@ -219,6 +219,7 @@ gboolean                nemo_file_is_mime_type                      (NemoFile   
 									 const char                     *mime_type);
 gboolean                nemo_file_is_launchable                     (NemoFile                   *file);
 gboolean                nemo_file_is_symbolic_link                  (NemoFile                   *file);
+gboolean                nemo_file_is_lnk                            (NemoFile                   *file);
 gboolean                nemo_file_is_mountpoint                     (NemoFile                   *file);
 GMount *                nemo_file_get_mount                         (NemoFile                   *file);
 void                    nemo_file_set_mount                         (NemoFile                   *file,
