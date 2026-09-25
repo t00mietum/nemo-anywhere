@@ -71,6 +71,8 @@ void nemo_job_queue_start_job_by_info (NemoJobQueue     *self,
 
 GList *nemo_job_queue_get_all_jobs (NemoJobQueue *self);
 
+NemoProgressInfo *nemo_job_queue_get_current_info (void);
+
 G_END_DECLS
 
 #endif /* __NEMO_JOB_QUEUE_H__ */

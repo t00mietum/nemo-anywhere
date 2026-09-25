@@ -28,6 +28,7 @@
 
 #include "nemo-delete-guard.h"
 #include "nemo-global-preferences.h"
+#include "nemo-job-queue.h"
 
 #if HAVE_BACKTRACE
 #include <execinfo.h>
@@ -463,6 +464,13 @@ ask (const char *op, char *primary, char *detail)
 		g_mutex_unlock (&data->lock);
 	} else {
 		gint64 deadline = g_get_monotonic_time () + ANSWER_TIMEOUT_USEC;
+		NemoProgressInfo *progress = nemo_job_queue_get_current_info ();
+
+		/* Paused, the job's progress window stays down while this waits,
+		   as it does for the job's own questions. */
+		if (progress != NULL) {
+			nemo_progress_info_pause (progress);
+		}
 
 		data->refs++;
 		g_main_context_invoke (NULL, show_dialog, data);
@@ -480,6 +488,10 @@ ask (const char *op, char *primary, char *detail)
 		}
 		go_ahead = data->answered && data->go_ahead;
 		g_mutex_unlock (&data->lock);
+
+		if (progress != NULL) {
+			nemo_progress_info_resume (progress);
+		}
 	}
 
 	ask_data_unref (data);
