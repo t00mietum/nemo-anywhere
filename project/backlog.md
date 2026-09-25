@@ -47,8 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Valid shortcuts to folders sort with folders.
-
 - 🔘 Regenerate the animated gif:
 	- Use the updated URL at the end.
 	- The icons in icon view are WAY too big for the view. Use smaller thumbnails.
@@ -1664,6 +1662,12 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Valid shortcuts to folders sort with folders.
+	- Opened: 20260924-184213. Closed: 20260924-185919.
+	- Done: a shortcut sorts with the folders when it records a folder as its target, which is also what gives it the folder icon. Every platform.
+	- Note: "valid" is taken as a shortcut that reads and says folder. The target itself is not checked, since that can stall on a share that is not answering, so a shortcut whose folder is gone still sorts as a folder until opened.
+	- Verified: a test sorts a folder shortcut ahead of the files and a file shortcut among them.
 
 - ✅ New tab: CTRL+Shift+T should work too.
 	- Opened: 20260924-184213. Closed: 20260924-185428.

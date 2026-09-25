@@ -619,6 +619,8 @@ This rule has been rewritten several times and will probably move again, so the 
 	- Arguments are left out, since they were written for a Windows program.
 	- The icon comes from what the shortcut records, never from the target, for the same reason as on Windows.
 
+- A shortcut to a folder sorts with the folders when folders come first, on every platform. Whether its target is a folder is read from the shortcut, the same as its folder icon, so the two always agree. A shortcut whose folder has since gone keeps both until it is opened, since checking the target could stall on a share that is not answering.
+
 #### Scaling and startup
 
 - Scaling is the app's own job, not something done to it. The window declares itself per-monitor DPI aware, so a scaled display gets it drawn at that scale rather than drawn small and stretched, and moving it to a monitor at another scale redraws rather than restretches. The toolkit scales in whole steps, which leaves 125% or 150% short, so text is sized against the monitor's true DPI on top of that. Type comes out right at any scale; the widgets around it are still on the whole step below, which is the open item. On Linux and BSD the desktop publishes its own scaling and the toolkit follows it.

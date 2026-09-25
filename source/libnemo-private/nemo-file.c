@@ -3787,6 +3787,36 @@ compare_by_search_result_count (NemoFile *file_1,
     return (count_1 == count_2) ? 0 : (count_1 - count_2);
 }
 
+/* A shortcut to a folder goes with the folders, when its target is one. That
+   is read from the shortcut, as its folder icon is, and not from the target,
+   which may be on a share that is not answering. So a shortcut whose folder
+   is gone still sorts as one, the same as it still wears the icon. */
+static gboolean
+sorts_as_folder (NemoFile *file)
+{
+	char *path;
+	gboolean is_dir = FALSE;
+
+	if (nemo_file_is_directory (file)) {
+		return TRUE;
+	}
+	if (!name_has_lnk (file->details->name) || !nemo_file_is_local (file)) {
+		return FALSE;
+	}
+
+	path = nemo_file_get_path (file);
+	if (path != NULL) {
+#ifdef G_OS_WIN32
+		is_dir = nemo_shortcut_win32_target_is_dir (path, file->details->mtime);
+#else
+		is_dir = nemo_lnk_target_is_dir_for_path (path, file->details->mtime);
+#endif
+	}
+	g_free (path);
+
+	return is_dir;
+}
+
 static int
 nemo_file_compare_for_sort_internal (NemoFile *file_1,
 					 NemoFile *file_2,
@@ -3823,8 +3853,8 @@ nemo_file_compare_for_sort_internal (NemoFile *file_1,
     }
 
 	if (directories_first) {
-		is_directory_1 = nemo_file_is_directory (file_1);
-		is_directory_2 = nemo_file_is_directory (file_2);
+		is_directory_1 = sorts_as_folder (file_1);
+		is_directory_2 = sorts_as_folder (file_2);
 
 		if (is_directory_1 && !is_directory_2) {
 			return -1;

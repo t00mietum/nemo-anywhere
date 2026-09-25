@@ -113,6 +113,10 @@ char    *nemo_lnk_follow (const char *lnk_path, NemoLnk *lnk_out);
    NULL when the file is not a readable shortcut. */
 GIcon   *nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime);
 
+/* Whether a readable shortcut records a folder as its target, from the same
+   cache. What sorts it with folders. */
+gboolean nemo_lnk_target_is_dir_for_path (const char *lnk_path, gint64 mtime);
+
 /* Tests point these at a fake mount table, volume id folder and gvfs folder.
    NULL puts a default back. */
 void     nemo_lnk_set_system_paths (const char *mountinfo,

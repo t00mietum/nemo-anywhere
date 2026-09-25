@@ -1371,13 +1371,11 @@ windows_basename (const char *path)
 	return g_strdup (slash != NULL ? slash + 1 : path);
 }
 
-GIcon *
-nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime)
+/* Called with icon_cache held. */
+static IconEntry *
+icon_entry_for (const char *lnk_path, gint64 mtime)
 {
 	IconEntry *entry;
-	GIcon *icon = NULL;
-
-	G_LOCK (icon_cache);
 
 	if (icon_cache == NULL) {
 		icon_cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, icon_entry_free);
@@ -1404,6 +1402,33 @@ nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime)
 		}
 		g_hash_table_replace (icon_cache, g_strdup (lnk_path), entry);
 	}
+
+	return entry;
+}
+
+gboolean
+nemo_lnk_target_is_dir_for_path (const char *lnk_path, gint64 mtime)
+{
+	IconEntry *entry;
+	gboolean is_dir;
+
+	G_LOCK (icon_cache);
+	entry = icon_entry_for (lnk_path, mtime);
+	is_dir = entry->readable && entry->is_dir;
+	G_UNLOCK (icon_cache);
+
+	return is_dir;
+}
+
+GIcon *
+nemo_lnk_icon_for_path (const char *lnk_path, gint64 mtime)
+{
+	IconEntry *entry;
+	GIcon *icon = NULL;
+
+	G_LOCK (icon_cache);
+
+	entry = icon_entry_for (lnk_path, mtime);
 
 	if (entry->readable && entry->is_dir) {
 		icon = g_themed_icon_new ("folder");

@@ -939,6 +939,15 @@ if not is_windows
     ),
     args: []
   )
+
+  test('Folder shortcuts sort with folders test',
+    executable('test-nemo-lnk-sort',
+      [ 'test-nemo-lnk-sort.c' ],
+      include_directories: [ rootInclude, ],
+      dependencies: [ gtk, nemo_private, test_scratch ],
+    ),
+    args: []
+  )
 endif
 
 test('ImageMagick thumbnail test',
