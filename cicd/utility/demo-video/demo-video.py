@@ -133,6 +133,27 @@ DEMO_HOME = "/home/juno"
 # it was recorded from usually sits under the real home, which the fake one hides
 DEMO_PREFIX = "/opt/nemo-anywhere"
 
+# run as its own process by reserve_band; the window lives as long as it does
+BAND_STRUT = """
+import sys, time
+from Xlib import X, display
+disp = display.Display()
+scr = disp.screen()
+width, band = int(sys.argv[1]), int(sys.argv[2])
+win = scr.root.create_window(0, 0, 1, 1, 0, scr.root_depth, X.InputOutput,
+    X.CopyFromParent, background_pixel=scr.black_pixel)
+atom = disp.intern_atom
+win.change_property(atom("_NET_WM_WINDOW_TYPE"), atom("ATOM"), 32,
+    [atom("_NET_WM_WINDOW_TYPE_DOCK")])
+win.change_property(atom("_NET_WM_STRUT"), atom("CARDINAL"), 32, [0, 0, band, 0])
+win.change_property(atom("_NET_WM_STRUT_PARTIAL"), atom("CARDINAL"), 32,
+    [0, 0, band, 0, 0, 0, 0, 0, 0, width - 1, 0, 0])
+win.map()
+disp.sync()
+while True:
+    time.sleep(3600)
+"""
+
 PROFILES = {
     "video": dict(scale=2, cap_fps=60, out_fps=60, banner_fs=36, audio=True, banner_min=4.0),
     "gif":   dict(scale=1, cap_fps=50, out_fps=50, banner_fs=22, audio=False, banner_min=3.0),
@@ -304,8 +325,22 @@ class Rec:
         run([gh, "start"], env=e)
         self.start_wm(self.make_theme())
         time.sleep(2.0)
+        self.reserve_band()
         # pure black, so the margin around the window reads as black rather than a tint
         subprocess.run(["xsetroot", "-solid", "#000000"], env=self.env(), check=False)
+
+    def reserve_band(self):
+        # A dialog that sizes itself to the work area (Compress with its options
+        # open) would otherwise grow up into the band and sit under the captions.
+        # xfwm4's margin_top does not change _NET_WORKAREA; a strut does. One
+        # pixel of dock window is enough to carry it, and keeps the sync flash
+        # nearly all white.
+        self.strut = subprocess.Popen([sys.executable, "-c", BAND_STRUT,
+            str(self.size[0]), str(self.band)], env=self.env(),
+            stdout=subprocess.DEVNULL, stderr=open(self.work / "strut.log", "w"))
+        time.sleep(0.6)
+        if self.strut.poll() is not None:
+            log("WARNING: could not reserve the caption band (see strut.log)")
 
     def wm_env(self):
         # xfconfd keeps its channels under XDG_CONFIG_HOME, not HOME, so with the
@@ -327,8 +362,7 @@ class Rec:
         self.wm = subprocess.Popen(["dbus-run-session", "--", "sh", "-c",
             f'xfconf-query -c xfwm4 -p /general/theme --create -t string -s "{theme}"; '
             f'xfconf-query -c xfwm4 -p /general/title_font --create -t string -s "Lato Bold {title_pt}"; '
-            'xfconf-query -c xfwm4 -p /general/button_layout --create -t string -s "O|HMC"; '
-            f"exec {wm}"],
+            'xfconf-query -c xfwm4 -p /general/button_layout --create -t string -s "O|HMC"; '            f"exec {wm}"],
             env=self.wm_env(), stdout=open(self.work / "wm.log", "w"),
             stderr=subprocess.STDOUT, start_new_session=True)
 
@@ -362,6 +396,10 @@ class Rec:
             return False
 
     def stop_display(self):
+        if getattr(self, "strut", None):
+            self.strut.kill()
+            self.strut.wait()
+            self.strut = None
         self.stop_wm()
         gh = str(REPO / "cicd/utility/gui-headless.bash")
         e = dict(os.environ, CICD_HEADLESS_DISPLAY=self.display)
@@ -951,7 +989,6 @@ TOOL_Y     = 48
 ROW_Y, ROW_DY   = 109, 26        # first file row, and the row pitch
 TREE_Y, TREE_DY = 84, 23         # same for the tree
 SEARCH_BTN = (803, TOOL_Y)
-VIEW_ICON, VIEW_LIST = (842, TOOL_Y), (880, TOOL_Y)
 
 def row(n):
     return ROW_Y + n * ROW_DY
@@ -990,30 +1027,38 @@ def seg_dualpane(r, t, m):
         time.sleep(0.7)
 
 def seg_pictures(r, t, m):
-    with Banner(r, "Icon view, with thumbnails"):
+    # no view buttons: a folder that is mostly images switches to icons by itself,
+    # and switches back on the way out, which is the point of the scene
+    with Banner(r, "Picture folders switch to thumbnails by themselves"):
         m.at(*CRUMB_HOME, dur=0.6, settle=0.7)            # back to Home
         m.double(LIST_X, row(4), settle=0.8)             # Pictures
         m.double(*PHOTOS_ICON, settle=0.8)               # Photos
-        m.at(*VIEW_ICON, dur=0.8, settle=1.5)
+    with Banner(r, "Thumbnails are all made up front, and cached"):
+        m.move(*ICONS_EMPTY, dur=0.5)     # not rest(): that spot has a tooltip
+        time.sleep(1.6)
 
 CRUMB_HOME   = (182, TOOL_Y)     # the leftmost breadcrumb button, always home
 # Pictures is mostly images, so it opens in icon view, Photos first
 PHOTOS_ICON  = (220, 133)
+ICONS_EMPTY  = (720, 330)    # right of the last thumbnail in Photos
 SEARCH_GROUP = (879, 96)     # the group-by-folder toggle in the search bar
 # the context menu opens at the pointer, so this holds as long as the right-click
 # in seg_compress does
-COMPRESS_ITEM = (496, 146)
+COMPRESS_ITEM = (496, 356)
 ARCHIVE_FORMAT = (499, 206)      # the Format dropdown on the Compress dialog
 FORMAT_7Z      = (499, 325)      # the 7z row in the list it drops down
-COMPRESS_GO    = (613, 349)
+ARCHIVE_OPTIONS = (330, 312)     # the Options expander, closed
+# Open, the options push the dialog up to the top of the work area, which
+# reserve_band keeps below the captions. These two are where it is then.
+SOLID_CHECK    = (315, 382)
+COMPRESS_GO    = (613, 428)
 
 def seg_search(r, t, m):
     # into Documents first. Searching from there spans two folders, so the grouped
     # result has more than one group to show. A flat list says nothing about where
     # the matches came from, so it gets a beat to read before the grouped one
-    # replaces it. The view comes off icons first, or row() means nothing.
+    # replaces it. Home goes back to a list by itself, so row() holds.
     m.at(*CRUMB_HOME, dur=0.7, settle=0.9)
-    m.at(*VIEW_LIST, dur=0.6, settle=1.0)
     m.double(LIST_X, row(1), settle=1.0)          # Documents
     with Banner(r, "Search anywhere under the folder"):
         m.move(CLIENT_W // 2, row(2), dur=0.5)
@@ -1026,25 +1071,27 @@ def seg_search(r, t, m):
         m.at(*SEARCH_GROUP, dur=0.8, settle=1.6)
 
 def seg_compress(r, t, m):
+    # quicker than the other scenes: the dialog is plain to read, and Options
+    # needs the time
     t.key("Escape")                               # leave the search
-    time.sleep(0.8)
+    time.sleep(0.6)
     with Banner(r, "Compress, with no helper program"):
-        m.at(LIST_X, row(3), settle=0.4)          # budget.ods
+        m.at(LIST_X, row(3), dur=0.4, settle=0.2)     # budget.ods
         r.xdo("keydown", "ctrl")
-        m.at(LIST_X, row(5), settle=0.4)          # packing-list.txt
+        m.at(LIST_X, row(5), dur=0.4, settle=0.2)     # packing-list.txt
         r.xdo("keyup", "ctrl")
-        time.sleep(0.5)
+        time.sleep(0.2)
         m.rclick()
-        time.sleep(1.0)
-        m.at(*COMPRESS_ITEM, dur=0.7, settle=1.0)
-        t.type("paperwork", wpm=150)
-        time.sleep(0.5)
-    # the Options expander is deliberately left alone: expanded, the dialog is
-    # taller than a 540px screen and the buttons fall off the bottom
-    with Banner(r, "zip, tar and 7z, written by the app itself"):
-        m.at(*ARCHIVE_FORMAT, dur=0.7, settle=1.1)
-        m.at(*FORMAT_7Z, dur=0.6, settle=0.7)
-        m.at(*COMPRESS_GO, dur=0.6, settle=1.2)
+        time.sleep(0.7)
+        m.at(*COMPRESS_ITEM, dur=0.5, settle=0.7)
+        t.type("paperwork", wpm=190)
+        time.sleep(0.3)
+    with Banner(r, "zip, tar or 7z, with options like a solid archive"):
+        m.at(*ARCHIVE_FORMAT, dur=0.4, settle=0.5)
+        m.at(*FORMAT_7Z, dur=0.3, settle=0.4)
+        m.at(*ARCHIVE_OPTIONS, dur=0.4, settle=0.8)
+        m.at(*SOLID_CHECK, dur=0.5, settle=0.7)
+        m.at(*COMPRESS_GO, dur=0.5, settle=1.0)
 
 NAME_TEXT_X  = 250       # on the name itself; past its end a press starts a rubber band
 ROW_ARROW    = 170       # a folder row's expander
@@ -1061,6 +1108,25 @@ def seg_drag(r, t, m):
         m.at(*MOVE_BUTTON, dur=0.6, settle=0.6)
         m.at(ROW_ARROW, row(0), dur=0.6, settle=1.2)
 
+# Invoices is still open from the drag, which pushes Reports down to row 6. The
+# menu opens at the pointer, so these hold as long as that right-click does.
+MAKE_LINK_ITEM = (494, 280)
+LINK_SHORTCUT  = (535, 221)      # on the Make link dialog, which centers on the window
+LINK_GO        = (564, 289)
+
+def seg_links(r, t, m):
+    # A folder shortcut, then opened. It sorts with the folders, so it comes up
+    # right under Reports. Opening it on Linux is the part worth seeing.
+    with Banner(r, "Make a symlink, or a Windows shortcut, anywhere"):
+        m.at(LIST_X, row(6), dur=0.5, settle=0.3)     # Reports
+        m.rclick()
+        time.sleep(0.7)
+        m.at(*MAKE_LINK_ITEM, dur=0.5, settle=0.8)
+        m.at(*LINK_SHORTCUT, dur=0.5, settle=0.5)
+        m.at(*LINK_GO, dur=0.5, settle=0.9)
+    with Banner(r, "The shortcut opens on Linux, the same as on Windows"):
+        m.double(LIST_X, row(7), settle=2.0)
+
 def seg_outro(r, t, m):
     with Banner(r, "github.com/yottacore/nemo-anywhere"):
         m.rest()
@@ -1073,6 +1139,7 @@ _SCRIPT = [
     ("search",   seg_search),
     ("compress", seg_compress),
     ("drag",     seg_drag),
+    ("links",    seg_links),
     ("outro",    seg_outro),
 ]
 SEGMENTS = {"video": _SCRIPT, "gif": _SCRIPT}
