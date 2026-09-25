@@ -526,6 +526,34 @@ catalog_body (shcl_doc *doc)
 	return g_string_free (text, FALSE);
 }
 
+/* SHCL's info block goes last, so a later release can tell which format a file
+ * was written in before it converts one (shcl_format_version). It comes back
+ * through the parser as ordinary comments, like the catalog, and comes off the
+ * same way. Lines are matched as written, plus any "##    Field" line, so a
+ * newer SHCL that changes a URL or the legal line still replaces the old
+ * block instead of stacking a second one. */
+static gboolean
+is_banner_line (const char *bare)
+{
+	static char **lines;
+	static gsize  once;
+	guint         i;
+
+	if (g_once_init_enter (&once)) {
+		lines = g_strsplit (SHCL_GEN_BANNER, "\n", -1);
+		g_once_init_leave (&once, 1);
+	}
+
+	if (g_str_has_prefix (bare, "##    "))
+		return TRUE;
+	/* A bare "##" is only ours next to the rest of the block. */
+	for (i = 0; lines[i] != NULL; i++) {
+		if (strlen (lines[i]) > 2 && strcmp (lines[i], bare) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
 /* Take any catalog already in the text out and put a fresh one on the end. An
  * external edit puts the old copy back into the document as ordinary comments,
  * which SHCL then writes out again - indented under whatever group it decided
@@ -563,12 +591,19 @@ apply_catalog (shcl_doc *doc, const char *text, gsize len, gsize *out_len)
 		const char *line = g_ptr_array_index (lines, i);
 		const char *bare = line + strspn (line, " \t");
 		gsize       whole = g_array_index (keeps, gsize, i);
-		gboolean    drop  = g_hash_table_contains (key_lines, bare);
+		gboolean    drop  = g_hash_table_contains (key_lines, bare) || is_banner_line (bare);
 
 		if (!drop && g_hash_table_contains (desc_lines, bare) && i + 1 < lines->len) {
 			const char *next = g_ptr_array_index (lines, i + 1);
 
 			drop = g_hash_table_contains (key_lines, next + strspn (next, " \t"));
+		}
+		if (!drop && strcmp (bare, "##") == 0) {
+			const char *prev = i > 0 ? g_ptr_array_index (lines, i - 1) : "";
+			const char *next = i + 1 < lines->len ? g_ptr_array_index (lines, i + 1) : "";
+
+			drop = is_banner_line (prev + strspn (prev, " \t")) ||
+			       is_banner_line (next + strspn (next, " \t"));
 		}
 		/* A blank that only sat between two stripped lines goes with them. */
 		if (!drop && *bare == '\0' && dropped_last)
@@ -591,6 +626,8 @@ apply_catalog (shcl_doc *doc, const char *text, gsize len, gsize *out_len)
 	catalog = catalog_body (doc);
 	g_byte_array_append (body, (const guint8 *) catalog, strlen (catalog));
 	g_free (catalog);
+	g_byte_array_append (body, (const guint8 *) "\n" SHCL_GEN_BANNER,
+	                     strlen ("\n" SHCL_GEN_BANNER));
 
 	*out_len = body->len;
 	g_byte_array_append (body, (const guint8 *) "", 1);   /* NUL, for anything that prints it */
