@@ -514,6 +514,15 @@ test('Link copy test',
   args: []
 )
 
+test('Link edit test',
+  executable('test-nemo-link-edit',
+    [ 'test-nemo-link-edit.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Shortcut name test',
   executable('test-nemo-shortcut-name',
     [ 'test-nemo-shortcut-name.c' ],

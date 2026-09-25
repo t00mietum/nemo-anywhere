@@ -247,6 +247,56 @@ check_relative_spelling (const char *dir)
 		g_free (made);
 		g_free (alias);
 	}
+
+	/* A symlinked folder below the link, going somewhere else entirely. The
+	   real paths share only the scratch folder, but the way in through the
+	   symlink is shorter and works. */
+	{
+		char *far = g_build_filename (dir, "far", "deep", NULL);
+		char *far_file = g_build_filename (far, "t2.txt", NULL);
+		char *far_top = g_build_filename (dir, "far", NULL);
+		char *near = g_build_filename (from, "near", NULL);
+		char *near_deep = g_build_filename (near, "deep", NULL);
+		char *through = g_build_filename (near_deep, "t2.txt", NULL);
+		char *want_near = g_build_filename ("near", "deep", "t2.txt", NULL);
+		char *made = g_build_filename (from, "made2", NULL);
+		char *back_link = g_build_filename (far, "back", NULL);
+		char *contents = NULL;
+
+		g_mkdir_with_parents (far, 0700);
+		check (g_file_set_contents (far_file, "u", 1, NULL));
+		check (symlink (far_top, near) == 0);
+
+		text = nemo_link_relative_target (through, from);
+		check (g_strcmp0 (text, want_near) == 0);
+		check (text != NULL && symlink (text, made) == 0);
+		check (g_file_get_contents (made, &contents, NULL, NULL) &&
+		       g_strcmp0 (contents, "u") == 0);
+		g_clear_pointer (&contents, g_free);
+		g_free (text);
+
+		/* Back out the same way is wrong: ".." from the real folder goes
+		   under far, not back to a. So that one keeps the real path. */
+		text = nemo_link_relative_target (target, near_deep);
+		check (text != NULL && symlink (text, back_link) == 0);
+		check (g_file_get_contents (back_link, &contents, NULL, NULL) &&
+		       g_strcmp0 (contents, "t") == 0);
+		g_clear_pointer (&contents, g_free);
+		g_free (text);
+
+		g_remove (back_link);
+		g_remove (made);
+		g_remove (near);
+		g_free (far);
+		g_free (far_file);
+		g_free (far_top);
+		g_free (near);
+		g_free (near_deep);
+		g_free (through);
+		g_free (want_near);
+		g_free (made);
+		g_free (back_link);
+	}
 #endif
 
 	g_free (want);

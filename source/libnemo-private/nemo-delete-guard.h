@@ -50,6 +50,12 @@ gboolean nemo_delete_guard_check        (GFile        *file,
 					 GError      **error);
 gboolean nemo_delete_guard_remove_tree  (GFile        *file,
 					 GCancellable *cancellable);
+
+/* Take away a symlink or junction, and only that. Anything else, and a
+   protected folder, is refused. Logged, but not asked about: it is for a link
+   being put back as another one, not for a delete. */
+gboolean nemo_delete_guard_remove_link  (GFile        *file,
+					 GError      **error);
 gboolean nemo_delete_guard_sweeps_home  (GList        *files);
 gboolean nemo_delete_guard_must_ask     (gboolean      by_user,
 					 guint         count,

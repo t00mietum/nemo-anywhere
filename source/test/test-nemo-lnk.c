@@ -1212,6 +1212,110 @@ test_icon (void)
 	machine_clear (&machine);
 }
 
+/* Whether a block with this signature is in the extra data. */
+static gboolean
+has_block (const guint8 *bytes, gsize length, guint32 signature)
+{
+	gsize at;
+
+	for (at = 0x4c; at + 8 <= length; at++) {
+		guint32 size = bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | ((guint32) bytes[at + 3] << 24);
+		guint32 sig = bytes[at + 4] | (bytes[at + 5] << 8) | (bytes[at + 6] << 16) | ((guint32) bytes[at + 7] << 24);
+
+		if (sig == signature && size >= 8 && size <= length - at) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+static void
+test_set_paths (void)
+{
+	int ansi;
+
+	for (ansi = 0; ansi <= 1; ansi++) {
+		Spec spec = {
+			.attributes = 0x20, .id_list = TRUE,
+			.local_base = "C:\\old\\", .suffix = "file.txt", .serial = 0x1234,
+			.name = "Note", .relative = "..\\old\\file.txt", .working_dir = "C:\\work",
+			.arguments = "--flag", .icon = "C:\\icon.ico", .env = "%USERPROFILE%\\old.txt",
+			.ansi_strings = ansi,
+		};
+		GByteArray *bytes = build (&spec);
+		char *path = g_build_filename (home, "edit.lnk", NULL);
+		char *contents = NULL, *before = NULL;
+		gsize length = 0, before_length = 0;
+		GError *error = NULL;
+		NemoLnk lnk;
+		char *long_path;
+
+		/* A block that has nothing to do with the target, to be kept. */
+		g_byte_array_set_size (bytes, bytes->len - 4);
+		put32 (bytes, 0x10);
+		put32 (bytes, 0xA0000008);
+		put32 (bytes, 0x11111111);
+		put32 (bytes, 0x22222222);
+		put32 (bytes, 0);
+		check (g_file_set_contents (path, (const char *) bytes->data, bytes->len, NULL));
+
+		check (nemo_lnk_set_paths (path, "C:\\new\\file2.txt", "..\\new\\file2.txt",
+					   "%USERPROFILE%\\new.txt", &error));
+		g_clear_error (&error);
+		check (nemo_lnk_read (path, &lnk));
+		check (g_strcmp0 (lnk.local_path, "C:\\new\\file2.txt") == 0);
+		check (lnk.has_serial && lnk.drive_serial == 0x1234);
+		check (g_strcmp0 (lnk.relative_path, "..\\new\\file2.txt") == 0);
+		check (g_strcmp0 (lnk.env_path, "%USERPROFILE%\\new.txt") == 0);
+		check (g_strcmp0 (lnk.description, "Note") == 0);
+		check (g_strcmp0 (lnk.working_dir, "C:\\work") == 0);
+		check (g_strcmp0 (lnk.arguments, "--flag") == 0);
+		nemo_lnk_clear (&lnk);
+
+		check (g_file_get_contents (path, &contents, &length, NULL));
+		check (length > 0x4c && (contents[20] & 0x01) == 0);
+		check (!has_block ((const guint8 *) contents, length, 0xA0000005));
+		check (has_block ((const guint8 *) contents, length, 0xA0000008));
+		g_free (contents);
+
+		/* Another drive loses the serial, which belongs to the old one. A
+		   share path goes in as a share. */
+		check (nemo_lnk_set_paths (path, "D:\\x.txt", NULL, NULL, NULL));
+		check (nemo_lnk_read (path, &lnk));
+		check (g_strcmp0 (lnk.local_path, "D:\\x.txt") == 0 && lnk.drive_serial == 0);
+		check (lnk.relative_path == NULL && lnk.env_path == NULL);
+		check (g_strcmp0 (lnk.arguments, "--flag") == 0);
+		nemo_lnk_clear (&lnk);
+
+		check (nemo_lnk_set_paths (path, "\\\\srv\\share\\dir\\f.txt", "", "", NULL));
+		check (nemo_lnk_read (path, &lnk));
+		check (lnk.local_path == NULL);
+		check (g_strcmp0 (lnk.net_share, "\\\\srv\\share") == 0);
+		check (g_strcmp0 (lnk.net_path, "dir\\f.txt") == 0);
+		nemo_lnk_clear (&lnk);
+
+		/* Refused, and the file is left alone. */
+		check (g_file_get_contents (path, &before, &before_length, NULL));
+		check (!nemo_lnk_set_paths (path, "", NULL, "", &error));
+		check (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT));
+		g_clear_error (&error);
+		long_path = g_strnfill (300, 'a');
+		check (!nemo_lnk_set_paths (path, NULL, NULL, long_path, &error));
+		check (error != NULL);
+		g_clear_error (&error);
+		g_free (long_path);
+		check (g_file_get_contents (path, &contents, &length, NULL));
+		check (length == before_length && memcmp (contents, before, length) == 0);
+		g_free (contents);
+		g_free (before);
+
+		g_remove (path);
+		g_free (path);
+		g_byte_array_free (bytes, TRUE);
+	}
+}
+
 int
 main (int argc, char **argv)
 {
@@ -1244,6 +1348,7 @@ main (int argc, char **argv)
 	test_expand ();
 	test_parse_env ();
 	test_icon ();
+	test_set_paths ();
 
 	if (failures == 0)
 		g_print ("nemo-lnk: all checks passed\n");

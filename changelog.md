@@ -64,6 +64,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Every other row in the list view can be shaded, from the Display page. Off by default. The shade comes from the theme's `nemo_row_shading` color when it has one, or a faint tint of the text color, and `row-shading-color` in the settings file overrides both.
 
+- "Edit link..." changes where a symlink or junction points, and its name. On a Windows shortcut it shows the absolute, relative and portable paths, any of which can be changed or left empty to drop it. The shortcut's arguments, Start in folder and icon are kept. Only shown when one link is selected.
+
 ### Changed
 
 - The row under the pointer, in the list and both sidebars, is tinted with a faint wash of the theme's selection color instead of gray, so it no longer looks like a shaded row. It is kept fainter than a shaded row and well short of a selected one, light or dark. A theme whose selection is gray gets a soft blue. `row-hover-color` in the settings file, or a `nemo_row_hover` color in the theme, overrides it; `transparent` turns it off.
@@ -73,6 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Ctrl+Shift+T opens a new tab when no folder is selected. With folders selected it opens them in new tabs, as before, and a selected file no longer opens in its program.
 
 - "Make symlink" is now "Make link...", and asks what to make. Folders get a junction or a symlink on Windows, files a symlink or a hardlink, and either can be a Windows `.lnk` shortcut, called a Shortcut there. A symlink's path can be relative or absolute. A hardlink asks once more first, saying what can go wrong with one. Every open starts from the defaults: a junction for folders on Windows, else a symlink, and an absolute path. On Windows without the symlink privilege the item stays on, since a junction, a hardlink and a shortcut need none. A shortcut can hold an absolute path, a relative one and a portable one with a Windows variable such as `%USERPROFILE%` in it, all three to start with, and is followed by the first that works. Windows follows a shortcut made on another platform through its portable path, and a target on a Windows share keeps its `\\server\share` path there. Nemo Anywhere follows any of them, on any platform. A drop that makes links opens the same dialog, in place of the drop question. A link made beside its original is named for its kind, such as "photo - symlink.jpg" or "photo.jpg - shortcut.lnk", and one made in another folder keeps the original's name.
+
+- When a copy finds links, the choices now say what happens to each: "Copy link as-is" or "Copy contents", or "Copy as a junction" and "Copy as a symlink" where one kind can become the other. A move says "Move" in place of "Copy".
 
 - The settings file is read with SHCL 3. A backslash in an unquoted value is now just a backslash, so a Windows path can be typed as it is, and escapes only work inside double quotes. A settings file from an earlier beta that holds a network path may read it wrong; delete it and start again. The file now ends with a short block naming its format, so a later version knows what it is reading.
 

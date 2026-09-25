@@ -121,6 +121,7 @@
 #define NEMO_ACTION_RENAME "Rename"
 #define NEMO_ACTION_DUPLICATE "Duplicate"
 #define NEMO_ACTION_CREATE_LINK "Create Link"
+#define NEMO_ACTION_EDIT_LINK "Edit Link"
 #define NEMO_ACTION_SELECT_ALL "Select All"
 #define NEMO_ACTION_INVERT_SELECTION "Invert Selection"
 #define NEMO_ACTION_SELECT_PATTERN "Select Pattern"
@@ -256,6 +257,8 @@ static const ConfigurableMenuItemInfo CONFIGURABLE_MENU_ITEM_INFO [] = {
 
     { NEMO_ACTION_CREATE_LINK, "selection_menu__make_link_check",
      "/selection/File Actions/Create Link", "selection-menu-make-link" },
+    { NEMO_ACTION_EDIT_LINK, NULL,
+     "/selection/File Actions/Edit Link", "selection-menu-make-link" },
 
     { NEMO_ACTION_RENAME, "selection_menu__rename_check",
      "/selection/File Actions/Rename", "selection-menu-rename" },

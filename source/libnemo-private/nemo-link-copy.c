@@ -232,6 +232,7 @@ add_row (GtkGrid      *grid,
 {
 	GtkWidget *label;
 	GtkWidget *group = NULL;
+	const char *text;
 	int column;
 
 	label = gtk_label_new (row->label);
@@ -251,10 +252,19 @@ add_row (GtkGrid      *grid,
 			continue;
 		}
 
+		/* Said as what happens to this link, since "Symlink" beside a symlink
+		   read as though a new one would be made. */
+		if (column == COLUMN_COPY) {
+			text = _("Copy contents");
+		} else if (offer == row->found) {
+			text = is_move ? _("Move link as-is") : _("Copy link as-is");
+		} else if (offer == NEMO_LINK_JUNCTION) {
+			text = is_move ? _("Move as a junction") : _("Copy as a junction");
+		} else {
+			text = is_move ? _("Move as a symlink") : _("Copy as a symlink");
+		}
 		button = gtk_radio_button_new_with_label_from_widget (
-				group ? GTK_RADIO_BUTTON (group) : NULL,
-				column == COLUMN_SYMLINK ? _("Symlink") :
-				column == COLUMN_JUNCTION ? _("Junction") : _("Copy"));
+				group ? GTK_RADIO_BUTTON (group) : NULL, text);
 		if (group == NULL) {
 			group = button;
 		}
@@ -362,10 +372,12 @@ nemo_link_choice_ask (GtkWindow      *parent,
 	} else if (is_move) {
 		note = gtk_label_new (_("A link is moved as a link. Only a copy can take what it points at."));
 	} else {
-		note = gtk_label_new (_("A copy holds the contents; a link keeps pointing at the original."));
+		note = NULL;
 	}
-	gtk_widget_set_halign (note, GTK_ALIGN_START);
-	gtk_box_pack_start (GTK_BOX (box), note, FALSE, FALSE, 0);
+	if (note != NULL) {
+		gtk_widget_set_halign (note, GTK_ALIGN_START);
+		gtk_box_pack_start (GTK_BOX (box), note, FALSE, FALSE, 0);
+	}
 
 	grid = gtk_grid_new ();
 	gtk_widget_set_halign (grid, GTK_ALIGN_START);
@@ -485,26 +497,15 @@ same_part (const char *a, const char *b)
 #endif
 }
 
-char *
-nemo_link_relative_target (const char *target_path,
-                           const char *dir)
+/* The steps from dir to target, both taken as spelled: up past what they do
+   not share, then down. */
+static char *
+spell_relative (const char *dir, const char *target)
 {
-	char *target_parent, *target_base, *real_parent, *real_target, *real_link_dir;
-	char **from, **to;
+	char **from = split_path (dir);
+	char **to = split_path (target);
 	GString *text;
 	int common = 0, i;
-	char *answer = NULL;
-
-	/* The target itself is not resolved, since it may be a link that is
-	   meant to be pointed at. */
-	target_parent = g_path_get_dirname (target_path);
-	target_base = g_path_get_basename (target_path);
-	real_parent = real_dir (target_parent);
-	real_target = g_build_filename (real_parent, target_base, NULL);
-	real_link_dir = real_dir (dir);
-
-	from = split_path (real_link_dir);
-	to = split_path (real_target);
 
 	while (from[common] != NULL && to[common] != NULL && same_part (from[common], to[common])) {
 		common++;
@@ -513,7 +514,9 @@ nemo_link_relative_target (const char *target_path,
 #ifdef G_OS_WIN32
 	/* The first part is the drive or the server. There is no way up and over. */
 	if (common == 0) {
-		goto out;
+		g_strfreev (from);
+		g_strfreev (to);
+		return NULL;
 	}
 #endif
 
@@ -530,13 +533,100 @@ nemo_link_relative_target (const char *target_path,
 	if (text->len == 0) {
 		g_string_append (text, ".");
 	}
-	answer = g_string_free (text, FALSE);
-
-#ifdef G_OS_WIN32
- out:
-#endif
 	g_strfreev (from);
 	g_strfreev (to);
+
+	return g_string_free (text, FALSE);
+}
+
+#ifndef G_OS_WIN32
+/* Whether text, followed from the folder the link really sits in, comes out
+   at real_target. The kernel takes each ".." from where the folder before it
+   really is, and realpath walks the same way. */
+static gboolean
+leads_to (const char *real_link_dir, const char *text, const char *real_target)
+{
+	char *joined = g_build_filename (real_link_dir, text, NULL);
+	char *parent = g_path_get_dirname (joined);
+	char *base = g_path_get_basename (joined);
+	char *real = NULL;
+	gboolean same = FALSE;
+
+	/* A text ending in a dot or two can only name a folder above, which is
+	   no link, so both ends can be resolved whole. */
+	if (strcmp (base, ".") == 0 || strcmp (base, "..") == 0) {
+		char *want = realpath (real_target, NULL);
+
+		real = realpath (joined, NULL);
+		same = real != NULL && want != NULL && strcmp (real, want) == 0;
+		free (want);
+	} else {
+		real = realpath (parent, NULL);
+		if (real != NULL) {
+			char *arrived = g_build_filename (real, base, NULL);
+
+			same = strcmp (arrived, real_target) == 0;
+			g_free (arrived);
+		}
+	}
+	free (real);
+	g_free (joined);
+	g_free (parent);
+	g_free (base);
+
+	return same;
+}
+#endif
+
+char *
+nemo_link_relative_target (const char *target_path,
+                           const char *dir)
+{
+	char *target_parent, *target_base, *real_parent, *real_target, *real_link_dir;
+	char *answer;
+
+	/* The target itself is not resolved, since it may be a link that is
+	   meant to be pointed at. */
+	target_parent = g_path_get_dirname (target_path);
+	target_base = g_path_get_basename (target_path);
+	real_parent = real_dir (target_parent);
+	real_target = g_build_filename (real_parent, target_base, NULL);
+	real_link_dir = real_dir (dir);
+
+	/* From the real folders it always works, but where a symlinked folder
+	   sits on either path the two real paths can have nothing in common but
+	   the root. The paths as spelled usually share more, so each mix is tried
+	   and the shortest that still arrives wins. */
+	answer = spell_relative (real_link_dir, real_target);
+#ifndef G_OS_WIN32
+	{
+		char *spelled_dir = g_canonicalize_filename (dir, NULL);
+		char *spelled_target = g_canonicalize_filename (target_path, NULL);
+		/* Later ones win a tie, so the spelling the folders are seen by
+		   comes first. */
+		const char *mixes[][2] = {
+			{ spelled_dir, real_target },
+			{ real_link_dir, spelled_target },
+			{ spelled_dir, spelled_target },
+		};
+		guint i;
+
+		for (i = 0; i < G_N_ELEMENTS (mixes); i++) {
+			char *text = spell_relative (mixes[i][0], mixes[i][1]);
+
+			if (strlen (text) <= strlen (answer) && strcmp (text, answer) != 0 &&
+			    leads_to (real_link_dir, text, real_target)) {
+				g_free (answer);
+				answer = text;
+			} else {
+				g_free (text);
+			}
+		}
+		g_free (spelled_dir);
+		g_free (spelled_target);
+	}
+#endif
+
 	g_free (target_parent);
 	g_free (target_base);
 	g_free (real_parent);

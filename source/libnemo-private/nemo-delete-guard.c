@@ -24,6 +24,7 @@
 
 #include "nemo-delete-guard.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,7 @@
 
 #include "nemo-delete-guard-win32.h"
 #include "nemo-delete-testguard.h"
+#include "nemo-link-copy.h"
 #include "nemo-dir-enum.h"
 #include "nemo-link-win32.h"
 
@@ -274,6 +276,49 @@ nemo_delete_guard_check (GFile *file, GError **error)
 	g_free (name);
 
 	return FALSE;
+}
+
+gboolean
+nemo_delete_guard_remove_link (GFile *file, GError **error)
+{
+	NemoLinkKind kind;
+	char *path, *name;
+	int result, saved;
+
+	if (!nemo_delete_guard_check (file, error)) {
+		return FALSE;
+	}
+
+	kind = nemo_link_kind (file, NULL);
+	path = g_file_get_path (file);
+	name = g_file_get_parse_name (file);
+	if (kind == NEMO_LINK_NONE || path == NULL || nemo_delete_guard_is_real_folder (file, NULL, NULL)) {
+		nemo_delete_guard_log ("refused to remove %s as a link, since it is not one", name);
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+			     _("\"%s\" is not a link, so it was left alone."), name);
+		g_free (path);
+		g_free (name);
+		return FALSE;
+	}
+
+#ifdef G_OS_WIN32
+	/* A folder link is a folder to Windows. Removing it takes the link and
+	   nothing under it. */
+	result = kind == NEMO_LINK_FILE_SYMLINK ? g_unlink (path) : g_rmdir (path);
+#else
+	result = g_unlink (path);
+#endif
+	saved = errno;
+	if (result != 0) {
+		g_set_error (error, G_IO_ERROR, g_io_error_from_errno (saved),
+			     _("Could not remove the link \"%s\": %s"), name, g_strerror (saved));
+	} else {
+		nemo_delete_guard_log ("removed the link %s", name);
+	}
+	g_free (path);
+	g_free (name);
+
+	return result == 0;
 }
 
 gboolean

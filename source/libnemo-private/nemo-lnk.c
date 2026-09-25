@@ -58,6 +58,7 @@
 #define FLAG_IS_UNICODE         0x0080
 #define FLAG_FORCE_NO_LINK_INFO 0x0100
 #define FLAG_HAS_EXP_STRING     0x0200
+#define FLAG_HAS_DARWIN_ID      0x1000
 
 /* EnvironmentVariableDataBlock: a fixed 260 character path, ANSI then UTF-16. */
 #define ENV_BLOCK_SIGNATURE 0xA0000001
@@ -1576,7 +1577,7 @@ put_network_link_info (GByteArray *out, const char *unc, const char *suffix)
    the root with backslashes, \\home\\me\\file, on no Windows drive, and the
    reader here turns it back. */
 static void
-put_local_link_info (GByteArray *out, const char *path)
+put_local_link_info (GByteArray *out, const char *path, guint32 serial)
 {
 	gsize start = out->len, base_at, suffix_at, base_unicode_at, suffix_unicode_at;
 
@@ -1592,7 +1593,7 @@ put_local_link_info (GByteArray *out, const char *path)
 
 	put_u32 (out, 0x11);              /* VolumeID size */
 	put_u32 (out, VOLUME_DRIVE_FIXED);
-	put_u32 (out, 0);                 /* serial */
+	put_u32 (out, serial);
 	put_u32 (out, 0x10);              /* label, empty */
 	g_byte_array_append (out, (const guint8 *) "", 1);
 
@@ -1775,7 +1776,7 @@ nemo_lnk_write (const char  *lnk_path,
 	if ((flags & FLAG_HAS_LINK_INFO) && unc != NULL) {
 		put_network_link_info (out, unc, suffix);
 	} else if (flags & FLAG_HAS_LINK_INFO) {
-		put_local_link_info (out, absolute);
+		put_local_link_info (out, absolute, 0);
 	}
 	if (flags & FLAG_HAS_RELATIVE_PATH) {
 		put_u16 (out, (guint16) utf16_length (relative_windows));
@@ -1899,3 +1900,209 @@ nemo_lnk_drop_relative (const char  *lnk_path,
 	return ok;
 }
 
+/* Extra data blocks that say where the target is, one way or another. Each
+   would still name the old target once the paths change, and Windows would
+   follow it first. */
+static gboolean
+block_names_target (guint32 signature)
+{
+	switch (signature) {
+	case ENV_BLOCK_SIGNATURE:
+	case 0xA0000003:   /* distributed link tracking */
+	case 0xA0000005:   /* special folder */
+	case 0xA0000006:   /* installer id */
+	case 0xA0000009:   /* property store, which can hold the target's path */
+	case 0xA000000B:   /* known folder */
+	case 0xA000000C:   /* id list */
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+static gboolean
+put_counted (GByteArray *out, const char *text)
+{
+	glong units = utf16_length (text);
+
+	if (units < 0 || units > G_MAXUINT16) {
+		return FALSE;
+	}
+	put_u16 (out, (guint16) units);
+	put_utf16 (out, text, FALSE);
+
+	return TRUE;
+}
+
+/* The drive letter a Windows path starts with, or 0. */
+static char
+drive_letter (const char *path)
+{
+	if (path != NULL && g_ascii_isalpha (path[0]) && path[1] == ':') {
+		return g_ascii_toupper (path[0]);
+	}
+
+	return 0;
+}
+
+gboolean
+nemo_lnk_set_paths (const char  *lnk_path,
+		    const char  *absolute,
+		    const char  *relative,
+		    const char  *portable,
+		    GError     **error)
+{
+	char *contents = NULL;
+	const guint8 *bytes;
+	gsize length, pos;
+	guint32 flags, new_flags;
+	gboolean unicode, ok = FALSE;
+	char *name = NULL, *old_relative = NULL, *working_dir = NULL, *arguments = NULL, *icon = NULL;
+	char *relative_windows = NULL;
+	GByteArray *out = NULL;
+	NemoLnk old = { 0 };
+
+	if (absolute != NULL && absolute[0] == '\0') {
+		absolute = NULL;
+	}
+	if (relative != NULL && relative[0] == '\0') {
+		relative = NULL;
+	}
+	if (portable != NULL && portable[0] == '\0') {
+		portable = NULL;
+	}
+	if (absolute == NULL && relative == NULL && portable == NULL) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
+				     _("A shortcut needs at least one path."));
+		return FALSE;
+	}
+	if (portable != NULL) {
+		glong units = utf16_length (portable);
+
+		if (units < 0 || units >= ENV_PATH_CHARS) {
+			g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
+				     _("The portable path can be at most %d characters."), ENV_PATH_CHARS - 1);
+			return FALSE;
+		}
+	}
+
+	if (!g_file_get_contents (lnk_path, &contents, &length, error)) {
+		return FALSE;
+	}
+	bytes = (const guint8 *) contents;
+	if (length > LNK_READ_MAX || !nemo_lnk_parse (bytes, length, &old)) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+			     _("\"%s\" is not a shortcut."), lnk_path);
+		goto out;
+	}
+
+	flags = get_u32 (bytes + 20);
+	unicode = (flags & FLAG_IS_UNICODE) != 0;
+	if (!strings_start (bytes, length, &pos) ||
+	    ((flags & FLAG_HAS_NAME) && !read_string (bytes, length, &pos, unicode, &name)) ||
+	    ((flags & FLAG_HAS_RELATIVE_PATH) && !read_string (bytes, length, &pos, unicode, &old_relative)) ||
+	    ((flags & FLAG_HAS_WORKING_DIR) && !read_string (bytes, length, &pos, unicode, &working_dir)) ||
+	    ((flags & FLAG_HAS_ARGUMENTS) && !read_string (bytes, length, &pos, unicode, &arguments)) ||
+	    ((flags & FLAG_HAS_ICON_LOCATION) && !read_string (bytes, length, &pos, unicode, &icon))) {
+		g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+			     _("\"%s\" is not a shortcut."), lnk_path);
+		goto out;
+	}
+
+	/* The id list goes, since it is the old target and Windows reads it
+	   before anything else. Strings are all written back as UTF-16, so an
+	   old ANSI shortcut comes out as a new one. */
+	new_flags = flags & ~(FLAG_HAS_ID_LIST | FLAG_HAS_LINK_INFO | FLAG_HAS_RELATIVE_PATH |
+			      FLAG_FORCE_NO_LINK_INFO | FLAG_HAS_EXP_STRING | FLAG_HAS_DARWIN_ID);
+	new_flags |= FLAG_IS_UNICODE;
+	if (absolute != NULL) {
+		new_flags |= FLAG_HAS_LINK_INFO;
+	}
+	if (relative != NULL) {
+		new_flags |= FLAG_HAS_RELATIVE_PATH;
+	}
+	if (portable != NULL) {
+		new_flags |= FLAG_HAS_EXP_STRING;
+	}
+
+	out = g_byte_array_new ();
+	g_byte_array_append (out, bytes, LNK_HEADER_SIZE);
+	set_u32 (out, 20, new_flags);
+
+	if (absolute != NULL) {
+		char *server, *share, *rest;
+
+		if ((absolute[0] == '\\' || absolute[0] == '/') &&
+		    (absolute[1] == '\\' || absolute[1] == '/') &&
+		    split_share (absolute, &server, &share, &rest)) {
+			char *unc = g_strconcat ("\\\\", server, "\\", share, NULL);
+			char *suffix = to_backslashes (rest);
+
+			put_network_link_info (out, unc, suffix);
+			g_free (unc);
+			g_free (suffix);
+			g_free (server);
+			g_free (share);
+			g_free (rest);
+		} else {
+			char *local = to_backslashes (absolute);
+			char drive = drive_letter (local);
+			/* The same drive keeps its serial, which is how it is found
+			   again off Windows. */
+			guint32 serial = old.has_serial && drive != 0 && drive == drive_letter (old.local_path)
+				? old.drive_serial : 0;
+
+			put_local_link_info (out, local, serial);
+			g_free (local);
+		}
+	}
+
+	if (relative != NULL) {
+		relative_windows = to_backslashes (relative);
+	}
+	if ((name != NULL && !put_counted (out, name)) ||
+	    (relative != NULL && !put_counted (out, relative_windows)) ||
+	    (working_dir != NULL && !put_counted (out, working_dir)) ||
+	    (arguments != NULL && !put_counted (out, arguments)) ||
+	    (icon != NULL && !put_counted (out, icon))) {
+		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT,
+				     _("A path is too long for a shortcut."));
+		goto out;
+	}
+	g_clear_pointer (&relative_windows, g_free);
+
+	/* The blocks that have nothing to do with the target, such as console
+	   settings and the icon's own path, are kept as they were. */
+	while (pos + 4 <= length) {
+		guint32 size = get_u32 (bytes + pos);
+
+		if (size < 8 || size > length - pos) {
+			break;
+		}
+		if (!block_names_target (get_u32 (bytes + pos + 4))) {
+			g_byte_array_append (out, bytes + pos, size);
+		}
+		pos += size;
+	}
+	if (portable != NULL) {
+		put_env_block (out, portable);
+	}
+	put_u32 (out, 0);
+
+	ok = g_file_set_contents (lnk_path, (const char *) out->data, out->len, error);
+
+ out:
+	nemo_lnk_clear (&old);
+	if (out != NULL) {
+		g_byte_array_unref (out);
+	}
+	g_free (relative_windows);
+	g_free (name);
+	g_free (old_relative);
+	g_free (working_dir);
+	g_free (arguments);
+	g_free (icon);
+	g_free (contents);
+
+	return ok;
+}

@@ -2101,6 +2101,15 @@ name_has_lnk (const char *name)
 	return name_has_extension (name, ".lnk");
 }
 
+/* A Windows .lnk shortcut, by its name, as the shell decides too. */
+gboolean
+nemo_file_is_lnk (NemoFile *file)
+{
+	g_return_val_if_fail (NEMO_IS_FILE (file), FALSE);
+
+	return name_has_lnk (file->details->name);
+}
+
 /* The shell never shows a shortcut's extension, so neither do we unless asked to. */
 static gboolean
 hiding_shortcut_extension (void)

@@ -63,9 +63,11 @@ gboolean nemo_link_create_hard (const char  *existing_path,
                                 GError     **error);
 
 /* target_path as a symlink sitting in dir would spell it relative to itself.
-   Both are taken as they really are, links in the folders above resolved, so
-   the answer holds from the folder the link really sits in. NULL when no
-   relative spelling exists, which on Windows means another drive. */
+   The answer always holds from the folder the link really sits in. Off
+   Windows it is the shortest of the paths as spelled and as they really are,
+   links in the folders resolved, so a symlinked folder on the way does not
+   send it up to the root when it need not. NULL when no relative spelling
+   exists, which on Windows means another drive. */
 char    *nemo_link_relative_target (const char *target_path,
                                     const char *dir);
 
