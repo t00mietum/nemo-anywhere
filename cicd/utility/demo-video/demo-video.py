@@ -727,7 +727,9 @@ TREE = {
         "_files": ["kettle-drum.mp3", "slow-tide.mp3", "windfall.mp3"],
     },
     "Pictures": {
-        "Trips": ["coast-01.png", "coast-02.png", "harbour.png", "lighthouse.png"],
+        "Photos": ["f-22-over-clouds.jpg", "f-22-pair.jpg", "f-35-mojave.jpg",
+            "forest-sunrise.jpg", "meadow-deer.jpg", "puppy-blanket.jpg",
+            "puppy-doorway.jpg", "puppy-on-lap.jpg", "river-mist.jpg"],
         "Wallpapers": ["dusk.png", "lattice.png", "meadow.png"],
         "_files": ["profile.png", "sketch.png"],
     },
@@ -749,9 +751,35 @@ SIZE_HINT = {".flac": 32_000_000, ".mp4": 180_000_000, ".mp3": 5_400_000,
 REPORT_TEXT = ("Quarterly summary\n\nThe report covers the period to date. "
     "Figures are provisional until the audit closes.\n")
 
+# Real photos for the icon view, so its thumbnails look like something. All are
+# public domain or CC0 on Wikimedia Commons, so nothing needs crediting on
+# screen. Fetched once at 800px into a cache beside the repo, not shipped.
+PHOTO_CACHE = OUT_DIR / "photo-cache"
+PHOTOS = {
+    "f-22-over-clouds.jpg": ("F-22 Raptor - 080608-F-0154C-103.jpg", "Public domain, US Air Force"),
+    "f-22-pair.jpg": ("F-22 Raptor (2566025826).jpg", "Public domain, US Air Force"),
+    "f-35-mojave.jpg": ("F-35A Lightning II flies above the Mojave Desert.jpg", "Public domain, US Air Force"),
+    "forest-sunrise.jpg": ("Forest sunrise.jpg", "CC0"),
+    "meadow-deer.jpg": ("Deer Enjoying Meadow Grass (51840554986).jpg", "Public domain"),
+    "puppy-blanket.jpg": ("Golden Retriever puppy (3813393).jpg", "CC0"),
+    "puppy-doorway.jpg": ("Puppy-Golden-Retriever.JPG", "Public domain"),
+    "puppy-on-lap.jpg": ("Golden Retriever - 7 weeks.jpg", "Public domain"),
+    "river-mist.jpg": ("Hoh sunrise mist fog scenic j preston (17095320637).jpg", "Public domain"),
+}
+
+def photo(path):
+    from urllib.parse import quote
+    cached = PHOTO_CACHE / path.name
+    if not cached.exists():
+        PHOTO_CACHE.mkdir(parents=True, exist_ok=True)
+        url = ("https://commons.wikimedia.org/wiki/Special:FilePath/"
+            + quote(PHOTOS[path.name][0]) + "?width=800")
+        run(["curl", "-sfL", "-A", "nemo-anywhere-demo/1.0", "-o", str(cached), url])
+    shutil.copyfile(cached, path)
+
 def demo_image(path, seed, size=(640, 400)):
-    # generated rather than shipped: a thumbnail has to be real image data, but
-    # nothing in the recording should be somebody's actual photo
+    # generated: a thumbnail has to be real image data, and these folders are
+    # not the ones the icon view scene shows
     rng = random.Random(seed)
     hue = rng.random()
     img = Image.new("RGB", size)
@@ -774,6 +802,9 @@ def demo_image(path, seed, size=(640, 400)):
 
 def write_file(path, seed):
     name = path.name
+    if name in PHOTOS:
+        photo(path)
+        return
     if name.endswith(".png"):
         demo_image(path, seed)
         return
@@ -854,6 +885,9 @@ START_SETTINGS = {
     "preferences.date-format": "informal",
     "preferences.default-folder-viewer": "list-view",
     "preferences.show-image-thumbnails": "true",
+    # a folder of pictures opens at 5x by default, two thumbnails to a window
+    # this size. At 1.5x all of Photos fits.
+    "icon-view.default-image-icon-size": "150",
     "preferences.show-hidden-files": "false",
     "preferences.confirm-drag-move": "true",
     "preferences.sort-directories-first": "true",
@@ -959,10 +993,12 @@ def seg_pictures(r, t, m):
     with Banner(r, "Icon view, with thumbnails"):
         m.at(*CRUMB_HOME, dur=0.6, settle=0.7)            # back to Home
         m.double(LIST_X, row(4), settle=0.8)             # Pictures
-        m.double(LIST_X, row(0), settle=0.8)             # Trips
+        m.double(*PHOTOS_ICON, settle=0.8)               # Photos
         m.at(*VIEW_ICON, dur=0.8, settle=1.5)
 
 CRUMB_HOME   = (182, TOOL_Y)     # the leftmost breadcrumb button, always home
+# Pictures is mostly images, so it opens in icon view, Photos first
+PHOTOS_ICON  = (220, 133)
 SEARCH_GROUP = (879, 96)     # the group-by-folder toggle in the search bar
 # the context menu opens at the pointer, so this holds as long as the right-click
 # in seg_compress does
@@ -1449,3 +1485,5 @@ if __name__ == "__main__":
 ##		  through cairo); both profiles share one set of scene coordinates via
 ##		  GDK_SCALE; settings changes go through the settings file the app
 ##		  live-reloads rather than a control socket.
+##		- 20260924: The icon view scene shows public domain photos, cached
+##		  beside the repo, and image folders open at 1.5x instead of 5x.

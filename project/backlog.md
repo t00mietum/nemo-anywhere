@@ -47,11 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Regenerate the animated gif:
-	- Use the updated URL at the end.
-	- The icons in icon view are WAY too big for the view. Use smaller thumbnails.
-	- Use real images in the image view. Modern fighter jets, puppies, beautiful green nature at hazy golden hour.
-
 - 🔘 Dialogs should not have titles in the dialogs themselves. The titles belong on the window decoration.
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
@@ -1662,6 +1657,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Regenerate the animated gif:
+	- Use the updated URL at the end.
+	- The icons in icon view are WAY too big for the view. Use smaller thumbnails.
+	- Use real images in the image view. Modern fighter jets, puppies, beautiful green nature at hazy golden hour.
+	- Opened: 20260924-184213. Closed: 20260924-191200.
+	- Done: the ending shows github.com/yottacore/nemo-anywhere. A folder that is mostly pictures opens at one and a half times instead of five, so all nine photos fit. The photos are public domain or CC0, from Wikimedia Commons.
+	- Note: the product default for such folders is still five times. That may be worth its own look.
 
 - ✅ Valid shortcuts to folders sort with folders.
 	- Opened: 20260924-184213. Closed: 20260924-185919.
