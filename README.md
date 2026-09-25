@@ -33,7 +33,7 @@
 <table style="border: none; border-collapse: collapse;">
 	<tr style="border: none; border-collapse: collapse;">
 		<td style="border: none; border-collapse: collapse;"><img src="assets/logo.png" alt="Logo" width="160"/></td>
-		<td style="border: none;">The legendary Nemo file manager, ported to Windows, with BSD and macOS to follow - as well as to Linux without the Cinnamon dependency. Also with several major new convenience features.</td>
+		<td style="border: none;">This is the legendary Nemo file manager, ported to Windows, with BSD and macOS to follow - as well as to Linux without the Cinnamon dependency. It also has several major new convenience features.</td>
 	</tr>
 </table>
 
@@ -55,7 +55,7 @@
 - [What this fork adds or improves](#what-this-fork-adds-or-improves)
 - [Status](#status)
 - [Icon themes](#icon-themes)
-	- [Adding your own](#adding-your-own)
+	- [Add your own theme](#add-your-own-theme)
 - [Installation](#installation)
 	- [Packages and installers](#packages-and-installers)
 	- [Direct stable and dev install scripts](#direct-stable-and-dev-install-scripts)
@@ -68,7 +68,7 @@
 
 ## Why
 
-Nemo is one of the best file managers going. Fast, sane, powerful.
+Nemo is one of the best file managers going. It's fast, sane and powerful.
 
 There's just one catch. It's part of the Linux Cinnamon desktop.
 
@@ -76,28 +76,28 @@ This project removes the Cinnamon (and even Linux) dependency:
 
 - It takes Nemo as-is, from the source.
 
-- Removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
+- It removes every assumption that says "you are running Cinnamon" or even "you are running Linux".
 
-- Removes the heavy desktop integration. Your existing manager is untouched - which can even be original Nemo, they don't conflict. (This is also a big step toward OS portability.)
+- It removes the heavy desktop integration. Your existing manager is untouched. It can even be the original Nemo, since they don't conflict. (This is also a big step toward OS portability.)
 
-- Shippable everywhere. (At least, desktop OSes.)
+- It's shippable everywhere, or at least to every desktop OS.
 
 That means, in order:
 
 - **Linux**:
-	- Standalone on any desktop.
+	- It runs standalone on any desktop.
 
-	- No Cinnamon dependencies. No Cinnamon, no xapp, no desktop stack pulled in behind it.
+	- It has no Cinnamon dependencies. There's no Cinnamon, no xapp, no desktop stack pulled in behind it.
 
-	- Doesn't try to compete with existing desktop managers for control of desktop rendering. (A real pain point with OG Nemo.)
+	- It doesn't try to compete with existing desktop managers for control of desktop rendering. (That was a real pain point with OG Nemo.)
 
-- **Windows**: A real native build, not a compatibility shim.
+- **Windows**: It's a real native build, not a compatibility shim.
 
-- **BSD**
+- **BSD**: It's next after Windows.
 
-- **macOS**: Later. Nothing in the code should stand in the way, but it hasn't been tried yet.
+- **macOS**: It comes later. Nothing in the code should stand in the way, but it hasn't been tried yet.
 
-One codebase. "For Windows" and friends are just labels on builds, not separate projects.
+There is one codebase. "For Windows" and friends are just labels on builds, not separate projects.
 
 It is opinionated. It manages files and folders. It does more of the file management you need, built in, on every platform, so nothing depends on third-party programs, plugins or extensions that only exist on one of them.
 
@@ -107,65 +107,102 @@ Report issues here, never upstream. Provenance details live in [fork.md](fork.md
 
 ## Existing features
 
-Everything that makes Nemo worth porting:
+These are the features that make Nemo worth porting:
 
-- Fast, no-nonsense navigation. Back, forward, up, refresh, breadcrumbs or a path box - your pick.
+- Navigation is fast and no-nonsense. Back, forward, up and refresh are there, with breadcrumbs or a path box, whichever you pick.
 
-- Real file operation progress. See what is happening, and how far along it is.
+- File operations show real progress. You can see what is happening, and how far along it is.
 
 - Folder contents merging is intuitive. No more accidental clobbering.
 
-- Open in terminal, built in.
+- Open in terminal is built in.
 
-- Proper bookmarks.
+- It has proper bookmarks.
 
 - Copies use near-instant and near-zero-size CoW copies automatically, if the underlying filesystem allows it.
 
 ## What this fork adds or improves
 
-- Runs without Cinnamon. No desktop-drawing baggage, no pulled-in desktop stack.
+- **Cinnamon Desktop is not required**. There's no desktop-drawing baggage and no pulled-in desktop stack.
 
-- Runs without Linux. Windows is a real native build, not a compatibility layer. BSD and macOS come after.
+- **Linux is not required**. Windows is a real native build, not a compatibility layer. BSD and macOS are coming soon. You can install it from here, and a Windows Store download is in progress.
 
 - On Windows it is one executable. The whole runtime is packed inside it, so there is nothing to install and nothing to keep in step. Copy it where you like and run it.
-	- Same idea as an AppImage or a Flatpak, without the runtime or the sandbox.
+
+	- It's the same idea as an AppImage or a Flatpak, without the runtime or the sandbox.
+
 	- On Linux it stays a small folder that uses the GTK3 your distro already has, because that is what a Linux user expects and it keeps the download tiny.
 
 - On Windows it fits in, without pretending to be Explorer:
-	- The Recycle Bin can be browsed, restored from and emptied.
+
+	- The conscious decision was made to avoid an Explorer integration at any cost, since we can't let an Explorer crash bring Nemo Anywhere down with it. Nemo Anywhere only links to shell32.dll in its own process space, which provides most native Windows functionality.
+
+	- The native Recycle Bin can be browsed, restored from and emptied.
+
 	- Alt+Enter opens the same Properties sheet Explorer shows, tabs from other programs included.
+
 	- `.lnk` shortcuts can be made, edited and opened the way Explorer opens them. Shortcuts, symlinks and junctions each get their own overlay, so they are easy to tell apart.
+
 	- Each fixed drive sits in the sidebar with a usage bar.
-	- Dot files and files with the hidden attribute each have a switch. Ctrl+H flips both.
-	- Open in Windows Terminal, Open as Administrator, Open with Explorer, and Copy path with either kind of slash.
+
+	- Dot files and files with the hidden attribute each have a switch. Ctrl+H flips both. (They can also be independently hidden.)
+
+	- It includes options like "Open in Windows Terminal", "Open as Administrator", "Open with Explorer", and "Copy path" with either kind of slash.
+
 	- Light or dark follows the Windows setting. Four icon sets are drawn to match XP, 7, 10 and 11.
+
 	- It draws at each monitor's own scale instead of being stretched.
+
 	- File associations are read from the registry and never written to it. "Set as default" keeps its choice in the settings file.
-	- The Windows search index can be used for faster searches. It is off by default, since it only knows the folders it was told to watch.
 
 - Every instance is its own process. If one crashes for some reason, the rest keep going.
 	- A crash leaves a report beside the settings file, so there is something to send in.
 
-- Integrated - and more advanced - archive handling. No more third-party GUI application dependencies that don't feel integrated, don't support the archive format's best options, etc.
+- Archive handling is integrated (and more advanced). There are no more third-party GUI application dependencies that don't feel integrated, don't support the archive format's best options, etc.
+
 	- Right-click Compress writes zip, tar and 7z by itself, zip with a password, and with a cap on how much of the CPU it takes. Split volumes, 7z passwords and rar use the 7z or rar programs when they are installed.
+
 	- Right-click Extract reads most archive types, with real progress and a question when a file already exists. An archive can't write outside the folder it is unpacked into.
+
 	- Compress can delete the originals afterward, off by default. It reads the finished archive back first and checks every file is in it at the right size, and even then the originals go to the trash.
 
-- A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. A copy goes through without a word unless you ask for that too. A dropped link opens Make link, so you pick what kind.
+- There are comprehensive link creation options:
 
-- A large delete, or one generated with no user input, prompts even with confirmation turned off.
+	- "Make link" asks what to make: a symlink, a hardlink, or a Windows shortcut.
 
-- Trash and delete operations record what they did: how many items, which folder, the first name in the batch, and what set it off.
+	- Reading and creating Windows `.lnk` shortcuts work on Linux and macOS too. (But unfortunately, on those platforms they only work in Nemo Anywhere.) The nuances of behavioral differences between symlinks and shortcuts work on Linux and macOS just as they do on Windows.
 
-- Links are never followed on a delete or a move. Only the link goes. Copying a link asks whether to keep it a link or copy what it points to.
+	- On Windows, directory junctions are also offered as a (generally superior) option.
 
-- Make link asks what to make: a symlink, a hardlink, a Windows shortcut, or on Windows a junction. A symlink gets a relative or an absolute path. A shortcut can carry both, plus a portable path such as `%USERPROFILE%\Documents`, so one made on Linux still opens in Explorer when the same folder is there.
+	- For symlinks, you can choose a relative or an absolute path.
 
-- Windows `.lnk` shortcuts work on Linux too. One to a folder goes to that folder, one to a file opens the file, and each shows its target's icon. The Windows path inside is matched to a drive or share this machine has mounted. When there is no sure match it says so instead of guessing.
+	- Shortcuts contain both relative and absolute paths by definition, plus a portable path such as `%USERPROFILE%\Documents`.
 
-- Only a window can trash, delete or move files. Another program on the session bus can't, which Nemo's old desktop interface allowed.
+- Windows environment variables and backslashes work on Linux and macOS. Linux and macOS variables and forward slashes work on Windows.
+
+- The thumbnail-caching engine has been modernized:
+
+	- A folder of pictures has all its thumbnails generated as soon as it opens, top down.
+
+	- It no longer gets confused and shows the wrong thumbnail for renamed files that have the same size.
+
+	- Photoshop, HEIC, and most camera raw files get thumbnails too. If ImageMagick is installed, so do JPEG 2000, EXR, and a few dozen more.
+
+	- The thumbnail cache is cleaned up once in a while in the background, rather than growing forever.
 
 - List view columns size themselves to what is in them. Name and Location share whatever room is left, dates and permissions keep a fixed width, and the view scrolls sideways before it squeezes a column too small to read. An Ext column sits next to Name.
+
+- Moves and deletes are safer:
+
+	- A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. A copy goes through without a word unless you ask for that too. A dropped link opens Make link, so you pick what kind.
+
+	- A large delete, or one generated with no user input, prompts even with confirmation turned off.
+
+	- Trash and delete operations record what they did: how many items, which folder, the first name in the batch, and what set it off.
+
+	- Links are never followed on a delete or a move. Only the link goes. Copying a link asks whether to keep it a link or copy what it points to.
+
+	- Only a window can trash, delete or move files. Another program on the session bus can't, which Nemo's old desktop interface allowed.
 
 - Alternate rows can be shaded, off by default. Selection and hover still show through it.
 
@@ -175,33 +212,33 @@ Everything that makes Nemo worth porting:
 
 - Every folder follows one set of view defaults, unless per-folder settings are turned on.
 
-- Search results can be grouped under the folder they came from. A flat list of thirty files all called `notes.txt` tells you nothing; a row per folder with the matches under it tells you where to look. One toggle in the search bar, and the same results either way.
+- Search has several improvements:
 
-- Content search reads Word, Excel, PowerPoint, OpenDocument and EPUB files by itself. No helper scripts and no office suite.
+	- Search results can be grouped under the folder they came from. A flat list of thirty files all called `notes.txt` tells you nothing; a row per folder with the matches under it tells you where to look. It's one toggle in the search bar, and the results are the same either way.
 
-- The thumbnail cache is cleaned up once in a while, rather than growing forever.
+	- Content search reads Word, Excel, PowerPoint, OpenDocument and EPUB files by itself. It needs no helper scripts and no office suite.
 
-- A folder of pictures has all its thumbnails made as soon as it opens, top down, not only the ones scrolled to. Photoshop and camera raw files get thumbnails too, and with ImageMagick installed so do JPEG 2000, HEIC, EXR and a few dozen more.
+	- On Windows, the search index can be used for faster searches. It is off by default, since it only knows the folders it was told to watch.
 
-- Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema. Editing it by hand does the same thing as changing the setting in the dialog.
+- Settings live in one plain text file you can read and edit. There's no registry, no dconf and no compiled schema. Editing it by hand does the same thing as changing the setting in the dialog.
 
 - Copy, paste and drag work with the platform's own file manager, in both directions.
 
-- What a platform cannot do is hidden or grayed out rather than failing when clicked. No Mount archive where the platform cannot mount one, no permissions tab where there are no permissions.
+- What a platform cannot do is hidden or grayed out rather than failing when clicked. There's no Mount archive where the platform cannot mount one, and no permissions tab where there are no permissions.
 
 - Releases can be checked. Every download is published with checksums, and the Linux builds can be rebuilt from their commit to the same bytes.
 
-- Dozens of "minor papercut" fixes, and "quality-of-life" improvements.
+- There are dozens of "minor papercut" fixes and "quality-of-life" improvements.
 
 ## Status
 
-Beta, but only while the visual polish gets its last pass. It is stable and safe for everyday use on Linux and Windows, and has been in daily use for months.
+It's necessarily Beta (for options tuning and visual polish), but it is absolutely rock-solid and ready for safe everyday use.
 
-Every build goes through static analysis, the full regression suite, and the checks that guard against losing files. A full pipeline run adds fuzzing and a performance profile.
+Every build goes through static analysis, the full regression suite, and the exhaustive checks that guard against losing files. A full pipeline run adds fuzzing and a performance profile.
 
-Rough edges to know about:
+The current limitations are:
 
-- For now every trash and delete asks first, in a plain dialog that says exactly what is about to go and why. It is an extra safety net for the beta, and goes back to the normal confirmations before the stable release. It can be turned off now with the checkbox at the end of Trash on the Behavior page of Preferences.
+- For now every trash and delete asks first, in a plain dialog that says exactly what is about to go and why - which is wired into all possible trash/delete/move code paths. It is an extra safety net for all prereleases, whether needed or not. It can be safely turned off in Preferences.
 
 - The Windows exe is not code-signed yet, so Windows may warn the first time it runs.
 
@@ -209,19 +246,19 @@ Rough edges to know about:
 
 - macOS and BSD are not built yet.
 
-Details:
+Details are in these docs:
 
-- Plans and progress: [project/backlog.md](project/backlog.md)
+- The development backlog is in [project/backlog.md](project/backlog.md).
 
-- Design and reasoning: [project/design.md](project/design.md)
+- The design is in [project/design.md](project/design.md).
 
-- Code style: [project/style-guide_code.md](project/style-guide_code.md)
+- The code style is in [project/style-guide_code.md](project/style-guide_code.md).
 
-- UI style: [project/style-guide_ui.md](project/style-guide_ui.md)
+- The UI style is in [project/style-guide_ui.md](project/style-guide_ui.md).
 
 ## Icon themes
 
-Twenty-four icon sets are built into the Windows build - light and dark, and no download. Linux and BSD builds use the icon themes the desktop already has. Pick one in **Preferences -> Appearance**; the Style picker moves the Icons picker to match, so a Windows 11 window frame does not come with macOS icons unless you ask for it.
+Twenty-four icon sets, light and dark, are built into the Windows build, so there's nothing to download. Linux and BSD builds use the icon themes the desktop already has. Pick one in **Preferences -> Appearance**; the Style picker moves the Icons picker to match, so a Windows 11 window frame does not come with macOS icons unless you ask for it.
 
 ![Icon themes](assets/icon-gallery.png)
 
@@ -229,11 +266,13 @@ Each set is shown twice, on a light background and a dark one, because half of t
 
 Provenance and license for every vendored set is in [vendor/README.md](vendor/README.md).
 
-### Adding your own
+### Add your own theme
 
-Drop a theme folder into the icons directory beside your settings file and it appears in the picker next launch - `~/.config/nemo-anywhere/icons/` on Linux and BSD, `%APPDATA%\nemo-anywhere\icons\` on Windows, `~/Library/Application Support/nemo-anywhere/icons/` on macOS. Widget themes work the same way in `themes/` beside it. Both folders are created empty on first run.
+On Linux and BSD, Nemo Anywhere inherits whatever widget and icon theme is set at the desktop level (as one would expect).
 
-[filesystem/README.md](filesystem/README.md) covers the layout, the two optional `index.theme` keys that tell the picker which modes a theme suits, and one-line fetch commands for Buuf - a set worth having that cannot be bundled, because its NonCommercial license rules it out of anything shipped.
+But on Windows, you can drop a theme folder into the icons directory beside your settings file, and it appears in the picker on the next launch - `~/.config/nemo-anywhere/icons/` on Linux and BSD, `%APPDATA%\nemo-anywhere\icons\` on Windows, `~/Library/Application Support/nemo-anywhere/icons/` on macOS. Widget themes work the same way in `themes/` beside it. Both folders are created empty on first run.
+
+[filesystem/README.md](filesystem/README.md) covers the layout, the two optional `index.theme` keys that tell the picker which modes a theme suits, and one-line fetch commands for Buuf - a set worth having that cannot be bundled, because its NonCommercial license rules it out of anything distributed.
 
 ## Installation
 
@@ -243,23 +282,23 @@ Everything is on the [releases page](https://github.com/yottacore/nemo-anywhere/
 
 - **Windows**: download `nemo-anywhere-<version>-windows-x86_64-portable.exe` and run it. That is the whole program - the runtime is inside it. Nothing is installed and nothing is registered. Releases up to 1.0.0-beta2 name it plain `nemo-anywhere.exe`.
 
-- **Debian, Ubuntu, Mint**: `sudo apt install ./nemo-anywhere-<version>-linux-x86_64.deb`
+- **Debian, Ubuntu, Mint**: Run `sudo apt install ./nemo-anywhere-<version>-linux-x86_64.deb`.
 
-- **Fedora, openSUSE, RHEL**: `sudo dnf install ./nemo-anywhere-<version>-linux-x86_64.rpm`
+- **Fedora, openSUSE, RHEL**: Run `sudo dnf install ./nemo-anywhere-<version>-linux-x86_64.rpm`.
 
 Both packages install to `/opt/nemo-anywhere` with a menu entry and `nemo-anywhere` on PATH, and use the GTK3 your distro already provides.
 
 ### Direct stable and dev install scripts
 
-One command. It downloads the right build for the machine, verifies its checksum, tells you exactly what it is about to do, and waits for a yes. The defaults suit most people. Add `--help` (`-Help` in PowerShell) to see the options.
+It's one command. It downloads the right build for the machine, verifies its checksum, tells you exactly what it is about to do, and waits for a yes. The defaults suit most people. Add `--help` (`-Help` in PowerShell) to see the options.
 
-Linux and WSL, and BSD and macOS once those are built:
+This one is for Linux and WSL, and for BSD and macOS once those are built:
 
 ~~~bash
 bash <(curl -fsSL https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.bash)
 ~~~
 
-Windows, or anywhere else with PowerShell. It is a full installer on its own, not a wrapper around the one above:
+This one is for Windows, or anywhere else with PowerShell. It is a full installer on its own, not a wrapper around the one above:
 
 ~~~powershell
 & ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.ps1')))
@@ -267,7 +306,7 @@ Windows, or anywhere else with PowerShell. It is a full installer on its own, no
 
 Reinstalling over an existing copy is fine - it replaces it. `--help` also says how to remove it.
 
-Where it goes:
+This is where it goes:
 
 | OS      | User install (default)                 | Launcher                                                                            | (or) System install             | Launcher
 | :---    | :---                                   | :---                                                                                | :---                            | :---
@@ -280,9 +319,9 @@ Settings live where each platform puts them - `~/.config/nemo-anywhere` on Linux
 
 ### DIY
 
-Unpack `nemo-anywhere-<version>-linux-x86_64.tar.gz` wherever you like and run `bin/nemo-anywhere` from inside it. It is relocatable, so no fixed path is required. Verify the download against the `nemo-anywhere-<version>-sha256sums.txt` file published beside it.
+Extract `nemo-anywhere-<version>-linux-x86_64.tar.gz` wherever you like and run `bin/nemo-anywhere` from inside it. It is relocatable, so no fixed path is required. Verify the download against the `nemo-anywhere-<version>-sha256sums.txt` file published beside it.
 
-What a Linux build needs at runtime: GTK 3.24.33 or newer and glibc 2.35 or newer, which means Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or anything more recent.
+A Linux build needs GTK 3.24.33 or newer and glibc 2.35 or newer at runtime, which means Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or anything more recent.
 
 ## Set up development environment
 
@@ -316,7 +355,7 @@ The full picture, meaning the exact package list, the Windows cross-compile, the
 
 ## Longer-term roadmap
 
-For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 works, it's no longer actively developed, is basically stuck with C, and is comparatively weak and fragile on Windows and macOS (compared to, say, Qt). That's what the sister project [Captain Nemo](https://github.com/t00mietum/captain-nemo) is for, once this project reaches v1.0.0 stable.
+For maximum cross-platform portability, Nemo Anywhere needs to move off of not just GTK+ v3, but GTK+ period. While GTK+ v3 works, it's no longer actively developed, is basically stuck with C, and is not as reliable on Windows and macOS as, say, Qt. That's what the sister project [Captain Nemo](https://github.com/t00mietum/captain-nemo) is for, once this project reaches a few stable rounds.
 
 ## Copyright and license
 
