@@ -1618,6 +1618,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Debug delete/move/etc:
+	- Closed: 20260924-170600
+	- ✅ Add a setting in preferences to disable it.
+		- Done: a checkbox at the end of Trash on the Behavior page. It is grayed out in a build with the guard forced on.
+	- ✅ Add brief text to the dialogs, explaining why it's there: Because we have a rule to use it for all pre-releases, but is not necessary for this release candidate, and can be disabled in settings.
+		- Done: the note sits under the headline in every guard dialog, and says where the checkbox is.
+
 - ✅ Windows `.lnk` file support on macOS and Linux
 	- Opened: 20260924-104933
 	- Closed: 20260924-113840

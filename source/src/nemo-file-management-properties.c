@@ -38,6 +38,7 @@
 #include <libnemo-private/nemo-appearance.h>
 #include <libnemo-private/nemo-column-chooser.h>
 #include <libnemo-private/nemo-column-utilities.h>
+#include <libnemo-private/nemo-delete-testguard.h>
 #include <libnemo-private/nemo-desktop-utils.h>
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-module.h>
@@ -85,6 +86,7 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_CONFIRM_MOVE_WIDGET "trash_confirm_move_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_CONFIRM_WIDGET "trash_confirm_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_DELETE_WIDGET "trash_delete_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_TESTGUARD_WIDGET "testguard_all_deletes_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SWAP_TRASH_DELETE "swap_trash_binding_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_OPEN_NEW_WINDOW_WIDGET "new_window_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_LIST_VIEW_EXPANDERS_WIDGET "list_view_show_expanders_checkbutton"
@@ -1430,6 +1432,12 @@ nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_DELETE_WIDGET,
 			   NEMO_PREFERENCES_ENABLE_DELETE);
+	bind_builder_bool (builder, nemo_config_get_group (NEMO_DEBUG_GROUP),
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_TESTGUARD_WIDGET,
+			   NEMO_PREFERENCES_TESTGUARD_ALL_DELETES);
+	/* Built with the guard forced on, the box could say off and still ask. */
+	gtk_widget_set_sensitive (GTK_WIDGET (W (NEMO_FILE_MANAGEMENT_PROPERTIES_TESTGUARD_WIDGET)),
+				  !NEMO_TESTGUARD_ALL_DELETES);
     bind_builder_bool (builder, nemo_preferences,
                NEMO_FILE_MANAGEMENT_PROPERTIES_SWAP_TRASH_DELETE,
                NEMO_PREFERENCES_SWAP_TRASH_DELETE);
