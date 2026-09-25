@@ -49,40 +49,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - **Stop here for a next release**.
 
-- 🔘 Menu: "Snapshot ..."
-	- Only works if folders selected
-	- Warn if the total file count would be excessive, or in danger of running into filesystem limits.
-	- Dialog:
-		- Snapshot type (radio buttons):
-			- Copy-On-Write clone  # Default, disable if not supported. With flyover text describing what it is, and that there is no risk to the original files even if the snapshot fails.
-			- Hardlink             # With a danger icon, and flyover text description of what's going to happen, and warning of the dangers.
-			- If hardlink is chosen when OK is hit, show a dialog again describing what's going to happen, and the dangers. (Including potential confusion over a mix of hardlinks and modified symlinks.)
-	- Behavior:
-		- Work should happen in a hidden temp folder at the level of the highest selected folder, named:
-			- ".wip_snapshot_YYYYmmDD-HHMMSS-NNNN"
-			- This is so nothing appears where it should until it all succeeds. If the operation fails, this temp dir can be deleted. (Pseudo-"atomic".)
-		- If the parent folder supports CoW cloning, and that's what the user chose:
-			- Make a CoW copy of the selected real files and folders (excluding symlinks, sockets, etc.), with the names "<original name> - cow snapshot YYYYmmDD-HHMMSS".
-				- Remembering the temp directory requirement above.
-		- Otherwise:
-			- For each real folder selected:
-				- Make a new folder next to it named "<original name> - hardlink snapshot YYYYmmDD-HHMMSS"
-					- Remembering the temp directory requirement above.
-				- Within that, recreate the entire folder structure (for real folders only, not symlinks).
-				- Then, make hardlinks of every real file, within the same subfolder structure.
-				- Then, for symlinks in the original, copy them (not hardlink!).
-		- Then for both, scan all the symlinks in the new folders, that point to targets within the original structure.
-			- Update those to point *relatively* within the new (final) destination folders.
-		- If all that succeeds:
-			- Only then create the new destination folders named above
-			- Move the snapshotted folders from the temp wip folder, to their new destinations.
-			- If all that succeeds:
-				- Delete the empty wip folder.
-		- If anything fails:
-			- Try to delete the wip folder.
-			- Warn the user that the operation failed and was backed out, but the original files are safe.
-
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
+	- Note: If the previous cache implementation is on-disk when the new version runs, delete it.
+		- This is OK since it's still beta. In the future for release versions, changes will require a migration.
+	- Opened: 20260925-063617 by JC.
 
 - 🔘 Metadata-aware Nemo Anywhere:
 	- 🔘 When creating a file, also log its known information to the database.
@@ -3548,6 +3518,45 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Canceled
 
+- 🚫 Menu: "Snapshot ..."
+	- Only works if folders selected
+	- Warn if the total file count would be excessive, or in danger of running into filesystem limits.
+	- Dialog:
+		- Snapshot type (radio buttons):
+			- Copy-On-Write clone  # Default, disable if not supported. With flyover text describing what it is, and that there is no risk to the original files even if the snapshot fails.
+			- Hardlink             # With a danger icon, and flyover text description of what's going to happen, and warning of the dangers.
+			- If hardlink is chosen when OK is hit, show a dialog again describing what's going to happen, and the dangers. (Including potential confusion over a mix of hardlinks and modified symlinks.)
+	- Behavior:
+		- Work should happen in a hidden temp folder at the level of the highest selected folder, named:
+			- ".wip_snapshot_YYYYmmDD-HHMMSS-NNNN"
+			- This is so nothing appears where it should until it all succeeds. If the operation fails, this temp dir can be deleted. (Pseudo-"atomic".)
+		- If the parent folder supports CoW cloning, and that's what the user chose:
+			- Make a CoW copy of the selected real files and folders (excluding symlinks, sockets, etc.), with the names "<original name> - cow snapshot YYYYmmDD-HHMMSS".
+				- Remembering the temp directory requirement above.
+		- Otherwise:
+			- For each real folder selected:
+				- Make a new folder next to it named "<original name> - hardlink snapshot YYYYmmDD-HHMMSS"
+					- Remembering the temp directory requirement above.
+				- Within that, recreate the entire folder structure (for real folders only, not symlinks).
+				- Then, make hardlinks of every real file, within the same subfolder structure.
+				- Then, for symlinks in the original, copy them (not hardlink!).
+		- Then for both, scan all the symlinks in the new folders, that point to targets within the original structure.
+			- Update those to point *relatively* within the new (final) destination folders.
+		- If all that succeeds:
+			- Only then create the new destination folders named above
+			- Move the snapshotted folders from the temp wip folder, to their new destinations.
+			- If all that succeeds:
+				- Delete the empty wip folder.
+		- If anything fails:
+			- Try to delete the wip folder.
+			- Warn the user that the operation failed and was backed out, but the original files are safe.
+	- Opened: 20260924 by JC.
+	- Canceled: 20260925-062731. For these inherent problems we don't want to be unfairly blamed for:
+		- The first option, CoW clone, can already be accomplished just by copy-and-paste on a supported filesystem.
+		- The second option, hardlinks, by its nature is too fraught with potential future data loss problems for the user, that we don't want to be viewed as somehow "responsible" for. Those problems are already explained in the "Make hardlink" feature.
+		- And finally, updating symlinks inside the new copy - while the more "proper" way to do it - could still lead to unexpected results for users. (And is also, arguably, "inconsistent" since only paths pointed to inside the clone get modified.)
+		- The whole thing should probably be left to other third-party utilities that users would have to specifically seek out, with motivation - rather than a feature they stumble upon in their file manager.
+
 - 🚫 In list view, a folder of pictures shows a horizontal scrollbar even when every column fits. A folder of text files the same size does not.
 	- Opened: 20260921. Closed: 20260921.
 	- Why canceled: not a bug. The columns did not fit. The pictures were 327 bytes against 4 KiB, and "327 bytes" is wider than "4.0 KiB". "Image" is wider than "Text", and the names were a character longer.
@@ -3555,7 +3564,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Text files of 327 bytes with shorter names fit, and showed no scrollbar.
 
 - 🚫 Persist icon view size changes, for both regular and image.
-	- Why canceled: Per-folder and global settings do this.
+	- Why canceled: Per-folder and global settings do this. Not perfectly, but the overlap might cause confusion.
 	- Opened and closed: 20260920-162550.
 
 - 🚫 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
