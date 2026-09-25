@@ -279,9 +279,12 @@ check_link_options (void)
 	nemo_link_options_initial (0, &options);
 	check (options.folder_kind == NEMO_MAKE_SHORTCUT && options.file_kind == NEMO_MAKE_SHORTCUT);
 
+	/* A shortcut always carries every path it can. */
+	check (options.lnk_parts == NEMO_LNK_ALL_PARTS);
+
 	/* The path choice matters only while something comes out a symlink. A
 	   junction is always absolute, a hardlink has no path, and a shortcut
-	   has its own row. */
+	   carries every kind. */
 	options.folder_kind = NEMO_MAKE_JUNCTION;
 	options.file_kind = NEMO_MAKE_HARDLINK;
 	check (!nemo_link_options_uses_path (&options, 2, 3));
@@ -293,16 +296,9 @@ check_link_options (void)
 	options.folder_kind = NEMO_MAKE_SHORTCUT;
 	options.file_kind = NEMO_MAKE_SHORTCUT;
 	check (!nemo_link_options_uses_path (&options, 1, 1));
-	check (nemo_link_options_makes_lnk (&options, 1, 1));
 	options.folder_kind = NEMO_MAKE_JUNCTION;
 	options.file_kind = NEMO_MAKE_HARDLINK;
 	check (!nemo_link_options_uses_path (&options, 1, 1));
-	check (!nemo_link_options_makes_lnk (&options, 1, 1));
-
-	/* The shortcut row counts only for the rows that are there. */
-	options.file_kind = NEMO_MAKE_SHORTCUT;
-	check (nemo_link_options_makes_lnk (&options, 1, 1));
-	check (!nemo_link_options_makes_lnk (&options, 1, 0));
 }
 
 static void

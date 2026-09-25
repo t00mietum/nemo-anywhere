@@ -118,13 +118,8 @@ void     nemo_link_options_initial (guint                  supported,
 
 /* Whether the relative or absolute choice changes anything that comes out.
    It does only for a symlink: a junction is always absolute, a hardlink has
-   no path, and a shortcut has its own choices. */
+   no path, and a shortcut always carries every kind. */
 gboolean nemo_link_options_uses_path (const NemoLinkOptions *options,
-                                      int                    n_folders,
-                                      int                    n_files);
-
-/* Whether a shortcut comes out, so its choices matter. */
-gboolean nemo_link_options_makes_lnk (const NemoLinkOptions *options,
                                       int                    n_folders,
                                       int                    n_files);
 

@@ -583,15 +583,6 @@ nemo_link_options_uses_path (const NemoLinkOptions *options,
 	       (n_files > 0 && kind_uses_path (options->file_kind));
 }
 
-gboolean
-nemo_link_options_makes_lnk (const NemoLinkOptions *options,
-                             int                    n_folders,
-                             int                    n_files)
-{
-	return (n_folders > 0 && options->folder_kind == NEMO_MAKE_SHORTCUT) ||
-	       (n_files > 0 && options->file_kind == NEMO_MAKE_SHORTCUT);
-}
-
 typedef struct {
 	GtkWidget *dialog;
 	GtkWidget *folder_junction;
@@ -601,10 +592,6 @@ typedef struct {
 	GtkWidget *relative;
 	GtkWidget *absolute;
 	GtkWidget *path_label;
-	GtkWidget *lnk_label;
-	GtkWidget *lnk_absolute;
-	GtkWidget *lnk_relative;
-	GtkWidget *lnk_portable;
 	int        n_folders;
 	int        n_files;
 	guint      supported;
@@ -626,29 +613,27 @@ read_options (MakeLinkDialog *d, NemoLinkOptions *options)
 			   : is_active (d->file_shortcut) ? NEMO_MAKE_SHORTCUT
 			   : NEMO_MAKE_SYMLINK;
 	options->relative = is_active (d->relative);
-	options->lnk_parts = (is_active (d->lnk_absolute) ? NEMO_LNK_ABSOLUTE : 0) |
-			     (is_active (d->lnk_relative) ? NEMO_LNK_RELATIVE : 0) |
-			     (is_active (d->lnk_portable) ? NEMO_LNK_PORTABLE : 0);
+	options->lnk_parts = NEMO_LNK_ALL_PARTS;
 }
 
 static void
 update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
 {
 	NemoLinkOptions options;
-	gboolean uses_path, makes_lnk, folders_ok, files_ok;
+	GtkWidget *path_row[3] = { d->path_label, d->relative, d->absolute };
+	gboolean uses_path, folders_ok, files_ok;
+	guint i;
 
 	read_options (d, &options);
 
+	/* Hidden rather than grayed, but still laid out, so the dialog does not
+	   change height as the choices change. Insensitive too, which keeps
+	   focus and mnemonics off it. */
 	uses_path = nemo_link_options_uses_path (&options, d->n_folders, d->n_files);
-	gtk_widget_set_sensitive (d->path_label, uses_path);
-	gtk_widget_set_sensitive (d->relative, uses_path);
-	gtk_widget_set_sensitive (d->absolute, uses_path);
-
-	makes_lnk = nemo_link_options_makes_lnk (&options, d->n_folders, d->n_files);
-	gtk_widget_set_sensitive (d->lnk_label, makes_lnk);
-	gtk_widget_set_sensitive (d->lnk_absolute, makes_lnk);
-	gtk_widget_set_sensitive (d->lnk_relative, makes_lnk);
-	gtk_widget_set_sensitive (d->lnk_portable, makes_lnk);
+	for (i = 0; i < G_N_ELEMENTS (path_row); i++) {
+		gtk_widget_set_sensitive (path_row[i], uses_path);
+		gtk_widget_set_child_visible (path_row[i], uses_path);
+	}
 
 	/* Nothing is made until every row holds a choice this folder allows. */
 	folders_ok = d->n_folders == 0 || options.folder_kind == NEMO_MAKE_SHORTCUT ||
@@ -657,19 +642,7 @@ update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
 	files_ok = d->n_files == 0 || options.file_kind != NEMO_MAKE_SYMLINK ||
 		   (d->supported & NEMO_LINK_FILE_SYMLINK);
 	gtk_dialog_set_response_sensitive (GTK_DIALOG (d->dialog), GTK_RESPONSE_OK,
-					   folders_ok && files_ok &&
-					   (!makes_lnk || options.lnk_parts != 0));
-}
-
-static GtkWidget *
-add_check (GtkGrid *grid, int row, int column, const char *label, gboolean active)
-{
-	GtkWidget *button = gtk_check_button_new_with_mnemonic (label);
-
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), active);
-	gtk_grid_attach (grid, button, column, row, 1, 1);
-
-	return button;
+					   folders_ok && files_ok);
 }
 
 static GtkWidget *
@@ -860,7 +833,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 	MakeLinkDialog d = { 0 };
 	GtkWidget *area, *box, *grid, *note;
 	GList *children, *l;
-	char *dest_path, *dest_name, *primary, *secondary, *text;
+	char *dest_path, *title, *text;
 	const char *why = NULL;
 	gboolean both = n_folders > 0 && n_files > 0;
 	int total = n_folders + n_files;
@@ -882,24 +855,20 @@ nemo_link_options_ask (GtkWindow       *parent,
 	nemo_link_options_initial (d.supported, options);
 
 	if (total == 1) {
-		primary = g_strdup (_("Make a link"));
+		title = g_strdup (_("Make a link"));
 	} else {
-		primary = g_strdup_printf (ngettext ("Make links to %d item", "Make links to %d items", total), total);
+		title = g_strdup_printf (ngettext ("Make links to %d item", "Make links to %d items", total), total);
 	}
-	dest_name = destination != NULL ? g_file_get_basename (destination) : NULL;
-	secondary = g_strdup_printf (ngettext ("The new link goes in \"%s\".",
-					       "The new links go in \"%s\".", total),
-				     dest_name != NULL ? dest_name : "");
-	g_free (dest_name);
 
-	d.dialog = gtk_message_dialog_new (parent, 0, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE, NULL);
-	g_object_set (d.dialog, "text", primary, "secondary-text", secondary, NULL);
-	g_free (primary);
-	g_free (secondary);
-
-	gtk_dialog_add_button (GTK_DIALOG (d.dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
-	gtk_dialog_add_button (GTK_DIALOG (d.dialog),
-			       ngettext ("_Make link", "_Make links", total), GTK_RESPONSE_OK);
+	/* Only ever opened from the menu, on the folder in view, so where the
+	   links go needs no saying. */
+	d.dialog = gtk_dialog_new_with_buttons (title, parent,
+						GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+						ngettext ("_Make link", "_Make links", total), GTK_RESPONSE_OK,
+						NULL);
+	gtk_window_set_resizable (GTK_WINDOW (d.dialog), FALSE);
+	g_free (title);
 	gtk_dialog_set_default_response (GTK_DIALOG (d.dialog), GTK_RESPONSE_OK);
 
 	grid = gtk_grid_new ();
@@ -986,36 +955,6 @@ nemo_link_options_ask (GtkWindow       *parent,
 		  "moved, or its drive letter or mount point changes."));
 	row++;
 
-	/* A shortcut holds any of these at once, and is followed by the first
-	   that still leads somewhere. */
-	d.lnk_label = add_row_label (GTK_GRID (grid), row, _("Shortcut paths:"));
-	d.lnk_absolute = add_check (GTK_GRID (grid), row, 1, _("A_bsolute"),
-				    (options->lnk_parts & NEMO_LNK_ABSOLUTE) != 0);
-	d.lnk_relative = add_check (GTK_GRID (grid), row, 2, _("Rela_tive"),
-				    (options->lnk_parts & NEMO_LNK_RELATIVE) != 0);
-	d.lnk_portable = add_check (GTK_GRID (grid), row, 3, _("_Portable"),
-				    (options->lnk_parts & NEMO_LNK_PORTABLE) != 0);
-	gtk_widget_set_tooltip_text (d.lnk_absolute,
-		_("The full path. Keeps working when the shortcut is moved. Stops working when "
-		  "the original is moved."));
-	gtk_widget_set_tooltip_text (d.lnk_relative,
-		_("The path from the shortcut. Keeps working when the shortcut and the original "
-		  "move together. Stops working when either one moves alone. Windows uses it "
-		  "only when one of the others is there too."));
-#ifdef G_OS_WIN32
-	gtk_widget_set_tooltip_text (d.lnk_portable,
-		_("Environment variables such as %USERPROFILE% are used where possible, "
-		  "rather than hard-coded paths, so the shortcut keeps working for another user "
-		  "or on another machine."));
-#else
-	gtk_widget_set_tooltip_text (d.lnk_portable,
-		_("Environment variables such as %USERPROFILE% are used where possible, "
-		  "rather than hard-coded paths, so the shortcut keeps working for another user "
-		  "or on another machine. Here the home folder is %USERPROFILE%, and a "
-		  "Windows share keeps its \\\\server\\share path. Windows can follow "
-		  "either one, even from a shortcut made here."));
-#endif
-
 	/* Say why something is grayed out. */
 	if (d.supported == 0) {
 		why = _("This folder cannot hold symlinks or junctions.");
@@ -1024,6 +963,7 @@ nemo_link_options_ask (GtkWindow       *parent,
 	}
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+	gtk_container_set_border_width (GTK_CONTAINER (box), 12);
 	gtk_box_pack_start (GTK_BOX (box), grid, FALSE, FALSE, 0);
 	if (why != NULL) {
 		note = gtk_label_new (why);
@@ -1032,8 +972,8 @@ nemo_link_options_ask (GtkWindow       *parent,
 		gtk_box_pack_start (GTK_BOX (box), note, FALSE, FALSE, 0);
 	}
 
-	area = gtk_message_dialog_get_message_area (GTK_MESSAGE_DIALOG (d.dialog));
-	gtk_box_pack_start (GTK_BOX (area), box, FALSE, FALSE, 6);
+	area = gtk_dialog_get_content_area (GTK_DIALOG (d.dialog));
+	gtk_box_pack_start (GTK_BOX (area), box, TRUE, TRUE, 0);
 	gtk_widget_show_all (box);
 
 	/* Any change rechecks the lot. */

@@ -1680,6 +1680,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Changed: the choices are no longer remembered. Every open starts from the defaults. A "Defaults..." button, here and in Preferences, may come later.
 		- Changed: the Link choice is now "Shortcut", and its row "Shortcut paths". The menu item and the dialog still say link.
 		- Done: every link type and path choice has a tooltip saying what it is good for and where it falls short.
+		- Changed: the "Shortcut paths" row is gone. A shortcut always gets all three paths.
+		- Changed: the title is in the window's title bar, and the line saying where the links go is gone, since it is always the folder in view.
+		- Changed: the "Symlink path" row is hidden when no symlink comes out, but keeps its space so the dialog does not change size.
 
 - ✅ Allow moving tabs to other nemo-anywhere windows.
 	- Opened: 20260922. Closed: 20260924-095019.
