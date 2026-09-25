@@ -1059,7 +1059,7 @@ def seg_pictures(r, t, m):
         m.at(*CRUMB_HOME, dur=0.6, settle=0.7)            # back to Home
         m.double(LIST_X, row(4), settle=0.8)             # Pictures
         m.double(*PHOTOS_ICON, settle=0.8)               # Photos
-    with Banner(r, "Thumbnails are all made up front, and cached"):
+    with Banner(r, "Improved image thumbnail caching engine"):
         m.move(*ICONS_EMPTY, dur=0.5)     # not rest(): that spot has a tooltip
         time.sleep(1.6)
 
