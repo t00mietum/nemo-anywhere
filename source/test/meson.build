@@ -294,6 +294,15 @@ test('Focus guard test',
   args: []
 )
 
+test('Row hover tint test',
+  executable('test-nemo-row-hover',
+    [ 'test-nemo-row-hover.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ gtk, nemo_private, test_scratch ],
+  ),
+  args: []
+)
+
 test('Primary mask test',
   executable('test-eel-primary-mask',
     [ 'test-eel-primary-mask.c' ],

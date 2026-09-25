@@ -66,6 +66,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The row under the pointer, in the list and both sidebars, is tinted with a faint wash of the theme's selection color instead of gray, so it no longer looks like a shaded row. It is kept fainter than a shaded row and well short of a selected one, light or dark. A theme whose selection is gray gets a soft blue. `row-hover-color` in the settings file, or a `nemo_row_hover` color in the theme, overrides it; `transparent` turns it off.
+
 - A Windows shortcut to a folder sorts with the folders when folders come first.
 
 - Ctrl+Shift+T opens a new tab when no folder is selected. With folders selected it opens them in new tabs, as before, and a selected file no longer opens in its program.

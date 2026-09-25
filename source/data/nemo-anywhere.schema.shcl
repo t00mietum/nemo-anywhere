@@ -274,6 +274,11 @@ field: list-view.enable-folder-expansion
 	default: true
 	desc: Let a folder be expanded in place to show what is in it
 
+field: list-view.row-hover-color
+	type: string
+	default: 
+	desc: Color of the row under the pointer, in any form CSS takes. Empty uses the theme's nemo_row_hover color, or a faint tint of the selection color if it has none. transparent turns it off
+
 field: list-view.row-shading
 	type: bool
 	default: false

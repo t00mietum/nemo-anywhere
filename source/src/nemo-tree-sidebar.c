@@ -47,6 +47,7 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-icon-names.h>
 #include <libnemo-private/nemo-program-choosing.h>
+#include <libnemo-private/nemo-row-hover.h>
 #include <libnemo-private/nemo-tree-view-drag-dest.h>
 #include <libnemo-private/nemo-module.h>
 #include <libnemo-private/nemo-action-manager.h>
@@ -1464,6 +1465,7 @@ create_tree (FMTreeView *view)
 
 	gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (view->details->tree_widget)),
 				     "NemoSidebar");
+	nemo_row_hover_attach (GTK_WIDGET (view->details->tree_widget));
 
 	gtk_tree_sortable_set_default_sort_func (GTK_TREE_SORTABLE (view->details->sort_model),
 						 compare_rows, view, NULL);

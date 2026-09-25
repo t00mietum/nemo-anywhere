@@ -234,6 +234,7 @@ enum
 #define NEMO_PREFERENCES_LIST_VIEW_COLUMN_FIT_PERCENT       "column-fit-percent"
 #define NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING             "row-shading"
 #define NEMO_PREFERENCES_LIST_VIEW_ROW_SHADING_COLOR       "row-shading-color"
+#define NEMO_PREFERENCES_LIST_VIEW_ROW_HOVER_COLOR         "row-hover-color"
 
 #define NEMO_PREFERENCES_MAX_THUMBNAIL_THREADS "thumbnail-threads"
 

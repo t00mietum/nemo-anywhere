@@ -67,6 +67,7 @@
 #include <libnemo-private/nemo-thumbnails.h>
 #include <libnemo-private/nemo-tree-view-drag-dest.h>
 #include <libnemo-private/nemo-clipboard.h>
+#include <libnemo-private/nemo-row-hover.h>
 
 #include "nemo-column-layout.h"
 
@@ -4176,6 +4177,7 @@ create_and_set_up_tree_view (NemoListView *view)
     g_signal_connect_swapped (view->details->tree_view, "style-updated",
                               G_CALLBACK (tree_view_style_updated),
                               view);
+    nemo_row_hover_attach (GTK_WIDGET (view->details->tree_view));
     g_signal_connect (view->details->tree_view, "draw",
                       G_CALLBACK (tree_view_draw_callback), view);
     g_signal_connect_swapped (view->details->tree_view, "columns-changed",

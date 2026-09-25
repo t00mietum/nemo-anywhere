@@ -47,9 +47,6 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
-	- Opened: 20260919-125440
-
 - **Stop here for a next release**.
 
 - 🔘 Menu: "Snapshot ..."
@@ -1656,6 +1653,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
+	- Opened: 20260919-125440. Closed: 20260924-195639.
+	- Done: hover takes the theme's selection hue, never gray, in the list and both sidebars. It is fainter than a shaded row and well short of a selected one, on light and dark themes alike. A theme that selects in gray gets a soft blue.
+	- Near white there is little room for color, so on a white row the tint is also a little darker. It still reads as pale blue.
+	- `row-hover-color` in the settings file overrides it.
+	- Not done: the text-only effect. It can be its own item if the tint is not enough.
 
 - ✅ Dialogs should not have titles in the dialogs themselves. The titles belong on the window decoration.
 	- Opened: 20260924-184213. Closed: 20260924-193625.

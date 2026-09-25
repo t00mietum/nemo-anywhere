@@ -179,6 +179,7 @@ static const NemoConfigKey nemo_config_keys[] = {
 	{ "list-view", "enable-folder-expansion", NEMO_CONFIG_BOOL, "true", NULL, NULL, "Let a folder be expanded in place to show what is in it" },
 	{ "list-view", "row-shading", NEMO_CONFIG_BOOL, "false", NULL, NULL, "Shade every other row" },
 	{ "list-view", "row-shading-color", NEMO_CONFIG_STRING, "", NULL, NULL, "Color of the shaded rows, in any form CSS takes. Empty uses the theme's nemo_row_shading color, or a faint tint of the text color if it has none" },
+	{ "list-view", "row-hover-color", NEMO_CONFIG_STRING, "", NULL, NULL, "Color of the row under the pointer, in any form CSS takes. Empty uses the theme's nemo_row_hover color, or a faint tint of the selection color if it has none. transparent turns it off" },
 	{ "plugins", "disabled-actions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_actions, NULL, "Action files that are switched off. The shipped Cinnamon-only ones start here" },
 	{ "plugins", "disabled-extensions", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_extensions, NULL, NULL },
 	{ "plugins", "disabled-scripts", NEMO_CONFIG_STRING_LIST, NULL, deflist_plugins_disabled_scripts, NULL, NULL },
