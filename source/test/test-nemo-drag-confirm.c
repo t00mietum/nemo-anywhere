@@ -78,9 +78,13 @@ main (int argc, char *argv[])
 	set_prefs (TRUE, TRUE);
 	check (nemo_drag_confirm_needed (GDK_ACTION_MOVE, "file:///tmp"));
 	check (nemo_drag_confirm_needed (GDK_ACTION_COPY, "file:///tmp"));
+	/* Links followed copy until 20260924, when a link drop started opening
+	   the Make link dialog, which is its own question:
 	check (nemo_drag_confirm_needed (GDK_ACTION_LINK, "file:///tmp"));
-	/* A drop with no resolved action ends up as a link, so it follows copy. */
 	check (nemo_drag_confirm_needed (GDK_ACTION_DEFAULT, "file:///tmp"));
+	*/
+	check (!nemo_drag_confirm_needed (GDK_ACTION_LINK, "file:///tmp"));
+	check (!nemo_drag_confirm_needed (GDK_ACTION_DEFAULT, "file:///tmp"));
 
 	set_prefs (FALSE, FALSE);
 	check (!nemo_drag_confirm_needed (GDK_ACTION_MOVE, "file:///tmp"));

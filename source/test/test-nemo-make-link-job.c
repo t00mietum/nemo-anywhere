@@ -3,7 +3,8 @@
  * gives: the queue starts a job only when the one before it says it is done.
  *
  * Argument: "relative" (default), "absolute", "hardlink", "junction",
- * "shortcut" (every part), "shortcut-absolute" or "shortcut-portable".
+ * "shortcut" (every part), "shortcut-absolute", "shortcut-portable", or
+ * "names" for what links made beside their originals are called.
  */
 
 #include "test.h"
@@ -131,6 +132,79 @@ check_shortcut (const char *lnk_path, const char *want, guint parts)
 	}
 }
 
+static gboolean
+run_link_job (GList *uris, const char *dir, NemoLinkOptions *options, GtkWidget *window)
+{
+	char *dir_uri = uri_of (dir);
+	guint timeout_id;
+
+	job_finished = FALSE;
+	job_succeeded = FALSE;
+	nemo_file_operations_symlink (uris, NULL, dir_uri, options, window, job_done, NULL);
+
+	timeout_id = g_timeout_add_seconds (JOB_TIMEOUT_SECONDS, give_up, NULL);
+	gtk_main ();
+	g_source_remove (timeout_id);
+	g_free (dir_uri);
+
+	return job_finished && job_succeeded;
+}
+
+static void
+check_named (const char *dir, const char *name)
+{
+	char *path = g_build_filename (dir, name, NULL);
+
+	if (!g_file_test (path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_SYMLINK)) {
+		g_printerr ("FAIL: no \"%s\"\n", name);
+		failures++;
+	}
+	g_free (path);
+}
+
+/* Beside its original a link says what kind it is, and the extension stays
+   last except on a shortcut. Elsewhere the name is kept, which the other
+   runs check. */
+static void
+check_names (const char *src_dir, const char *payload, const char *folder,
+	     guint supported, GtkWidget *window)
+{
+	NemoLinkOptions options = { NEMO_MAKE_SYMLINK, NEMO_MAKE_SYMLINK, TRUE, NEMO_LNK_ALL_PARTS };
+	GList *both = NULL, *file_only = NULL;
+
+	both = g_list_append (both, uri_of (payload));
+	both = g_list_append (both, uri_of (folder));
+	file_only = g_list_append (file_only, uri_of (payload));
+
+	if (supported & NEMO_LINK_FILE_SYMLINK) {
+		check (run_link_job (both, src_dir, &options, window));
+		check_named (src_dir, "payload - symlink.txt");
+		check_named (src_dir, "folder - symlink");
+
+		check (run_link_job (both, src_dir, &options, window));
+		check_named (src_dir, "payload - symlink 2.txt");
+		check_named (src_dir, "folder - symlink 2");
+	} else {
+		g_printerr ("note: no symlinks here, only hardlink and shortcut names checked\n");
+	}
+
+	options.file_kind = NEMO_MAKE_HARDLINK;
+	check (run_link_job (file_only, src_dir, &options, window));
+	check_named (src_dir, "payload - hardlink.txt");
+
+	options.file_kind = NEMO_MAKE_SHORTCUT;
+	options.folder_kind = NEMO_MAKE_SHORTCUT;
+	check (run_link_job (both, src_dir, &options, window));
+	check_named (src_dir, "payload.txt - shortcut.lnk");
+	check_named (src_dir, "folder - shortcut.lnk");
+
+	check (run_link_job (file_only, src_dir, &options, window));
+	check_named (src_dir, "payload.txt - shortcut 2.lnk");
+
+	g_list_free_full (both, g_free);
+	g_list_free_full (file_only, g_free);
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -171,6 +245,13 @@ main (int argc, char *argv[])
 	g_mkdir_with_parents (folder, 0700);
 
 	supported = nemo_link_kinds_supported (dst_dir);
+
+	if (g_strcmp0 (how, "names") == 0) {
+		window = test_window_new ("make link test", 5);
+		gtk_widget_show (window);
+		check_names (src_dir, payload, folder, supported, window);
+		return failures > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	}
 	with_file = g_strcmp0 (how, "junction") != 0;
 	with_folder = g_strcmp0 (how, "hardlink") != 0;
 

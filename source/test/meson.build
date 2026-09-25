@@ -449,6 +449,7 @@ test('Make link hardlink', make_link_job, args: [ 'hardlink' ])
 test('Make link shortcut', make_link_job, args: [ 'shortcut' ])
 test('Make link shortcut absolute', make_link_job, args: [ 'shortcut-absolute' ])
 test('Make link shortcut portable', make_link_job, args: [ 'shortcut-portable' ])
+test('Make link names', make_link_job, args: [ 'names' ])
 if is_windows
   test('Make link junction', make_link_job, args: [ 'junction' ])
 endif

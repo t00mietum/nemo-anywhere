@@ -123,11 +123,13 @@ gboolean nemo_link_options_uses_path (const NemoLinkOptions *options,
                                       int                    n_folders,
                                       int                    n_files);
 
-/* The Make link dialog. FALSE if canceled. */
+/* The Make link dialog. FALSE if canceled. say_where adds a line naming the
+   destination, for a drop, where it need not be the folder in view. */
 gboolean nemo_link_options_ask (GtkWindow       *parent,
                                 GFile           *destination,
                                 int              n_folders,
                                 int              n_files,
+                                gboolean         say_where,
                                 NemoLinkOptions *options);
 
 G_END_DECLS

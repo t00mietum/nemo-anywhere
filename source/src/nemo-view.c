@@ -1631,7 +1631,7 @@ action_create_link_callback (GtkAction *action,
 	g_free (dir_uri);
 
 	go = nemo_link_options_ask (nemo_view_get_containing_window (view), destination,
-				    n_folders, n_files, &options);
+				    n_folders, n_files, FALSE, &options);
 	g_object_unref (destination);
 
 	if (go) {
