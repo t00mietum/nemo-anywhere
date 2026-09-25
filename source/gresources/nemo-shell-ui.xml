@@ -7,6 +7,7 @@
 <accelerator action="TabsMoveRight"/>
 <accelerator action="ZoomInAccel"/>
 <accelerator action="ZoomInAccel2"/>
+<accelerator action="NewTabAccel"/>
 <accelerator action="ZoomOutAccel"/>
 <menubar name="MenuBar">
 	<menu action="File">
