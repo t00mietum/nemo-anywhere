@@ -33,7 +33,7 @@
 set -Eeuo pipefail
 
 REPO="yottacore/nemo-anywhere"
-INSTALLER_VERSION="1.1.0"
+INSTALLER_VERSION="1.2.0"
 APP_NAME="Nemo Anywhere"
 EXE_NAME="nemo-anywhere"
 
@@ -147,6 +147,18 @@ if [[ "$target" == "system" && "$(id -u)" != "0" ]]; then
 	priv="sudo"
 fi
 
+## A user install that cannot write where it is going would otherwise fail
+## halfway, on a bare command. Say so before asking. Renames need the parent.
+fCheckWritable(){
+	[[ -n "$priv" ]] && return 0
+	local dir
+	for dir in "$(dirname "$prefix")" "$appdir" "$bindir"; do
+		while [[ ! -e "$dir" ]]; do dir="$(dirname "$dir")"; done
+		[[ -w "$dir" ]] || fDie "no write access to ${dir} - check who owns it with: ls -ld ${dir}"
+	done
+	return 0
+}
+
 ## Guard every destructive path: an empty or unexpected prefix must never reach rm -rf.
 fCheckPrefix(){
 	[[ "${prefix:0:1}" == "/" ]] || fDie "refusing to touch a non-absolute prefix: ${prefix}"
@@ -216,12 +228,13 @@ fVersionKeys(){
 ## when nothing stable exists yet; dev = the newest of any kind. Ranked by
 ## version rather than by the order the API lists them in, and never through
 ## releases/latest, which 404s on a repo that has only prereleases.
-## Prints nothing when there is no release at all - the caller reports that,
-## since dying inside a command substitution only kills the subshell.
-fResolveTag(){
-	local json tags newest stable
-	json="$(fFetchText "https://api.github.com/repos/${REPO}/releases?per_page=100" 2>/dev/null || true)"
-	tags="$(printf '%s' "$json" | fJsonValues tag_name || true)"
+## Takes the release list the caller fetched, so a failed request can be told
+## apart from an empty list. Prints nothing when there is no release at all - the
+## caller reports that, since dying inside a command substitution only kills the
+## subshell.
+fResolveTag(){ ## releases json
+	local tags newest stable
+	tags="$(printf '%s' "$1" | fJsonValues tag_name || true)"
 	[[ -n "$tags" ]] || return 0
 	newest="$(printf '%s\n' "$tags" | fVersionKeys | LC_ALL=C sort -r | head -1 | cut -f2 || true)"
 	stable="$(printf '%s\n' "$tags" | grep -v -- '-' | fVersionKeys | LC_ALL=C sort -r | head -1 | cut -f2 || true)"
@@ -332,7 +345,9 @@ if [[ -n "$from" ]]; then
 	verify="no checksum (--from)"
 else
 	command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || fDie "need curl or wget to reach the releases page"
-	tag="$(fResolveTag)"
+	releases_json="$(fFetchText "https://api.github.com/repos/${REPO}/releases?per_page=100" 2>/dev/null)" \
+		|| fDie "could not list the releases of ${REPO} - check the connection. GitHub also limits anonymous requests to 60 an hour."
+	tag="$(fResolveTag "$releases_json")"
 	[[ -n "$tag" ]] || fDie "no release published yet for ${REPO}"
 	version="${tag#v}"
 	release_note=""
@@ -340,7 +355,8 @@ else
 	asset="${EXE_NAME}-${version}-${os}-${arch}.tar.gz"
 	sums_asset="${EXE_NAME}-${version}-sha256sums.txt"
 
-	tag_json="$(fFetchText "https://api.github.com/repos/${REPO}/releases/tags/${tag}")"
+	tag_json="$(fFetchText "https://api.github.com/repos/${REPO}/releases/tags/${tag}")" \
+		|| fDie "could not read release ${tag} of ${REPO} from GitHub"
 	asset_urls="$(printf '%s' "$tag_json" | fJsonValues browser_download_url || true)"
 	asset_url="$(printf '%s\n' "$asset_urls" | grep -F "/${asset}" | head -1 || true)"
 	sums_url="$(printf '%s\n' "$asset_urls" | grep -F "/${sums_asset}" | head -1 || true)"
@@ -358,6 +374,7 @@ else
 fi
 
 fCheckPrefix
+fCheckWritable
 
 fEcho_Clean ""
 fEcho "Plan"
@@ -385,12 +402,12 @@ if [[ -n "$from" && -f "$from" ]]; then
 	cp "$from" "$archive"
 	fEcho_Clean "using local archive ${from}"
 else
-	fFetch "$download_url" "$archive"
+	fFetch "$download_url" "$archive" || fDie "download failed: ${download_url}"
 	fEcho_Clean "got $(wc -c < "$archive" | tr -d ' ') bytes"
 fi
 
 if [[ -z "$from" && -n "${sums_url}" ]]; then
-	fFetch "$sums_url" "${work}/sums.txt"
+	fFetch "$sums_url" "${work}/sums.txt" || fDie "download failed: ${sums_url}"
 	expected="$(grep -E "[ *]${asset}\$" "${work}/sums.txt" | awk '{print $1}' | head -1 || true)"
 	[[ -n "$expected" ]] || fDie "${sums_asset} has no line for ${asset}"
 	actual="$(fSha256 "$archive")" || fDie "no sha256 tool found (sha256sum, shasum or openssl)"
@@ -473,3 +490,6 @@ fEcho_Clean ""
 ##		  install.ps1).
 ##		- 2026-09-19 JC: Dropped --arch (always detected), added --version and
 ##		  --opt=value, and stable now falls back to the newest prerelease.
+##		- 2026-09-25 JC: A failed request to GitHub says so instead of reporting
+##		  no release, downloads fail with a sentence, and a user install checks
+##		  it can write where it is going before asking.

@@ -148,4 +148,27 @@ jobs:
             gh release create "$env:TAG" --verify-tag --title "$env:TAG" --generate-notes $rel 2>$null
             gh release edit "$env:TAG" $rel 2>$null
           }
-          gh release upload "$env:TAG" "$exe" --clobber
+          # The version goes in the name like every other artifact, and the exe gets
+          # a line in the release's sums file. The local cut uploads that file just
+          # after pushing the tag, well before this build ends, but wait for it
+          # rather than race it. Without it, a .sha256 file goes beside the exe.
+          $ver = $env:TAG -replace '^v', ''
+          $name = "nemo-anywhere-$ver-windows-x86_64-portable.exe"
+          Copy-Item -LiteralPath $exe -Destination $name
+          gh release upload "$env:TAG" "$name" --clobber
+          $hash = (Get-FileHash -LiteralPath $name -Algorithm SHA256).Hash.ToLowerInvariant()
+          $line = "$hash  $name"
+          $sums = "nemo-anywhere-$ver-sha256sums.txt"
+          $got = $false
+          for ($i = 0; $i -lt 20 -and -not $got; $i++) {
+            gh release download "$env:TAG" --pattern $sums --clobber 2>$null
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $sums)) { $got = $true } else { Start-Sleep -Seconds 30 }
+          }
+          if ($got) {
+            $kept = @(Get-Content -LiteralPath $sums | Where-Object { $_ -and $_ -notmatch "[ *]$([regex]::Escape($name))$" })
+            [IO.File]::WriteAllText((Resolve-Path $sums), ((@($kept) + $line) -join "`n") + "`n")
+            gh release upload "$env:TAG" $sums --clobber
+          } else {
+            [IO.File]::WriteAllText("$PWD/$name.sha256", "$line`n")
+            gh release upload "$env:TAG" "$name.sha256" --clobber
+          }

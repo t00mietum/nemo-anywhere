@@ -63,10 +63,9 @@ if grep -q 'shields.io/badge/Release-' README.md; then
 fi
 
 ## 2. Release artifacts must exist and carry this version (full cicd run makes them).
-## NOT READY: nemo-anywhere has no host-side release-artifact stage yet (see
-## RELEASE_ENABLE / RELEASE_ARTIFACT_DIR in config.bash), so this is gated on a
-## configured RELEASE_ARTIFACT_DIR. Until then a release is tag + push only.
-## NEEDS: RELEASE_ENABLE=1 + a populated RELEASE_ARTIFACT_DIR (see config.bash).
+## Gated on a configured RELEASE_ARTIFACT_DIR; without one a release is tag and
+## push only. The Windows exe is not among them: the hosted workflow builds it on
+## the tag and adds it, and its line in the sums file, once it is done.
 have_artifacts=0
 art_dir="${RELEASE_ARTIFACT_DIR:-}"
 if [[ -n "$art_dir" ]]; then
