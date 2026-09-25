@@ -48,6 +48,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 ### Features and enhancements
 
 - 🔘 Dialogs should not have titles in the dialogs themselves. The titles belong on the window decoration.
+	- Opened: 20260924-184213.
+	- Note: every dialog with a heading of its own now has its title in the title bar. What is left are alerts, which by long habit have an empty title bar and a bold first line, usually a question such as "Replace file?". Whether those count is not settled.
 
 - 🔘 Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440
@@ -140,6 +142,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
 	- The dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
 	- The Make link dialog, junctions and hardlinks made from it, and the junction job test have only been cross-built.
+	- A link drop opening Make link, Ctrl+Shift+T, and folder shortcuts sorting with folders have only been cross-built.
 	- ImageMagick thumbnails have not run on Windows. Things to see there: no console window flashes up, and the packed exe's file hooks, which every program it starts inherits, do not upset `magick.exe`.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
