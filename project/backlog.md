@@ -49,12 +49,35 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - **Stop here for a next release**.
 
+- 🔘 Cut 1.0.0-rc.1.
+	- Opened: 20260925-122815
+	- The delete test guard stays in. The changelog and the release notes point it out, and say where to turn it off.
+	- Note: the changelog's vNEXT section is missing most of the work since beta2, such as Compress and Extract, the crash reporter, the delete protections and tab move.
+	- Note: `main` still has the installers from 20260804. Their stable channel asks for the latest stable release, which does not exist yet, so the README one-liners fail until this cut.
+
+- 🔘 Take SHCL 3.0.0-beta.1 from its published release, once there is one, and run the config tests against it.
+	- Opened: 20260925-122815
+	- Note: the vendored header is from SHCL's `dev` branch, ahead of that tag.
+
+- 🔘 Code style and performance review of the whole tree.
+	- Opened: 20260925-122815
+
+- 🔘 Full adversarial code review of the whole tree, forked and vendored code included.
+	- Opened: 20260925-122815
+
+- 🔘 Remove the delete test guard. Then the renamer and dedupe items below.
+	- Opened: 20260925-122815
+
+- 🔘 Release 1.0.0.
+	- Opened: 20260925-122815
+
 - 🔘 File uniqueness design: See [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
 	- Note: If the previous cache implementation is on-disk when the new version runs, delete it.
 		- This is OK since it's still beta. In the future for release versions, changes will require a migration.
 	- Opened: 20260925-063617 by JC.
 
 - 🔘 Metadata-aware Nemo Anywhere:
+	- Opened: 20260923-144941
 	- 🔘 When creating a file, also log its known information to the database.
 	- 🔘 When doing anything that involves changing any part of the full file path of one or more folders or files, update the information in the file database.
 	- 🔘 When doing anything that requires full file content to pass through the program, landing in a local directory:
@@ -65,8 +88,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 A fractional display scale is only applied to text, so widgets, icons and spacing stay at the whole step below it.
 	- Opened: 20260821-150232
-	- Falls out of the toolkit scaling in whole numbers. At 150% the type is right and everything around it is a third too small.
-	- The way out is our own stylesheet: padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
+	- Cause: the toolkit scales in whole numbers. At 150% the type is right and everything around it is a third too small.
+	- Probable fix: our own stylesheet, with padding, icon sizes and the like driven from the leftover fraction. Only do it once someone has looked at it on a scaled display.
 
 - 🔘 Native renamer:
 	- Opened: 20260908-111526
@@ -83,6 +106,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Design: [dedupe_and_thumbnails.md](design_docs/dedupe_and_thumbnails.md).
 
 - 🔘 Selectable metadata to include for media titles in icon mode. (E.g. px size, capture date, megapixel, framerate for video, Avg bitrate for audio and video, codec, etc.)
+	- Opened: 20260921-131506
 
 - 🔬 Installers: architecture always detected, a version option, and a stable install that still works before any stable release exists.
 	- Opened: 20260919-131209
@@ -93,20 +117,20 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🔘 A Windows installer exe that installs, or updates an install already there.
 	- Opened: 20260919-132409
-	- Windows has the portable exe and the zip today, and `install.ps1` for an install with a menu entry and PATH.
-	- Wants signing first, or it trips the same warnings the exe does.
+	- Note: Windows has the portable exe and the zip today, and `install.ps1` for an install with a menu entry and PATH.
+	- Note: wants signing first, or it trips the same warnings the exe does.
 
 - 🛠️ Real-Windows validation: the paths still not exercised there.
 	- Opened: 20260826-103001
-	- The test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
-	- The signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
-	- The UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
-	- Moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
-	- Four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
-	- The dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
-	- The Make link dialog, junctions and hardlinks made from it, and the junction job test have only been cross-built.
-	- A link drop opening Make link, Ctrl+Shift+T, and folder shortcuts sorting with folders have only been cross-built.
-	- ImageMagick thumbnails have not run on Windows. Things to see there: no console window flashes up, and the packed exe's file hooks, which every program it starts inherits, do not upset `magick.exe`.
+	- Done: the test suite now runs and passes on a Windows box, through the pipeline and the gate. The two paths below are still open.
+	- Note: the signing path only runs in the hosted release workflow on a tag. The repo has no secrets and no variables set at all, so the signing step is skipped and a release cut today publishes an unsigned exe. That is the documented fallback, but it should be known before a build is announced.
+	- Note: the UAC consent prompt itself has not been seen; this box elevates without prompting and the session is already elevated. What is proven is that the relaunch starts an elevated copy at the right folder, not the consent dialog.
+	- Note: moving a junction to another drive is untested. The link move test covers it, but needs a second fixed drive: vm925w has one, b29w does not.
+	- Note: four Windows-only tests changed in the 20260919 review round. They cross-compile, but nothing has run them on a real box since.
+	- Note: the dogfood launcher's copy, held-version and cleanup paths were reworked on 20260920 and have only been reasoned about and probed on Linux.
+	- Note: the Make link dialog, junctions and hardlinks made from it, and the junction job test have only been cross-built.
+	- Note: a link drop opening Make link, Ctrl+Shift+T, and folder shortcuts sorting with folders have only been cross-built.
+	- Note: ImageMagick thumbnails have not run on Windows. Things to see there: no console window flashes up, and the packed exe's file hooks, which every program it starts inherits, do not upset `magick.exe`.
 
 - 🔘 Linux arm64 release build. Needs an arm64 GTK3 build environment; nothing cross-compiles it today, so the installers' arm64 path has nothing to fetch.
 	- Opened: 20260804-133646
@@ -124,30 +148,30 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🛠️ Enable the disabled pipeline stages as the build matures.
 	- Opened: 20260725-153058
-	- The Windows cross build runs on every full run now, so the zip is never packed from an older exe. `--quick` skips it.
+	- Done: the Windows cross build runs on every full run now, so the zip is never packed from an older exe. `--quick` skips it.
 
 - 🔘 Move the two side stores to SHCL: `metadata.json` -> `metadata.shcl` and `bookmark-metadata` -> `bookmark-metadata.shcl`. Separate files; neither is folded into `settings.shcl`.
 	- Opened: 20260905-112900
 	- UPDATE 20260908-111214: Don't do this if it breaks compatibility with plugins or addons.
 	- First, on its own: bump the vendored `shcl.h` to the release carrying the coming fix, and run the config tests against it.
 		- Done 20260925: the vendored `shcl.h` is SHCL 3, taken ahead of its beta tag. Config tests pass.
-	- Each URI becomes a quoted section, each metadata key a string or string-array field under it. The store keeps its mutex, its debounced save and its re-keying on rename; only the file format changes.
-	- No migration of the old files, the same call as for settings pre-1.0.
-	- Then the action layout: `actions-tree.json` -> `actions-tree.shcl`. Each node becomes a section named by its uuid, children nested under a submenu, order by file position; the unused `position` field goes. The C side only reads (`nemo-action-manager.c`); the writer is the Python layout editor, which takes shcl's single-file Python binding the way the C side took the header. Its drag-and-drop payload is in-memory and uses the standard library, so it can stay as it is or move to the same format. Fix the pre-fork `~/.config/nemo/` path in the editor and its notes on the way.
-	- With both done, json-glib leaves the build.
+	- Probable fix: each URI becomes a quoted section, each metadata key a string or string-array field under it. The store keeps its mutex, its debounced save and its re-keying on rename; only the file format changes.
+	- Note: no migration of the old files, the same call as for settings pre-1.0.
+	- Probable fix: then the action layout: `actions-tree.json` -> `actions-tree.shcl`. Each node becomes a section named by its uuid, children nested under a submenu, order by file position; the unused `position` field goes. The C side only reads (`nemo-action-manager.c`); the writer is the Python layout editor, which takes shcl's single-file Python binding the way the C side took the header. Its drag-and-drop payload is in-memory and uses the standard library, so it can stay as it is or move to the same format. Fix the pre-fork `~/.config/nemo/` path in the editor and its notes on the way.
+	- Note: with both done, json-glib leaves the build.
 
 - 🔘 Windows code signing, and reducing AV false positives.
 	- Opened: 20260804-095855
-	- A paid signing service, around $10 a month for 5,000 signatures, is the option on the table now.
-	- SignPath Foundation (free for open source) was applied for and refused, so releases ship an unsigned exe with the `.zip` as the fallback. The release-only workflow at `.github/workflows/release-win.yml` still builds, packs and publishes; its submission step is left dormant behind the token gate. That workflow existed because SignPath would only sign CI-built artifacts, so with it gone nothing forces a release into hosted CI and a local cut is viable again.
-	- Options weighed (Azure Artifact Signing, Certum open source, commercial cloud, reapplying) are in `cicd/win/signing.md`.
-	- Also sign the release `.zip` contents and, once it exists, the installer. Blocked on there being any signing identity at all.
-	- Submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
+	- Note: a paid signing service, around $10 a month for 5,000 signatures, is the option on the table now.
+	- Note: SignPath Foundation (free for open source) was applied for and refused, so releases ship an unsigned exe with the `.zip` as the fallback. The release-only workflow at `.github/workflows/release-win.yml` still builds, packs and publishes; its submission step is left dormant behind the token gate. That workflow existed because SignPath would only sign CI-built artifacts, so with it gone nothing forces a release into hosted CI and a local cut is viable again.
+	- Note: options weighed (Azure Artifact Signing, Certum open source, commercial cloud, reapplying) are in `cicd/win/signing.md`.
+	- Note: also sign the release `.zip` contents and, once it exists, the installer. Blocked on there being any signing identity at all.
+	- Note: submit any remaining AV false positives (VirusTotal to find the flagging engines, then vendor FP forms); keep the zip as the FP-free fallback.
 
 - 🔘 Take out the rest of the Nemo desktop code.
 	- Opened: 20260917-191500
-	- The desktop itself went long ago, but the icon view still carries a desktop mode, desktop orphans and desktop sort order, and `--no-desktop` is still accepted and ignored. None of it runs and none of it deletes anything.
-	- Removing it touches about twenty files, mostly the icon view, so it wants its own pass and a look on screen after.
+	- Note: the desktop itself went long ago, but the icon view still carries a desktop mode, desktop orphans and desktop sort order, and `--no-desktop` is still accepted and ignored. None of it runs and none of it deletes anything.
+	- Note: removing it touches about twenty files, mostly the icon view, so it wants its own pass and a look on screen after.
 
 ### Done
 
@@ -221,6 +245,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - ✅ Randomly crashes. (At least on Windows, and before the multiple-process work.) Sometimes just with a focus change.
 	- Opened: 20260903-130431
+	- Closed: 20260921-180912
 	- No repro, and nothing in the report to work from, because a crash left nothing behind at all. A windowed build on Windows has no stderr, so it simply vanished.
 	- Note: a crash now leaves a report behind. That part is under Done.
 	- Left: an actual crash to read. Nothing is known about the cause yet.
@@ -257,6 +282,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The first run found two more bugs, fixed with it. A Windows build dir could not update a library that had lost a source file. And a folder of pictures was never seen as one on Windows, since the type check there never matched an image.
 
 - ✅ Images view:
+	- Opened: 20260921-152951
 	- Doesn't render at specified %, until the % is changed. (But afterward seems to remember?)
 	- 500% is too big. Let's do 250%
 	- The image % affects list views too. At least, when changing to a list view folder from an image folder.
@@ -302,7 +328,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A row drawn in its own weight is measured rather than remembered. Bold and light lay out differently at the same text, and there are never many.
 	- 50,000 empty files went from 8.4 s to 5.2 s to show and from 8.9 s to 5.8 s of processor time. Over files whose names, sizes, dates and extensions all vary, the same count went from 11.0 s to 8.4 s. Peak memory did not move.
 	- Nothing about the view changed: the same shots across two window widths and three zoom levels, bold rows among them, come out pixel for pixel identical.
-	- `lint-c.bash` holds the three rules that keep a remembered width honest: only a normal-weight cell may reuse one, they go when the rest of the samples go, and a column stops remembering at a ceiling.
+	- `lint-c.bash` holds the three rules that keep a remembered width right: only a normal-weight cell may reuse one, they go when the rest of the samples go, and a column stops remembering at a ceiling.
 	- What is left of the measuring is the Name column, where nothing repeats by definition. Not filed - there is no obvious way to measure fewer names while the width rule counts every one of them.
 
 - ✅ Listing a large folder costs about 0.4 ms a file, and nothing in the list view accounts for it.
@@ -564,7 +590,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - ✅ Preferences|Views: with "Remember per-folder settings" off, the Current tab still opens on a dead page.
 	- Opened: 20260917-233000
 	- Closed: 20260917-234500
-	- Greying the page out is not enough. GTK switches the page on a click whatever the page's own state is, so the tab took the click and showed an empty grey pane.
+	- Graying the page out is not enough. GTK switches the page on a click whatever the page's own state is, so the tab took the click and showed an empty gray pane.
 	- Fixed: the tab label is greyed with the setting, and the notebook refuses the switch, by mouse or by keyboard. Turning the setting off while the Current tab is up drops back to Default.
 
 - ✅ Unselected tabs run together, so one cannot be told from the next.
@@ -956,7 +982,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The volume-label work only ever covered the sidebar, and it built its own name there. Everywhere else falls back to what Windows reports for a drive root, which is a bare separator.
 	- Three different sources were in play: the basename, which is `\` for every drive alike; the volume monitor, which says `(C:) Windows`; and the sidebar's own string.
 	- Fixed: a drive root is `C:\` everywhere - title, breadcrumb and sidebar all ask the same helper. The volume label moved to the sidebar tooltip, where it cannot be mistaken for the path.
-	- Verified on Windows: a new test covers the naming, including that the first folder inside a drive keeps its own name; and all three surfaces agree.
+	- Verified on Windows: a new test covers the naming, including that the first folder inside a drive keeps its own name; and all three places agree.
 
 - ✅ "Set as default" in the Open With tab did nothing on Windows, and said nothing either.
 	- Opened: n/a
@@ -1134,7 +1160,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 		- ✅ Item 34. Trashing a file drops favorites of unrelated sibling paths.
 			- Cause: the removal matches by raw prefix with no path boundary, so trashing `ab` also drops the favorite for `abc.txt`.
-			- Fixed: the match has to land on a separator or be exact.
+			- Fixed: the match has to end on a separator or be exact.
 
 		- ✅ Item 35. The mount lookup matches sibling paths by prefix.
 			- Cause: the same missing boundary check, so a path can be matched to the wrong mount and then called local when it is not.
@@ -1273,7 +1299,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- ✅ Item 70. A missing favorite name aborts the whole favorites listing rather than skipping the entry.
 			- Fixed: a missing entry is skipped rather than aborting the whole listing.
 
-		- ✅ Item 71. Cancelling a favorites listing mid-batch leaks the gathered entries.
+		- ✅ Item 71. Canceling a favorites listing mid-batch leaks the gathered entries.
 			- Fixed: the gathered entries are released on cancellation.
 
 		- ✅ Item 72. An empty favorites metadata entry reads past the split result.
@@ -1342,10 +1368,10 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Fixed: released on rename and at teardown.
 
 		- ✅ Item 93. An unstored post-drop timeout can fire on a destroyed sidebar.
-			- Fixed: the timeout is kept and cancelled when the sidebar goes.
+			- Fixed: the timeout is kept and canceled when the sidebar goes.
 
 		- ✅ Item 94. Aggregate progress percentage uses a wrong recurrence for three or more concurrent operations.
-			- Fixed: a plain average, so three or more operations report honestly.
+			- Fixed: a plain average, so three or more operations report correctly.
 
 		- ✅ Item 95. The properties window leaks a pending key when one is already pending for the same files.
 			- Fixed: released.
@@ -1625,6 +1651,14 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Move to SHCL 3.
+	- Opened: n/a
+	- Closed: 20260925-112355
+	- Done: the vendored `shcl.h` is SHCL 3, from its `dev` branch ahead of the beta tag. Three workarounds for older SHCL are gone: rewriting backslash paths before a save, rebuilding the parser memory past 256 KB, and the exit on out-of-memory.
+	- Keep: a comment is still only added when new, and raw reads still need a fence. SHCL 3 did not change either.
+	- Note: no settings are carried over from the old format while in beta. The file is simply started fresh.
+	- Done 20260925-113403: the settings file now ends with SHCL's info block, so a later release can tell which format wrote it before converting.
+
 - ✅ Mouse cursor color change over the row underneath the cursor, needs to be a different color than "different shade of gray". Ideally something theme-based (per-OS), but adjusted to be more subtle if it's not. And not conflicting or confusable with actual current selected row color. And not confusable with alternating row colors. Whether using light or dark mode. And the most subtle-but-visible color difference of all the current row color differences. Possibly even a subtle text-only effect similar to SilkTerm's "scrim"?
 	- Opened: 20260919-125440. Closed: 20260924-195639.
 	- Done: hover takes the theme's selection hue, never gray, in the list and both sidebars. It is fainter than a shaded row and well short of a selected one, on light and dark themes alike. A theme that selects in gray gets a soft blue.
@@ -1680,6 +1714,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: both kinds of drop open the dialog, and the link is made in the drop folder.
 
 - ✅ Debug delete/move/etc:
+	- Opened: 20260924-170000
 	- Closed: 20260924-170600
 	- ✅ Add a setting in preferences to disable it.
 		- Done: a checkbox at the end of Trash on the Behavior page. It is grayed out in a build with the guard forced on.
@@ -1807,6 +1842,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Not done: Ctrl+click for the context menu, the macOS habit. Its own item if wanted once a Mac build exists.
 
 - ✅ Additional thumbnailer formats:
+	- Opened: 20260922-090733
 	- Raw files including .dng
 	- jp2 (JPEG 2000 in general)
 	- Closed: 20260922.
@@ -1861,6 +1897,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- They come up only when a run lasts more than a moment, and go away shortly after it ends. The space stays reserved, so the status text does not jump sideways.
 
 - ✅ Thumbnails:
+	- Opened: 20260921-172249
 	- ✅ Feature: Show thumbnails for PSD format if possible. IIRC the layers are TIFF format, but maybe a special reader is needed.
 		- A small reader of our own. It reads the flattened copy of the picture a .psd or .psb keeps after its layers, so the layers are never read. Grayscale, indexed, RGB and CMYK, 8 or 16 bit. Lab and 32 bit files still show the type icon.
 	- ✅ Bug: When rendering thumbnails, there is often flashing when changing between generic icon, and rendered thumbnail.
@@ -1870,6 +1907,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Created 20260921-170804 by JC. Closed: 20260921.
 
 - ✅ Add a small "Close" button (alt+C) in the right side of an "always visible" bar at the bottom of the Preferences dialog. (Both Enter and Esc activates.) It should be independent of the scrollbar area.
+	- Opened: 20260921-172249
 	- Created 20260921-170804 by JC. Closed: 20260921.
 	- A bar under every page holds Close, outside the scrolling. Close is the default button, so Enter closes unless the focused control uses the key itself, and Escape closes too. On the Context menus page Alt+C also reaches the Copy box, so there it takes a second press.
 
@@ -1897,6 +1935,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- 500%, which is 320 pixels.
 
 - ✅ Remove Nemo authors from the actual Help|About|License button-expanded text. That text is only for the license title, link, and text.
+	- Opened: 20260921-153217
 	- Closed: 20260921.
 	- The contributors line is gone. The license text opens with the license and its link, and the upstream credit stays on the copyright line.
 
@@ -1922,6 +1961,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Note: merged with an older item from 20260804 that asked for about twenty seconds. The lengths above win.
 
 - ✅ Add a preference: Auto-switch to image thumbnail view for folders with mostly images.
+	- Opened: 20260921-131506
 	- Store the tunables that define "mostly images" in the config file.
 	- Closed: 20260921.
 	- A folder that is mostly images opens in icon view, at the image size, unless it has a view of its own. On by default, with a checkbox under Icon view on the Views page.
@@ -2011,21 +2051,22 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- ✅ If folder is mostly images, increase default size to [max hieght or width = DPI-independent 320px].
 		- Expose a separate adjustment for image thumnail size. default 320px.
 		- "Mostly images" means at least 2 images and at least half the files, folders not counted (settled 20260920).
-		- **Two icon size settings, both a per cent of the standard 64px.** Ordinary folders get 100% as now. Folders that are mostly images get 500%, which is 320px. The range runs to 1000%, or 640px.
+		- **Two icon size settings, both a percent of the standard 64px.** Ordinary folders get 100% as now. Folders that are mostly images get 500%, which is 320px. The range runs to 1000%, or 640px.
 		- The image setting is a default, not a rule. An image folder opens at it, the slider still moves that folder, and the size sticks per folder where "Remember per-folder settings" is on.
 		- **A folder remembers both sizes, not one.** What it should look like full of pictures, and what it should look like otherwise. Zooming sets whichever matches what is in the folder at the time, so zooming a gallery never moves the size its plain sibling opens at.
 		- **Both sizes inherit, and the child picks between them by what is in the child.** One setting on a photo library gives every album under it the big size, while a folder of notes filed in the same tree still opens small. Where a parent only ever had one of the two set, the other falls back to its default (settled 20260920).
-		- Done 20260920, first part: sizes are pixels and the seven-value zoom enum is gone. The named steps are stops the slider marks and Zoom In and Zoom Out move between, the slider reaches everything in between, the range runs to 640, and both defaults are a per cent. A saved size is pixels, and one saved before the change is told apart by being too small to be a real size.
+		- Done 20260920, first part: sizes are pixels and the seven-value zoom enum is gone. The named steps are stops the slider marks and Zoom In and Zoom Out move between, the slider reaches everything in between, the range runs to 640, and both defaults are a percent. A saved size is pixels, and one saved before the change is told apart by being too small to be a real size.
 		- Done 20260920, second part: a folder of pictures opens at 500%. The count is taken once the folder has loaded, since that is the first moment anything is known about what is in it, and the size is never written back - a folder with nothing of its own keeps following the setting, and in a window that is not remembering per folder the bigger size does not follow you into the next folder.
 		- Done 20260920, third part: the pair, and its inheritance. A folder keeps a second remembered size for when it is full of pictures, and everything that reads or writes a size picks between the two by what is in the folder. Inheriting needed nothing of its own, since a child already reads its parent's whole set and now asks it for the key that matches itself.
 		- The size rows in preferences are spin boxes now, and the image one sits beside the icon view row on both the Default and the Current tab. A seven-entry combo could not hold 500%.
 		- The whole rule is under "Icon sizes" in design.md.
 		- The list view stays on the stops. Its own item covers what taking any size would need.
-		- Found while looking, and not part of this: the desktop range is five steps where everything else is seven, so clamping to the widest range lands the desktop outside its own table.
+		- Found while looking, and not part of this: the desktop range is five steps where everything else is seven, so clamping to the widest range puts the desktop outside its own table.
 	- ✅ The size slider is jammed too far to the right. Needs proper padding or margin.
 		- Done 20260920. It is the last thing packed into the status bar and had only the box's own 2px, so the trough ran into the window edge while the buttons at the other end sat clear of it. A 6px end margin evens the two up.
 
 - ✅ If "show full path in tabs and window" is enabled:
+	- Opened: 20260919-184409
 	- Show the entire path of the current tab, if there's enough room.
 	- Show the entire path in all tabs if there's enough room.
 		- If not, show the entire path in the current tab if there's enough room.
@@ -2044,9 +2085,9 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Opened: 20260920-160000
 	- Closed: 20260920-170000
 	- Done: the Compress dialog writes twelve settings back and starts from them next time. Format, compression level, the volume size, and every box in the Options expander bar the two named above. Also whether items were compressed separately, which is only put back where the selection allows it.
-	- Done: with the delete box ticked and a password set, the password has to be typed a second time before anything starts. Getting it wrong says so and lets another go; cancelling puts the Compress dialog back with everything still filled in.
+	- Done: with the delete box ticked and a password set, the password has to be typed a second time before anything starts. Getting it wrong says so and lets another go; canceling puts the Compress dialog back with everything still filled in.
 	- `nemo_archive_should_confirm_password` is the one place that decides, next to `nemo_archive_can_verify` which decides whether the delete box is offered at all. New `test-nemo-archive-settings` covers the decision, the defaults and a restart.
-	- Confirmed end to end: settings written and read back over two runs, the confirm dialog, a wrong password, cancelling out of it, and a right one going through.
+	- Confirmed end to end: settings written and read back over two runs, the confirm dialog, a wrong password, canceling out of it, and a right one going through.
 
 - ✅ design.md regrouped: Overview, Architecture, Features, Quality, Building, Delivery, then Open questions.
 	- Opened: 20260919-131209
@@ -2548,7 +2589,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- The Open With submenu was not. Everything on that list comes from the toolkit rather than from nemo's own reading of the registry, and those entries were started a different way - directly, as a child of nemo.
 	- Two things went wrong because of it. In the packed build the editor came up with a blank window, because a program started as our child inherits the packing, and it also inherited nemo's own environment rather than the user's.
 	- Fixed: anything with a command line behind it is now started the same way, whichever list it came from. A store app is the one kind that has none, and still goes the old way.
-	- Checked in both builds: the editor is started by the desktop rather than by nemo, comes up normally, and both files land in the one window.
+	- Checked in both builds: the editor is started by the desktop rather than by nemo, comes up normally, and both files open in the one window.
 
 - ✅ Copying and pasting objects that includes symlinks or junctions, should open up an option dialog. (All OSes.)
 	- Opened: 20260831-164337
@@ -2976,7 +3017,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Widening: columns take the new space until one can show the longest value in it, and then that one stops. Name is the only column that keeps growing without limit, so once everything else has what it needs the rest is Name's.
 	- Narrowing, which is the same thing read backwards: Name gives its surplus back first, having had all of it. When every column is down to the longest value it holds and it still does not fit, Type gives next, on its own, to about three characters - it is the one least missed that short, where a date or a size that short says nothing. Only then does everything else give ground together, each in proportion to how wide it is, Name included.
 	- A column whose values have no natural limit either - Type, Location, Owner, Group - stops at a third of the Name column rather than taking the window for one long value. The cap and Name's width have to agree with each other, so the answer is found rather than guessed, and it does not depend on the order the columns are in.
-	- Narrower than the floors add up to and the view scrolls sideways, which is the honest answer to a window narrower than its own contents.
+	- Narrower than the floors add up to and the view scrolls sideways, which is the right answer to a window narrower than its own contents.
 	- Every value that no longer fits now says so with an ellipsis instead of being cut off mid-letter. Only Name and Location did before.
 	- Widths follow the contents: each row is measured as it arrives and as its details fill in, and the widest seen is what a column aims for. Measured against a five thousand item folder, it costs nothing that can be told apart from the noise.
 	- A column dragged wider by hand keeps that width until the window changes shape or the folder does.
@@ -2997,7 +3038,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Closed: 20260819-160351
 	- Each icon is rasterized on its own before being placed. Several sets color themselves through a stylesheet keyed on a class name they all spell the same way, so pasting their markup into one sheet made six differently colored sets come out identical - and renaming the classes apart made them all come out black.
 
-- ✅ `filesystem/` - a tree mirroring where things land on disk, so a folder can be copied straight across. Carries the icon and widget drop-in folders, what they are called on each platform, and the two optional `index.theme` keys that tell the picker which modes a theme suits.
+- ✅ `filesystem/` - a tree mirroring where things go on disk, so a folder can be copied straight across. Carries the icon and widget drop-in folders, what they are called on each platform, and the two optional `index.theme` keys that tell the picker which modes a theme suits.
 	- Opened: 20260819-124028
 	- Closed: 20260819-160351
 
@@ -3089,7 +3130,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Options, each offered only where the chosen format and the programs present can honour it: compression level, password (with the option to encrypt the file names too), splitting into volumes with an editable list of the usual sizes, solid archives, storing duplicate files once, storing symlinks and junctions as links, following linked folders (off by default, so a link loop cannot pull in the whole disk), and for rar a recovery record (on by default) and locking.
 	- An option nothing can honor is shown grayed rather than hidden, so the dialog does not change shape from one machine to the next.
 	- Encryption and splitting are treated as requirements - if nothing installed can do them the job is refused rather than quietly writing a readable archive. Everything else is a preference, honoured where possible and dropped where not.
-	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be cancelled, and a cancelled or failed run leaves no half-written archive behind.
+	- Compression runs as a normal background job: it shows in the same progress popup as copying, can be canceled, and a canceled or failed run leaves no half-written archive behind.
 
 - ✅ The 7z and rar command lines are settings, not code, so a user can edit them.
 	- Opened: 20260821-124844
@@ -3110,7 +3151,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- A protected archive asks for its password once, and reuses it for the rest of the selection.
 	- Collisions ask the same question copying asks, with the same answers - skip, duplicate, rename, replace, and applying that answer to everything after it. A folder arriving on a folder merges without asking. The prompt says which archive the incoming file came from, since several can be unpacked at once.
 	- An entry whose stored path climbs out of the folder being unpacked into, or names a drive, is put back inside it.
-	- Unpacking runs as a normal background job: it shows in the same progress popup as copying and can be cancelled.
+	- Unpacking runs as a normal background job: it shows in the same progress popup as copying and can be canceled.
 
 - ✅ Depend on Explorer as little as possible.
 	- Opened: 20260818-144244
@@ -3148,7 +3189,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 		- Fixed: the text is still selectable but no longer takes focus pre-selected.
 
 	- ✅ Item 117. The properties window never cancels scheduled owner/group changes on close.
-		- Fixed: pending changes are cancelled when the window closes.
+		- Fixed: pending changes are canceled when the window closes.
 
 	- ✅ Item 118. The Ctrl-key state for tab switching is a stale process-wide global.
 		- Fixed: the state belongs to the notebook and is cleared when it loses the keyboard.
@@ -3552,6 +3593,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 			- Try to delete the wip folder.
 			- Warn the user that the operation failed and was backed out, but the original files are safe.
 	- Opened: 20260924 by JC.
+	- Closed: 20260925-062731
 	- Canceled: 20260925-062731. For these inherent problems we don't want to be unfairly blamed for:
 		- The first option, CoW clone, can already be accomplished just by copy-and-paste on a supported filesystem.
 		- The second option, hardlinks, by its nature is too fraught with potential future data loss problems for the user, that we don't want to be viewed as somehow "responsible" for. Those problems are already explained in the "Make hardlink" feature.
@@ -3566,7 +3608,8 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 - 🚫 Persist icon view size changes, for both regular and image.
 	- Why canceled: Per-folder and global settings do this. Not perfectly, but the overlap might cause confusion.
-	- Opened and closed: 20260920-162550.
+	- Opened: 20260920-162550
+	- Closed: 20260920-162550
 
 - 🚫 Nothing in the suite can build a window, so a widget's teardown cannot be tested.
 	- Opened: 20260919-210000

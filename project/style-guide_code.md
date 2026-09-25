@@ -43,7 +43,7 @@ How the C in this repo is written, and why. Companion to [design.md](design.md),
 
 This is a fork of a twenty-year-old GNOME codebase. New code looks like the code beside it, even where that is not what a fresh project would choose. A patch that reformats a function it did not need to touch is noise in every future diff against upstream, and it will be asked to go back.
 
-Vendored code is left alone entirely, and so is anything still carrying an upstream copyright header. Do not restyle it, do not rename in it, do not "modernize" it. The vendored trees are `vendor/` at the repo root (icons, themes, and the SHCL header) and `source/cut-n-paste-code/`.
+Vendored code is left alone entirely, and so is anything still carrying an upstream copyright header. Do not restyle it, do not rename in it, do not "modernize" it. The vendored trees are `vendor/` at the repo root (icons, themes, the SHCL header and blake3) and `source/cut-n-paste-code/`.
 
 ## Why there is no formatter config
 
@@ -71,7 +71,7 @@ So the rules are written down here instead.
 
 A sample, from `source/src/nemo-column-layout.c`:
 
-```c
+~~~c
 static int
 move_proportionally (const NemoColumnLayoutItem *items,
 		     int                        *widths,
@@ -83,7 +83,7 @@ move_proportionally (const NemoColumnLayoutItem *items,
 	while (amount > 0) {
 		gint64 weight = 0;
 		int moved = 0;
-```
+~~~
 
 ## Language and types
 
@@ -163,7 +163,7 @@ Where a piece of reasoning is longer than a few lines, it goes at the top of the
 
 ## What the lint gate rejects
 
-`cicd/utility/lint.bash` is the gate's lint stage. It runs `lint-c.bash`, which is cppcheck plus the checks on user-facing strings and on the delete guards, then `lint-bash.bash`, which is shellcheck over the project's own scripts. A finding from any of them fails the gate. Where a tool itself is missing, that step warns and is skipped, so a box without cppcheck, python or shellcheck cannot hard-block a push; `CPPCHECK_STRICT=1` and `SHELLCHECK_STRICT=1` turn those misses into failures.
+`cicd/utility/lint.bash` is the gate's lint stage. It runs `lint-c.bash`, which is cppcheck plus the checks on user-facing strings and on the delete guards, then `lint-bash.bash`, which is shellcheck over the project's own scripts, and the Python, PowerShell, identity and prose checks after it. A finding from any of them fails the gate. Where a tool itself is missing, that step warns and is skipped, so a box without cppcheck, python or shellcheck cannot hard-block a push; `CPPCHECK_STRICT=1` and `SHELLCHECK_STRICT=1` turn those misses into failures.
 
 - `alloca`, and therefore `g_newa`. Use `g_new0` and `g_free` even for three ints.
 
@@ -185,7 +185,7 @@ Scratch directories come from `test_scratch_dir` in `test-scratch.h`, not `g_dir
 
 A test that reads real user configuration is a test that fails on somebody else's machine. Point `HOME`, `APPDATA` and `XDG_CONFIG_HOME` at a scratch directory first.
 
-The suite needs a display. `Xvfb :95 -screen 0 1280x900x24 &` then `DISPLAY=:95 meson test`. Without one, a good part of it fails on the missing display in ways that read like real assertion failures.
+The suite needs a display. `cicd/linux/run-tests.bash` starts one of its own, so run the suite through it rather than a bare `meson test`. Without a display, a good part of it fails in ways that read like real assertion failures.
 
 ## Other languages in the tree
 

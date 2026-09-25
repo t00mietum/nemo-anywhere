@@ -28,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Search results can be grouped under the folder that holds them instead of shown as one flat list, with a toggle next to the one for recursing into subfolders. Grouped results drop the Location column and switching either way happens without running the search again.
 
-- A drop that moves files asks first, naming the files and the folder they are headed for. Two settings under Behavior: moves ask by default, copies and links do not. The Trash keeps its own separate question rather than asking twice.
+- A drop that moves files asks first, naming the files and the folder they are headed for. Two settings under Behavior: moves ask by default, copies do not. The Trash keeps its own separate question rather than asking twice.
 
 - Content search ("Containing:") reads Word, Excel and PowerPoint documents in both their old and new formats, OpenDocument files and EPUB books, on every platform. The converters are built in, so nothing else needs installing.
 
@@ -50,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - An Appearance page in Preferences: Light, Dark, or follow the system, plus a style and an icon theme to draw with. Both lists only offer themes drawn for the mode you are in, and picking one half of a light/dark pair follows the pair when the mode changes.
 
-- The Windows build carries a set of themes so the app looks like something out of the box: Windows 11, Windows 10, Windows 7, Windows XP and macOS window styles, and nine icon styles including Windows XP and Windows 7 sets drawn for this project. Linux keeps using whatever the desktop provides.
+- The Windows build carries a set of themes so the app looks like something out of the box: Windows 11, Windows 10, Windows 7, Windows XP and macOS window styles, and twenty-four icon sets, including Windows XP, 7, 10 and 11 sets drawn for this project. Linux keeps using whatever the desktop provides.
 
 - Themes can be dropped in on any platform. Put a GTK theme folder in `themes`, or an icon theme in `icons`, beside the settings file and it shows up in the lists.
 
@@ -78,7 +78,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The settings file now ends with a commented list of everything you have not set, each line carrying the value used instead and, where the name is not obvious, a short note. Uncomment a line to change it. Sizes, positions and other things the app remembers for itself are left off the list.
 
-- The thumbnail cache is swept once a day rather than growing forever: a thumbnail whose file is gone goes first, then anything unused past the age allowed, then oldest-first until the rest fit in the size allowed. Both limits are on the Preview page and either can be turned off; the defaults match what a GNOME or Cinnamon desktop already applies to the same folder.
+- The thumbnail cache is cleaned up every few hours, at a quiet moment, rather than growing forever: a thumbnail whose file is gone goes first, then anything not drawn for longer than the age allowed, then the least recently drawn until the rest fit in the size allowed. Both limits are on the Preview page and either can be turned off. The shared freedesktop thumbnail folder is no longer touched.
 
 - Camera raw files get thumbnails, from the preview the camera stores in each one: DNG, CR2, CR3, NEF, ARW, RAF, RW2, ORF, PEF, SRW and most others built on TIFF. Nothing else needs installing, and the sensor data itself is never read.
 

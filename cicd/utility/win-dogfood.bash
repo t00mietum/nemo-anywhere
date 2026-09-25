@@ -25,7 +25,13 @@ fEcho(){       if [[ -n "${*}" ]]; then fEcho_Clean "[ ${*} ]"; else fEcho_Clean
 
 ## lock name|ssh name, in the order they are tried.
 readonly boxes=("b29w|b29w-wif" "vm925w|vm925w")
-readonly lockTool="${HOME}/synced/0-0/common/exec/util/linux/bash/claude_windows-host-lock.bash"
+## Shared by other sessions on the same boxes. Found by the tail of its name, which
+## is the part that stays put. WINDOWS_HOST_LOCK names it outright.
+lockTool="${WINDOWS_HOST_LOCK:-}"
+if [[ -z "$lockTool" ]]; then
+	for lockTool in "${HOME}"/synced/0-0/common/exec/util/linux/bash/*windows-host-lock.bash; do break; done
+fi
+readonly lockTool
 readonly clone='%USERPROFILE%\source\repos\nemo-anywhere'
 readonly bundleName='nemo-anywhere-dogfood.bundle'
 ## A Windows build plus the suite runs well past the lock's default lease, and

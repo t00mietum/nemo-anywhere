@@ -128,7 +128,7 @@ What the project is trying to be, roughly in priority order:
 
 - Ship builds that can be checked. Reproducible from the commit they were built at, published with checksums, and cut by the same pipeline that runs on a developer's own machine.
 
-- Stay "Nemo". Same lineage, same license (GPL-2.0-only), per-file attribution intact. Independent and divergent: nothing goes upstream and nothing is pulled back down.
+- Stay "Nemo". Same lineage, same licenses (GPL-2.0-only, and LGPL for the extension library), per-file attribution intact. Independent and divergent: nothing goes upstream and nothing is pulled back down.
 
 - Deliberately out of scope: drawing the desktop, autorun of any kind on any platform, and migrating settings from a pre-1.0 install.
 
@@ -159,7 +159,7 @@ What the project is trying to be, roughly in priority order:
 
 - Filesystem access: GIO everywhere, with native backends filling the gaps that have no portable answer - the Windows Recycle Bin, Windows network browsing, and Windows shell shortcuts.
 
-- Other libraries: libarchive for reading and writing archives, libexif, libgsf and exempi for file property extraction, json-glib for the metadata store, and a single vendored header for the settings format. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
+- Other libraries: libarchive for reading and writing archives, libexif, libgsf and exempi for file property extraction, json-glib for the metadata store, SQLite for the file cache, and two vendored pieces: one header for the settings format and the blake3 hash. Deliberately absent: xapp, cinnamon-desktop, and GSettings for the app's own settings.
 
 - Optional at runtime: gvfs on Linux, for network shares, trash and remote mounts. Where it is absent the affected entries hide themselves rather than fail.
 
@@ -282,7 +282,7 @@ Application settings live in `settings.shcl`, in whichever directory the platfor
 
 - Edits made while the app is running are picked up straight away, so hand-editing behaves like using the dialog.
 
-- Types, defaults and allowed values live in one table in the code, and a matching schema sits beside the app so `shcl check --schema` can catch a typo in a hand-edited file. Keeping defaults central is deliberately against the config library's own per-call-site advice: with 168 settings, many read from several places, two call sites disagreeing about what a setting means when absent is a silent bug.
+- Types, defaults and allowed values live in one table in the code, and a matching schema sits beside the app so `shcl check --schema` can catch a typo in a hand-edited file. Keeping defaults central is deliberately against the config library's own per-call-site advice: with nearly two hundred settings, many read from several places, two call sites disagreeing about what a setting means when absent is a silent bug.
 
 - A handful of settings are the desktop's to decide rather than ours: which terminal to open, whether the session remembers recent files, 12h or 24h clocks. Where a desktop publishes them we read its answer, and everywhere else our own value stands in. That is the only remaining use of the desktop settings database, it is read-only, and it never touches a schema of ours.
 
@@ -457,9 +457,9 @@ Archives are written by libarchive, with the `7z` and `rar` commands as optional
 
 - Where the archive goes follows the long-standing convention rather than anything invented here. One item is archived as itself and offered beside itself, so opening the archive shows the folder and the contents are one level in. Selecting a folder's whole contents instead still takes the folder's name, but is offered inside the folder with the contents at its root. A partial selection gets no suggested name at all - it is not the folder, and there is no other name a person would agree with - so the field starts empty and Compress waits until it is filled in.
 
-- Compressing a selection separately is that convention applied per item, and deliberately one job rather than one per item: several progress bars racing for the same folder would be unreadable, and cancelling would mean cancelling each of them.
+- Compressing a selection separately is that convention applied per item, and deliberately one job rather than one per item: several progress bars racing for the same folder would be unreadable, and canceling would mean canceling each of them.
 
-- Unpacking reaches much further than writing, so the two sides are not symmetrical. libarchive reads the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors, which is most of what anyone double-clicks, and it reads them entry by entry - which is what makes per-file progress, cancelling and a collision prompt possible at all. A command is reached for only when libarchive will not open the file, and only while nothing has been written yet, so handing the archive on costs nothing.
+- Unpacking reaches much further than writing, so the two sides are not symmetrical. libarchive reads the tar, zip, 7z, rar, cab, lha, cpio, xar and iso families and the bare compressors, which is most of what anyone double-clicks, and it reads them entry by entry - which is what makes per-file progress, canceling and a collision prompt possible at all. A command is reached for only when libarchive will not open the file, and only while nothing has been written yet, so handing the archive on costs nothing.
 
 - Where an archive says an entry goes is not taken at its word. A stored path that is absolute, names a drive, or climbs out with `..` is reduced to something inside the folder the person picked. An archive must not be able to write wherever it likes on the strength of being opened.
 
@@ -523,7 +523,7 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - The named steps survive as stops: 24, 32, 48, 64, 96, 128, 256, 320, 448 and 640 pixels. They are what the slider marks and what Zoom In and Zoom Out move between. The slider reaches everything in between, so the keyboard stays coarse while dragging is fine. Adding a size is a row in one table.
 
-- Both the settings and the preferences window say it as a per cent of the standard 64 pixels, so 100% is 64 and 1000% is 640. The preferences window shows each one as a spin box, since the range no longer fits a short list.
+- Both the settings and the preferences window say it as a percent of the standard 64 pixels, so 100% is 64 and 1000% is 640. The preferences window shows each one as a spin box, since the range no longer fits a short list.
 
 - There are two defaults for the icon view. An ordinary folder opens at 100%. A folder that is mostly images opens at 500%, which is 320 pixels, so pictures are shown at a size worth looking at without anyone reaching for the slider.
 
@@ -541,7 +541,7 @@ The window is a menu and toolbar, the side panes, a path bar and a view, and the
 
 - The slider runs along the stops rather than over pixels. The range is nearly thirty times as wide at one end as the other, so spacing the marks evenly is the only way the low end stays usable.
 
-- A name under an icon is one size whatever the icon is. It runs as wide as the icon above it, and never narrower than 110 pixels, or an ordinary file name wraps at the usual size. Below 32 pixels there is no name at all. The desktop is the one place a name does grow with the icon, a point either side of the standard size, and it always did.
+- A name under an icon is one size whatever the icon is. It runs as wide as the icon above it, and never narrower than 110 pixels, or an ordinary file name wraps at the usual size. Below 32 pixels there is no name at all.
 
 - The list view is held to the stops rather than taking any size, because a row's icon comes out of one of the model's size columns and a tree model's column count is fixed. Its row text does grow with its size, unlike a name under an icon: in a list the row height is most of what a size means.
 
@@ -730,7 +730,7 @@ What comes from outside that account is treated as hostile:
 
 What it does not do:
 
-- It opens no network connection of its own. No update check, no usage reporting, no crash upload. The only web address in it is the project link under About.
+- It opens no network connection of its own. No update check, no usage reporting, no crash upload. The only web addresses it shows are the project links in About and `--about`.
 
 - It never elevates itself. Open as Administrator on Windows and Open as Root on Linux start a new copy through UAC or pkexec, which ask in their own right. The copy that asked stays as it was.
 
@@ -806,7 +806,7 @@ Stock Debian 13 is the known-good baseline, in `cicd/linux/Dockerfile.dev` (imag
 
 - The pipeline makes that container on first use if there is none: it builds the image, then runs it with the repo mounted at `/src`, `--shm-size=2g` so parallel gcc has room, `--init` to reap stray processes, and `--ulimit core=0` so a crash leaves no core file in the tree. The release and cross-build containers are made the same way by their own scripts.
 
-- Toolchain and development libraries: `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`, `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`, `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`, `libarchive-dev`, `libx11-dev libxext-dev libxrender-dev`.
+- Toolchain and development libraries: `meson ninja-build gcc pkg-config gobject-introspection intltool itstool python3-gi`, `libgtk-3-dev libglib2.0-dev libpango1.0-dev libatk1.0-dev libgail-3-dev`, `libjson-glib-dev libgirepository1.0-dev libgsf-1-dev libexempi-dev libexif-dev`, `libarchive-dev libsqlite3-dev`, `libx11-dev libxext-dev libxrender-dev`.
 
 - `clang` and `llvm` are only needed to build the fuzz targets against libFuzzer with `-Dfuzzing=true`. Everything else builds with gcc, and without the option the fuzz targets still build and replay their seed corpus as ordinary tests. See [Testing](#testing).
 
@@ -863,8 +863,8 @@ The one deliberate exception is a release-only workflow, `.github/workflows/rele
 
 - The fork numbers its own releases from 1.0.0, independent of the 6.6.4 code baseline. Since 6.6.4 was never tagged or released here, that reset was a clean one-time step.
 
-- Every build also carries a build number: minutes elapsed since the start of 2000, in lower-cased Crockford base32, which drops i, l, o and u so nothing reads as a digit by mistake. Five characters today, six from 2033. It sits beside the version in `--version`, `--about`, Help > About, the Windows splash screen and the release notes, so a bug report names not just which release but which build of it.
-	- It is worked out at configure time from `SOURCE_DATE_EPOCH`, so two builds of one commit carry the same number, falling back to the clock when nothing sets it.
+- Every build also carries a build number: minutes elapsed since the start of 2000, in lower-cased Crockford base32, which drops i, l, o and u so nothing reads as a digit by mistake. Five characters until 2063, six after. It sits beside the version in `--version`, `--about`, Help > About, the Windows splash screen and the release notes, so a bug report names not just which release but which build of it.
+	- It is worked out at configure time from `SOURCE_DATE_EPOCH`, so two builds of one commit carry the same number. Without it the number comes from the commit date of HEAD, and only failing that from the clock.
 	- It lives in a generated header of its own rather than in `config.h`, because the number moves on every reconfigure and a change in `config.h` rebuilds the whole tree.
 
 ### The pipeline
@@ -883,7 +883,7 @@ Stages, in order, each self-skipping when unconfigured: remote sync, format, deb
 
 ### Reproducible builds
 
-Nothing a build produces takes its timestamp from the clock. Every lane sets `SOURCE_DATE_EPOCH` to the commit date of what is being built, so the same commit builds to the same bytes on any box on any day and a released artifact can be checked against a rebuild of its tag.
+Nothing a build produces takes its timestamp from the clock. Every lane sets `SOURCE_DATE_EPOCH` to the commit date of what is being built, so the same commit builds to the same bytes on any box on any day and a released Linux artifact can be checked against a rebuild of its tag. The Windows exe cannot be yet: its hosted build installs whatever MSYS2 packages are current that day.
 
 - The Windows exe was the one that actually differed run to run. The linker writes a timestamp into the PE header, and left alone it writes the clock: two clean builds of one commit used to differ in exactly those four bytes.
 
@@ -893,7 +893,7 @@ Nothing a build produces takes its timestamp from the clock. Every lane sets `SO
 
 - The linker, `dpkg-deb` and `rpmbuild` read the stamp themselves. `zip` has no such notion, so its input is stamped on disk and fed in sorted order, and `tar` is given the stamp and a sorted order explicitly.
 
-- One script answers what the stamp is, and every lane calls it rather than working it out again. `docker exec` does not carry the host environment into a container, so each lane hands it over explicitly.
+- One script answers what the stamp is, and every local lane calls it rather than working it out again. The hosted Windows release reads the same commit date inline. `docker exec` does not carry the host environment into a container, so each lane hands it over explicitly.
 
 - A tree with uncommitted changes still gets its `HEAD` commit's date, since the alternative is the clock, but the release lanes warn, because nothing built from it can be reproduced.
 

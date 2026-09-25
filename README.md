@@ -41,6 +41,8 @@
 
 ![Demo](assets/demo.gif)
 
+<!-- [![Video](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=VIDEO_ID) -->
+
 </div>
 
 <!-- TOC ignore:true -->
@@ -53,6 +55,7 @@
 - [What this fork adds or improves](#what-this-fork-adds-or-improves)
 - [Status](#status)
 - [Icon themes](#icon-themes)
+	- [Adding your own](#adding-your-own)
 - [Installation](#installation)
 	- [Packages and installers](#packages-and-installers)
 	- [Direct stable and dev install scripts](#direct-stable-and-dev-install-scripts)
@@ -144,11 +147,11 @@ Everything that makes Nemo worth porting:
 	- A crash leaves a report beside the settings file, so there is something to send in.
 
 - Integrated - and more advanced - archive handling. No more third-party GUI application dependencies that don't feel integrated, don't support the archive format's best options, etc.
-	- Right-click Compress writes zip, tar and 7z by itself, with a password, split volumes, and a cap on how much of the CPU it takes. rar, and the 7z options the built-in writer lacks, are used when those programs are installed.
+	- Right-click Compress writes zip, tar and 7z by itself, zip with a password, and with a cap on how much of the CPU it takes. Split volumes, 7z passwords and rar use the 7z or rar programs when they are installed.
 	- Right-click Extract reads most archive types, with real progress and a question when a file already exists. An archive can't write outside the folder it is unpacked into.
 	- Compress can delete the originals afterward, off by default. It reads the finished archive back first and checks every file is in it at the right size, and even then the originals go to the trash.
 
-- A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. Copies and links go through without a word unless you ask for those too.
+- A drag that moves files says what it is about to do first. One of the easiest ways to lose track of a file in any graphical file manager is a drag nobody meant to start, and by the time it is noticed the folder it went to is anyone's guess. A copy goes through without a word unless you ask for that too. A dropped link opens Make link, so you pick what kind.
 
 - A large delete, or one generated with no user input, prompts even with confirmation turned off.
 
@@ -178,15 +181,15 @@ Everything that makes Nemo worth porting:
 
 - The thumbnail cache is cleaned up once in a while, rather than growing forever.
 
-- A folder of pictures has all its thumbnails made as soon as it opens, top down, not only the ones scrolled to. Photoshop and camera raw files get thumbnails too, and with ImageMagick installed so do JPEG 2000, HEIC, EXR and the other picture formats it reads.
+- A folder of pictures has all its thumbnails made as soon as it opens, top down, not only the ones scrolled to. Photoshop and camera raw files get thumbnails too, and with ImageMagick installed so do JPEG 2000, HEIC, EXR and a few dozen more.
 
 - Settings live in one plain text file you can read and edit. No registry, no dconf, no compiled schema. Editing it by hand does the same thing as changing the setting in the dialog.
 
 - Copy, paste and drag work with the platform's own file manager, in both directions.
 
-- What a platform cannot do is hidden or grayed out rather than failing when clicked. No "Make Link" on Windows, no permissions tab where there are no permissions.
+- What a platform cannot do is hidden or grayed out rather than failing when clicked. No Mount archive where the platform cannot mount one, no permissions tab where there are no permissions.
 
-- Releases can be checked. Each one is reproducible from the commit it was built at, and published with checksums.
+- Releases can be checked. Every download is published with checksums, and the Linux builds can be rebuilt from their commit to the same bytes.
 
 - Dozens of "minor papercut" fixes, and "quality-of-life" improvements.
 
@@ -198,7 +201,7 @@ Every build goes through static analysis, the full regression suite, and the che
 
 Rough edges to know about:
 
-- For now every trash and delete asks first, in a plain dialog that says exactly what is about to go and why. It is an extra safety net for the beta, and goes back to the normal confirmations before the stable release.
+- For now every trash and delete asks first, in a plain dialog that says exactly what is about to go and why. It is an extra safety net for the beta, and goes back to the normal confirmations before the stable release. It can be turned off now with the checkbox at the end of Trash on the Behavior page of Preferences.
 
 - The Windows exe is not code-signed yet, so Windows may warn the first time it runs.
 
@@ -218,7 +221,7 @@ Details:
 
 ## Icon themes
 
-Twenty-three icon sets ship inside the application - light and dark, and no download. Pick one in **Preferences -> Appearance**; the Style picker moves the Icons picker to match, so a Windows 11 window frame does not come with macOS icons unless you ask for it.
+Twenty-four icon sets are built into the Windows build - light and dark, and no download. Linux and BSD builds use the icon themes the desktop already has. Pick one in **Preferences -> Appearance**; the Style picker moves the Icons picker to match, so a Windows 11 window frame does not come with macOS icons unless you ask for it.
 
 ![Icon themes](assets/icon-gallery.png)
 
@@ -250,7 +253,7 @@ Both packages install to `/opt/nemo-anywhere` with a menu entry and `nemo-anywhe
 
 One command. It downloads the right build for the machine, verifies its checksum, tells you exactly what it is about to do, and waits for a yes. The defaults suit most people. Add `--help` (`-Help` in PowerShell) to see the options.
 
-Linux, BSD, macOS, WSL:
+Linux and WSL, and BSD and macOS once those are built:
 
 ~~~bash
 bash <(curl -fsSL https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.bash)
@@ -262,22 +265,22 @@ Windows, or anywhere else with PowerShell. It is a full installer on its own, no
 & ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/yottacore/nemo-anywhere/main/install.ps1')))
 ~~~
 
-Add `--uninstall` (or `-Uninstall`) to reverse it. Reinstalling over an existing copy is fine - it replaces it.
+Reinstalling over an existing copy is fine - it replaces it. `--help` also says how to remove it.
 
 Where it goes:
 
-| OS      | User install (default)                 | Launcher                                                  | (or) System install             | Launcher
-| :---    | :---                                   | :---                                                      | :---                            | :---
-| Linux   | ~/.local/share/nemo-anywhere/          | ~/.local/share/applications/ + ~/.local/bin/nemo-anywhere | /opt/nemo-anywhere/             | /usr/local/share/applications/ + /usr/local/bin/nemo-anywhere
-| BSD     | ~/.local/share/nemo-anywhere/          | ~/.local/share/applications/ + ~/.local/bin/nemo-anywhere | /usr/local/nemo-anywhere/       | /usr/local/share/applications/ + /usr/local/bin/nemo-anywhere
-| Windows | %LOCALAPPDATA%\Programs\Nemo Anywhere\ | Start Menu shortcut + a PATH entry                        | C:\Program Files\Nemo Anywhere\ | Start Menu shortcut + a PATH entry
-| macOS   | *pending a macOS build*                |                                                           |                                 |
+| OS      | User install (default)                 | Launcher                                                                            | (or) System install             | Launcher
+| :---    | :---                                   | :---                                                                                | :---                            | :---
+| Linux   | ~/.local/share/nemo-anywhere/          | ~/.local/share/applications/nemo-anywhere.desktop, ~/.local/bin/nemo-anywhere       | /opt/nemo-anywhere/             | /usr/local/share/applications/nemo-anywhere.desktop, /usr/local/bin/nemo-anywhere
+| Windows | %LOCALAPPDATA%\Programs\Nemo Anywhere\ | %APPDATA%\Microsoft\Windows\Start Menu\Programs\Nemo Anywhere.lnk, and a PATH entry | C:\Program Files\Nemo Anywhere\ | %ProgramData%\Microsoft\Windows\Start Menu\Programs\Nemo Anywhere.lnk, and a PATH entry
+| BSD     | *pending a BSD build*                  |                                                                                     |                                 |
+| macOS   | *pending a macOS build*                |                                                                                     |                                 |
 
 Settings live where each platform puts them - `~/.config/nemo-anywhere` on Linux and BSD, `%APPDATA%\nemo-anywhere` on Windows, `~/Library/Application Support/nemo-anywhere` on macOS - and are left alone by an uninstall.
 
 ### DIY
 
-Unpack `nemo-anywhere-<version>-linux-x86_64.tar.gz` wherever you like and run `bin/nemo-anywhere` from inside it. It is relocatable, so no fixed path is required. Verify the download against the `sha256sums.txt` file published beside it.
+Unpack `nemo-anywhere-<version>-linux-x86_64.tar.gz` wherever you like and run `bin/nemo-anywhere` from inside it. It is relocatable, so no fixed path is required. Verify the download against the `nemo-anywhere-<version>-sha256sums.txt` file published beside it.
 
 What a Linux build needs at runtime: GTK 3.24.33 or newer and glibc 2.35 or newer, which means Ubuntu 22.04, Debian 12, Mint 21, Fedora 36 or anything more recent.
 
@@ -306,7 +309,7 @@ On Windows the build is native, not cross-compiled. You need [MSYS2](https://www
 
 ~~~powershell
 pacman -S --needed mingw-w64-x86_64-{gcc,meson,ninja,pkgconf,gtk3,json-glib,libarchive,libexif,libgsf,cppcheck,gettext} intltool git
-pwsh cicd/cicd-win.ps1 -Gate     # lint, build and smoke
+pwsh cicd/cicd-win.ps1 -Gate     # lint, build and test
 ~~~
 
 The full picture, meaning the exact package list, the Windows cross-compile, the release lanes and the pipeline stages, is in [project/design.md](project/design.md). How to send a change is in [contributing.md](contributing.md), and how the code is written is in [project/style-guide_code.md](project/style-guide_code.md).

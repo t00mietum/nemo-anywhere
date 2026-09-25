@@ -101,7 +101,7 @@ Status: first idea pass. None of the tables below exist yet. When built, they re
 
 The only safe option for deduping Nemo Anywhere will ever consider: Copy-on-Write clones, for directory structures on the same filesystem.
 
-- This reduces the disk usage of large files to close to just the one original file. But crucially, if any clone is later edited, only that one is changed. (And only the new content needs additional storage.)
+- This reduces the disk usage of large files to close to just the one original file. But if any clone is later edited, only that one is changed. (And only the new content needs additional storage.)
 
 - Supported so far by:
 	- Linux: FICLONE ioctl on Btrfs, ZFS, XFS, OCFS2, bcachefs.
