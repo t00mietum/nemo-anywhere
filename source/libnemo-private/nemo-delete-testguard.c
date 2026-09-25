@@ -41,6 +41,10 @@
    nobody watching ends rather than wedges. */
 #define ANSWER_TIMEOUT_USEC (300 * G_USEC_PER_SEC)
 
+/* Said on every ask, so nobody takes it for a real problem with the files. */
+#define WHY_ASKED "Every pre-release asks this, as a rule. This release candidate does " \
+		  "not need it, and it can be turned off in Preferences, Behavior, Trash."
+
 /* Set while a job works through what it already asked about, so the two
    removal functions below it stay quiet. A job and its removals run on one
    thread, which is what makes this enough. */
@@ -324,7 +328,9 @@ show_dialog (gpointer _data)
 	GtkWidget *content;
 	GtkWidget *header;
 	GtkWidget *icon;
+	GtkWidget *words;
 	GtkWidget *headline;
+	GtkWidget *why;
 	GtkWidget *scroll;
 	GtkWidget *detail;
 	GdkMonitor *monitor;
@@ -359,8 +365,18 @@ show_dialog (gpointer _data)
 	gtk_label_set_width_chars (GTK_LABEL (headline), 30);
 	gtk_label_set_max_width_chars (GTK_LABEL (headline), 60);
 	gtk_label_set_xalign (GTK_LABEL (headline), 0.0);
-	gtk_widget_set_valign (headline, GTK_ALIGN_CENTER);
-	gtk_box_pack_start (GTK_BOX (header), headline, TRUE, TRUE, 0);
+
+	why = gtk_label_new (WHY_ASKED);
+	gtk_label_set_line_wrap (GTK_LABEL (why), TRUE);
+	gtk_label_set_width_chars (GTK_LABEL (why), 30);
+	gtk_label_set_max_width_chars (GTK_LABEL (why), 60);
+	gtk_label_set_xalign (GTK_LABEL (why), 0.0);
+
+	words = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+	gtk_widget_set_valign (words, GTK_ALIGN_CENTER);
+	gtk_box_pack_start (GTK_BOX (words), headline, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (words), why, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (header), words, TRUE, TRUE, 0);
 	gtk_box_pack_start (GTK_BOX (content), header, FALSE, FALSE, 0);
 
 	detail = gtk_label_new (data->detail);

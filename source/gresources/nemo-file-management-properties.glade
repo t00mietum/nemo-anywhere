@@ -2299,6 +2299,22 @@ along with .  If not, see <http://www.gnu.org/licenses/>.
                                             <property name="position">3</property>
                                           </packing>
                                         </child>
+                                        <child>
+                                          <object class="GtkCheckButton" id="testguard_all_deletes_checkbutton">
+                                            <property name="label" translatable="yes">Ask again before every delete, move or overwrite (pre-release test guard)</property>
+                                            <property name="visible">True</property>
+                                            <property name="can-focus">True</property>
+                                            <property name="receives-default">False</property>
+                                            <property name="tooltip-text" translatable="yes">Every pre-release has this on, to catch a removal nothing accounts for. It is not needed for this release candidate, and it is safe to turn off.</property>
+                                            <property name="xalign">0</property>
+                                            <property name="draw-indicator">True</property>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">False</property>
+                                            <property name="position">4</property>
+                                          </packing>
+                                        </child>
                                       </object>
                                     </child>
                                   </object>
