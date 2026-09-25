@@ -620,7 +620,7 @@ static void
 update_make_link_dialog (GtkToggleButton *button, MakeLinkDialog *d)
 {
 	NemoLinkOptions options;
-	GtkWidget *path_row[3] = { d->path_label, d->relative, d->absolute };
+	GtkWidget *path_row[3] = { d->path_label, d->absolute, d->relative };
 	gboolean uses_path, folders_ok, files_ok;
 	guint i;
 
@@ -828,6 +828,7 @@ nemo_link_options_ask (GtkWindow       *parent,
                        GFile           *destination,
                        int              n_folders,
                        int              n_files,
+                       gboolean         say_where,
                        NemoLinkOptions *options)
 {
 	MakeLinkDialog d = { 0 };
@@ -860,8 +861,6 @@ nemo_link_options_ask (GtkWindow       *parent,
 		title = g_strdup_printf (ngettext ("Make links to %d item", "Make links to %d items", total), total);
 	}
 
-	/* Only ever opened from the menu, on the folder in view, so where the
-	   links go needs no saying. */
 	d.dialog = gtk_dialog_new_with_buttons (title, parent,
 						GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 						GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -945,8 +944,8 @@ nemo_link_options_ask (GtkWindow       *parent,
 	}
 
 	d.path_label = add_row_label (GTK_GRID (grid), row, _("Symlink path:"));
-	d.relative = add_choice (GTK_GRID (grid), row, 1, NULL, _("_Relative"), TRUE, options->relative);
-	d.absolute = add_choice (GTK_GRID (grid), row, 2, d.relative, _("_Absolute"), TRUE, !options->relative);
+	d.absolute = add_choice (GTK_GRID (grid), row, 1, NULL, _("_Absolute"), TRUE, !options->relative);
+	d.relative = add_choice (GTK_GRID (grid), row, 2, d.absolute, _("_Relative"), TRUE, options->relative);
 	gtk_widget_set_tooltip_text (d.relative,
 		_("Keeps working when the link and the original move together. Stops working "
 		  "when either one moves alone."));
@@ -964,6 +963,23 @@ nemo_link_options_ask (GtkWindow       *parent,
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 	gtk_container_set_border_width (GTK_CONTAINER (box), 12);
+
+	/* From the menu the links go in the folder in view, which needs no
+	   saying. A drop can be onto another folder, or another window. */
+	if (say_where && destination != NULL) {
+		char *dest_name = g_file_get_basename (destination);
+
+		text = g_strdup_printf (ngettext ("The new link goes in \"%s\".",
+						  "The new links go in \"%s\".", total),
+					dest_name != NULL ? dest_name : "");
+		note = gtk_label_new (text);
+		gtk_widget_set_halign (note, GTK_ALIGN_START);
+		gtk_label_set_line_wrap (GTK_LABEL (note), TRUE);
+		gtk_box_pack_start (GTK_BOX (box), note, FALSE, FALSE, 0);
+		g_free (text);
+		g_free (dest_name);
+	}
+
 	gtk_box_pack_start (GTK_BOX (box), grid, FALSE, FALSE, 0);
 	if (why != NULL) {
 		note = gtk_label_new (why);

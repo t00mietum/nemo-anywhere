@@ -47,22 +47,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Features and enhancements
 
-- 🔘 Update to "Make a link" dialog:
-	- Move the tite from the dialog, to the Window decoration.
-	- Remove "The new link goes in 'directory', and the vertical space it used, when it's obvious (e.g. no drag/drop involved).
-	- Don't show "Symlink path:" row when it's not applicable. (But reserve the vertical space for it.)
-	- Remove "Shortcut paths" options. That wasn't a good idea. Always create all three.
-	- Symlink path: "Absolute" comes before "Relative".
-
-- 🔘 Link names:
-	- If links are created next to their originals:
-		- Symlink: "<original name> - symlink[ 2 etc]"
-		- Hardlink: "<original name> - hardlink[ 2 etc]"
-		- Shortcut: "<original name> - shortcut[ 2 etc]"
-
 - 🔘 Valid shortcuts to folders sort with folders.
-
-- 🔘 Dragging one or more files and dropping with "Alt" held, and user selects "Make link" - should open the new links dialog, rather than "Cancel/OK".
 
 - 🔘 New tab: CTRL+Shift+T should work too.
 
@@ -1681,6 +1666,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ Update to "Make a link" dialog:
+	- Move the title from the dialog, to the Window decoration.
+	- Remove "The new link goes in 'directory', and the vertical space it used, when it's obvious (e.g. no drag/drop involved).
+	- Don't show "Symlink path:" row when it's not applicable. (But reserve the vertical space for it.)
+	- Remove "Shortcut paths" options. That wasn't a good idea. Always create all three.
+	- Symlink path: "Absolute" comes before "Relative".
+	- Opened: 20260924-184213. Closed: 20260924-185000.
+	- Done: the first four in the linkdlg chunk, and Absolute now comes before Relative.
+	- Note: the "goes in" line comes back for a drop, which can be onto another folder.
+
+- ✅ Link names:
+	- If links are created next to their originals:
+		- Symlink: "<original name> - symlink[ 2 etc]"
+		- Hardlink: "<original name> - hardlink[ 2 etc]"
+		- Shortcut: "<original name> - shortcut[ 2 etc]"
+	- Opened: 20260924-184213. Closed: 20260924-185000.
+	- Done: the kind goes before the extension, "photo - symlink.jpg", so the link still opens as its type. A shortcut follows Explorer, "photo.jpg - shortcut.lnk". A junction is "folder - junction".
+	- Done: a link made in another folder keeps the original's name, with " 2" and on for a clash. It used to be "Link to ...".
+	- Verified: a test makes each kind beside its original, twice for the clash.
+
+- ✅ Dragging one or more files and dropping with "Alt" held, and user selects "Make link" - should open the new links dialog, rather than "Cancel/OK".
+	- Opened: 20260924-184213. Closed: 20260924-185000.
+	- Done: every link drop opens the Make link dialog, from the Alt menu ("Link here...") or with the link keys held, in any view or sidebar. The drop question leaves links out, since the dialog asks.
+	- Verified: both kinds of drop open the dialog, and the link is made in the drop folder.
 
 - ✅ Debug delete/move/etc:
 	- Closed: 20260924-170600

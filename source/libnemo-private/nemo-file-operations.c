@@ -380,99 +380,60 @@ shorten_utf8_string (const char *base, int reduce_by_num_bytes)
 	}
 }
 
-/* Note that we have these two separate functions with separate format
- * strings for ease of localization.
- */
-
+/* A link made beside its original says what it is, "photo - symlink.jpg",
+   since the two would otherwise look alike. One made elsewhere keeps the
+   original's name. A clash adds " 2", " 3" and so on. The extension stays at
+   the end so the link still opens as its type, except on a shortcut, which
+   follows Explorer's "photo.jpg - Shortcut.lnk" and gets its .lnk later. */
 static char *
-get_link_name (const char *name, int count, int max_length)
+get_link_name (const char *name,
+	       const char *kind,
+	       gboolean    whole_name,
+	       int         count,
+	       int         max_length)
 {
-	const char *format;
-	char *result;
-	int unshortened_length;
-	gboolean use_count;
+	const char *ext = NULL;
+	char *base, *number, *result;
+	int length;
 
 	g_assert (name != NULL);
 
-	if (count < 0) {
-		g_warning ("bad count in get_link_name");
-		count = 0;
+	if (!whole_name) {
+		ext = eel_filename_get_extension_offset (name);
 	}
+	if (ext == NULL) {
+		ext = name + strlen (name);
+	}
+	base = g_strndup (name, ext - name);
 
-	if (count <= 2) {
-		/* Handle special cases for low numbers.
-		 * Perhaps for some locales we will need to add more.
-		 */
-		switch (count) {
-		default:
-			g_assert_not_reached ();
-			/* fall through */
-		case 0:
-			/* duplicate original file name */
-			format = "%s";
-			break;
-		case 1:
-			/* appended to new link file */
-			format = _("Link to %s");
-			break;
-		case 2:
-			/* appended to new link file */
-			format = _("Another link to %s");
+	number = count > 1 ? g_strdup_printf (" %d", count) : g_strdup ("");
+
+	for (;;) {
+		/* Translators: the original name, then what kind of link this
+		   is: symlink, hardlink, junction or shortcut. */
+		char *named = kind != NULL ? g_strdup_printf (_("%s - %s"), base, kind)
+					   : g_strdup (base);
+		char *shorter;
+
+		result = g_strconcat (named, number, ext, NULL);
+		g_free (named);
+
+		length = strlen (result);
+		if (max_length <= 0 || length <= max_length) {
 			break;
 		}
 
-		use_count = FALSE;
-	} else {
-		/* Handle special cases for the first few numbers of each ten.
-		 * For locales where getting this exactly right is difficult,
-		 * these can just be made all the same as the general case below.
-		 */
-		switch (count % 10) {
-		case 1:
-			/* Localizers: Feel free to leave out the "st" suffix                                 codespell:ignore
-			 * if there's no way to do that nicely for a
-			 * particular language.
-			 */
-			format = _("%'dst link to %s");
-			break;
-		case 2:
-			/* appended to new link file */
-			format = _("%'dnd link to %s");
-			break;
-		case 3:
-			/* appended to new link file */
-			format = _("%'drd link to %s");
-			break;
-		default:
-			/* appended to new link file */
-			format = _("%'dth link to %s");
+		shorter = shorten_utf8_string (base, length - max_length);
+		if (shorter == NULL) {
 			break;
 		}
-
-		use_count = TRUE;
+		g_free (result);
+		g_free (base);
+		base = shorter;
 	}
 
-	if (use_count)
-		result = g_strdup_printf (format, count, name);
-	else
-		result = g_strdup_printf (format, name);
-
-	if (max_length > 0 && (unshortened_length = strlen (result)) > max_length) {
-		char *new_name;
-
-		new_name = shorten_utf8_string (name, unshortened_length - max_length);
-		if (new_name) {
-			g_free (result);
-
-			if (use_count)
-				result = g_strdup_printf (format, count, new_name);
-			else
-				result = g_strdup_printf (format, new_name);
-
-			g_assert ((int)strlen (result) <= max_length);
-			g_free (new_name);
-		}
-	}
+	g_free (number);
+	g_free (base);
 
 	return result;
 }
@@ -3969,10 +3930,12 @@ get_unique_target_file (GFile *src,
 }
 
 static GFile *
-get_target_file_for_link (GFile *src,
-			  GFile *dest_dir,
+get_target_file_for_link (GFile      *src,
+			  GFile      *dest_dir,
 			  const char *dest_fs_type,
-			  int count)
+			  const char *kind,
+			  gboolean    whole_name,
+			  int         count)
 {
 	const char *editname;
 	char *basename, *new_name;
@@ -3981,6 +3944,10 @@ get_target_file_for_link (GFile *src,
 	int max_length;
 
 	max_length = get_max_name_length (dest_dir);
+	/* A shortcut gets ".lnk" after this. */
+	if (whole_name && max_length > 4) {
+		max_length -= 4;
+	}
 
 	dest = NULL;
 	info = g_file_query_info (src,
@@ -3990,7 +3957,7 @@ get_target_file_for_link (GFile *src,
 		editname = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_EDIT_NAME);
 
 		if (editname != NULL) {
-			new_name = get_link_name (editname, count, max_length);
+			new_name = get_link_name (editname, kind, whole_name, count, max_length);
 			make_file_name_valid_for_dest_fs (new_name, dest_fs_type);
 			dest = g_file_get_child_for_display_name (dest_dir, new_name, NULL);
 			g_free (new_name);
@@ -4000,31 +3967,52 @@ get_target_file_for_link (GFile *src,
 	}
 
 	if (dest == NULL) {
+		/* A name that is not UTF-8 is kept byte for byte, and not
+		   shortened, since cutting it could split a character. */
 		basename = g_file_get_basename (src);
-		make_file_name_valid_for_dest_fs (basename, dest_fs_type);
-
-		if (g_utf8_validate (basename, -1, NULL)) {
-			new_name = get_link_name (basename, count, max_length);
-			make_file_name_valid_for_dest_fs (new_name, dest_fs_type);
-			dest = g_file_get_child_for_display_name (dest_dir, new_name, NULL);
-			g_free (new_name);
-		}
-
-		if (dest == NULL) {
-			if (count == 1) {
-				new_name = g_strdup_printf ("%s.lnk", basename);
-			} else {
-				new_name = g_strdup_printf ("%s.lnk%d", basename, count);
-			}
-			make_file_name_valid_for_dest_fs (new_name, dest_fs_type);
-			dest = g_file_get_child (dest_dir, new_name);
-			g_free (new_name);
-		}
-
+		new_name = get_link_name (basename, kind, whole_name, count, 0);
+		make_file_name_valid_for_dest_fs (new_name, dest_fs_type);
+		dest = g_file_get_child (dest_dir, new_name);
+		g_free (new_name);
 		g_free (basename);
 	}
 
 	return dest;
+}
+
+/* What the link about to be made is called, mirroring make_chosen_link and
+   the older paths in link_file. */
+static const char *
+link_kind_word (CopyMoveJob *job, gboolean is_dir, gboolean *is_shortcut)
+{
+	NemoMakeLink kind;
+
+	*is_shortcut = FALSE;
+
+	if (!job->link_options_set) {
+#ifdef G_OS_WIN32
+		if (!job->want_symlink) {
+			*is_shortcut = TRUE;
+			return _("shortcut");
+		}
+#endif
+		return _("symlink");
+	}
+
+	kind = is_dir ? job->link_options.folder_kind : job->link_options.file_kind;
+	if (kind == NEMO_MAKE_SHORTCUT) {
+		*is_shortcut = TRUE;
+		return _("shortcut");
+	}
+	if (!is_dir && kind == NEMO_MAKE_HARDLINK) {
+		return _("hardlink");
+	}
+#ifdef G_OS_WIN32
+	if (is_dir && kind == NEMO_MAKE_JUNCTION) {
+		return _("junction");
+	}
+#endif
+	return _("symlink");
 }
 
 static GFile *
@@ -6532,6 +6520,8 @@ link_file (CopyMoveJob *job,
 	GFile *src_dir, *dest, *new_dest;
 	int count;
 	char *path;
+	const char *kind;
+	gboolean is_dir, whole_name;
 	gboolean not_local;
 	GError *error;
 	CommonJob *common;
@@ -6545,17 +6535,22 @@ link_file (CopyMoveJob *job,
 
 	common = (CommonJob *)job;
 
-	count = 0;
+	count = 1;
 
+	is_dir = g_file_query_file_type (src, G_FILE_QUERY_INFO_NONE,
+					 common->cancellable) == G_FILE_TYPE_DIRECTORY;
+	kind = link_kind_word (job, is_dir, &whole_name);
+
+	/* Only a link beside its original needs to say what it is. */
 	src_dir = g_file_get_parent (src);
-	if (g_file_equal (src_dir, dest_dir)) {
-		count = 1;
+	if (src_dir == NULL || !g_file_equal (src_dir, dest_dir)) {
+		kind = NULL;
 	}
-	g_object_unref (src_dir);
+	g_clear_object (&src_dir);
 
 	handled_invalid_filename = *dest_fs_type != NULL;
 
-	dest = get_target_file_for_link (src, dest_dir, *dest_fs_type, count);
+	dest = get_target_file_for_link (src, dest_dir, *dest_fs_type, kind, whole_name, count);
 
  retry:
 	error = NULL;
@@ -6611,7 +6606,7 @@ link_file (CopyMoveJob *job,
 		g_assert (*dest_fs_type == NULL);
 		*dest_fs_type = query_fs_type (dest_dir, common->cancellable);
 
-		new_dest = get_target_file_for_link (src, dest_dir, *dest_fs_type, count);
+		new_dest = get_target_file_for_link (src, dest_dir, *dest_fs_type, kind, whole_name, count);
 
 		if (!g_file_equal (dest, new_dest)) {
 			g_object_unref (dest);
@@ -6626,7 +6621,7 @@ link_file (CopyMoveJob *job,
 	/* Conflict */
 	if (error != NULL && IS_IO_ERROR (error, EXISTS)) {
 		g_object_unref (dest);
-		dest = get_target_file_for_link (src, dest_dir, *dest_fs_type, count++);
+		dest = get_target_file_for_link (src, dest_dir, *dest_fs_type, kind, whole_name, ++count);
 		g_error_free (error);
 		goto retry;
 	}
@@ -7069,9 +7064,8 @@ callback_for_move_to_trash (GHashTable *debuting_uris,
 	g_free (data);
 }
 
-/* The menu's own way in, as against a drag with the link modifier held. The two
-   differ only on Windows, where a drag makes a shortcut and the menu item says
-   symlink. */
+/* With the Make link dialog already answered. A drop asks it in
+   nemo_file_operations_copy_move. */
 void
 nemo_file_operations_symlink (const GList *item_uris,
 			      GArray *relative_item_points,
@@ -7097,6 +7091,52 @@ nemo_file_operations_symlink (const GList *item_uris,
 
 	g_list_free_full (locations, g_object_unref);
 	g_object_unref (dest);
+}
+
+/* A drop that makes links asks what kind, as the menu does. The dialog is the
+   question, so the drop confirmation leaves links out. */
+static void
+link_by_dialog (GList            *locations,
+		GArray           *relative_item_points,
+		GFile            *dest,
+		GtkWindow        *parent_window,
+		NemoCopyCallback  done_callback,
+		gpointer          done_callback_data)
+{
+	NemoLinkOptions options;
+	int n_folders = 0, n_files = 0;
+	GList *l;
+
+	for (l = locations; l != NULL; l = l->next) {
+		NemoFile *file = nemo_file_get_existing (l->data);
+		gboolean is_dir;
+
+		/* A folder in view is already known. Anything else is asked,
+		   except off this machine, where asking can stall. */
+		if (file != NULL) {
+			is_dir = nemo_file_is_directory (file);
+			nemo_file_unref (file);
+		} else {
+			is_dir = g_file_is_native (l->data) &&
+				 g_file_query_file_type (l->data, G_FILE_QUERY_INFO_NONE, NULL) == G_FILE_TYPE_DIRECTORY;
+		}
+
+		if (is_dir) {
+			n_folders++;
+		} else {
+			n_files++;
+		}
+	}
+
+	if (nemo_link_options_ask (parent_window, dest, n_folders, n_files, TRUE, &options)) {
+		start_link_job (locations, relative_item_points, dest, parent_window, TRUE, &options,
+				done_callback, done_callback_data);
+	} else if (done_callback != NULL) {
+		GHashTable *none = g_hash_table_new (g_file_hash, (GEqualFunc) g_file_equal);
+
+		done_callback (none, FALSE, done_callback_data);
+		g_hash_table_unref (none);
+	}
 }
 
 void
@@ -7187,8 +7227,10 @@ nemo_file_operations_copy_move (const GList *item_uris,
 						       parent_window,
 						       done_callback, done_callback_data);
 		}
+	} else if (dest != NULL) {
+		link_by_dialog (locations, relative_item_points, dest, parent_window,
+				done_callback, done_callback_data);
 	} else {
-
 		nemo_file_operations_link (locations,
 					       relative_item_points,
 					       dest,

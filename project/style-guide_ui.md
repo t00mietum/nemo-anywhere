@@ -55,7 +55,7 @@ A question is a speed bump. It is worth it where a slip costs something that can
 
 - Ask before anything that removes or overwrites a file: trash, delete, and a copy or move over something already there.
 
-- Ask before a drop that moves files. A mouse drag is the easiest way to move a folder by accident, and often nobody notices it happened. Copies and links by drag do not ask by default, since nothing is lost.
+- Ask before a drop that moves files. A mouse drag is the easiest way to move a folder by accident, and often nobody notices it happened. Copies by drag do not ask by default, since nothing is lost. A link drop opens the Make link dialog, which is its own question.
 
 - The question names what is about to happen, to what, and where. `Move 3 items to "Archive"?`, not "Are you sure?".
 

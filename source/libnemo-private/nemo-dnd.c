@@ -984,8 +984,8 @@ nemo_drag_drop_action_ask (GtkWidget *widget,
 				      (actions & GDK_ACTION_COPY) != 0,
 				      &damd);
 	
-	/* Windows creates a .lnk shortcut here (no POSIX symlink needed). */
-	append_drop_action_menu_item (menu, _("_Link here"),
+	/* Opens the Make link dialog. */
+	append_drop_action_menu_item (menu, _("_Link here..."),
 				      GDK_ACTION_LINK,
 				      (actions & GDK_ACTION_LINK) != 0,
 				      &damd);
@@ -1039,10 +1039,12 @@ nemo_drag_confirm_needed (GdkDragAction action,
 		return nemo_config_get_boolean (nemo_preferences,
 						NEMO_PREFERENCES_CONFIRM_DRAG_MOVE);
 	case GDK_ACTION_COPY:
-	case GDK_ACTION_LINK:
-	case GDK_ACTION_DEFAULT:
 		return nemo_config_get_boolean (nemo_preferences,
 						NEMO_PREFERENCES_CONFIRM_DRAG_COPY);
+	case GDK_ACTION_LINK:
+	case GDK_ACTION_DEFAULT:
+		/* Both end up as links, and the Make link dialog asks. */
+		return FALSE;
 	default:
 		return FALSE;
 	}
