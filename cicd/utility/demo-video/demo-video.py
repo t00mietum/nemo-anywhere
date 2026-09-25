@@ -79,8 +79,13 @@ BANNER_TTF = "/usr/share/fonts/truetype/lato/Lato-Semibold.ttf"
 BANNER_FG  = "0xFFD866"                       # warm yellow, on the black band above the window
 LEAD_S     = 0.8                              # quiet lead-in kept before the first segment
 TAIL_HOLD_S  = 2.0                            # freeze the final frame this long at the end...
-TAIL_BLACK_S = 0.8                            # ...then a fully black screen this long
-TAIL_EXTRA   = TAIL_HOLD_S + TAIL_BLACK_S
+# ...then black. The gif cuts to it, since a fade is a fresh frame every step and
+# bloats a gif; three seconds makes the loop point plain. The video fades in, and
+# fades the held frame out to black instead.
+GIF_TAIL_BLACK_S   = 3.0
+VIDEO_FADE_IN_S    = 0.5
+VIDEO_TAIL_BLACK_S = 0.5
+TAIL_EXTRA = {"gif": TAIL_HOLD_S + GIF_TAIL_BLACK_S, "video": TAIL_HOLD_S + VIDEO_TAIL_BLACK_S}
 FOLEY_LAG  = 0.03                             # foley sits this far after the input event
 
 # Logical geometry, in gif pixels. The video profile multiplies all of it by 2
@@ -1343,12 +1348,15 @@ def vf_chain(rec, work, trim, dur, tail=False):
             f"drawtext=fontfile={BANNER_TTF}:textfile={tf}:fontsize={p['banner_fs']}:"
             f"fontcolor={BANNER_FG}:"
             f"x={x}:y='{y}':alpha='{fade}':enable='between(t,{s:.3f},{e:.3f})'")
-    # no head/tail fades: a fade gradient is a fresh frame every step, which bloats
-    # a gif enormously (palette churn plus huge inter-frame deltas)
     filters.append("format=rgb24")
-    if tail:
+    if tail == "video":
+        filters.append(f"fade=t=in:st=0:d={VIDEO_FADE_IN_S}")
         filters.append(f"tpad=stop_mode=clone:stop_duration={TAIL_HOLD_S}")
-        filters.append(f"tpad=stop_mode=add:color=black:stop_duration={TAIL_BLACK_S}")
+        filters.append(f"fade=t=out:st={dur:.3f}:d={TAIL_HOLD_S}")
+        filters.append(f"tpad=stop_mode=add:color=black:stop_duration={VIDEO_TAIL_BLACK_S}")
+    elif tail == "gif":
+        filters.append(f"tpad=stop_mode=clone:stop_duration={TAIL_HOLD_S}")
+        filters.append(f"tpad=stop_mode=add:color=black:stop_duration={GIF_TAIL_BLACK_S}")
     return ",".join(filters)
 
 def encode_video(rec, work, out_mp4, video_end_e):
@@ -1357,12 +1365,12 @@ def encode_video(rec, work, out_mp4, video_end_e):
     check_drift(rec, video_end_e)
     trim = rec.flash_vt + (rec.t0_e - rec.flash_e)
     dur = video_end_e - rec.t0_e
-    vf = vf_chain(rec, work, trim, dur, tail=True)
+    vf = vf_chain(rec, work, trim, dur, tail="video")
     rng = random.Random(1)
     audio = build_audio(rec, work, dur, rng)   # the tail is silent (freeze + black)
     run(["ffmpeg", "-v", "error", "-y",
         "-ss", f"{trim:.3f}", "-i", str(rec.raw), "-i", str(audio),
-        "-t", f"{dur + TAIL_EXTRA:.3f}", "-vf", vf,
+        "-t", f"{dur + TAIL_EXTRA['video']:.3f}", "-vf", vf,
         "-c:v", "libx265", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p",
         "-tag:v", "hvc1", "-x265-params", "log-level=error",
         "-r", str(rec.out_fps), "-c:a", "aac", "-b:a", "160k",
@@ -1372,9 +1380,9 @@ def encode_video(rec, work, out_mp4, video_end_e):
 GIF_COLORS = 128
 
 def gif_pass(rec, work, out_gif, trim, dur, colors=GIF_COLORS, tail=False):
-    vf = vf_chain(rec, work, trim, dur, tail=tail)
+    vf = vf_chain(rec, work, trim, dur, tail="gif" if tail else None)
     pal = work / "pal.png"
-    cut = ["-ss", f"{trim:.3f}", "-t", f"{dur + (TAIL_EXTRA if tail else 0.0):.3f}"]
+    cut = ["-ss", f"{trim:.3f}", "-t", f"{dur + (TAIL_EXTRA['gif'] if tail else 0.0):.3f}"]
     # ONE global palette (stats_mode=full) applied uniformly. Ordered bayer stays
     # temporally stable; error diffusion shimmers and bloats a gif.
     run(["ffmpeg", "-v", "error", "-y", *cut, "-i", str(rec.raw),
@@ -1450,8 +1458,11 @@ def place_gif(gif, out_dir, no_rotate, no_asset=False):
     secs = gif_seconds(dst)                   # before the rotate renames it
     rotate(out_dir, "nemo-anywhere-demo", "gif", no_rotate)
     log(f"gif: {dst} ({mb:.1f} MiB, {secs:.1f}s)")
-    if secs > GIF_MAX_SECONDS:
-        log(f"WARNING: gif is {secs:.1f}s (> {GIF_MAX_SECONDS:.0f}); shorten a scene's holds")
+    # The fixed tail is not a scene, and a longer black end should not read as one
+    # running long.
+    scenes = secs - TAIL_EXTRA["gif"]
+    if scenes > GIF_MAX_SECONDS:
+        log(f"WARNING: gif scenes run {scenes:.1f}s (> {GIF_MAX_SECONDS:.0f}); shorten a scene's holds")
     if no_asset:                              # partial/tuning runs must not clobber it
         log("gif (README): skipped (--no-asset)")
     elif mb <= GIF_ASSET_MAX_MB:
@@ -1584,3 +1595,5 @@ if __name__ == "__main__":
 ##		  beside the repo, and image folders open at 1.5x instead of 5x.
 ##		- 20260925: Links scene, and Compress shows its options. The caption band
 ##		  is reserved with a strut, so no dialog grows up under it.
+##		- 20260925: The video fades in and fades out to black; the gif ends on
+##		  three seconds of black. The length warning leaves the tail out.

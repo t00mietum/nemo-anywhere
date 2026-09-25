@@ -1679,6 +1679,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Done: neither pipeline replaces the synced dogfood copy while it is running.
 	- Done: `--version` prints the copyright line under the version, and the build number rounds to the nearest minute.
 	- Done: the camera raw reader has a fuzz target and seeds, run with the others.
+	- Done: the demo video fades in and out, and the gif ends on three seconds of black so its loop point is plain. The demo's scenes are written out in plain words in `cicd/utility/demo-video/script.txt`.
 	- Decided against: a build number in the Windows version resource. Its fields are small numbers, and the build number is text.
 
 - ✅ Move to SHCL 3.
