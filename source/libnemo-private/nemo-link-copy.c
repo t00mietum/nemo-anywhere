@@ -181,6 +181,24 @@ nemo_link_choice_init (NemoLinkChoice *choice,
 	choice->junction_as = first_allowed (junction_order, supported);
 }
 
+guint
+nemo_link_counts_kinds (const NemoLinkCounts *counts)
+{
+	guint kinds = 0;
+
+	if (counts->file_symlinks > 0) {
+		kinds |= NEMO_LINK_FILE_SYMLINK;
+	}
+	if (counts->dir_symlinks > 0) {
+		kinds |= NEMO_LINK_DIR_SYMLINK;
+	}
+	if (counts->junctions > 0) {
+		kinds |= NEMO_LINK_JUNCTION;
+	}
+
+	return kinds;
+}
+
 gboolean
 nemo_link_choice_makes_links (const NemoLinkChoice *choice)
 {
@@ -216,10 +234,65 @@ enum {
 
 typedef struct {
 	NemoLinkKind  found;
-	const char   *label;
+	guint         count;
 	NemoLinkKind  offers[N_COLUMNS];
 	GtkWidget    *buttons[N_COLUMNS];
 } Row;
+
+const char *
+nemo_link_choice_row_label (NemoLinkKind found,
+                            guint        count)
+{
+	switch (found) {
+	case NEMO_LINK_FILE_SYMLINK:
+		return ngettext ("File symlink:", "File symlinks:", count);
+	case NEMO_LINK_DIR_SYMLINK:
+		return ngettext ("Folder symlink:", "Folder symlinks:", count);
+	default:
+		return ngettext ("Folder junction:", "Folder junctions:", count);
+	}
+}
+
+/* Said as what happens to this link, since "Symlink" beside a symlink read as
+   though a new one would be made. */
+const char *
+nemo_link_choice_label (NemoLinkKind found,
+                        NemoLinkKind offer,
+                        guint        count,
+                        gboolean     is_move)
+{
+	if (offer == NEMO_LINK_NONE) {
+		/* A folder always has contents, and one file has content. */
+		if (found == NEMO_LINK_FILE_SYMLINK) {
+			return ngettext ("Copy content", "Copy contents", count);
+		}
+		return _("Copy contents");
+	}
+	if (offer == found) {
+		return is_move ? ngettext ("Move link as-is", "Move links as-is", count)
+			       : ngettext ("Copy link as-is", "Copy links as-is", count);
+	}
+	if (offer == NEMO_LINK_JUNCTION) {
+		return is_move ? ngettext ("Move as a junction", "Move as junctions", count)
+			       : ngettext ("Copy as a junction", "Copy as junctions", count);
+	}
+	return is_move ? ngettext ("Move as a symlink", "Move as symlinks", count)
+		       : ngettext ("Copy as a symlink", "Copy as symlinks", count);
+}
+
+const char *
+nemo_link_choice_tooltip (NemoLinkKind found,
+                          NemoLinkKind offer)
+{
+	if (offer != NEMO_LINK_NONE || found == NEMO_LINK_FILE_SYMLINK) {
+		return NULL;
+	}
+#ifdef G_OS_WIN32
+	return _("Links inside are copied as links, and junctions as junctions. They are not followed.");
+#else
+	return _("Links inside are copied as links. They are not followed.");
+#endif
+}
 
 static void
 add_row (GtkGrid      *grid,
@@ -235,7 +308,7 @@ add_row (GtkGrid      *grid,
 	const char *text;
 	int column;
 
-	label = gtk_label_new (row->label);
+	label = gtk_label_new (nemo_link_choice_row_label (row->found, row->count));
 	gtk_widget_set_halign (label, GTK_ALIGN_START);
 	gtk_grid_attach (grid, label, 0, at, 1, 1);
 
@@ -252,21 +325,18 @@ add_row (GtkGrid      *grid,
 			continue;
 		}
 
-		/* Said as what happens to this link, since "Symlink" beside a symlink
-		   read as though a new one would be made. */
-		if (column == COLUMN_COPY) {
-			text = _("Copy contents");
-		} else if (offer == row->found) {
-			text = is_move ? _("Move link as-is") : _("Copy link as-is");
-		} else if (offer == NEMO_LINK_JUNCTION) {
-			text = is_move ? _("Move as a junction") : _("Copy as a junction");
-		} else {
-			text = is_move ? _("Move as a symlink") : _("Copy as a symlink");
-		}
+		text = nemo_link_choice_label (row->found, offer, row->count, is_move);
 		button = gtk_radio_button_new_with_label_from_widget (
 				group ? GTK_RADIO_BUTTON (group) : NULL, text);
 		if (group == NULL) {
 			group = button;
+		}
+
+		/* Where nothing can be kept as a link, the ones inside get followed
+		   too, and the note above the rows already says so. */
+		text = nemo_link_choice_tooltip (row->found, offer);
+		if (text != NULL && supported != 0) {
+			gtk_widget_set_tooltip_text (button, text);
 		}
 
 		/* A copy is always possible, except on a move, which takes a link as
@@ -299,13 +369,14 @@ read_row (const Row *row)
 }
 
 gboolean
-nemo_link_choice_ask (GtkWindow      *parent,
-                      GFile          *destination,
-                      guint           present,
-                      guint           supported,
-                      gboolean        is_move,
-                      NemoLinkChoice *choice)
+nemo_link_choice_ask (GtkWindow            *parent,
+                      GFile                *destination,
+                      const NemoLinkCounts *counts,
+                      guint                 supported,
+                      gboolean              is_move,
+                      NemoLinkChoice       *choice)
 {
+	guint present = nemo_link_counts_kinds (counts);
 	GtkWidget *dialog, *area, *box, *grid, *note;
 	Row rows[3];
 	gboolean with_junctions;
@@ -340,19 +411,19 @@ nemo_link_choice_ask (GtkWindow      *parent,
 	gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_OK);
 
 	if (present & NEMO_LINK_FILE_SYMLINK) {
-		Row row = { NEMO_LINK_FILE_SYMLINK, _("File symlinks:"),
+		Row row = { NEMO_LINK_FILE_SYMLINK, counts->file_symlinks,
 			    { NEMO_LINK_FILE_SYMLINK, NEMO_LINK_NONE, NEMO_LINK_NONE },
 			    { NULL, NULL, NULL } };
 		rows[used++] = row;
 	}
 	if (present & NEMO_LINK_DIR_SYMLINK) {
-		Row row = { NEMO_LINK_DIR_SYMLINK, _("Folder symlinks:"),
+		Row row = { NEMO_LINK_DIR_SYMLINK, counts->dir_symlinks,
 			    { NEMO_LINK_DIR_SYMLINK, NEMO_LINK_JUNCTION, NEMO_LINK_NONE },
 			    { NULL, NULL, NULL } };
 		rows[used++] = row;
 	}
 	if (present & NEMO_LINK_JUNCTION) {
-		Row row = { NEMO_LINK_JUNCTION, _("Folder junctions:"),
+		Row row = { NEMO_LINK_JUNCTION, counts->junctions,
 			    { NEMO_LINK_DIR_SYMLINK, NEMO_LINK_JUNCTION, NEMO_LINK_NONE },
 			    { NULL, NULL, NULL } };
 		rows[used++] = row;

@@ -442,8 +442,7 @@ link_copy_job = executable('test-nemo-link-copy-job',
   c_args: nemo_definitions,
 )
 
-test('Link copy keeps the link', link_copy_job, args: [ 'keep' ])
-test('Link copy follows the link', link_copy_job, args: [ 'copy' ])
+test('Link copy job, every answer', link_copy_job, args: [])
 
 make_link_job = executable('test-nemo-make-link-job',
   [ 'test-nemo-make-link-job.c', 'test.c' ],
@@ -459,6 +458,7 @@ test('Make link shortcut', make_link_job, args: [ 'shortcut' ])
 test('Make link shortcut absolute', make_link_job, args: [ 'shortcut-absolute' ])
 test('Make link shortcut portable', make_link_job, args: [ 'shortcut-portable' ])
 test('Make link names', make_link_job, args: [ 'names' ])
+test('Make link, every answer', make_link_job, args: [ 'every' ])
 if is_windows
   test('Make link junction', make_link_job, args: [ 'junction' ])
 endif
@@ -871,6 +871,18 @@ test('Archive job test',
     c_args: nemo_definitions,
   ),
   args: []
+)
+
+# Some hundreds of archives, so it gets longer than the default.
+test('Archive option combinations',
+  executable('test-nemo-archive-combos',
+    [ 'test-nemo-archive-combos.c', 'test.c' ],
+    include_directories: [ rootInclude, ],
+    dependencies: [ archive, gtk, nemo_private, test_scratch ],
+    c_args: nemo_definitions,
+  ),
+  args: [],
+  timeout: 600,
 )
 
 test('Extract naming test',

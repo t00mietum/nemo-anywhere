@@ -149,12 +149,14 @@ typedef struct {
 	NemoArchiveBackend  backend;
 
 	GList              *entries;		/* ArchiveEntry * */
+	GList              *left_out;		/* char *, linked folders not followed */
 	guint64             total_bytes;
 	guint64             done_bytes;
 	guint               file_count;
 
 	GList              *verified;		/* GFile *, sources safe to remove */
 	char               *verify_trouble;	/* why the first one that failed did */
+	gboolean            unit_empty;		/* nothing in it could go in */
 
 	char               *error_message;
 	char               *error_details;
@@ -941,6 +943,8 @@ archive_listing (const char *path,
 		char *name = normal_archive_path (archive_entry_pathname (entry));
 		gint64 *size = g_new (gint64, 1);
 
+		/* No size is not a wrong size: rar keeps a second copy of a file
+		   as a reference to the first, which is read back with none. */
 		*size = archive_entry_size_is_set (entry) ?
 			(gint64) archive_entry_size (entry) : -1;
 
@@ -1094,7 +1098,7 @@ nemo_archive_verify (GFile                    *archive_file,
 		stored = g_hash_table_lookup (listing, rel_path);
 		if (stored == NULL) {
 			trouble = g_strdup_printf (_("\"%s\" is not in the archive."), rel_path);
-		} else if (item->size >= 0 && *stored != item->size) {
+		} else if (item->size >= 0 && *stored >= 0 && *stored != item->size) {
 			trouble = g_strdup_printf (_("\"%s\" is a different size in the archive."),
 						   rel_path);
 		}
@@ -1254,6 +1258,7 @@ scan_item (ArchiveJob *job,
 		}
 		if (g_file_info_get_file_type (effective) == G_FILE_TYPE_DIRECTORY &&
 		    !job->options.follow_link_dirs) {
+			job->left_out = g_list_prepend (job->left_out, g_strdup (rel_path));
 			g_object_unref (effective);
 			return;
 		}
@@ -1620,6 +1625,27 @@ set_unit_status (ArchiveJob *job,
 	g_free (name);
 }
 
+/* Nothing to put in. One archive per item, where the item is a linked folder
+   that is not followed, leaves that one out and goes on with the rest. */
+static gboolean
+unit_has_nothing (ArchiveJob *job)
+{
+	if (job->entries != NULL) {
+		return FALSE;
+	}
+
+	if (job->unit_count > 1 && job->left_out != NULL) {
+		job->unit_empty = TRUE;
+		return TRUE;
+	}
+
+	job_fail (job, _("The archive could not be created."),
+		  job->left_out != NULL
+		  ? _("The selection holds only linked folders, and linked folders are not being followed.")
+		  : _("Nothing in the selection could be read."));
+	return TRUE;
+}
+
 static gboolean
 run_libarchive (ArchiveJob *job)
 {
@@ -1635,10 +1661,8 @@ run_libarchive (ArchiveJob *job)
 	if (job_aborted (job)) {
 		return FALSE;
 	}
-	if (job->entries == NULL) {
-		job_fail (job, _("The archive could not be created."),
-			  _("Nothing in the selection could be read."));
-		return FALSE;
+	if (unit_has_nothing (job)) {
+		return job->unit_empty;
 	}
 
 	out = g_file_replace (job->destination, NULL, FALSE,
@@ -1746,7 +1770,8 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 			    const NemoArchiveOptions *options,
 			    const char               *program,
 			    const char               *archive_path,
-			    GList                    *names)
+			    GList                    *names,
+			    GList                    *leave_out)
 {
 	/* One slot per switch a token stands for, plus the terminator. Only the
 	   password ever needs two, and only for 7-Zip. */
@@ -1760,7 +1785,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	char *dedupe_v[2]   = { NULL, NULL };
 	char *recovery_v[2] = { NULL, NULL };
 	char *lock_v[2]     = { NULL, NULL };
-	char *links_v[2]    = { NULL, NULL };
+	GPtrArray *links_v;
 	char *archive_v[2]  = { NULL, NULL };
 	GPtrArray *sources;
 	const char *key, *fallback;
@@ -1777,6 +1802,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	g_return_val_if_fail (archive_path != NULL, NULL);
 
 	has_password = options->password != NULL && options->password[0] != '\0';
+	links_v = g_ptr_array_new_with_free_func (g_free);
 	level = CLAMP (options->level, 0, NEMO_ARCHIVE_LEVEL_MAX);
 	threads = nemo_global_preferences_get_cpu_thread_count ();
 
@@ -1809,9 +1835,13 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 		}
 #ifndef G_OS_WIN32
 		if (options->store_links) {
-			links_v[0] = g_strdup ("-snl");
+			g_ptr_array_add (links_v, g_strdup ("-snl"));
 		}
 #endif
+		/* Left alone, 7z follows every link, folders too. */
+		for (l = leave_out; l != NULL; l = l->next) {
+			g_ptr_array_add (links_v, g_strconcat ("-x!", (char *) l->data, NULL));
+		}
 	} else if (backend == NEMO_ARCHIVE_BACKEND_RAR) {
 		key = NEMO_ARCHIVE_COMMAND_KEY_RAR;
 		fallback = NEMO_ARCHIVE_COMMAND_RAR_DEFAULT;
@@ -1839,12 +1869,21 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 			lock_v[0] = g_strdup ("-k");
 		}
 
-		links_v[0] = g_strdup (options->store_links ? "-ol"
-				       : (options->follow_link_dirs ? "-ola" : "-ol-"));
+		/* -ol keeps links as links. Without it rar follows them, which is
+		   what not keeping them means; -ola would keep them too, with the
+		   path made absolute, and -ol- would drop them. */
+		if (options->store_links) {
+			g_ptr_array_add (links_v, g_strdup ("-ol"));
+		}
+		for (l = leave_out; l != NULL; l = l->next) {
+			g_ptr_array_add (links_v, g_strconcat ("-x", (char *) l->data, NULL));
+		}
 	} else {
+		g_ptr_array_free (links_v, TRUE);
 		return NULL;
 	}
 
+	g_ptr_array_add (links_v, NULL);
 	program_v[0] = g_strdup (program);
 	archive_v[0] = g_strdup (archive_path);
 
@@ -1870,7 +1909,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 			{ "DEDUPE",         (const char *const *) dedupe_v,      TRUE },
 			{ "RECOVERY",       (const char *const *) recovery_v,    TRUE },
 			{ "LOCK",           (const char *const *) lock_v,        TRUE },
-			{ "LINKS",          (const char *const *) links_v,       TRUE },
+			{ "LINKS",          (const char *const *) links_v->pdata, TRUE },
 			{ "TARGET_ARCHIVE", (const char *const *) archive_v,     FALSE },
 			{ "SOURCE_ITEMS",   (const char *const *) sources->pdata, FALSE },
 			{ NULL, NULL, FALSE }
@@ -1900,7 +1939,7 @@ nemo_archive_build_command (NemoArchiveBackend        backend,
 	free_values (dedupe_v);
 	free_values (recovery_v);
 	free_values (lock_v);
-	free_values (links_v);
+	g_ptr_array_free (links_v, TRUE);
 	free_values (archive_v);
 
 	return argv;
@@ -2119,6 +2158,18 @@ run_command (ArchiveJob *job)
 		return FALSE;
 	}
 
+	/* Both tools follow links unless told to keep them, folders and all. The
+	   linked folders that are not to be followed have to be found first, so
+	   they can be named as left out. */
+	if (!job_stores_links (job) && !job->options.follow_link_dirs) {
+		scan_sources (job);
+		if (job_aborted (job) || unit_has_nothing (job)) {
+			g_free (base_path);
+			g_free (archive_path);
+			return job->unit_empty;
+		}
+	}
+
 	/* Both tools ADD to an archive that is already there rather than
 	   replacing it, so an overwrite has to be a delete first. */
 	if (g_file_query_exists (job->destination, NULL)) {
@@ -2131,7 +2182,7 @@ run_command (ArchiveJob *job)
 	names = g_list_reverse (names);
 
 	argv = nemo_archive_build_command (job->backend, job->options.format, &job->options,
-					   program, archive_path, names);
+					   program, archive_path, names, job->left_out);
 
 	launcher = g_subprocess_launcher_new (G_SUBPROCESS_FLAGS_STDOUT_PIPE |
 					      G_SUBPROCESS_FLAGS_STDERR_MERGE);
@@ -2178,8 +2229,10 @@ run_command (ArchiveJob *job)
 
 	ok = g_subprocess_wait_check (process, NULL, &error);
 	if (!ok && !job_aborted (job)) {
+		/* rar can end with nothing but blank lines, which says nothing. */
+		g_strstrip (tail->str);
 		job_fail (job, _("The archive could not be created."),
-			  tail->len > 0 ? tail->str : (error != NULL ? error->message : NULL));
+			  tail->str[0] != '\0' ? tail->str : (error != NULL ? error->message : NULL));
 	}
 
 	g_clear_error (&error);
@@ -2304,6 +2357,9 @@ finish_unit (ArchiveJob *job)
 {
 	g_list_free_full (job->entries, (GDestroyNotify) archive_entry_free_full);
 	job->entries = NULL;
+	g_list_free_full (job->left_out, g_free);
+	job->left_out = NULL;
+	job->unit_empty = FALSE;
 
 	g_clear_object (&job->base_dir);
 	job->sources = NULL;
@@ -2337,6 +2393,22 @@ archive_job (GIOSchedulerJob *io_job,
 			ok = run_libarchive (job);
 		} else {
 			ok = run_command (job);
+		}
+
+		if (ok && job->unit_empty) {
+			/* Nothing was written, so there is nothing to check, and
+			   the item stays where it is. */
+			if (job->options.delete_sources && job->verify_trouble == NULL) {
+				char *name = g_file_get_basename (G_FILE (job->sources->data));
+
+				job->verify_trouble = g_strdup_printf (
+					_("\"%s\" is a linked folder that was not followed, so it has no archive."),
+					name);
+				g_free (name);
+			}
+			finish_unit (job);
+			job->unit_index++;
+			continue;
 		}
 
 		/* A half-written archive is worse than none: it looks like a

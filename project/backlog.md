@@ -1665,6 +1665,31 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 #### Done - Features and enhancements
 
+- ✅ Link copy dialog:
+	- Opened: 20260925-163000
+	- ✅ Row labels and choices are singular or plural to match the count, for file symlinks, folder symlinks and junctions. "Copy contents" is singular for one file, and plural for folders.
+	- ✅ Shortcuts (.lnk) are always copied as just the shortcut file.
+		- They already were. A shortcut is a plain file to a copy, and alone it asks nothing.
+	- ✅ A tooltip on "Copy contents" for folders says links inside are copied as links, or junctions.
+		- Made true: links inside a followed folder are now kept as links where the destination allows. Before, they took the row's answer, and could be followed again.
+	- ✅ Tests for every combination of link copy choices.
+	- Closed: 20260925-175728
+
+- ✅ Tests for every combination of Make link choices.
+	- Opened: 20260925-163000
+	- Closed: 20260925-175728
+	- Done: every folder and file kind, both paths, every set of shortcut paths, for a file, a folder or both, made beside the originals and elsewhere.
+
+- ✅ Tests for archive creation combinations, including delete after archive.
+	- Opened: 20260925-163000
+	- Closed: 20260925-175728
+	- Done: every option paired with every other at least once, per format. Delete, one or each, split, password and hidden names are crossed in full.
+	- Fixed on the way:
+		- rar kept links as absolute links when asked to follow them, and dropped file links when asked not to keep links.
+		- 7z and rar followed linked folders with that box off.
+		- rar's copy of a duplicate file failed the check before delete, so the originals were never removed.
+		- Compressing each item separately failed the whole job when one item was a linked folder that was not followed.
+
 - ✅ New menu item: "Edit link" (for all link types).
 	- Opened: n/a
 	- Allow editing target.

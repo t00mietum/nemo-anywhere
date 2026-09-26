@@ -1,7 +1,8 @@
 /* Deleting or moving a link takes the link and nothing it points at. Runs the
  * real jobs; whatever they ask is answered yes from here, since nobody is
- * there to click. One job per run, for the reason given in
- * test-nemo-link-copy-job.c.
+ * there to click. One job per run: nothing here holds the progress manager,
+ * and without it the queue never starts a second job. test-nemo-link-copy-job.c
+ * says why.
  *
  * Argument: "delete" (default) or "move". The move needs a second file system
  * so the job falls back to copy and delete, and asks for the contents. A move

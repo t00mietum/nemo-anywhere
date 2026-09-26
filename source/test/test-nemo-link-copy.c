@@ -395,6 +395,84 @@ check_hardlink (const char *dir)
 	g_free (first);
 }
 
+/* Every row and every choice, for one link and for several: the wording
+   follows the count, and no two choices in a row read the same. */
+static void
+check_labels (void)
+{
+	static const NemoLinkKind kinds[] = {
+		NEMO_LINK_FILE_SYMLINK, NEMO_LINK_DIR_SYMLINK, NEMO_LINK_JUNCTION
+	};
+	static const NemoLinkKind offers[] = {
+		NEMO_LINK_NONE, NEMO_LINK_FILE_SYMLINK, NEMO_LINK_DIR_SYMLINK, NEMO_LINK_JUNCTION
+	};
+	guint count;
+	int k, o, move;
+
+	for (k = 0; k < (int) G_N_ELEMENTS (kinds); k++) {
+		const char *one = nemo_link_choice_row_label (kinds[k], 1);
+		const char *many = nemo_link_choice_row_label (kinds[k], 2);
+
+		check (g_str_has_suffix (many, "s:"));
+		check (!g_str_has_suffix (one, "s:"));
+		check (strncmp (one, many, strlen (one) - 1) == 0);
+	}
+
+	for (move = 0; move <= 1; move++) {
+		for (k = 0; k < (int) G_N_ELEMENTS (kinds); k++) {
+			for (o = 0; o < (int) G_N_ELEMENTS (offers); o++) {
+				NemoLinkKind offer = offers[o];
+				const char *one, *many;
+
+				/* A folder link never becomes a file symlink, nor the
+				   reverse. */
+				if ((kinds[k] == NEMO_LINK_FILE_SYMLINK) !=
+				    (offer == NEMO_LINK_FILE_SYMLINK) && offer != NEMO_LINK_NONE) {
+					continue;
+				}
+
+				one = nemo_link_choice_label (kinds[k], offer, 1, move);
+				many = nemo_link_choice_label (kinds[k], offer, 3, move);
+
+				check (g_str_has_prefix (one, move && offer != NEMO_LINK_NONE ? "Move" : "Copy"));
+				if (offer == NEMO_LINK_NONE && kinds[k] != NEMO_LINK_FILE_SYMLINK) {
+					/* A folder has contents however many. */
+					check (g_strcmp0 (one, "Copy contents") == 0);
+					check (g_strcmp0 (many, "Copy contents") == 0);
+				} else if (offer == NEMO_LINK_NONE) {
+					check (g_strcmp0 (one, "Copy content") == 0);
+					check (g_strcmp0 (many, "Copy contents") == 0);
+				} else if (offer == kinds[k]) {
+					check (strstr (one, " link as-is") != NULL);
+					check (strstr (many, " links as-is") != NULL);
+				} else {
+					check (strstr (one, " as a ") != NULL);
+					check (strstr (many, " as a ") == NULL);
+					check (g_str_has_suffix (many, "s"));
+				}
+			}
+		}
+	}
+
+	/* The tooltip only where a folder's contents are copied. */
+	for (count = 0; count < G_N_ELEMENTS (offers); count++) {
+		check (nemo_link_choice_tooltip (NEMO_LINK_FILE_SYMLINK, offers[count]) == NULL);
+		check ((nemo_link_choice_tooltip (NEMO_LINK_DIR_SYMLINK, offers[count]) != NULL) ==
+		       (offers[count] == NEMO_LINK_NONE));
+		check ((nemo_link_choice_tooltip (NEMO_LINK_JUNCTION, offers[count]) != NULL) ==
+		       (offers[count] == NEMO_LINK_NONE));
+	}
+
+	{
+		NemoLinkCounts counts = { 0, 2, 0 };
+
+		check (nemo_link_counts_kinds (&counts) == NEMO_LINK_DIR_SYMLINK);
+		counts.file_symlinks = 1;
+		counts.junctions = 5;
+		check (nemo_link_counts_kinds (&counts) == NEMO_LINK_ANY);
+	}
+}
+
 int
 main (int argc, char **argv)
 {
@@ -416,6 +494,7 @@ main (int argc, char **argv)
 	check_kinds (dir);
 	check_relative_target (dir);
 	check_choice_defaults ();
+	check_labels ();
 	check_link_options ();
 	check_hardlink (dir);
 	if (symlinks) {

@@ -29,6 +29,17 @@ typedef enum {
 
 #define NEMO_LINK_ANY (NEMO_LINK_FILE_SYMLINK | NEMO_LINK_DIR_SYMLINK | NEMO_LINK_JUNCTION)
 
+/* How many of each kind the source holds, links inside its folders
+   included. The dialog words each row to match. */
+typedef struct {
+	guint file_symlinks;
+	guint dir_symlinks;
+	guint junctions;
+} NemoLinkCounts;
+
+/* The kinds counts holds at least one of, as a NemoLinkKind mask. */
+guint nemo_link_counts_kinds (const NemoLinkCounts *counts);
+
 /* What each kind found in the source should become. */
 typedef struct {
 	NemoLinkKind file_symlink_as;
@@ -86,14 +97,27 @@ gboolean nemo_link_choice_makes_links (const NemoLinkChoice *choice);
 NemoLinkKind nemo_link_choice_for (const NemoLinkChoice *choice,
                                    NemoLinkKind          found);
 
-/* Returns FALSE if the operation was cancelled. present and supported are
-   NemoLinkKind bitmasks. */
-gboolean nemo_link_choice_ask (GtkWindow      *parent,
-                               GFile          *destination,
-                               guint           present,
-                               guint           supported,
-                               gboolean        is_move,
-                               NemoLinkChoice *choice);
+/* The dialog's words, apart so they can be checked without it. A row names
+   the kind found, and a choice says what becomes of it, NONE for a copy of
+   what it points at. Both are singular for a count of one. */
+const char *nemo_link_choice_row_label (NemoLinkKind found,
+                                        guint        count);
+const char *nemo_link_choice_label     (NemoLinkKind found,
+                                        NemoLinkKind offer,
+                                        guint        count,
+                                        gboolean     is_move);
+/* NULL where the choice needs no more said. */
+const char *nemo_link_choice_tooltip   (NemoLinkKind found,
+                                        NemoLinkKind offer);
+
+/* Returns FALSE if the operation was cancelled. supported is a NemoLinkKind
+   bitmask. */
+gboolean nemo_link_choice_ask (GtkWindow            *parent,
+                               GFile                *destination,
+                               const NemoLinkCounts *counts,
+                               guint                 supported,
+                               gboolean              is_move,
+                               NemoLinkChoice       *choice);
 
 /* A kind the Make link dialog can make. */
 typedef enum {

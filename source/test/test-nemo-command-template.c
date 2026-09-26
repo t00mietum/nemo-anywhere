@@ -289,7 +289,7 @@ check_from_config (void)
 				"/opt/7zz a {{FORMAT}} {{LEVEL}} -mmt=4 -y -- {{TARGET_ARCHIVE}} {{SOURCE_ITEMS}}");
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
-					   "7z", "/tmp/out.7z", names);
+					   "7z", "/tmp/out.7z", names, NULL);
 	check (argv != NULL);
 
 	if (argv != NULL) {
@@ -309,7 +309,7 @@ check_from_config (void)
 	nemo_config_set_string (archive, NEMO_ARCHIVE_COMMAND_KEY_7Z, "");
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
-					   "7z", "/tmp/out.7z", names);
+					   "7z", "/tmp/out.7z", names, NULL);
 	check (argv != NULL);
 
 	if (argv != NULL) {
@@ -323,7 +323,7 @@ check_from_config (void)
 	nemo_config_set_string (archive, NEMO_ARCHIVE_COMMAND_KEY_7Z, "7z a \"unbalanced");
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
-					   "7z", "/tmp/out.7z", names);
+					   "7z", "/tmp/out.7z", names, NULL);
 	check (argv == NULL);
 
 	nemo_config_reset (archive, NEMO_ARCHIVE_COMMAND_KEY_7Z);
