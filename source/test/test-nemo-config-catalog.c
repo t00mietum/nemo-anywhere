@@ -333,6 +333,33 @@ test_older_banner_replaced (NemoConfigGroup *prefs)
 	nemo_config_flush ();
 }
 
+/* A line added at the end of the file, below the info block, makes the block
+ * that key's comment, so it is no longer at the end. It still comes off. */
+static void
+test_line_after_banner (NemoConfigGroup *prefs)
+{
+	char *settings = read_file ();
+	char *edited = g_strconcat (settings, "preferences.start-with-dual-pane: true\n", NULL);
+	char *text;
+
+	g_free (settings);
+	write_and_wait (edited, prefs, "start-with-dual-pane");
+	g_free (edited);
+
+	nemo_config_set_int (prefs, "tab-width-min-percent", 13);
+	nemo_config_flush ();
+
+	text = read_file ();
+	check (count_of (text, "This config file format is SHCL.") == 1);
+	check (count_of (text, "##    Format   3") == 1);
+	check (g_str_has_suffix (text, "No warranty.\n##\n"));
+	g_free (text);
+
+	nemo_config_reset (prefs, "tab-width-min-percent");
+	nemo_config_reset (prefs, "start-with-dual-pane");
+	nemo_config_flush ();
+}
+
 /* A comment somebody wrote themselves is not ours to remove, a bare "##" of
  * their own included. */
 static void
@@ -377,6 +404,7 @@ main (int argc, char *argv[])
 	test_uncommenting_takes_effect (prefs, menus, appearance);
 	test_indented_copy_removed (prefs);
 	test_older_banner_replaced (prefs);
+	test_line_after_banner (prefs);
 	test_own_comment_kept (prefs);
 
 	nemo_config_shutdown ();

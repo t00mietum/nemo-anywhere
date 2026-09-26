@@ -50,6 +50,7 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 - 🔘 Take SHCL 3.0.0-beta.1 from its published release, once there is one, and run the config tests against it.
 	- Opened: 20260925-122815
 	- Note: the vendored header is from SHCL's `dev` branch, ahead of that tag.
+	- Done 20260925: moved to a newer `dev` copy, with the calls asked for here. Neither replaces the app's own code yet. Clearing a comment would also take a note written above a key, and the info block call misses a block that is no longer at the end of the file.
 
 - **Stop here for a next release**.
 

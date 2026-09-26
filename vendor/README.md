@@ -6,7 +6,7 @@
 
 SHCL config engine, single-header C binding, **MIT** - compiled into nemo, so unlike the themes below this one is linked. Keeps its `LICENSE.md`. MIT sits fine under our GPL-2.0-only. Update by copying `source/c/shcl.h` from a newer tag and re-pinning here.
 
-- `shcl/shcl.h` <- https://github.com/yottacore/shcl @ `00fbb3e2e42ff68d7d5a4083b9b31f58abc0b4f7` (`dev`, before the `v3.0.0-beta.1` tag)
+- `shcl/shcl.h` <- https://github.com/yottacore/shcl @ `f2a8ad2aed34e6b78f812a6c5ef375288a6e5494` (`dev`, before the `v3.0.0-beta.1` tag)
 
 blake3 hash, C implementation, dual **CC0-1.0** and **Apache-2.0** - compiled into nemo, and keeps its `LICENSE` (the CC0 one, which is the simpler of the two to carry under GPL-2.0-only). Update by copying the named files out of `c/` at a newer tag and re-pinning here.
 
