@@ -377,7 +377,7 @@ check_commands (void)
 	options.lock = TRUE;
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_RAR, options.format, &options,
-					   "rar", "/tmp/out.rar", names);
+					   "rar", "/tmp/out.rar", names, NULL);
 	if (argv == NULL) {
 		g_printerr ("FAIL %s:%d: no rar command line built\n", __FILE__, __LINE__);
 		failures++;
@@ -413,7 +413,7 @@ check_commands (void)
 	options.recovery_record = FALSE;
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_RAR, options.format, &options,
-					   "rar", "/tmp/out.rar", names);
+					   "rar", "/tmp/out.rar", names, NULL);
 	check (has_arg (argv, "-s-"));
 	check (!has_prefix_arg (argv, "-rr"));
 	check (!has_arg (argv, "-k"));
@@ -421,6 +421,46 @@ check_commands (void)
 	check (!has_prefix_arg (argv, "-hp"));
 	g_strfreev (argv);
 	nemo_archive_options_clear (&options);
+
+	/* Links: -ol keeps them. Not keeping them means following, which is what
+	   rar does with no switch; -ola and -ol- would keep or drop them. A linked
+	   folder that is not followed is named as left out. */
+	{
+		GList *skip = g_list_append (NULL, (gpointer) "a folder/linked");
+
+		nemo_archive_options_init (&options);
+		options.format = NEMO_ARCHIVE_FORMAT_RAR;
+		options.store_links = TRUE;
+		argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_RAR, options.format, &options,
+						   "rar", "/tmp/out.rar", names, NULL);
+		check (has_arg (argv, "-ol"));
+		check (!has_arg (argv, "-ola") && !has_arg (argv, "-ol-"));
+		g_strfreev (argv);
+
+		options.store_links = FALSE;
+		options.follow_link_dirs = TRUE;
+		argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_RAR, options.format, &options,
+						   "rar", "/tmp/out.rar", names, NULL);
+		check (!has_prefix_arg (argv, "-ol"));
+		g_strfreev (argv);
+
+		options.follow_link_dirs = FALSE;
+		argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_RAR, options.format, &options,
+						   "rar", "/tmp/out.rar", names, skip);
+		check (!has_prefix_arg (argv, "-ol"));
+		check (has_arg (argv, "-xa folder/linked"));
+		g_strfreev (argv);
+
+		options.format = NEMO_ARCHIVE_FORMAT_7Z;
+		argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
+						   "7z", "/tmp/out.7z", names, skip);
+		check (has_arg (argv, "-x!a folder/linked"));
+		check (!has_arg (argv, "-snl"));
+		g_strfreev (argv);
+
+		nemo_archive_options_clear (&options);
+		g_list_free (skip);
+	}
 
 	/* 7z: the level is on its own scale, and encrypted headers are -mhe. */
 	nemo_archive_options_init (&options);
@@ -431,7 +471,7 @@ check_commands (void)
 	options.solid = TRUE;
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
-					   "7z", "/tmp/out.7z", names);
+					   "7z", "/tmp/out.7z", names, NULL);
 	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-t7z"));
 	check (has_arg (argv, "-mx=9"));
@@ -448,7 +488,7 @@ check_commands (void)
 	options.level = NEMO_ARCHIVE_LEVEL_STORE;
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
-					   "7z", "/tmp/out.7z", names);
+					   "7z", "/tmp/out.7z", names, NULL);
 	check (has_arg (argv, "-mx=0"));
 	check (has_arg (argv, "-ms=off"));
 	g_strfreev (argv);
@@ -460,7 +500,7 @@ check_commands (void)
 	options.split_size = 1024;
 
 	argv = nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_7Z, options.format, &options,
-					   "7z", "/tmp/out.zip", names);
+					   "7z", "/tmp/out.zip", names, NULL);
 	check (!has_unexpanded (argv));
 	check (has_arg (argv, "-tzip"));
 	check (has_arg (argv, "-v1024b"));
@@ -470,7 +510,7 @@ check_commands (void)
 	/* libarchive is not a command, so there is no command line to build. */
 	nemo_archive_options_init (&options);
 	check (nemo_archive_build_command (NEMO_ARCHIVE_BACKEND_LIBARCHIVE, options.format,
-					   &options, "x", "/tmp/out.zip", names) == NULL);
+					   &options, "x", "/tmp/out.zip", names, NULL) == NULL);
 	nemo_archive_options_clear (&options);
 
 	g_list_free (names);

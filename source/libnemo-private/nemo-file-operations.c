@@ -126,10 +126,16 @@ typedef struct {
 	/* Windows only, where a link can be either a .lnk shortcut or a real
 	   symlink and the menu offers both. Elsewhere there is one kind. */
 	gboolean want_symlink;
-	/* Windows only: what to make at the far end for each kind of link the
-	   source holds. Only meaningful once link_choice_set is TRUE. */
+	/* What to make at the far end for each kind of link the source holds.
+	   Only meaningful once link_choice_set is TRUE. */
 	NemoLinkChoice link_choice;
 	gboolean link_choice_set;
+	/* Inside a folder reached through a link that was followed, links are
+	   kept as they are where the destination allows, whatever the dialog
+	   said. The scan never looked in there, so the dialog asked nothing
+	   about them, and following one could come back round to the start. */
+	NemoLinkChoice link_keep;
+	int followed_depth;
 	/* From the Make link dialog. Only meaningful once link_options_set. */
 	NemoLinkOptions link_options;
 	gboolean link_options_set;
@@ -195,8 +201,8 @@ typedef struct {
 	goffset num_bytes;
 	int num_files_since_progress;
 	OpKind op;
-	/* Windows only: which kinds of link turned up while scanning. */
-	guint link_kinds;
+	/* How many of each kind of link turned up while scanning. */
+	NemoLinkCounts link_counts;
 } SourceInfo;
 
 typedef struct {
@@ -1409,7 +1415,7 @@ run_simple_dialog_va (CommonJob *job,
 typedef struct {
 	GtkWindow **parent_window;
 	GFile *destination;
-	guint present;
+	const NemoLinkCounts *counts;
 	guint supported;
 	gboolean is_move;
 	NemoLinkChoice choice;
@@ -1423,20 +1429,70 @@ do_run_link_dialog (gpointer _data)
 
 	data->accepted = nemo_link_choice_ask (*data->parent_window,
 					       data->destination,
-					       data->present,
+					       data->counts,
 					       data->supported,
 					       data->is_move,
 					       &data->choice);
 	return FALSE;
 }
 
+/* A test drives a copy with nobody there to answer a dialog. "keep" and "copy"
+   answer every row, and a list such as "file=copy,dir=junction" answers some,
+   leaving the rest as they would start. A row takes keep, copy, symlink or
+   junction. */
+static void
+force_link_choice (NemoLinkChoice *choice,
+                   const char     *forced)
+{
+	char **pairs;
+	int i;
+
+	if (g_strcmp0 (forced, "copy") == 0) {
+		memset (choice, 0, sizeof (*choice));
+		return;
+	}
+
+	pairs = g_strsplit (forced, ",", -1);
+	for (i = 0; pairs[i] != NULL; i++) {
+		char **pair = g_strsplit (pairs[i], "=", 2);
+		NemoLinkKind *row = NULL;
+		NemoLinkKind found = NEMO_LINK_NONE;
+
+		if (g_strcmp0 (pair[0], "file") == 0) {
+			row = &choice->file_symlink_as;
+			found = NEMO_LINK_FILE_SYMLINK;
+		} else if (g_strcmp0 (pair[0], "dir") == 0) {
+			row = &choice->dir_symlink_as;
+			found = NEMO_LINK_DIR_SYMLINK;
+		} else if (g_strcmp0 (pair[0], "junction") == 0) {
+			row = &choice->junction_as;
+			found = NEMO_LINK_JUNCTION;
+		}
+
+		if (row != NULL && pair[1] != NULL) {
+			if (g_strcmp0 (pair[1], "keep") == 0) {
+				*row = found;
+			} else if (g_strcmp0 (pair[1], "copy") == 0) {
+				*row = NEMO_LINK_NONE;
+			} else if (g_strcmp0 (pair[1], "symlink") == 0) {
+				*row = found == NEMO_LINK_FILE_SYMLINK ? NEMO_LINK_FILE_SYMLINK
+								       : NEMO_LINK_DIR_SYMLINK;
+			} else if (g_strcmp0 (pair[1], "junction") == 0) {
+				*row = NEMO_LINK_JUNCTION;
+			}
+		}
+		g_strfreev (pair);
+	}
+	g_strfreev (pairs);
+}
+
 /* Asked once, before anything is copied: what should each kind of link the
    source holds become at the far end. FALSE means the operation was called
    off. */
 static gboolean
-ask_about_links (CopyMoveJob *copy_job,
-                 GFile       *dest,
-                 guint        present)
+ask_about_links (CopyMoveJob          *copy_job,
+                 GFile                *dest,
+                 const NemoLinkCounts *counts)
 {
 	CommonJob *job = &copy_job->common;
 	RunLinkDialogData data;
@@ -1446,7 +1502,7 @@ ask_about_links (CopyMoveJob *copy_job,
 
 	copy_job->link_choice_set = FALSE;
 
-	if (present == 0) {
+	if (nemo_link_counts_kinds (counts) == 0) {
 		return TRUE;
 	}
 
@@ -1455,15 +1511,12 @@ ask_about_links (CopyMoveJob *copy_job,
 	   answer is at least visible rather than decided quietly. */
 	dest_path = g_file_peek_path (dest);
 	supported = (dest_path != NULL) ? nemo_link_kinds_supported (dest_path) : 0;
+	nemo_link_choice_init (&copy_job->link_keep, supported);
 
-	/* A test drives a copy with nobody there to answer a dialog. */
 	forced = g_getenv ("NEMO_LINK_COPY");
 	if (forced != NULL) {
-		if (g_strcmp0 (forced, "copy") == 0) {
-			memset (&copy_job->link_choice, 0, sizeof (copy_job->link_choice));
-		} else {
-			nemo_link_choice_init (&copy_job->link_choice, supported);
-		}
+		nemo_link_choice_init (&copy_job->link_choice, supported);
+		force_link_choice (&copy_job->link_choice, forced);
 		copy_job->link_choice_set = TRUE;
 		return TRUE;
 	}
@@ -1471,7 +1524,7 @@ ask_about_links (CopyMoveJob *copy_job,
 	memset (&data, 0, sizeof (data));
 	data.parent_window = &job->parent_window;
 	data.destination = dest;
-	data.present = present;
+	data.counts = counts;
 	data.supported = supported;
 	data.is_move = copy_job->is_move;
 
@@ -3200,7 +3253,17 @@ note_link_kind (GFile      *file,
 		return FALSE;
 	}
 
-	source_info->link_kinds |= kind;
+	switch (kind) {
+	case NEMO_LINK_FILE_SYMLINK:
+		source_info->link_counts.file_symlinks++;
+		break;
+	case NEMO_LINK_DIR_SYMLINK:
+		source_info->link_counts.dir_symlinks++;
+		break;
+	default:
+		source_info->link_counts.junctions++;
+		break;
+	}
 
 	return TRUE;
 }
@@ -4846,7 +4909,9 @@ plan_link_copy (CopyMoveJob  *copy_job,
 		return NEMO_LINK_NONE;
 	}
 
-	*wanted = nemo_link_choice_for (&copy_job->link_choice, found);
+	*wanted = nemo_link_choice_for (copy_job->followed_depth > 0 ? &copy_job->link_keep
+								     : &copy_job->link_choice,
+					found);
 	if (*wanted == NEMO_LINK_NONE && copy_job->is_move) {
 		*wanted = found;
 	}
@@ -4976,6 +5041,7 @@ copy_move_file (CopyMoveJob *copy_job,
 	NemoLinkKind link_wanted = NEMO_LINK_NONE;
 	char *link_target = NULL;
 	char *link_base_dir = NULL;
+	gboolean followed;
 	gboolean asked_overwrite = FALSE;
 	NemoSmallCopyResult small;
 	goffset small_size = 0;
@@ -5395,11 +5461,21 @@ copy_move_file (CopyMoveJob *copy_job,
 			same_fs = FALSE;
 		}
 
-		if (!copy_move_directory (copy_job, src, &dest, same_fs,
-					  would_recurse, dest_fs_type,
-					  source_info, transfer_info,
-					  debuting_files, skipped_file,
-					  readonly_source_fs)) {
+		/* A folder link being followed: what is under it is copied with
+		   links kept, see link_keep. */
+		followed = link_found != NEMO_LINK_NONE;
+		if (followed) {
+			copy_job->followed_depth++;
+		}
+		res = copy_move_directory (copy_job, src, &dest, same_fs,
+					   would_recurse, dest_fs_type,
+					   source_info, transfer_info,
+					   debuting_files, skipped_file,
+					   readonly_source_fs);
+		if (followed) {
+			copy_job->followed_depth--;
+		}
+		if (!res) {
 			/* destination changed, since it was an invalid file name */
 			g_assert (*dest_fs_type != NULL);
 			handled_invalid_filename = TRUE;
@@ -5603,7 +5679,7 @@ copy_job (GIOSchedulerJob *io_job,
 			    dest,
 			    &dest_fs_id,
 			    source_info.num_bytes);
-	if (!job_aborted (common) && !ask_about_links (job, dest, source_info.link_kinds)) {
+	if (!job_aborted (common) && !ask_about_links (job, dest, &source_info.link_counts)) {
 		abort_job (common);
 	}
 	g_object_unref (dest);
@@ -6246,7 +6322,7 @@ move_job (GIOSchedulerJob *io_job,
 			    NULL,
 			    source_info.num_bytes);
 	if (!job_aborted (common) &&
-	    !ask_about_links (job, job->destination, source_info.link_kinds)) {
+	    !ask_about_links (job, job->destination, &source_info.link_counts)) {
 		abort_job (common);
 	}
 	if (job_aborted (common)) {

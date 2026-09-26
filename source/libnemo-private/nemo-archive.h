@@ -135,14 +135,16 @@ char    *nemo_archive_each_name       (const char       *item_name,
 				       NemoArchiveFormat format);
 
 /* The command line a 7z or rar backend would be run with, in the base folder
-   holding the selection. Exposed so the switches can be checked without
-   spawning anything. */
+   holding the selection. leave_out holds paths relative to that folder, the
+   linked folders that are not to be followed. Exposed so the switches can be
+   checked without spawning anything. */
 char   **nemo_archive_build_command (NemoArchiveBackend        backend,
 				     NemoArchiveFormat         format,
 				     const NemoArchiveOptions *options,
 				     const char               *program,
 				     const char               *archive_path,
-				     GList                    *names);
+				     GList                    *names,
+				     GList                    *leave_out);
 
 /* "700 MB", "4480m", "1.5 GB" -> bytes. Returns FALSE on anything unreadable. */
 /* What the tool actually writes when splitting is on. `digits` is how wide the

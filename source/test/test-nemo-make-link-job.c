@@ -1,10 +1,11 @@
 /* Make link, through the real job, with what the dialog would have answered
- * handed in up front. One job per run, for the reason the link copy job test
- * gives: the queue starts a job only when the one before it says it is done.
+ * handed in up front.
  *
  * Argument: "relative" (default), "absolute", "hardlink", "junction",
- * "shortcut" (every part), "shortcut-absolute", "shortcut-portable", or
- * "names" for what links made beside their originals are called.
+ * "shortcut" (every part), "shortcut-absolute", "shortcut-portable", "names"
+ * for what links made beside their originals are called, or "every" for
+ * every answer the dialog can give, made both beside the originals and in
+ * another folder.
  */
 
 #include "test.h"
@@ -20,6 +21,7 @@
 #include <glib/gstdio.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "test-scratch.h"
 #include "test-check.h"
@@ -205,6 +207,204 @@ check_names (const char *src_dir, const char *payload, const char *folder,
 	g_list_free_full (file_only, g_free);
 }
 
+static const char *
+make_word (NemoMakeLink kind)
+{
+	switch (kind) {
+	case NEMO_MAKE_JUNCTION:
+		return "junction";
+	case NEMO_MAKE_HARDLINK:
+		return "hardlink";
+	case NEMO_MAKE_SHORTCUT:
+		return "shortcut";
+	default:
+		return "symlink";
+	}
+}
+
+/* What a link made from name comes out called: beside its original it says
+   what it is, before the extension except on a shortcut. */
+static char *
+made_name (const char *name, NemoMakeLink kind, gboolean beside)
+{
+	const char *dot = strrchr (name, '.');
+	char *stem;
+	char *made;
+
+	if (kind == NEMO_MAKE_SHORTCUT) {
+		return beside ? g_strdup_printf ("%s - shortcut.lnk", name)
+			      : g_strdup_printf ("%s.lnk", name);
+	}
+	if (!beside) {
+		return g_strdup (name);
+	}
+
+	stem = dot != NULL ? g_strndup (name, dot - name) : g_strdup (name);
+	made = g_strdup_printf ("%s - %s%s", stem, make_word (kind), dot != NULL ? dot : "");
+	g_free (stem);
+	return made;
+}
+
+/* One link, whatever kind was asked for, checked against what it was made
+   from. */
+static void
+check_made (const char *dir, const char *made, const char *original,
+	    NemoMakeLink kind, gboolean is_dir, const NemoLinkOptions *options)
+{
+	char *path = g_build_filename (dir, made, NULL);
+	char *target, *contents = NULL;
+	FILE *fp;
+
+	if (!g_file_test (path, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_SYMLINK)) {
+		g_printerr ("FAIL: no \"%s\"\n", made);
+		failures++;
+		g_free (path);
+		return;
+	}
+
+	switch (kind) {
+	case NEMO_MAKE_SYMLINK:
+		check (kind_of (path) == (is_dir ? NEMO_LINK_DIR_SYMLINK : NEMO_LINK_FILE_SYMLINK));
+		target = target_of (path);
+		check (target != NULL && g_path_is_absolute (target) == !options->relative);
+		g_free (target);
+		if (is_dir) {
+			check (g_file_test (path, G_FILE_TEST_IS_DIR));
+		} else {
+			check (g_file_get_contents (path, &contents, NULL, NULL) &&
+			       g_strcmp0 (contents, "payload") == 0);
+		}
+		break;
+	case NEMO_MAKE_JUNCTION:
+		check (kind_of (path) == NEMO_LINK_JUNCTION);
+		check (g_file_test (path, G_FILE_TEST_IS_DIR));
+		break;
+	case NEMO_MAKE_HARDLINK:
+		/* A second name: written through it, seen through the original. */
+		check (kind_of (path) == NEMO_LINK_NONE);
+		fp = g_fopen (path, "ab");
+		check (fp != NULL);
+		if (fp != NULL) {
+			fputs (" more", fp);
+			fclose (fp);
+		}
+		check (g_file_get_contents (original, &contents, NULL, NULL) &&
+		       g_strcmp0 (contents, "payload more") == 0);
+		break;
+	default:
+		check_shortcut (path, original, options->lnk_parts);
+		break;
+	}
+
+	g_free (contents);
+	g_free (path);
+}
+
+/* Every answer that changes what comes out. The path choice only matters
+   while a symlink is made, and the shortcut paths only while a shortcut is,
+   so they are only varied then. Each one in its own folder, since a hardlink
+   check writes to the original. */
+static void
+check_every (const char *tmp, guint supported, GtkWidget *window)
+{
+	static const NemoMakeLink folder_kinds[] = {
+		NEMO_MAKE_SYMLINK, NEMO_MAKE_JUNCTION, NEMO_MAKE_SHORTCUT
+	};
+	static const NemoMakeLink file_kinds[] = {
+		NEMO_MAKE_SYMLINK, NEMO_MAKE_HARDLINK, NEMO_MAKE_SHORTCUT
+	};
+	int number = 0;
+	int pick, fo, fi, rel, parts, beside;
+
+	/* 1 is the file alone, 2 the folder alone, 3 both. */
+	for (pick = 1; pick <= 3; pick++)
+	for (fo = 0; fo < (int) G_N_ELEMENTS (folder_kinds); fo++)
+	for (fi = 0; fi < (int) G_N_ELEMENTS (file_kinds); fi++)
+	for (rel = 0; rel <= 1; rel++)
+	for (parts = 1; parts <= (int) NEMO_LNK_ALL_PARTS; parts++)
+	for (beside = 0; beside <= 1; beside++) {
+		gboolean with_file = (pick & 1) != 0;
+		gboolean with_folder = (pick & 2) != 0;
+		NemoLinkOptions options = { folder_kinds[fo], file_kinds[fi], rel, (guint) parts };
+		gboolean symlink = (with_folder && options.folder_kind == NEMO_MAKE_SYMLINK) ||
+				   (with_file && options.file_kind == NEMO_MAKE_SYMLINK);
+		gboolean shortcut = (with_folder && options.folder_kind == NEMO_MAKE_SHORTCUT) ||
+				    (with_file && options.file_kind == NEMO_MAKE_SHORTCUT);
+		char *name, *root, *from, *to, *payload, *folder, *made;
+		GList *uris = NULL;
+		int before = failures;
+
+		/* Nothing new from a kind that is not in the selection, or from a
+		   choice that changes nothing for what is made. */
+		if ((!with_folder && fo > 0) || (!with_file && fi > 0) ||
+		    (!symlink && rel > 0) || (!shortcut && parts > 1)) {
+			continue;
+		}
+		if (symlink && !(supported & NEMO_LINK_FILE_SYMLINK)) {
+			continue;
+		}
+		if (with_folder && options.folder_kind == NEMO_MAKE_JUNCTION &&
+		    !(supported & NEMO_LINK_JUNCTION)) {
+			continue;
+		}
+
+		name = g_strdup_printf ("case-%03d", number++);
+		root = g_build_filename (tmp, name, NULL);
+		from = g_build_filename (root, "from", NULL);
+		to = beside ? g_strdup (from) : g_build_filename (root, "to", NULL);
+		payload = g_build_filename (from, "payload.txt", NULL);
+		folder = g_build_filename (from, "folder", NULL);
+		g_mkdir_with_parents (folder, 0700);
+		g_mkdir_with_parents (to, 0700);
+		check (g_file_set_contents (payload, "payload", -1, NULL));
+
+		if (with_file) {
+			uris = g_list_append (uris, uri_of (payload));
+		}
+		if (with_folder) {
+			uris = g_list_append (uris, uri_of (folder));
+		}
+
+		check (run_link_job (uris, to, &options, window));
+
+		if (with_file) {
+			made = made_name ("payload.txt", options.file_kind, beside);
+			check_made (to, made, payload, options.file_kind, FALSE, &options);
+			g_free (made);
+		}
+		if (with_folder) {
+			made = made_name ("folder", options.folder_kind, beside);
+			check_made (to, made, folder, options.folder_kind, TRUE, &options);
+			g_free (made);
+		}
+
+		/* The originals are still what they were. */
+		check (kind_of (payload) == NEMO_LINK_NONE);
+		check (kind_of (folder) == NEMO_LINK_NONE && g_file_test (folder, G_FILE_TEST_IS_DIR));
+
+		if (failures > before) {
+			g_printerr ("  in %s: %s%s%s, %s, parts %d, %s\n", name,
+				    with_file ? make_word (options.file_kind) : "",
+				    with_file && with_folder ? " and " : "",
+				    with_folder ? make_word (options.folder_kind) : "",
+				    rel ? "relative" : "absolute", parts,
+				    beside ? "beside" : "elsewhere");
+		}
+
+		g_list_free_full (uris, g_free);
+		g_free (folder);
+		g_free (payload);
+		g_free (to);
+		g_free (from);
+		g_free (root);
+		g_free (name);
+	}
+
+	if (failures == 0) {
+		g_print ("make link job (every): %d combinations, all checks passed\n", number);
+	}
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -226,7 +426,7 @@ main (int argc, char *argv[])
 
 	/* Portable needs the files where a variable covers them, and home is
 	   the one there is off Windows. */
-	if (g_strcmp0 (how, "shortcut-portable") == 0) {
+	if (g_strcmp0 (how, "shortcut-portable") == 0 || g_strcmp0 (how, "every") == 0) {
 		tmp = test_scratch_dir_in (g_get_home_dir (), "nemo-make-link-XXXXXX", NULL);
 	} else {
 		tmp = test_scratch_dir ("nemo-make-link-XXXXXX", NULL);
@@ -246,6 +446,12 @@ main (int argc, char *argv[])
 
 	supported = nemo_link_kinds_supported (dst_dir);
 
+	if (g_strcmp0 (how, "every") == 0) {
+		window = test_window_new ("make link test", 5);
+		gtk_widget_show (window);
+		check_every (tmp, supported, window);
+		return failures > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	}
 	if (g_strcmp0 (how, "names") == 0) {
 		window = test_window_new ("make link test", 5);
 		gtk_widget_show (window);
