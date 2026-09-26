@@ -45,6 +45,16 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 
 ### Bugs
 
+- 🔘 On Windows, moving a folder junction or a folder symlink ignores the link copy answer in three cases.
+	- Opened: 20260926-091948
+	- Reproduced: the Windows pipeline run on vm925w fails the new "Link copy job, every answer" test. Move with junctions made into symlinks, with folder links kept, and with folder links made into junctions each leave the wrong kind of link.
+	- Note: never run on Windows before this. Linux passes.
+
+- 🔘 On Windows, the new archive option combinations test fails.
+	- Opened: 20260926-092051
+	- Reproduced: the Windows pipeline run on vm925w. The log keeps only the last lines, which do not show the failing case.
+	- Note: never run on Windows before this. Linux passes.
+
 ### Features and enhancements
 
 - 🔘 Take SHCL 3.0.0-beta.1 from its published release, once there is one, and run the config tests against it.
@@ -1665,6 +1675,13 @@ Each item carries an `Opened:` date as its first sub-bullet, and a `Closed:` dat
 	- Verified: every mapped name present in both the Linux and Windows icon themes.
 
 #### Done - Features and enhancements
+
+- ✅ "Make link" dialog:
+	- Opened: 20260926-094941
+	- ✅ Add some extra space (ideally according to UI guidelines) between the folder & file options, and the "Symlink path" options - to visually indicate the latter is a different kind of decision.
+		- Done: the path row sits 12 pixels below the link type rows, which are 6 apart. That is the GNOME spacing between groups and within one.
+	- ✅ Shortcut flyover text: "On Windows, it's limited to programs that use the Windows shell library, such as Explorer.": -> "...such as Explorer (and Nemo Anywhere)."
+	- Closed: 20260926-095500
 
 - ✅ Link copy dialog:
 	- Opened: 20260925-163000

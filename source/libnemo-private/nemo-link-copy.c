@@ -962,8 +962,8 @@ set_shortcut_tooltip (GtkWidget *button)
 	gtk_widget_set_tooltip_text (button,
 		_("A Windows shortcut file (.lnk) that opens a folder, file or program at its "
 		  "original location. On Windows, it's limited to programs that use the Windows "
-		  "shell library, such as Explorer. Off Windows, only Nemo Anywhere can use them. "
-		  "Everything else sees a small file of that name."));
+		  "shell library, such as Explorer (and Nemo Anywhere). Off Windows, only Nemo "
+		  "Anywhere can use them. Everything else sees a small file of that name."));
 }
 
 static void
@@ -1113,6 +1113,12 @@ nemo_link_options_ask (GtkWindow       *parent,
 	gtk_widget_set_tooltip_text (d.absolute,
 		_("Keeps working when the link is moved. Stops working when the original is "
 		  "moved, or its drive letter or mount point changes."));
+	/* The path is a separate question from the link type, so it sits a group
+	   apart. The GNOME HIG puts 12 px between groups and 6 within one. A grid
+	   has one row spacing, so the rest goes on the row's widgets. */
+	gtk_widget_set_margin_top (d.path_label, 6);
+	gtk_widget_set_margin_top (d.absolute, 6);
+	gtk_widget_set_margin_top (d.relative, 6);
 	row++;
 
 	/* Say why something is grayed out. */
